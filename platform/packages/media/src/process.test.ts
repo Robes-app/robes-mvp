@@ -115,6 +115,26 @@ describe('processUpload', () => {
     }
   });
 
+  // A photo read waits for the master, not for `ready`: it must land before any rendition.
+  it('stores the master before it renders the renditions', async () => {
+    const h = harness();
+    const { assetId, key } = await h.upload(await solid(1200, 900).jpeg().toBuffer());
+    const order: string[] = [];
+    const deps = {
+      ...h.deps,
+      storage: {
+        ...h.deps.storage,
+        putObject: async (k: string, body: Uint8Array) => {
+          order.push(k);
+          await h.deps.storage.putObject(k, body);
+        },
+      },
+    };
+    expect(await processUpload(deps, key)).toMatchObject({ status: 'ready', assetId });
+    expect(order[0]).toBe(mediaKeys.master(USER, assetId));
+    expect(order).toHaveLength(1 + 3 * 2);
+  });
+
   it('cuts a crop asset out of its photo before rendering (padded, never under 28%)', async () => {
     const h = harness();
     const photo = await solid(1000, 800).jpeg().toBuffer();

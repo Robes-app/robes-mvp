@@ -47,6 +47,7 @@ test('a batch of photos becomes filed pieces', async ({ page }) => {
     categoryL2: 'Coats',
     material: 'wool',
     materialCheck: false,
+    brandCheck: false,
   });
   // A material is one id from the list, or none; a word off the list is refused.
   expect((await api.patch(pieceUrl, { data: { material: 'nylon' } })).status()).toBe(400);

@@ -74,9 +74,25 @@ export function renditionWidths(masterWidth: number): number[] {
   return widths.length > 0 ? widths : [masterWidth];
 }
 
-export async function renderImage(input: Uint8Array, format: ImageFormat): Promise<RenderedImage> {
+// The upright, metadata-free JPEG every other file is cut from, and the one a photo read sends.
+export async function renderMasterImage(
+  input: Uint8Array,
+  format: ImageFormat,
+): Promise<RenderedImage['master']> {
   try {
-    const master = await renderMaster(input);
+    return await renderMaster(input);
+  } catch (err) {
+    if (err instanceof RejectedImage) throw err;
+    // Prebuilt libvips has no HEVC decoder; HEIC needs a custom build (README → Media).
+    throw new RejectedImage(format === 'heic' ? 'heic_unsupported' : 'decode_failed');
+  }
+}
+
+// The sized renditions (AVIF and WebP at every width) and the blurhash: most of the render time.
+export async function renderFromMaster(
+  master: RenderedImage['master'],
+): Promise<Omit<RenderedImage, 'master'>> {
+  try {
     const jobs = renditionWidths(master.width).flatMap((width) =>
       RENDITION_FORMATS.map(async (fmt) => ({
         width,
@@ -85,12 +101,15 @@ export async function renderImage(input: Uint8Array, format: ImageFormat): Promi
       })),
     );
     const [blurhash, renditions] = await Promise.all([blurhashOf(master.data), Promise.all(jobs)]);
-    return { master, renditions, blurhash };
-  } catch (err) {
-    if (err instanceof RejectedImage) throw err;
-    // Prebuilt libvips has no HEVC decoder; HEIC needs a custom build (README → Media).
-    throw new RejectedImage(format === 'heic' ? 'heic_unsupported' : 'decode_failed');
+    return { renditions, blurhash };
+  } catch {
+    throw new RejectedImage('decode_failed');
   }
+}
+
+export async function renderImage(input: Uint8Array, format: ImageFormat): Promise<RenderedImage> {
+  const master = await renderMasterImage(input, format);
+  return { master, ...(await renderFromMaster(master)) };
 }
 
 // A piece's own crop out of a photo (several pieces from one photograph); the box is fractions of

@@ -228,6 +228,58 @@ describe('wardrobe repo', () => {
     expect((await wardrobe.get(ann, other.id))?.material).toBeNull();
   });
 
+  it('a brand read from the design carries a check until she answers it, never over hers', async () => {
+    const read = {
+      label: 'Lace blouse',
+      categoryL2: null,
+      categoryL3: null,
+      category: 'Tops',
+      color: 'Optic white',
+      colourShade: 'optic',
+      colourExtra: [],
+      print: null,
+      material: null,
+      price: null,
+      currency: null,
+      size: null,
+      notes: null,
+    };
+    const fresh = await wardrobe.create(ann, { label: 'New piece', status: 'reading' });
+    await pieces.apply(ann, fresh.id, {
+      ...read,
+      brand: 'Sézane',
+      itemDna: { brand_check: true, prompt_version: 5 },
+    });
+    expect(await wardrobe.get(ann, fresh.id)).toMatchObject({
+      brand: 'Sézane',
+      itemDna: { brand_check: true, prompt_version: 5 },
+    });
+
+    // Her answer clears the check on the brand alone.
+    await db
+      .updateTable('wardrobeItems')
+      .set({ itemDna: JSON.stringify({ brand_check: true, colour_check: true }) })
+      .where('id', '=', fresh.id)
+      .execute();
+    const named = await wardrobe.update(ann, fresh.id, { brand: 'Sézane' });
+    expect(named?.itemDna).toEqual({ colour_check: true });
+
+    // A brand she typed while Robes read is kept, and Robes' doubt about it is dropped.
+    const typed = await wardrobe.create(ann, {
+      label: 'New piece',
+      status: 'reading',
+      brand: 'Isabel Marant',
+    });
+    await pieces.apply(ann, typed.id, {
+      ...read,
+      brand: 'Sézane',
+      itemDna: { brand_check: true, prompt_version: 5 },
+    });
+    const kept = await wardrobe.get(ann, typed.id);
+    expect(kept?.brand).toBe('Isabel Marant');
+    expect(kept?.itemDna).toEqual({ prompt_version: 5 });
+  });
+
   it('a read that finds nothing leaves no piece, and only for the job owner', async () => {
     const reading = await wardrobe.create(ann, { label: 'New piece', status: 'reading' });
     // Another user's id discards nothing.

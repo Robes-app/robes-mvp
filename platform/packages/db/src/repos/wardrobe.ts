@@ -159,12 +159,13 @@ function withTaxonomy(fields: PieceFields): PieceColumns {
   return out;
 }
 
-// Her answer clears Robes' "check it" flag on that field: a colour, or a material ("Not sure"
-// included — she has looked at it).
+// Her answer clears Robes' "check it" flag on that field: a colour, a material ("Not sure"
+// included — she has looked at it) or a brand.
 function checksAnswered(fields: PieceFields) {
   const keys = [
     ...(fields.colourShade === undefined ? [] : ['colour_check']),
     ...(fields.material === undefined ? [] : ['material_check']),
+    ...(fields.brand === undefined ? [] : ['brand_check']),
   ];
   return keys.length === 0 ? {} : { itemDna: sql<string>`item_dna - ${sql.val(keys)}::text[]` };
 }

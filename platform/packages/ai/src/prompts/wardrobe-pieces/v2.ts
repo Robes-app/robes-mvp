@@ -90,11 +90,21 @@ function clamp01(v: number): number {
 // Every piece through the single read's shape, deduped by label + category, boxes clamped, the
 // match read against the list the prompt numbered, pairs folded, at most eight.
 export function toPieces(out: Output, closet: readonly ClosetEntry[]): PhotoPiece[] {
+  return foldPieces(out, closet, (raw) => toPiece({ ...raw, no_item_detected: false }), VERSION);
+}
+
+// The fold every version shares; `read` is that version's single-piece reader.
+export function foldPieces<R extends ReadPiece>(
+  out: { no_item_detected: boolean; pieces: R[] },
+  closet: readonly ClosetEntry[],
+  read: (raw: R) => AnalysedPiece,
+  version: number,
+): PhotoPiece[] {
   if (out.no_item_detected) return [];
   const seen = new Set<string>();
   const pieces: Omit<PhotoPiece, 'index'>[] = [];
   for (const raw of out.pieces) {
-    const analysed = toPiece({ ...raw, no_item_detected: false });
+    const analysed = read(raw);
     if (!analysed.label) continue;
     const key = `${analysed.label}|${raw.category}`.toLowerCase();
     if (seen.has(key)) continue;
@@ -104,7 +114,7 @@ export function toPieces(out: Output, closet: readonly ClosetEntry[]): PhotoPiec
     pieces.push({
       ...fields,
       category: raw.category,
-      itemDna: { ...analysed.itemDna, prompt_version: `${FEATURE}@${VERSION}` },
+      itemDna: { ...analysed.itemDna, prompt_version: `${FEATURE}@${version}` },
       box: normaliseBox(raw.box),
       match: owned ? { pieceId: owned.id, confidence: clamp01(raw.match_confidence) } : null,
     });

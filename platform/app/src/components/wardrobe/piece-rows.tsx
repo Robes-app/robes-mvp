@@ -136,6 +136,7 @@ export type RecordValues = PieceValues & {
   category?: string | null;
   colourCheck?: boolean;
   materialCheck?: boolean;
+  brandCheck?: boolean;
 };
 
 // The leaf of the category (redline 08): "Crew neck jumper", not the whole path — the family
@@ -199,6 +200,7 @@ export function RecordRows({
           label={copy.brand}
           value={v(values.brand)}
           hint={fields.hints.brand}
+          check={values.brandCheck && !reading ? copy.brandCheck : undefined}
           onClick={open('brand')}
         />
       </PieceSection>

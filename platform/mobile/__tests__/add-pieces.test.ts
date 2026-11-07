@@ -1,13 +1,21 @@
 import { parseShots, REVIEW_MAX, reviewHref, startRead } from '../src/features/wardrobe/add/flow';
-import { uploadPhoto } from '../src/features/wardrobe/add-pieces';
+import { UPLOAD_MAX, uploadPhoto, uploadResize } from '../src/features/wardrobe/add-pieces';
 import { api } from '../src/lib/api';
 import { mockFetch } from './support/api';
 import { ASSET_ID, JOB_ID } from './support/fixtures';
 
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
-const mockManipulate = jest.fn((_uri: string) => ({
-  renderAsync: async () => ({ saveAsync: async () => ({ uri: 'file:///tmp/converted.jpg' }) }),
-}));
+const mockResize = jest.fn();
+const mockManipulate = jest.fn((_uri: string) => {
+  const context = {
+    renderAsync: async () => ({ saveAsync: async () => ({ uri: 'file:///tmp/converted.jpg' }) }),
+    resize: (size: object) => {
+      mockResize(size);
+      return context;
+    },
+  };
+  return context;
+});
 jest.mock('expo-image-manipulator', () => ({
   ImageManipulator: { manipulate: (uri: string) => mockManipulate(uri) },
   SaveFormat: { JPEG: 'jpeg' },
@@ -109,4 +117,28 @@ test('a PNG uploads as PNG, untouched', async () => {
   await uploadPhoto(api, { uri: 'file:///tmp/shot.png', mimeType: 'image/jpeg' });
   expect(mockManipulate).not.toHaveBeenCalled();
   expect(calls[0]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/png', bytes: 2048 });
+});
+
+// The server keeps 2048 on the long side; a bigger photo is shrunk on the phone before it goes.
+test('a photo larger than the server keeps is shrunk to 2048 on its long side, aspect kept', async () => {
+  expect(UPLOAD_MAX).toBe(2048);
+  expect(uploadResize(4032, 3024)).toEqual({ width: 2048 });
+  expect(uploadResize(3024, 4032)).toEqual({ height: 2048 });
+  expect(uploadResize(2048, 1536)).toBeNull();
+  expect(uploadResize(null, 4032)).toBeNull();
+
+  mockManipulate.mockClear();
+  mockResize.mockClear();
+  const calls = mockFetch(UPLOAD);
+  await uploadPhoto(api, { uri: 'file:///tmp/big.jpg', width: 3024, height: 4032 });
+  expect(mockManipulate).toHaveBeenCalledWith('file:///tmp/big.jpg');
+  expect(mockResize).toHaveBeenCalledWith({ height: 2048 });
+  expect(calls[0]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/jpeg', bytes: 2048 });
+});
+
+test('a photo that already fits uploads untouched', async () => {
+  mockManipulate.mockClear();
+  mockFetch(UPLOAD);
+  await uploadPhoto(api, { uri: 'file:///tmp/small.jpg', width: 1600, height: 1200 });
+  expect(mockManipulate).not.toHaveBeenCalled();
 });

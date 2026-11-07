@@ -14,3 +14,22 @@ export async function waitFor<T>(
   }
   return value;
 }
+
+// A photo is readable once its master is stored: the renderer writes it before the renditions,
+// which are most of its time, so a read never waits for `ready`. A failed render is never read.
+export async function waitForMaster<T>(
+  load: () => Promise<T | undefined>,
+  status: (row: T) => string | null,
+  masterStored: (row: T) => Promise<boolean>,
+  opts: { timeoutMs: number; pollMs: number; signal: AbortSignal },
+): Promise<{ row: T | undefined; readable: boolean }> {
+  const check = async () => {
+    const row = await load();
+    const state = row ? status(row) : null;
+    const readable =
+      state === 'ready' || (state === 'pending' && !!row && (await masterStored(row)));
+    return { row, readable, pending: state === 'pending' };
+  };
+  const { row, readable } = await waitFor(check, (s) => s.pending && !s.readable, opts);
+  return { row, readable };
+}
