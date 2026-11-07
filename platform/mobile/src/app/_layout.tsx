@@ -1,3 +1,4 @@
+import '@/lib/crypto-polyfill';
 import '../global.css';
 import {
   Cormorant_300Light,
