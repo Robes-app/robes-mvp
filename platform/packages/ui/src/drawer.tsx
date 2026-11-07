@@ -5,6 +5,7 @@ import { Icon } from '@robes/icons/web';
 import type { ReactNode } from 'react';
 import { PrimaryScope } from './button';
 import { cn, focusRing } from './cn';
+import { CloseDisc } from './icon-button';
 
 export interface DrawerDone {
   label: string;
@@ -33,30 +34,28 @@ export interface DrawerProps {
 }
 
 // The drawer's header on its own, for the same anatomy drawn on a page (a deep link opens the
-// draft without a screen beneath it).
+// draft without a screen beneath it) or at the head of a bottom sheet (`inSheet`: 40px tall on
+// the sheet's own padding, no rule — Felix NotificationsSheet).
 export function DrawerHeader({
   title,
   onClose,
   closeLabel,
   done,
   titleAs: Title = 'p',
-}: Pick<DrawerProps, 'title' | 'onClose' | 'closeLabel' | 'done'> & {
+  inSheet = false,
+}: Pick<DrawerProps, 'onClose' | 'closeLabel' | 'done'> & {
+  title: ReactNode;
   titleAs?: 'p' | typeof RadixDialog.Title;
+  inSheet?: boolean;
 }) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-hairline border-b-[0.5px] px-3">
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label={closeLabel}
-        title={closeLabel}
-        className={cn(
-          "relative flex size-9 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted after:absolute after:-inset-1 after:content-[''] hover:text-ink",
-          focusRing,
-        )}
-      >
-        <Icon name="close" size={14} />
-      </button>
+    <header
+      className={cn(
+        'flex shrink-0 items-center justify-between',
+        inSheet ? 'h-10 gap-3' : 'h-14 border-hairline border-b-[0.5px] px-3',
+      )}
+    >
+      <CloseDisc label={closeLabel} onClick={onClose} />
       <Title className="type-label min-w-0 flex-1 truncate text-center text-ink-muted">
         {title}
       </Title>

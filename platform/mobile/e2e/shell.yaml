@@ -28,5 +28,5 @@ appId: host.exp.Exponent
     visible: 'Style DNA'
     timeout: 10000
 - tapOn: 'Account'
-- assertVisible: 'Gentle nudges to add pieces'
+- assertVisible: 'Privacy and data'
 - tapOn: 'Back'

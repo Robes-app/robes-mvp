@@ -139,7 +139,7 @@ test('the strip: 21 cells, today’s page centred, a ring for a plan and a dot f
   expect(screen.getByTestId(`diary-day-${PAST}`).props.accessibilityLabel).toBe(
     diary.strip.day('Tuesday', 1, true),
   );
-  // Felix: the current cell takes the warm fill and edge. Planned: an ink-soft ring on white (the
+  // Felix: today, picked, takes the warm fill and edge. Planned: an ink-soft ring on white (the
   // warm fill in the current cell). Worn: one warm-past dot (D11). (Hidden from readers: the
   // cell's label says it.)
   expect(todayCell.props.className).toContain('bg-selected border-selected-line');
@@ -164,6 +164,13 @@ test('a day with two looks shows the OOTD, then the second look, each with Swap 
   expect(screen.getByTestId(`diary-day-${TWO}`).props.accessibilityState).toEqual({
     selected: true,
   });
+  // Today keeps its fill; the day picked takes only the warm edge (Felix 3a, redline 7 Nov).
+  expect(screen.getByTestId(`diary-day-${DATE}`).props.className).toContain(
+    'bg-selected border-transparent',
+  );
+  expect(screen.getByTestId(`diary-day-${TWO}`).props.className).toContain(
+    'bg-bg border-selected-line',
+  );
   const card = screen.getByTestId('ootd-card');
   expect(card.props.accessibilityLabel).toBe(diary.slot.open('Weekend navy'));
   expect(screen.queryByTestId('ootd-stack')).toBeNull();

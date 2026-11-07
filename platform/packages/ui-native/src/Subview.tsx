@@ -8,6 +8,39 @@ import { useColor } from './color';
 import { FINE_EDGE, MIN_TOUCH, maxFontSizeMultiplier, typeStyle } from './scale';
 import { Text } from './Text';
 
+// The subview's 56pt header on its own, for a screen of the stack drawn the same way (Settings):
+// the back chevron, the tracked title centred, a 36pt spacer, over a 0.5pt rule.
+export function SubviewHeader({ title, onBack }: { title: string; onBack: () => void }) {
+  const ink = useColor('ink');
+  return (
+    <View
+      className="h-14 flex-row items-center gap-3 border-hairline px-3"
+      style={{ borderBottomWidth: FINE_EDGE }}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={ui.back}
+        onPress={onBack}
+        hitSlop={4}
+        className="items-center justify-center rounded-pill"
+        style={{ width: 36, height: 36 }}
+      >
+        <Icon name="back" size={20} color={ink} />
+      </Pressable>
+      <Text
+        accessibilityRole="header"
+        numberOfLines={1}
+        maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+        className="flex-1 text-center text-ink-muted"
+        style={typeStyle('label')}
+      >
+        {title}
+      </Text>
+      <View style={{ width: 36 }} />
+    </View>
+  );
+}
+
 // Felix's subview shell (TagsView, SeasonsView, WornView, SettingsView): a full-height cream page
 // that slides in over the screen, with a 56pt header — the back chevron, the tracked title
 // centred, a 36pt spacer — over a 0.5pt rule, a 20pt-padded body and an optional footer over a
@@ -28,7 +61,6 @@ export function Subview({
   testID?: string;
 }) {
   const insets = useSafeAreaInsets();
-  const ink = useColor('ink');
   return (
     <Modal
       visible={open}
@@ -38,31 +70,7 @@ export function Subview({
       testID={testID}
     >
       <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
-        <View
-          className="h-14 flex-row items-center gap-3 border-hairline px-3"
-          style={{ borderBottomWidth: FINE_EDGE }}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={ui.back}
-            onPress={onBack}
-            hitSlop={4}
-            className="items-center justify-center rounded-pill"
-            style={{ width: 36, height: 36 }}
-          >
-            <Icon name="back" size={20} color={ink} />
-          </Pressable>
-          <Text
-            accessibilityRole="header"
-            numberOfLines={1}
-            maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-            className="flex-1 text-center text-ink-muted"
-            style={typeStyle('label')}
-          >
-            {title}
-          </Text>
-          <View style={{ width: 36 }} />
-        </View>
+        <SubviewHeader title={title} onBack={onBack} />
         <PrimaryScope>
           <ScrollView
             keyboardShouldPersistTaps="handled"

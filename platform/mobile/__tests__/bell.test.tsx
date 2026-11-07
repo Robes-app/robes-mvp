@@ -1,5 +1,5 @@
 import type { NotificationItem } from '@robes/contracts';
-import { bell } from '@robes/copy';
+import { bell, ui } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Bell } from '../src/components/Bell';
 import { mockFetch, renderWithApi } from './support/api';
@@ -90,6 +90,47 @@ test('two items render with where each leads; a tap routes, × dismisses and the
   );
   expect(screen.queryByText(bell.receipts(2))).toBeNull();
   expect(screen.getByText(bell.logWear('Wednesday'))).toBeTruthy();
+});
+
+test('the sheet (Felix NotificationsSheet): the drawer header, a glyph by kind, and Done only closes', async () => {
+  const calls = mockFetch({
+    'GET /me/notifications': {
+      items: [
+        ...ITEMS,
+        {
+          key: 'overnight:22222222-2222-4222-8222-222222222222',
+          kind: 'overnight',
+          text: bell.overnight('today'),
+          line: null,
+          date: '2026-10-01',
+          lookId: '22222222-2222-4222-8222-222222222222',
+        },
+      ],
+    },
+  });
+  await renderWithApi(<Bell />);
+  await fireEvent.press(await screen.findByTestId('bell'));
+  // The header is the drawer's: × · the tracked title · the ink done disc; no question.
+  expect(await screen.findByRole('header', { name: bell.title })).toBeTruthy();
+  expect(screen.getByRole('button', { name: ui.close })).toBeTruthy();
+  // receipt, the diary's calendar, and the overnight look's `looks`.
+  for (const icon of ['receipt', 'calendar', 'looks'])
+    expect(screen.getByTestId(`bell-icon-${icon}`)).toBeTruthy();
+  // Every alert is a short task with no exclamation mark; the overnight one leads to the Lookbook.
+  expect(screen.getByText(bell.overnight('today'))).toBeTruthy();
+  expect(screen.getByText(bell.dest.overnight)).toBeTruthy();
+  for (const item of ITEMS) expect(item.text).not.toContain('!');
+
+  await fireEvent.press(screen.getByRole('button', { name: ui.done }));
+  await waitFor(() => expect(screen.queryByText(bell.receipts(2))).toBeNull());
+  // Done marks nothing read: no dismissal is sent and the dot stays.
+  expect(calls.some((c) => c.method === 'POST')).toBe(false);
+  expect(screen.getByTestId('bell-dot', { includeHiddenElements: true })).toBeTruthy();
+  // × closes the same way.
+  await fireEvent.press(screen.getByTestId('bell'));
+  await fireEvent.press(await screen.findByRole('button', { name: ui.close }));
+  await waitFor(() => expect(screen.queryByText(bell.receipts(2))).toBeNull());
+  expect(calls.some((c) => c.method === 'POST')).toBe(false);
 });
 
 test('with nothing waiting the bell carries no dot and the sheet says so', async () => {

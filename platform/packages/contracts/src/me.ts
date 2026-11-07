@@ -187,6 +187,20 @@ export const RegisterPushTokenInput = z.object({
 });
 export const PushTokenParams = z.object({ token: ExpoPushToken });
 
+// A failure the native app met and showed her (or swallowed), reported so it reaches the server's
+// logs even when PostHog is off. Short, no free text from her: the error's own name and message.
+export const ReportClientErrorInput = z.object({
+  where: z.string().trim().min(1).max(60),
+  name: z.string().max(60),
+  message: z.string().max(300),
+  appVersion: z
+    .string()
+    .regex(/^\d+(\.\d+)*$/)
+    .max(32),
+  analytics: z.boolean(),
+});
+export type ReportClientErrorInput = z.infer<typeof ReportClientErrorInput>;
+
 // You › Your model (M6 task 1): her picks over what her photo reads say. The swatches are data for
 // the pickers; the cell is the shared reference portrait her looks are rendered on.
 export const ModelPresence = z.enum(GENDER_IDENTITIES);

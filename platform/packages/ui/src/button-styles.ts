@@ -13,12 +13,15 @@ const variants = {
   // on `cream-200` that pair misses 4.5:1, and the floor wins (D1).
   chip: 'min-h-7 bg-surface-sunk text-ink hover:opacity-80 disabled:opacity-40',
   quiet: 'min-h-9 text-ink-muted hover:text-ink disabled:text-ink-faint',
+  // The consequence of a destructive confirm (Delete in an AlertDialog): the primary's pill in
+  // `danger` with a white label. Felix keeps danger off text; this fill is its one other use.
+  danger: 'min-h-12 bg-danger text-surface-raised hover:opacity-88 disabled:opacity-40',
 } as const;
 
 export type ButtonVariant = keyof typeof variants;
 
 // The ring that takes each short button's hit area to 44px: (44 − height) / 2 above and below.
-const hitRing: Record<Exclude<ButtonVariant, 'primary'>, string> = {
+const hitRing: Record<Exclude<ButtonVariant, 'primary' | 'danger'>, string> = {
   outline: 'after:-inset-y-0.5',
   chip: 'after:-inset-y-2',
   quiet: 'after:-inset-y-1',
@@ -42,9 +45,13 @@ export function buttonClasses({
           'rounded-pill uppercase',
           variant === 'chip'
             ? 'px-3 text-[9px] tracking-[0.16em]'
-            : cn('text-[10px] tracking-[0.22em]', variant === 'primary' ? 'px-7' : 'px-5'),
+            : cn(
+                'text-[10px] tracking-[0.22em]',
+                variant === 'primary' || variant === 'danger' ? 'px-7' : 'px-5',
+              ),
         ),
     variant !== 'primary' &&
+      variant !== 'danger' &&
       cn("relative after:absolute after:inset-x-0 after:content-['']", hitRing[variant]),
     block && 'w-full',
     variants[variant],

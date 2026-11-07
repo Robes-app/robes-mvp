@@ -4,7 +4,8 @@ import type { Look } from '@robes/contracts';
 import { lookbook } from '@robes/copy';
 import { dayMonth } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { DrillList, DrillRow } from '@robes/ui';
+import { useEffect, useRef, useState } from 'react';
 
 const copy = lookbook.savedLook.details;
 const seasonNames = lookbook.savedLook.seasonsView.names;
@@ -25,45 +26,9 @@ export function detailSummaries(look: Look): {
   };
 }
 
-// One drill row: a 9px tracked label, the summary (faint when empty), a 14px chevron.
-function Row({
-  label,
-  summary,
-  empty,
-  muted = false,
-  onOpen,
-  children,
-  testId,
-}: {
-  label: string;
-  summary: string | null;
-  empty: string;
-  muted?: boolean;
-  onOpen: () => void;
-  children?: ReactNode;
-  testId?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      data-testid={testId}
-      className={`flex h-12 w-full items-center gap-3 pr-3 pl-4 text-left ${focus}`}
-    >
-      <span className="type-label shrink-0 text-ink-muted">{label}</span>
-      <span
-        className={`flex min-w-0 flex-1 items-center justify-end gap-3 truncate font-sans text-[11px] ${summary && !muted ? 'text-ink-muted' : 'text-ink-faint'}`}
-      >
-        {children ?? summary ?? empty}
-      </span>
-      <Icon name="forward" size={14} className="shrink-0 text-ink-faint" />
-    </button>
-  );
-}
-
-// Felix's LookDetails (3e Details): Tags, Seasons, Worn and Caption as one drill-down card on
-// `white` with a 0.5px `rule-mid` edge and 48px rows. The caption edits inline on a `warm-line`
-// underline; Enter or blur keeps it. Native twin: mobile/src/features/looks/LookDetails.tsx.
+// Felix's LookDetails (3e Details): Tags, Seasons, Worn and Caption as one drill-down card — the
+// shared DrillList, with SettingsView. The caption edits inline on a `warm-line` underline; Enter
+// or blur keeps it. Native twin: mobile/src/features/looks/LookDetails.tsx.
 export function LookDetails({
   look,
   onTags,
@@ -92,42 +57,40 @@ export function LookDetails({
     if (next && next !== look.name) onCaption(next);
   };
   return (
-    <div
-      data-testid="look-details"
-      className="divide-y divide-hairline overflow-hidden rounded-soft border-[0.5px] border-rule-mid bg-surface-raised"
-    >
-      <Row
+    <DrillList testId="look-details">
+      <DrillRow
         label={copy.tags}
-        summary={summary.tags}
-        empty={copy.none}
-        onOpen={onTags}
+        value={summary.tags ?? copy.none}
+        muted={!summary.tags}
+        onClick={onTags}
         testId="details-tags"
       />
-      <Row
+      <DrillRow
         label={copy.seasons}
-        summary={summary.seasons}
-        empty={copy.yearRound}
-        onOpen={onSeasons}
+        value={
+          look.seasons.length ? (
+            <span className="flex items-center gap-1.5">
+              {look.seasons.map((s) => (
+                <span key={s} className="inline-flex items-center gap-1.5">
+                  <Icon name={s} size={12} />
+                  {look.seasons.length > 2 ? null : seasonNames[s]}
+                </span>
+              ))}
+            </span>
+          ) : (
+            copy.yearRound
+          )
+        }
+        muted={!look.seasons.length}
+        onClick={onSeasons}
         testId="details-seasons"
-      >
-        {look.seasons.length ? (
-          <span className="flex items-center gap-1.5">
-            {look.seasons.map((s) => (
-              <span key={s} className="inline-flex items-center gap-1.5">
-                <Icon name={s} size={12} />
-                {look.seasons.length > 2 ? null : seasonNames[s]}
-              </span>
-            ))}
-          </span>
-        ) : null}
-      </Row>
+      />
       {onWorn ? (
-        <Row
+        <DrillRow
           label={copy.worn}
-          summary={summary.worn}
-          empty={copy.notWorn}
+          value={summary.worn ?? copy.notWorn}
           muted
-          onOpen={onWorn}
+          onClick={onWorn}
           testId="details-worn"
         />
       ) : null}
@@ -163,25 +126,22 @@ export function LookDetails({
           </button>
         </div>
       ) : (
-        <button
-          type="button"
+        <DrillRow
+          label={copy.caption}
+          value={look.name}
           onClick={() => {
             setDraft(look.name);
             setEditing(true);
           }}
-          aria-label={copy.editCaption}
-          data-testid="details-caption"
-          className={`flex h-12 w-full items-center gap-3 pr-3 pl-4 text-left ${focus}`}
-        >
-          <span className="type-label shrink-0 text-ink-muted">{copy.caption}</span>
-          <span className="min-w-0 flex-1 truncate text-right font-sans text-[11px] text-ink-muted">
-            {look.name}
-          </span>
-          <span className="-mx-1 flex size-8 shrink-0 items-center justify-center rounded-pill text-ink">
-            <Icon name="pencil" size={14} />
-          </span>
-        </button>
+          ariaLabel={copy.editCaption}
+          testId="details-caption"
+          trailing={
+            <span className="-mx-1 flex size-8 shrink-0 items-center justify-center rounded-pill text-ink">
+              <Icon name="pencil" size={14} />
+            </span>
+          }
+        />
       )}
-    </div>
+    </DrillList>
   );
 }

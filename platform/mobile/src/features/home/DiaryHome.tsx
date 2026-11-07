@@ -152,7 +152,9 @@ export function DiaryHome({
   return (
     <ScrollView
       {...tabScroll}
-      contentContainerClassName="gap-6 px-5 pt-[22px] pb-8"
+      // 3a/3k pad 120 under the content so the discs' labels, the caption and the pager scroll
+      // clear of the tab bar (redline 7 Nov).
+      contentContainerClassName="gap-6 px-5 pt-[22px] pb-[120px]"
       keyboardShouldPersistTaps="handled"
       testID="diary-home"
       refreshControl={

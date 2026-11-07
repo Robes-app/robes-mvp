@@ -141,7 +141,7 @@ export const lookbook = {
     deleteTitle: 'Delete this look?',
     deleteBody: 'It leaves your Lookbook and the days it is on.',
     delete: 'Delete',
-    keep: 'Keep it',
+    cancel: 'Cancel',
     // The image manager: a strip of cards over the photo until Done.
     manager: {
       title: 'Images of this look',

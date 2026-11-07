@@ -61,7 +61,7 @@ describe('the bell', () => {
       {
         key: 'overnight:22222222-2222-4222-8222-222222222222',
         kind: 'overnight',
-        text: 'Robes dressed you for today',
+        text: 'See today’s look',
         line: 'Wool under a trench',
         date: '2026-11-02',
         lookId: '22222222-2222-4222-8222-222222222222',

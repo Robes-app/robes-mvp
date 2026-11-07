@@ -239,13 +239,19 @@ function SavedShell({
     >
       {h1 ? <h1 className="sr-only">{h1}</h1> : null}
       {children}
-      {over}
       {footer ? (
         <div
           className="fixed inset-x-0 bottom-0 z-30 border-hairline border-t-[0.5px] bg-bg pb-[max(1.375rem,env(safe-area-inset-bottom))]"
           data-testid="look-bar"
         >
           <div className="mx-auto flex w-full max-w-md items-center px-5 pt-3">{footer}</div>
+        </div>
+      ) : null}
+      {/* The floating sheets ride the screen, not the page: 8px above everything, the look's bar
+          included (redline 7 Nov). The layer lets taps through except where a sheet is. */}
+      {over ? (
+        <div className="pointer-events-none fixed inset-0 z-40 mx-auto max-w-md *:pointer-events-auto">
+          {over}
         </div>
       ) : null}
     </article>
@@ -648,10 +654,10 @@ function DraftBody({
           title: lookbook.savedLook.deleteTitle,
           message: lookbook.savedLook.deleteBody,
           actions: [
-            { label: lookbook.savedLook.delete, variant: 'primary' as const, onClick: del },
+            { label: lookbook.savedLook.delete, variant: 'danger' as const, onClick: del },
             {
-              label: lookbook.savedLook.keep,
-              variant: 'outline' as const,
+              label: lookbook.savedLook.cancel,
+              variant: 'quiet' as const,
               onClick: () => setConfirm(null),
             },
           ],
@@ -827,11 +833,12 @@ function DraftBody({
               onCaption={(name) => update.mutate({ params: { id: look.id }, input: { name } })}
             />
             {mode === 'edit' ? (
-              // Delete (D9): a destructive reveal at the foot of the look's details, asked first.
+              // Delete (D9), asked first. Felix keeps both reds off text: the link is ink-soft on a
+              // hairline underline, and danger fills only the confirm's Delete (redline 7 Nov).
               <button
                 type="button"
                 onClick={() => setConfirm('delete')}
-                className={`min-h-11 self-start font-sans text-danger text-sm underline underline-offset-4 hover:opacity-80 ${focus}`}
+                className={`min-h-11 self-start font-sans text-ink-muted text-sm underline decoration-[0.5px] underline-offset-4 hover:text-ink ${focus}`}
               >
                 {copy.delete}
               </button>

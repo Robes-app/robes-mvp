@@ -8,8 +8,9 @@ import { cx } from './cx';
 import { FINE_EDGE, fonts, MIN_TOUCH, maxFontSizeMultiplier } from './scale';
 
 // Felix's Button: `primary` (the ink pill), `outline` (white on the fine edge) and `chip` (the small
-// cream pill), plus `quiet` (a text action). Twin of web ui button-styles.ts.
-export type ButtonVariant = 'primary' | 'outline' | 'chip' | 'quiet';
+// cream pill), plus `quiet` (a text action) and `danger` (the primary's pill in `danger`, only for a
+// destructive confirm's consequence). Twin of web ui button-styles.ts.
+export type ButtonVariant = 'primary' | 'outline' | 'chip' | 'quiet' | 'danger';
 
 type Scope = { primaries: number };
 const globalScope: Scope = { primaries: 0 };
@@ -43,15 +44,23 @@ const container: Record<ButtonVariant, string> = {
   outline: 'rounded-pill border-rule-mid bg-surface-raised px-5',
   chip: 'rounded-pill bg-surface-sunk px-3',
   quiet: 'px-1',
+  danger: 'rounded-pill bg-danger px-7',
 };
 
-const height: Record<ButtonVariant, number> = { primary: 48, outline: 40, chip: 28, quiet: 36 };
+const height: Record<ButtonVariant, number> = {
+  primary: 48,
+  outline: 40,
+  chip: 28,
+  quiet: 36,
+  danger: 48,
+};
 
 const label: Record<ButtonVariant, string> = {
   primary: 'text-bg',
   outline: 'text-ink',
   chip: 'text-ink-muted',
   quiet: 'text-ink-muted',
+  danger: 'text-surface-raised',
 };
 
 // Felix's `label` caps: 10/500 at 0.22em on the pill buttons, 9 at 0.16em on a chip; a quiet
@@ -61,6 +70,7 @@ const labelType: Record<ButtonVariant, { fontSize: number; letterSpacing: number
   outline: { fontSize: 10, letterSpacing: 2.2 },
   chip: { fontSize: 9, letterSpacing: 1.44 },
   quiet: { fontSize: 12, letterSpacing: 0 },
+  danger: { fontSize: 10, letterSpacing: 2.2 },
 };
 
 export interface ButtonProps {
@@ -88,10 +98,12 @@ export function Button({
   className,
   testID,
 }: ButtonProps) {
-  usePrimaryGuard(variant === 'primary');
-  const onInk = useColor('bg');
+  const filled = variant === 'primary' || variant === 'danger';
+  // A danger fill is a filled button too: it counts against the one per screen (UX-26).
+  usePrimaryGuard(filled);
+  const onFill = useColor(variant === 'danger' ? 'surface-raised' : 'bg');
   const ink = useColor(variant === 'quiet' || variant === 'chip' ? 'ink-muted' : 'ink');
-  const iconColor = variant === 'primary' ? onInk : ink;
+  const iconColor = filled ? onFill : ink;
   const inactive = disabled || loading;
   const text = loading ? loadingLabel : children;
 
@@ -104,7 +116,7 @@ export function Button({
       disabled={inactive}
       testID={testID}
       onPress={(event) => {
-        if (variant === 'primary') {
+        if (filled) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         }
         onPress(event);
@@ -178,3 +190,34 @@ export function IconButton({
     </Pressable>
   );
 }
+
+// Felix's close: a 36pt `cream-200` disc with a 14pt ink-soft ×, its hit area grown to 44 — on every
+// drawer and sheet (redline 7 Nov). Twin of web ui CloseDisc.
+export function CloseDisc({
+  label,
+  onPress,
+  className,
+  testID,
+}: {
+  label: string;
+  onPress: (event: GestureResponderEvent) => void;
+  className?: string;
+  testID?: string;
+}) {
+  const muted = useColor('ink-muted');
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      hitSlop={(MIN_TOUCH - CLOSE_DISC) / 2}
+      testID={testID}
+      style={{ width: CLOSE_DISC, height: CLOSE_DISC }}
+      className={cx('items-center justify-center rounded-pill bg-surface-sunk', className)}
+    >
+      <Icon name="close" size={14} color={muted} />
+    </Pressable>
+  );
+}
+
+const CLOSE_DISC = 36;

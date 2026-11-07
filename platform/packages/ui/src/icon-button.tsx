@@ -40,3 +40,28 @@ export function IconButton({
     </button>
   );
 }
+
+// Felix's close: a 36px `cream-200` disc with a 14px ink-soft ×, its hit area grown to 44 — on every
+// drawer and sheet (redline 7 Nov). Twin of ui-native CloseDisc.
+export function CloseDisc({
+  label,
+  type = 'button',
+  className,
+  ...rest
+}: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'aria-label'> & { label: string }) {
+  return (
+    <button
+      {...rest}
+      type={type}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "relative flex size-9 shrink-0 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted after:absolute after:-inset-1 after:content-[''] hover:text-ink",
+        focusRing,
+        className,
+      )}
+    >
+      <Icon name="close" size={14} />
+    </button>
+  );
+}

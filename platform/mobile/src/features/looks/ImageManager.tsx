@@ -25,7 +25,6 @@ import {
   View,
 } from 'react-native';
 import { PICKER_OPTIONS, uploadPhoto } from '@/features/wardrobe/add-pieces';
-import { SettingsRow } from '@/features/you/Settings';
 import { renditionUri } from '@/lib/images';
 import { LookPicture } from './LookPicture';
 import { localPhoto, rememberLocalPhoto, type StageUpdate } from './look-images';
@@ -209,18 +208,29 @@ export function ImageManager({
       >
         <Icon name="check" size={18} color={bg} />
       </Pressable>
+      {/* The 3k chooser (redline 7 Nov): eyebrow, question, Felix's icon rows, the close disc. */}
       <Sheet
         open={choosing}
         onClose={() => setChoosing(false)}
         onClosed={chosen}
+        eyebrow={copy.title}
         title={copy.add}
         closeButton
-      >
-        <View className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
-          <SettingsRow first label={wardrobe.add.doors.photograph} onPress={() => pick('camera')} />
-          <SettingsRow label={wardrobe.add.doors.cameraRoll} onPress={() => pick('library')} />
-        </View>
-      </Sheet>
+        rows={[
+          {
+            icon: 'camera',
+            label: wardrobe.add.doors.photograph,
+            onPress: () => pick('camera'),
+            testID: 'add-photo-camera',
+          },
+          {
+            icon: 'image',
+            label: wardrobe.add.doors.cameraRoll,
+            onPress: () => pick('library'),
+            testID: 'add-photo-library',
+          },
+        ]}
+      />
     </View>
   );
 }

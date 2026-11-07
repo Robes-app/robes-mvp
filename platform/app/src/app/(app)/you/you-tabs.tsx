@@ -1,11 +1,13 @@
 'use client';
 
-import { SegmentedControl } from '@robes/ui';
+import { Tabs } from '@robes/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 
 type Tab = 'style' | 'account';
 
+// Felix's underline Tabs (Style profile · Account) over the tab's drill card, 16px below. The tab
+// rides in the URL so a row's page comes back to it. Native twin: features/you/YouMenu.tsx.
 export function YouTabs({
   initial,
   style,
@@ -24,20 +26,18 @@ export function YouTabs({
     setTab(next);
     router.replace(next === 'account' ? `${pathname}?tab=account` : pathname, { scroll: false });
   };
+  const current = tab === 'style' ? labels.style : labels.account;
   return (
-    // The tab header (legacy .rb-seg2): centred, 260 wide on the web, the column's width on a phone.
-    <div className="flex flex-col gap-[26px]">
-      <SegmentedControl
-        className="w-full self-center md:w-[260px]"
+    <div className="flex flex-col gap-4">
+      <Tabs
         label={labels.label}
-        value={tab}
-        options={[
-          { value: 'style', label: labels.style },
-          { value: 'account', label: labels.account },
-        ]}
-        onChange={choose}
+        items={[labels.style, labels.account]}
+        value={current}
+        onChange={(item) => choose(item === labels.account ? 'account' : 'style')}
       />
-      <div>{tab === 'style' ? style : account}</div>
+      <div role="tabpanel" aria-label={current}>
+        {tab === 'style' ? style : account}
+      </div>
     </div>
   );
 }
