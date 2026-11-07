@@ -5,6 +5,13 @@ import { mockFetch } from './support/api';
 import { ASSET_ID, JOB_ID } from './support/fixtures';
 
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
+const mockManipulate = jest.fn((_uri: string) => ({
+  renderAsync: async () => ({ saveAsync: async () => ({ uri: 'file:///tmp/converted.jpg' }) }),
+}));
+jest.mock('expo-image-manipulator', () => ({
+  ImageManipulator: { manipulate: (uri: string) => mockManipulate(uri) },
+  SaveFormat: { JPEG: 'jpeg' },
+}));
 
 const PUT_URL = 'http://minio.test/robes/uploads/x/original?sig=1';
 const UPLOAD = {
@@ -44,8 +51,9 @@ test('a photo goes presigned PUT → complete, then its read starts', async () =
     `POST /api/v1/uploads/${ASSET_ID}/complete`,
     'POST /api/v1/wardrobe/photo-reads',
   ]);
-  // No file size from the picker: the file's own size is declared, and the signed headers are sent.
-  expect(calls[0]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/heic', bytes: 2048 });
+  // The picker said HEIC but the bytes are a JPEG: the bytes decide. No file size from the picker:
+  // the file's own size is declared, and the signed headers are sent.
+  expect(calls[0]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/jpeg', bytes: 2048 });
   expect(calls[1]?.headers).toEqual({ 'content-type': 'image/jpeg' });
   expect(calls[3]?.body).toEqual({ assetId: ASSET_ID });
 });
@@ -82,4 +90,23 @@ test("Review's shots survive the trip through the route, and only well-formed on
   expect(parseShots(JSON.stringify([{ uri: 1 }, ...shots]))).toEqual(shots);
   const many = Array.from({ length: 20 }, (_, i) => ({ uri: `file:///${i}`, width: 1, height: 1 }));
   expect(parseShots(JSON.stringify(many))).toHaveLength(REVIEW_MAX);
+});
+
+// 7 Nov: the iOS picker handed back the original HEIC labelled image/jpeg, and every such photo
+// failed in the renderer (heic_unsupported).
+test('a HEIC photo labelled JPEG is re-encoded to JPEG on the phone before it uploads', async () => {
+  mockManipulate.mockClear();
+  const calls = mockFetch(UPLOAD);
+  await uploadPhoto(api, { uri: 'file:///tmp/IMG_1.heic', mimeType: 'image/jpeg' });
+  expect(mockManipulate).toHaveBeenCalledWith('file:///tmp/IMG_1.heic');
+  expect(calls[0]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/jpeg', bytes: 2048 });
+  expect(calls.map((c) => c.method)).toEqual(['POST', 'PUT', 'POST']);
+});
+
+test('a PNG uploads as PNG, untouched', async () => {
+  mockManipulate.mockClear();
+  const calls = mockFetch(UPLOAD);
+  await uploadPhoto(api, { uri: 'file:///tmp/shot.png', mimeType: 'image/jpeg' });
+  expect(mockManipulate).not.toHaveBeenCalled();
+  expect(calls[0]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/png', bytes: 2048 });
 });

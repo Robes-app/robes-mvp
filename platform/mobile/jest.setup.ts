@@ -40,8 +40,20 @@ jest.mock('expo-file-system', () => ({
   File: class {
     size: number;
     exists = true;
+    path: string;
     constructor(path: string) {
+      this.path = path;
       this.size = path.includes('empty') ? 0 : 2048;
+    }
+    // The first bytes say the format: a `heic` or `png` path is that, anything else a JPEG.
+    open() {
+      const path = this.path;
+      const head = path.includes('heic')
+        ? [0, 0, 0, 0x28, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]
+        : path.includes('png')
+          ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]
+          : [0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1];
+      return { readBytes: async () => new Uint8Array(head), close: () => undefined };
     }
     async upload(url: string, opts: { httpMethod: string; headers?: Record<string, string> }) {
       const res = await fetch(url, { method: opts.httpMethod, headers: opts.headers });
