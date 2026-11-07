@@ -41,3 +41,9 @@ example
 # generated native folders
 /ios
 /android
+
+# Signing material used by local EAS builds; lives in ~/Projects/ios-deployment-stuff/robes.
+credentials.json
+*.p12
+*.p8
+*.mobileprovision
