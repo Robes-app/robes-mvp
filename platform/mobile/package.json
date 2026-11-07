@@ -71,7 +71,9 @@
     "expo:doctor": "expo-doctor",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "e2e": "./e2e/run.sh"
+    "e2e": "./e2e/run.sh",
+    "testflight": "npx eas-cli@latest build --profile staging --platform ios --non-interactive && npx eas-cli@latest submit --profile staging --platform ios --latest --non-interactive --what-to-test \"$(node -p \"require('./testflight.json').whatToTest\")\"",
+    "store:push": "npx eas-cli@latest metadata:push --profile production"
   },
   "private": true,
   "jest": {

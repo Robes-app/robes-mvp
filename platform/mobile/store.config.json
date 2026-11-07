@@ -1,0 +1,27 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "categories": ["LIFESTYLE"],
+    "info": {
+      "en-GB": {
+        "title": "Robes: Your Personal Stylist",
+        "subtitle": "Daily looks from your wardrobe",
+        "keywords": [
+          "closet",
+          "organizer",
+          "outfit planner",
+          "ootd",
+          "lookbook",
+          "what to wear",
+          "clothes",
+          "try on",
+          "virtual",
+          "weather",
+          "ideas"
+        ],
+        "marketingUrl": "https://www.byrobes.com",
+        "privacyPolicyUrl": "https://app.byrobes.com/legal/privacy"
+      }
+    }
+  }
+}
