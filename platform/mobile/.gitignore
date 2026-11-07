@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# EAS local credentials (signing files live in ~/Projects/ios-deployment-stuff/robes).
+credentials.json
