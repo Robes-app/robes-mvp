@@ -145,6 +145,8 @@ Each PR: native first, the web twin in the same PR, a comment naming the twin, t
 
 **Acceptance (§10 10, 4a).** Filter › Browns on the seed wardrobe shows Wool jacket, Leather tote, Check shacket.
 
+**As built (9 Nov).** Owned's filters are server-side (`wardrobe.list` and `wardrobe.summary` take `seasons[]`, `wearFor[]`, `colourFamilies[]`, `brand`); the Wishlist filters its small list in the client by category, colour family and brand (a wish's retailer counts as its brand), and leaves SEASON and WEAR IT FOR aside until wishes carry them (the migration waits for PR 6, with the wish detail page). The 3-up tile carries no star: the Hero Rack is set from the list view and the piece's page. The dock badge is the unfiltered total; none at zero (R11). A wish still opens nothing on tap until PR 6.
+
 ### PR 4 · Draft Look: the Rack card, the styling card and the Shop toggle
 
 `features/looks/DraftLook.tsx`, `PieceList.tsx`, `PiecePicker.tsx` [`components/looks/draft-look.tsx`, `piece-list.tsx`, `piece-picker.tsx`]:

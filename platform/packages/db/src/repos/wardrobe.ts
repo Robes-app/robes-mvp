@@ -93,8 +93,12 @@ export interface ListPiecesQuery {
   category?: string | undefined;
   categoryL2?: string | undefined;
   seasonBand?: SeasonBand | undefined;
+  // The Front Door's filters (PRD rev 3 §7.1a): seasons (with `year_round`), colour families and
+  // wear-it-for tags, each a list OR'd within itself.
+  seasons?: readonly string[] | undefined;
   colourFamily?: string | undefined;
-  wearFor?: string | undefined;
+  colourFamilies?: readonly string[] | undefined;
+  wearFor?: readonly string[] | string | undefined;
   brand?: string | undefined;
 }
 
@@ -181,14 +185,25 @@ export function wardrobeRepo(db: Db) {
     if (q.category) query = query.where('category', '=', q.category);
     if (q.categoryL2) query = query.where('categoryL2', '=', q.categoryL2);
     if (q.seasonBand) query = query.where('seasonBand', '=', q.seasonBand);
-    // Refine by colour family: the pieces whose shade sits in it (an unknown family matches none).
-    if (q.colourFamily) {
-      query = query.where('colourShade', 'in', [...familyShadeIds(q.colourFamily), '']);
+    // The season rule (D12, PRD §2.5): a piece with no season answers any season; Year round
+    // returns those; otherwise the piece's seasons and the picks must meet.
+    if (q.seasons?.length) {
+      const picked = q.seasons.filter((season) => season !== 'year_round');
+      query = query.where(
+        sql<boolean>`(cardinality(seasons) = 0 or seasons && ${sql.val(picked)}::text[])`,
+      );
     }
-    // Refine by brand (case-insensitive) and by what she wears it for (a wear_for tag of hers).
+    // Refine by colour family: the pieces whose shade sits in one (an unknown family matches none).
+    const families = [...(q.colourFamilies ?? []), ...(q.colourFamily ? [q.colourFamily] : [])];
+    if (families.length) {
+      query = query.where('colourShade', 'in', [...families.flatMap(familyShadeIds), '']);
+    }
+    // Refine by brand (case-insensitive) and by what she wears it for (wear_for tags of hers).
     if (q.brand) query = query.where(sql<boolean>`lower(brand) = lower(${q.brand})`);
-    const { wearFor } = q;
-    if (wearFor) {
+    const wearFor = (typeof q.wearFor === 'string' ? [q.wearFor] : (q.wearFor ?? [])).map((w) =>
+      w.toLowerCase(),
+    );
+    if (wearFor.length) {
       query = query.where((eb) =>
         eb.exists(
           eb
@@ -202,7 +217,7 @@ export function wardrobeRepo(db: Db) {
             .whereRef('tagPieces.wardrobeItemId', '=', 'wardrobeItems.id')
             .where('tagPieces.userId', '=', userId)
             .where('tags.kind', '=', 'wear_for')
-            .where(sql<boolean>`lower(tags.label) = lower(${wearFor})`),
+            .where(sql<boolean>`lower(tags.label) = any(${sql.val(wearFor)}::text[])`),
         ),
       );
     }
@@ -555,11 +570,14 @@ export function wardrobeRepo(db: Db) {
       return rows.map((r) => r.label);
     },
 
-    // The category tabs: how many pieces she has in each category.
-    async categoryCounts(userId: UserId): Promise<{ category: string; count: number }[]> {
-      const rows = await active()
+    // The category chips: how many pieces she has in each category under the sheet's filters
+    // (the category itself set aside, so every chip keeps its count).
+    async categoryCounts(
+      userId: UserId,
+      q: PieceFilters = {},
+    ): Promise<{ category: string; count: number }[]> {
+      const rows = await matching(userId, { ...q, category: undefined })
         .select(['category', (eb) => eb.fn.countAll<string>().as('n')])
-        .where('userId', '=', userId)
         .groupBy('category')
         .execute();
       return rows.map((r) => ({ category: r.category, count: Number(r.n) }));

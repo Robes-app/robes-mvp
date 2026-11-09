@@ -318,16 +318,24 @@ export const wardrobe = {
   newPiece: 'New piece',
   reading: 'Robes is reading this piece…',
   noPieceFound: 'Robes couldn’t see a piece in this photo.',
-  // Beta's premise: the look is built from her photographs.
+  // The empty wardrobe (Front Door PRD rev 3 §7.2): a hanger on a white disc, one line, one door.
   empty: {
-    title: 'Every look starts with a photograph.',
-    body: 'Catalogue your wardrobe, or photograph what you’re wearing now.',
-    action: 'Catalogue your wardrobe',
+    title: 'Your wardrobe is empty',
+    body: 'Add pieces from a photo, a product link or a receipt. Robes fills in the details for you to review.',
+    action: 'Add pieces',
   },
   deleted: 'Piece removed.',
   undo: 'Undo',
-  // The header's segment reads Wardrobe (beta); the list it opens is still "Pieces".
-  segments: { pieces: 'Pieces', wardrobe: 'Wardrobe', wishlist: 'Wishlist', inbox: 'Inbox' },
+  // The header's tabs (Front Door PRD rev 3 §7.1): Owned · Wishlist · Shop (not open yet). The
+  // list under Owned is still "Pieces"; Inbox names the receipts.
+  segments: {
+    pieces: 'Pieces',
+    wardrobe: 'Wardrobe',
+    owned: 'Owned',
+    wishlist: 'Wishlist',
+    shop: 'Shop',
+    inbox: 'Inbox',
+  },
   removePiece: (label: string): string => `Remove ${label}`,
   photoAlt: (label: string): string => `Photo of ${label}`,
   wishlistEmpty: {
@@ -464,6 +472,8 @@ export const wardrobe = {
     boughtToast: (label: string): string => `${label} is in your wardrobe now.`,
     removed: 'Removed from your wishlist.',
     remove: (label: string): string => `Remove ${label}`,
+    // The filled heart on a wish's photograph (PRD rev 3 §7.2) lets it go.
+    unwish: (label: string): string => `Remove ${label} from your wishlist`,
   },
   // The one header (legacy a268ef0/809b13e): track + circle, category tabs, the 32pt count row.
   header: {
@@ -506,6 +516,8 @@ export const wardrobe = {
     allBrands: 'All brands',
     show: (n: number): string => (n === 1 ? 'Show 1 piece' : `Show ${n} pieces`),
     clear: 'Clear all',
+    // The brand select, open: the list to pick from.
+    brands: 'Brands',
     nothing: 'Nothing in your wardrobe here.',
     wishNothing: 'Nothing on your wishlist here.',
     showEverything: 'Show everything',

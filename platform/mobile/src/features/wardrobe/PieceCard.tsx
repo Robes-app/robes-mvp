@@ -293,11 +293,18 @@ export function CardTile({
   status,
   action,
   onOpen,
+  compact = false,
+  onImage,
 }: {
   piece: CardPiece;
   status: CardStatus;
-  action: ReactNode;
+  action?: ReactNode;
   onOpen?: () => void;
+  // The Front Door's 3-up tile (PRD rev 3 §2.4): the photograph, the serif name on one line, the
+  // meta; no eyebrow.
+  compact?: boolean;
+  // On the photograph (a wish's heart), bottom right.
+  onImage?: ReactNode;
 }) {
   return (
     <View className="flex-1 overflow-hidden rounded-soft border border-hairline bg-surface-raised">
@@ -307,19 +314,50 @@ export function CardTile({
         onPress={onOpen}
         disabled={!onOpen}
       >
-        <View className="bg-surface-raised p-3.5">
+        <View className={compact ? 'bg-surface-raised p-1.5' : 'bg-surface-raised p-3.5'}>
           <View className="overflow-hidden rounded-crisp">
-            <Photo piece={piece} width={180} aspect="3:4" fit="contain" />
+            <Photo piece={piece} width={compact ? 120 : 180} aspect="3:4" fit="contain" />
           </View>
+          {onImage ? <View className="absolute right-2 bottom-2">{onImage}</View> : null}
         </View>
-        <View className="gap-[3px] px-3 pt-2.5 pb-3">
-          <Eyebrow piece={piece} />
-          <Name piece={piece} />
-          <Status status={status} />
-        </View>
+        {compact ? (
+          <View className="gap-[2px] px-2 pt-1.5 pb-2.5">
+            <Text
+              numberOfLines={1}
+              className="text-ink"
+              style={{ fontFamily: fonts.displayRegular, fontSize: 15, lineHeight: 19 }}
+            >
+              {nameWithoutBrand(piece.label, piece.brand)}
+            </Text>
+            <Status status={status} />
+          </View>
+        ) : (
+          <View className="gap-[3px] px-3 pt-2.5 pb-3">
+            <Eyebrow piece={piece} />
+            <Name piece={piece} />
+            <Status status={status} />
+          </View>
+        )}
       </Pressable>
-      <View className="absolute top-1.5 right-1.5">{action}</View>
+      {action ? <View className="absolute top-1.5 right-1.5">{action}</View> : null}
     </View>
+  );
+}
+
+// The filled heart on a wish's photograph (PRD rev 3 §7.2): a tap lets the wish go.
+export function HeartButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const ink = useColor('ink');
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      hitSlop={8}
+      style={{ width: 28, height: 28 }}
+      className="items-center justify-center rounded-pill bg-surface-raised/90"
+    >
+      <Icon name="heart" size={14} color={ink} filled />
+    </Pressable>
   );
 }
 

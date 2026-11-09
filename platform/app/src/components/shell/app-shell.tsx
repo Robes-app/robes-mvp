@@ -1,5 +1,6 @@
 'use client';
 
+import { useApi } from '@robes/api-client/react';
 import type { Features } from '@robes/contracts';
 import { nav, shell } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
@@ -93,6 +94,9 @@ export function AppShell({
   useCommandHotkey(toggleCommand);
   useDeviceLocation();
   const current = activeRoot(pathname);
+  // The Wardrobe's badge counts every piece she owns (Front Door PRD rev 3, Q1); none at zero.
+  const summary = useApi('wardrobe.summary');
+  const owned = summary.data?.total ?? 0;
   const inFlow = isFlowPath(pathname) || pushed;
   const { scrolled, minimised, restore } = useScrollChrome(MINIMISES.has(current), pathname);
   const create = useMemo(() => createItems(features), [features]);
@@ -245,7 +249,12 @@ export function AppShell({
         ) : (
           <ul className={`flex h-16 items-center rounded-dock border p-1 ${DOCK}`}>
             {NAV_ITEMS.map((item) => (
-              <TabLink key={item.href} item={item} active={current === item.href} />
+              <TabLink
+                key={item.href}
+                item={item}
+                active={current === item.href}
+                badge={item.href === '/wardrobe' ? owned : 0}
+              />
             ))}
           </ul>
         )}
@@ -303,12 +312,23 @@ const DOCK = 'border-dock-line bg-dock-glass backdrop-blur-dock';
 // Felix's dock items: a 20 glyph over the dock-label (9.5/500 at 0.04em), ink-soft; the current one
 // ink with a 24×2 ink bar above the glyph. Labels are authored in sentence case and capitalised
 // for display only.
-function TabLink({ item, active }: { item: (typeof NAV_ITEMS)[number]; active: boolean }) {
+function TabLink({
+  item,
+  active,
+  badge = 0,
+}: {
+  item: (typeof NAV_ITEMS)[number];
+  active: boolean;
+  // The Wardrobe's count of her pieces (Front Door PRD rev 3, Q1): an 18px ink disc at the
+  // glyph's corner, none at zero (plan R11).
+  badge?: number;
+}) {
   return (
     <li className="flex-1">
       <Link
         href={item.href}
         aria-current={active ? 'page' : undefined}
+        aria-label={badge > 0 ? `${item.label}, ${badge}` : undefined}
         className={`relative flex h-14 flex-col items-center justify-center gap-1 rounded-pill font-sans font-medium text-[9.5px] uppercase leading-none tracking-[0.04em] whitespace-nowrap ${
           active ? 'text-ink' : 'text-ink-muted'
         } ${focus}`}
@@ -316,7 +336,17 @@ function TabLink({ item, active }: { item: (typeof NAV_ITEMS)[number]; active: b
         {active ? (
           <span aria-hidden className="absolute top-0.5 h-0.5 w-6 rounded-xs bg-ink" />
         ) : null}
-        <Icon name={item.icon} size={20} />
+        <span className="relative">
+          <Icon name={item.icon} size={20} />
+          {badge > 0 ? (
+            <span
+              aria-hidden
+              className="absolute -top-2 -right-3 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-pill bg-ink px-1 font-sans text-[9.5px] text-bg tracking-normal"
+            >
+              {badge}
+            </span>
+          ) : null}
+        </span>
         {item.label}
       </Link>
     </li>

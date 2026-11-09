@@ -152,6 +152,48 @@ describe('wardrobe repo', () => {
     await deleteTestUsers(db, user);
   });
 
+  it('filters by several seasons, families and tags at once, with Year round as the untagged (PRD rev 3)', async () => {
+    const user = await createTestUser(db);
+    const coat = await wardrobe.create(user, {
+      label: 'Wool coat',
+      seasons: ['autumn', 'winter'],
+      colourShade: 'navy',
+    });
+    const dress = await wardrobe.create(user, {
+      label: 'Linen dress',
+      seasons: ['summer'],
+      colourShade: 'cherry',
+    });
+    const tee = await wardrobe.create(user, { label: 'White tee' });
+    await wardrobe.setWearTags(user, coat.id, ['Work']);
+    await wardrobe.setWearTags(user, dress.id, ['Evening']);
+    await wardrobe.setWearTags(user, tee.id, ['Everyday']);
+    const ids = async (q: Parameters<typeof wardrobe.list>[1]) =>
+      (await wardrobe.list(user, q)).items.map((p) => p.id).sort();
+    // An untagged piece answers any season; Year round returns the untagged alone.
+    expect(await ids({ limit: 10, seasons: ['autumn'] })).toEqual([coat.id, tee.id].sort());
+    expect(await ids({ limit: 10, seasons: ['summer', 'spring'] })).toEqual(
+      [dress.id, tee.id].sort(),
+    );
+    expect(await ids({ limit: 10, seasons: ['year_round'] })).toEqual([tee.id]);
+    // Families OR within the section; tags too; sections AND.
+    expect(await ids({ limit: 10, colourFamilies: ['blues', 'reds'] })).toEqual(
+      [coat.id, dress.id].sort(),
+    );
+    expect(await ids({ limit: 10, wearFor: ['work', 'Evening'] })).toEqual(
+      [coat.id, dress.id].sort(),
+    );
+    expect(await ids({ limit: 10, seasons: ['autumn'], wearFor: ['Evening'] })).toEqual([]);
+    // The category chips count under the other filters.
+    expect(await wardrobe.categoryCounts(user, { seasons: ['summer'] })).toEqual(
+      expect.arrayContaining([{ category: 'Other', count: 2 }]),
+    );
+    expect(await wardrobe.countMatching(ann, { seasons: ['autumn'] })).toBe(
+      (await wardrobe.list(ann, { limit: 50 })).items.length,
+    );
+    await deleteTestUsers(db, user);
+  });
+
   it("files a material; her answer clears Robes' check on it alone, and stays hers", async () => {
     const piece = await wardrobe.create(ann, { label: 'Wool blazer', material: 'wool' });
     expect(piece.material).toBe('wool');
