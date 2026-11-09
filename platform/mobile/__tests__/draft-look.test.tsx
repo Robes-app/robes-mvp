@@ -179,9 +179,10 @@ test('a swap from the picker leaves the picture behind; the chip draws the model
   expect(await screen.findByTestId('draft-picture')).toBeTruthy();
   const renders = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/render'));
   expect(renders()).toHaveLength(0);
-  // The hanger opens the picker on the row's category; Swap it in lands the swap.
+  // The pencil shows the hanger; it opens the picker on the row's category; Swap it in lands it.
+  await fireEvent.press(await screen.findByTestId('rack-pencil'));
   await fireEvent.press(
-    await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
+    screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );
   await fireEvent.press(
     await screen.findByRole('checkbox', { name: diary.flyout.pick('Navy silk top') }),
@@ -317,6 +318,7 @@ test('the Edit look sheet: Update look waits for a change, the tick only closes,
   expect(update().props.accessibilityState.disabled).toBe(true);
   expect(screen.queryByTestId('draft-generate')).toBeNull();
   // A change: Update look wakes, the tick dims, × asks Discard your changes?
+  await fireEvent.press(screen.getByTestId('rack-pencil'));
   await fireEvent.press(
     screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );

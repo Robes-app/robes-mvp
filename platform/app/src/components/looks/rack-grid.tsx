@@ -41,6 +41,7 @@ export function RackGrid({
                 brand: brand || null,
               }}
               status={status}
+              {...(row.pieceId ? { href: `/piece/${row.pieceId}` } : {})}
               compact
               photo={<Photo piece={{ label, image: imageOf(row) ?? null }} mat sizes="33vw" />}
             />

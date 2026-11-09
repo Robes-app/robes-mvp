@@ -175,6 +175,8 @@ Each PR: native first, the web twin in the same PR, a comment naming the twin, t
 
 **Acceptance (§10 8).**
 
+**As built (9 Nov).** The pencil (R2) applies to every look's Rack, draft and saved alike, so the row is one anatomy: at rest a row of hers ends in › and opens the piece's page (a proposal opens nothing until PR 6's wish page); the pencil ink-fills and shows the hanger and × on every row. A saved look's add slot is the small hanger under the list (§6.1); a draft keeps the Rack card (§4.6). The grid | list toggle shows tiles on both. Flipping Shop on a saved look counts as a change and enables Update look; Update with nothing else changed applies as before (the toast and a redraw if the picture is behind) and the toggle's new state rides with the next words she sends. Adjust model image shows only while Robes' picture is in front (§6.4): never on a photograph of hers, staged or saved. The Edit look sheet's header, Discard and the saved page's Schedule look stood already (D17, D18).
+
 ### PR 6 · Piece detail
 
 `features/wardrobe/PieceDetail.tsx`, `PieceRows.tsx`, `PieceFieldSheet.tsx` [`piece/[id]/piece-detail.tsx`, `piece-rows.tsx`, `piece-field-sheet.tsx`]:

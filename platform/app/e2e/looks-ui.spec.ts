@@ -272,7 +272,9 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
   // The old address of a draft still opens it: the one DraftLook, on its page (D14).
   await page.goto(`/look/${draft.id}`);
   await expect(page.getByText('Draft look')).toBeVisible();
-  // L10: the hanger opens the picker on the row; Swap it in lands at once; Undo (6 s) puts it back.
+  // L10: the pencil shows the hanger (plan R2); it opens the picker on the row; Swap it in lands
+  // at once; Undo (6 s) puts it back.
+  await page.getByRole('button', { name: 'Edit pieces' }).click();
   await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
   const picker = page.getByTestId('piece-picker');
   await picker.getByRole('button', { name: 'Include Dark straight jean' }).click();

@@ -335,6 +335,9 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
   await expect(page.getByRole('button', { name: 'Edit look' })).toHaveCount(0);
   await expect(look3e.getByTestId('update-look')).toHaveCount(0);
   const picker = page.getByTestId('piece-picker');
+  // At rest the rows open their pieces; the pencil shows the swap and × (plan R2).
+  await expect(look3e.getByRole('button', { name: /^Swap / })).toHaveCount(0);
+  await look3e.getByRole('button', { name: 'Edit pieces' }).click();
   await look3e.getByRole('button', { name: /^Swap / }).click();
   await picker.getByRole('button', { name: 'Include Navy coat' }).click();
   await picker.getByRole('button', { name: 'Swap it in' }).click();
