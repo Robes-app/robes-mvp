@@ -2,7 +2,7 @@
 
 import { useApi } from '@robes/api-client/react';
 import type { Features } from '@robes/contracts';
-import { nav, shell } from '@robes/copy';
+import { lookbook, nav, plan, shell, wardrobe } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
 import {
   Avatar,
@@ -43,6 +43,14 @@ import { useDeviceLocation } from './device-location';
 
 const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+
+// The phone bar's serif title on every tab but Home (PRD rev 3 §2.2; the native twin is
+// TabScreen's `title`): from 768 the wordmark and the nav stand instead.
+const TAB_TITLE: Record<string, string> = {
+  '/looks': lookbook.title,
+  '/plan': plan.title,
+  '/wardrobe': wardrobe.title,
+};
 
 // A pushed view (the draft look, legacy 2026-10-06 second pass): below 768 the header and the dock
 // stand down while it is open, and its own sticky footer closes the screen.
@@ -152,7 +160,7 @@ export function AppShell({
         data-scrolled={scrolled ? 'true' : undefined}
         className={`sticky top-0 z-40 box-border h-16 border-hairline border-b-[0.5px] bg-nav-glass backdrop-blur-nav ${pushed && !back ? 'max-md:hidden' : ''}`}
       >
-        <div className="mx-auto flex h-full max-w-5xl items-center gap-2 px-6 md:px-4">
+        <div className="relative mx-auto flex h-full max-w-5xl items-center gap-2 px-6 md:px-4">
           {/* A pushed page's back pill: below 768 it stands where the wordmark sits, one header row;
               from 768 the bar keeps the wordmark and the pill heads the page (beta's #rb-backpill and
               .rb-ret). Both are drawn and CSS picks one, so the server render is final; the other is
@@ -165,10 +173,21 @@ export function AppShell({
           <Link
             href="/"
             aria-label={nav.today}
-            className={`text-ink ${back ? 'max-md:hidden' : ''} ${focus}`}
+            className={`text-ink ${back || TAB_TITLE[current] ? 'max-md:hidden' : ''} ${focus}`}
           >
             <Wordmark />
           </Link>
+          {/* The tab's serif title, centred on the phone's bar; the page's own h1 names it for
+              assistive tech, so this one is decoration. */}
+          {TAB_TITLE[current] && !back ? (
+            <span
+              aria-hidden
+              data-testid="tab-title"
+              className="pointer-events-none absolute inset-x-0 text-center font-display font-light text-2xl text-ink md:hidden"
+            >
+              {TAB_TITLE[current]}
+            </span>
+          ) : null}
           <nav aria-label={shell.primaryNav} className="ml-6 hidden items-center gap-1 md:flex">
             {/* Beta's top nav: the wordmark is Home; Lookbook · Diary · Wardrobe sit beside it. */}
             {NAV_ITEMS.filter((item) => item.href !== '/').map((item) => (

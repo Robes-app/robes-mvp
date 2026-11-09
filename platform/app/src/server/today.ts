@@ -1,7 +1,7 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
 import { type Diary, type DiaryDraft, type Look, Today } from '@robes/contracts';
-import { DIARY_BACK, diaryWindow } from '@robes/core/calendar';
+import { DIARY_PAGE, diaryWindow } from '@robes/core/calendar';
 import type { UserId } from '@robes/db';
 import { z } from 'zod';
 import { repos } from './db';
@@ -45,7 +45,7 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
   if (!profile) throw new ApiError('not_found');
   const date = todayIn(profile.timezone, now);
   const tripsOn = await isFlagEnabled('trips');
-  // One plan read covers the diary's window; the week ahead is its middle (old clients).
+  // One plan read covers the diary's window; this week is its middle page (old clients).
   const window = diaryWindow(date);
   const [whole, places, looks, worn, jobs, ideaRows, inboxCount, overnight, draftRows] =
     await Promise.all([
@@ -69,7 +69,7 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
       repos.dailyLooks.overnightFor(userId, date),
       repos.looks.draftsFor(userId, window.from, window.to),
     ]);
-  const plan = { ...whole, days: whole.days.slice(DIARY_BACK, DIARY_BACK + 7) };
+  const plan = { ...whole, days: whole.days.slice(DIARY_PAGE, DIARY_PAGE * 2) };
   // The prompt box's draft per day: the newest look Robes made for it, and the job while it runs
   // (before the look is minted there is only the job).
   const draftOf = new Map<string, Look>();

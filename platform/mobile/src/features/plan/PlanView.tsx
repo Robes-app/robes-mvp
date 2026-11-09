@@ -88,6 +88,7 @@ export function PlanView() {
   const [picking, setPicking] = useState(false);
   return (
     <TabScreen
+      title={copy.title}
       toolbar={
         <View className="flex-row items-center justify-between gap-4">
           <SegmentedControl<View_>

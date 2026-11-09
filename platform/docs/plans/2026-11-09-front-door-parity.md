@@ -216,6 +216,8 @@ Each PR: native first, the web twin in the same PR, a comment naming the twin, t
 - Sheet exit animation on every `Sheet`/`GlassSheet` (PRD §2.6), the scrim at 70%.
 - Web dock badge; native `Badge` (R11).
 
+**As built (9 Nov).** The bar: Home keeps ROBES at the left; Lookbook, Diary and the Wardrobe carry their serif title centred (native `TabScreen title=`, the web header below 768 — the page's own h1 still names it), the Wardrobe's reading "Your wardrobe" (`wardrobe.title`). The bell stands only while something waits (PRD §2.2); its ✓ is Clear all — one `POST /me/notifications/dismiss { all: true }` — and × or the scrim close without touching anything (PRD §10 12, over "Done only closes" of 6 Nov; a dismissed receipts line leaves the receipts waiting in the Wardrobe). The strip is three Monday weeks — last, this, next — so its pages are calendar weeks with today's in the middle (`diaryWindow`, R4; the weather's reach follows it), and `DaySlot` is keyed by the day so a day change starts its pager on the first page. A model change crossfades the hero: expo-image's `transition` on native, the keyed `<img>` fading in on the web. Every sheet now leaves as it came — 0.26s on cubic-bezier(.4,0,.7,1), the web's `data-[state=closed]` keyframes sliding it past the edge and fading the scrim (PRD §2.6). Flags for Annie: the scrim stays Felix's `backdrop` (0.28), not the PRD's ~70% grey; the ✓ dismissing all answers PRD Q2 one way — say if it should mark read instead.
+
 ### PR 9 · Follow-through
 
 - Update `platform/CLAUDE.md` "Product rules": the filter pattern is one component (`FilterRow` · `FilterSheet`), the styling card is one component, Shop is `balance`, the pencil rule (R2), the wear-it-for list (R6).

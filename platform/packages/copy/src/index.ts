@@ -314,7 +314,7 @@ export const devUpload = {
 } as const;
 
 export const wardrobe = {
-  title: 'Wardrobe',
+  title: 'Your wardrobe',
   newPiece: 'New piece',
   reading: 'Robes is reading this piece…',
   noPieceFound: 'Robes couldn’t see a piece in this photo.',

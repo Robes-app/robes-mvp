@@ -148,7 +148,7 @@ export function LooksView() {
   );
 
   return (
-    <TabScreen toolbar={toolbar}>
+    <TabScreen title={copy.title} toolbar={toolbar}>
       {(tabScroll) => (
         <>
           {current.isPending ? (

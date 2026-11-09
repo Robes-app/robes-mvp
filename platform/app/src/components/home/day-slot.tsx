@@ -192,8 +192,14 @@ function AddPage({
     >
       <div className="relative aspect-[4/5] overflow-hidden rounded-tile bg-surface-sunk">
         {portrait ? (
+          // Keyed by the picture: a model change fades the new portrait in (PRD rev 3 §2.6).
           // biome-ignore lint/performance/noImgElement: a signed portrait in a fixed frame
-          <img src={portrait} alt="" className="absolute inset-0 size-full object-cover" />
+          <img
+            key={portrait}
+            src={portrait}
+            alt=""
+            className="absolute inset-0 size-full object-cover motion-safe:animate-fade-in"
+          />
         ) : (
           <Skeleton className="absolute inset-0 rounded-none" />
         )}

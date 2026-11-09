@@ -72,7 +72,8 @@ export interface SheetRow {
 
 // The screen behind dims; it never blurs to mush (beta). A drawer dims it with Felix's
 // `backdrop`, a dialog with `backdrop-strong`.
-const overlaySheet = 'fixed inset-0 z-50 bg-backdrop motion-safe:data-[state=open]:animate-fade-in';
+const overlaySheet =
+  'fixed inset-0 z-50 bg-backdrop motion-safe:data-[state=open]:animate-scrim-in motion-safe:data-[state=closed]:animate-scrim-out';
 const overlayDialog =
   'fixed inset-0 z-50 bg-backdrop-strong motion-safe:data-[state=open]:animate-fade-in';
 
@@ -371,10 +372,10 @@ export function Sheet({
         titleSize="md"
         className={
           glass
-            ? 'inset-x-2 bottom-[calc(8px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl gap-5 overflow-y-auto rounded-dock border-[0.5px] border-rule-mid px-5 pt-3 pb-[26px] shadow-sheet motion-safe:data-[state=open]:animate-sheet-up'
+            ? 'inset-x-2 bottom-[calc(8px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl gap-5 overflow-y-auto rounded-dock border-[0.5px] border-rule-mid px-5 pt-3 pb-[26px] shadow-sheet motion-safe:data-[state=open]:animate-sheet-up motion-safe:data-[state=closed]:animate-sheet-down'
             : floating
-              ? 'inset-x-2 bottom-[calc(8px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl overflow-y-auto rounded-sheet border-[0.5px] border-rule-mid px-5 pt-2.5 pb-[26px] shadow-sheet motion-safe:data-[state=open]:animate-sheet-up'
-              : 'inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-sheet px-5 pt-2.5 pb-[max(34px,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up'
+              ? 'inset-x-2 bottom-[calc(8px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl overflow-y-auto rounded-sheet border-[0.5px] border-rule-mid px-5 pt-2.5 pb-[26px] shadow-sheet motion-safe:data-[state=open]:animate-sheet-up motion-safe:data-[state=closed]:animate-sheet-down'
+              : 'inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-sheet px-5 pt-2.5 pb-[max(34px,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up motion-safe:data-[state=closed]:animate-sheet-down'
         }
       >
         {children}

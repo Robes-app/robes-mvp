@@ -298,6 +298,7 @@ export function WardrobeView() {
   const [adding, setAdding] = useState(false);
   return (
     <TabScreen
+      title={copy.title}
       toolbar={
         <HeaderRow
           segment={segment}

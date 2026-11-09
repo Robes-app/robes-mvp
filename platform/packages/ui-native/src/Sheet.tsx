@@ -88,9 +88,9 @@ const DISMISS_DRAG = 120;
 // Felix's `backdrop` behind every drawer (the token's alpha; it is ink, so opacity carries it).
 const BACKDROP_OPACITY = 0.28;
 const FLOAT_INSET = 8;
-// Felix's motion: 0.3s on cubic-bezier(.2, 0, .2, 1).
-const DURATION = 300;
-const EASE = Easing.bezier(0.2, 0, 0.2, 1);
+// The PRD's motion (rev 3 §2.6): 0.26s on cubic-bezier(.4, 0, .7, 1), in and out alike.
+const DURATION = 260;
+const EASE = Easing.bezier(0.4, 0, 0.7, 1);
 // The top 8% stays clear: past every iPhone's status bar and island (59pt of 874 on a 17).
 const SHEET_MAX = '92%';
 // Space under the last row; the home indicator's inset is added below it.

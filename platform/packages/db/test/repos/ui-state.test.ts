@@ -33,6 +33,16 @@ describe('ui state repo', () => {
     expect(Object.keys(await uiState.dismissed(bea))).toEqual(['receipts:9']);
   });
 
+  it('takes every key the ✓ clears in one write', async () => {
+    const now = new Date('2026-11-02T09:00:00Z');
+    await uiState.dismiss(ann, ['receipts:2', 'diary:2026-11-01'], now);
+    await uiState.dismiss(ann, [], now);
+    expect(Object.keys(await uiState.dismissed(ann)).sort()).toEqual([
+      'diary:2026-11-01',
+      'receipts:2',
+    ]);
+  });
+
   it('never grows past the cap', async () => {
     const now = Date.now();
     for (let i = 0; i < DISMISSED_MAX + 5; i++) {

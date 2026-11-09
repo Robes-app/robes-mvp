@@ -1,6 +1,6 @@
 import { useApi } from '@robes/api-client/react';
 import { shell, ui } from '@robes/copy';
-import { Avatar, FINE_EDGE, MIN_TOUCH, Wordmark } from '@robes/ui-native';
+import { Avatar, FINE_EDGE, Heading, MIN_TOUCH, Wordmark } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { createContext, type ReactNode, useContext, useMemo } from 'react';
 import { Platform, Pressable, View } from 'react-native';
@@ -21,14 +21,18 @@ export function useTabScroll(): Partial<TabScrollProps> {
 }
 
 // Every tab root wears Felix's TopNav (D6, 2026-11-06; it replaces the iOS navigation redline's
-// bar): 64pt tall, 24 in at each side, a 0.5pt hairline beneath it always; ROBES on the left, the
-// bell and the avatar disc on the right, 6 apart, each keeping a 44pt hit area. A tab's switcher
-// (Saved | Suggested, Pieces | Wishlist, List | Month) goes in `toolbar`, pinned under the bar.
-// The web twin is the header in app/src/components/shell/app-shell.tsx.
+// bar): 64pt tall, 24 in at each side, a 0.5pt hairline beneath it always; the bell (while
+// anything waits) and the avatar disc on the right, 6 apart, each keeping a 44pt hit area. Home
+// carries ROBES at the left; every other tab a serif `title` centred (PRD rev 3 §2.2: "Lookbook",
+// "Your wardrobe"). A tab's switcher (Saved | Suggested, Pieces | Wishlist, List | Month) goes in
+// `toolbar`, pinned under the bar. The web twin is the header in
+// app/src/components/shell/app-shell.tsx.
 export function TabScreen({
+  title,
   toolbar,
   children,
 }: {
+  title?: string;
   toolbar?: ReactNode;
   // A function child gets the scroll props directly, for a screen that draws its own TabScreen.
   children: ReactNode | ((scroll: TabScrollProps) => ReactNode);
@@ -59,8 +63,16 @@ export function TabScreen({
           className="flex-row items-center justify-between px-6"
           style={{ height: 64 - FINE_EDGE }}
         >
-          <Wordmark accessibilityLabel={ui.wordmark} />
-          <View className="flex-row items-center gap-1.5">
+          {title ? (
+            <View pointerEvents="none" className="absolute inset-0 items-center justify-center">
+              <Heading size="md" numberOfLines={1} testID="tab-title">
+                {title}
+              </Heading>
+            </View>
+          ) : (
+            <Wordmark accessibilityLabel={ui.wordmark} />
+          )}
+          <View className="ml-auto flex-row items-center gap-1.5">
             <Bell />
             {/* A 30pt disc; its hit area reaches 44. */}
             <Pressable

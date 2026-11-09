@@ -1,7 +1,7 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
 import type { TodayWeather } from '@robes/contracts';
-import { DIARY_BACK, monthLong } from '@robes/core/calendar';
+import { diaryWindow, monthLong } from '@robes/core/calendar';
 import type { UserId } from '@robes/db';
 import { createLiveWeather, createRangeWeather, createWeather } from '@robes/jobs';
 import { repos } from './db';
@@ -28,7 +28,7 @@ export async function loadTodayWeather(
   const profile = await repos.profiles.get(userId);
   if (!profile) throw new ApiError('not_found');
   const today = todayIn(profile.timezone, now);
-  if (asked && (asked < addDays(today, -DIARY_BACK) || asked > addDays(today, FORECAST_DAYS))) {
+  if (asked && (asked < diaryWindow(today).from || asked > addDays(today, FORECAST_DAYS))) {
     return null;
   }
   const date = asked ?? today;
