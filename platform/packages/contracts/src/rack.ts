@@ -1,6 +1,12 @@
-import { type LookRole, orderRack, type RackRow, type RackState } from '@robes/core/looks';
+import {
+  type LookRole,
+  newProposalKey,
+  orderRack,
+  type RackRow,
+  type RackState,
+} from '@robes/core/looks';
 import type { Look, LookAskInput, LookAskResult, Proposal, UpdateLookInput } from './looks';
-import type { Piece } from './wardrobe';
+import type { Piece, Wish } from './wardrobe';
 
 // A look's rack as the clients edit it: her pieces then the proposals, in the formula's order,
 // with how each is worn and a draft's working notes. Shared so web and native map it the same.
@@ -19,6 +25,33 @@ export function pieceRow(
     role,
     proposal: null,
   };
+}
+
+// A wish from the Add Pieces picker's WISHLIST tab (Front Door PRD rev 3 §4.6): on the rack as a
+// proposal that already reads Wishlist, its price along; the look then carries a piece to find.
+export function wishRow(
+  wish: Pick<
+    Wish,
+    'id' | 'label' | 'category' | 'color' | 'brand' | 'sourceLabel' | 'price' | 'currency'
+  >,
+  key: string = newProposalKey(),
+): RackRow {
+  const pricePoint =
+    wish.price !== null && wish.price > 0
+      ? `${wish.currency === 'GBP' ? '£' : wish.currency === 'USD' ? '$' : '€'}${wish.price}`
+      : '';
+  return proposalRow({
+    key,
+    name: wish.label,
+    category: wish.category,
+    color: wish.color ?? '',
+    brand: wish.brand ?? '',
+    retailerHint: wish.sourceLabel ?? '',
+    pricePoint: pricePoint.slice(0, 20),
+    role: null,
+    wishlisted: true,
+    wishlistItemId: wish.id,
+  });
 }
 
 export function proposalRow(p: Proposal): RackRow {

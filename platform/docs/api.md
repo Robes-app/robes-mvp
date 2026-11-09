@@ -125,7 +125,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | New | Legacy |
 |---|---|
 | `POST /looks/generate` (key-piece styling: three suggestions on the deck) · `POST /looks/prompt` (a new look in her words: three suggestions on the deck, or with `draft: true` — the diary's prompt box, plan 2026-11-03 — ONE draft for the day, in the diary's slot) · `POST /looks/:id/restyle` `{ note? }` (↻ one suggestion; Dress it again on a draft Robes made, `note` = what's not right with it) | `/api/style` (dress-me intent, `refine` + `wayIndex`) |
-| `POST /looks/:id/ask` (the look prompt; the edit is the job's output) | `/api/look/ask` (supersedes `/api/look/refine`) |
+| `POST /looks/:id/ask` (the look prompt; the edit is the job's output; `balance` is the Shop toggle — `owned` keeps the answer to her wardrobe, `mix` lets it reach for her wishlist and new pieces, plan 2026-11-09 R1) | `/api/look/ask` (supersedes `/api/look/refine`) |
 | `POST /looks/:id/frame` `{ note? }` (Robes' frame for the rack as it stands: first open, or re-dressed after an edit; `note` is her picture note, D21, written first and drawn at once) | `/api/avatar/render` frame mode |
 | `POST /today/generate` (daily look; also produced by overnight batch) | `/api/daily` |
 | `POST /travel/plan` · `POST /travel/:id/looks` · `POST /travel/:id/days/:day/restyle` | `/api/travel`, `/api/travel/looks` |
@@ -140,7 +140,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Looks, artifacts, planning
 | New | Legacy |
 |---|---|
-| `GET/POST/PATCH/DELETE /looks[...]` (`?status=saved\|suggested\|draft`, `&anchorPieceId=`) · `POST /looks/:id/save` `{ name?, date? }` (suggested/draft → saved; with `date` it is pinned to that day in the same act) · `GET /looks/sets/:id` (the keep-or-pass deck) | client REST `looks` (+ `status`, `anchor_piece_id`, `set_id`, `styling`), `look_pieces`; the drafts park `rb_lk_draft__<uid>` |
+| `GET/POST/PATCH/DELETE /looks[...]` (`?status=saved\|suggested\|draft`, `&anchorPieceId=`) · `POST /looks/:id/save` `{ name?, date? }` (suggested/draft → saved; with `date` it is pinned to that day in the same act; every proposal not yet on her wishlist is filed there in the same transaction and names its wish, plan 2026-11-09 R1) · `GET /looks/sets/:id` (the keep-or-pass deck) | client REST `looks` (+ `status`, `anchor_piece_id`, `set_id`, `styling`), `look_pieces`; the drafts park `rb_lk_draft__<uid>` |
 | `POST /looks/:id/wears` · `DELETE /wears/:id` | client REST `wears` |
 | `POST /looks/:id/images` `{ assetId }` (a photograph joins the stack, D13) · `DELETE /looks/:id/images/:imageId` · `POST /looks/:id/images/cover` `{ imageId \| null }` (her photograph, or Robes' picture, leads) · `POST /looks/:id/images/robes` `{ hidden }` (Robes' picture hidden or shown, D19; 409 `look_needs_image` when no image would remain) · `POST /looks/:id/photo` (kept: the new photograph joins and leads) | legacy's single look photo |
 | `GET /artifacts?type=` · `GET /artifacts/:id` · `PATCH /artifacts/:id` (title, packed/pins state) · `DELETE` (soft) | client REST `lookbook_items` + localStorage merge |

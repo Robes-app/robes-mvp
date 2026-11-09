@@ -191,6 +191,48 @@ describe('looks.ask v1 (legacy /api/look/ask)', () => {
     expect(normaliseAnswer({ ...out, intent: 'bogus' }, ctx).intent).toBe('clarify');
   });
 
+  it('reads the Shop toggle: off keeps to her wardrobe, on adds the pieces she wants', () => {
+    const off = buildSystem({ ...ctx, pool: { ...ctx.pool, kind: 'owned' } });
+    expect(off).toContain('Shop is OFF: ONLY pieces she owns may go on the look');
+    expect(off).not.toContain('propose ONE new piece');
+    const on = buildSystem({
+      ...ctx,
+      pool: {
+        kind: 'wardrobe',
+        items: [
+          ...ctx.pool.items,
+          { label: 'Silk cami', category: 'Tops', color: 'coral', brand: 'Vince', wish: true },
+        ],
+      },
+    });
+    expect(on).toContain('[2] Silk cami [Tops], coral, Vince (on her wishlist, not hers yet)');
+    expect(on).toContain('then the pieces on her wishlist');
+    // Shop off: a swap to a piece outside her wardrobe (pool_index -1) is dropped, like a case.
+    const out: Output = {
+      intent: 'swap',
+      reply: 'Done.',
+      swaps: [
+        {
+          i: 1,
+          pool_index: -1,
+          name: 'Black loafers',
+          brand: 'Toteme',
+          retailer_hint: 'toteme.com',
+          price_point: '€390',
+          category: 'Shoes',
+        },
+      ],
+      back: [],
+      styled: [],
+      draft: '',
+      rule: '',
+    };
+    expect(normaliseAnswer(out, { ...ctx, pool: { ...ctx.pool, kind: 'owned' } }).swaps).toEqual(
+      [],
+    );
+    expect(normaliseAnswer(out, ctx).swaps).toHaveLength(1);
+  });
+
   it('answers offline in the prompt’s order', () => {
     const system = buildSystem(ctx);
     const ask = (text: string) =>

@@ -1,16 +1,26 @@
 import { useApi, useApiClient } from '@robes/api-client/react';
 import {
   type CreateLookInput,
-  type DiaryDay,
   type Look,
+  type LookAskInput,
   lookStack,
   type Model,
   type Piece,
+  type Wish,
+  wishRow,
 } from '@robes/contracts';
 import { lookbook, looks as looksCopy } from '@robes/copy';
 import { readsAsThey } from '@robes/core/avatar';
-import { type ImageStage, stageChanged, stageFront } from '@robes/core/looks';
-import { shortRange, weatherIcon } from '@robes/core/weather';
+import {
+  type Balance,
+  defaultBalance,
+  type ImageStage,
+  type RackRow,
+  stageChanged,
+  stageFront,
+} from '@robes/core/looks';
+import type { WardrobeLayout } from '@robes/core/wardrobe';
+import { shortRange } from '@robes/core/weather';
 import { Icon } from '@robes/icons/native';
 import {
   AlertDialog,
@@ -35,13 +45,15 @@ import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBareScreen } from '@/components/StackScreen';
 import { pickOne, usePhotoFiling } from '@/features/home/file-photo';
+import { AddPiecesSheet } from '@/features/wardrobe/add/AddPiecesSheet';
+import { LayoutToggle } from '@/features/wardrobe/WardrobeHeader';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { ThreadLines } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
 import { DayContext } from './DayContext';
 import { DiarySheet } from './DiarySheet';
-import { AdjustSheet, DescribeSheet, SheetField } from './DraftSheets';
+import { AdjustSheet, DescribeSheet } from './DraftSheets';
 import { CardPicture, ImageManager } from './ImageManager';
 import { LookDetails } from './LookDetails';
 import { LookPicture } from './LookPicture';
@@ -56,10 +68,13 @@ import {
 } from './look-states';
 import { PieceList } from './PieceList';
 import { type PickerMode, PiecePicker } from './PiecePicker';
+import { RackCard } from './RackCard';
+import { RackGrid } from './RackGrid';
 import { RackRowCard } from './RackRow';
 import { ImageStack, useDressOnOpen } from './SavedLook';
 import { Scanning } from './ScanLine';
 import { SeasonsView } from './SeasonsView';
+import { StylingCard } from './StylingCard';
 import { useRemoveLook } from './saved-looks';
 import { TagsView, useLookDetails } from './TagsView';
 import { WornView } from './WornView';
@@ -106,6 +121,80 @@ function useSnap(onFiled: (piece: Piece) => void) {
       if (picked && picked !== 'denied') void photo.file(picked);
     },
   };
+}
+
+// The Shop toggle's state (Front Door PRD rev 3 §4.6, plan R1): off once she has a wardrobe to
+// style from, on when there is nothing else, until she says otherwise. `owned` is null while
+// the wardrobe's count loads.
+function useShop(owned: number | null): {
+  on: boolean;
+  set: (next: boolean) => void;
+  balance: Balance;
+} {
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  const on = chosen ?? (owned === null ? false : defaultBalance(owned) === 'mix');
+  return { on, set: setChosen, balance: on ? 'mix' : 'owned' };
+}
+
+// The day's weather for the look prompt, while its chip stands (D22; the ask's context).
+function useAskContext(date: string | null, weatherOff: boolean): LookAskInput['context'] {
+  const today = useApi('today.get', undefined, { enabled: date !== null });
+  if (!date || weatherOff) return undefined;
+  const day = today.data?.diary?.days.find((x) => x.date === date);
+  const wx = day?.weather;
+  if (!wx) return undefined;
+  const city = day.place?.city ?? wx.city ?? '';
+  return { weather: `${shortRange(wx.tempRange)}${city ? ` in ${city}` : ''}`.slice(0, 60) };
+}
+
+// The pieces and wishes already on the rack, so the picker never offers one twice.
+const onRackIds = (rows: readonly RackRow[]): string[] =>
+  rows.flatMap((r) =>
+    r.pieceId ? [r.pieceId] : r.proposal?.wishlistItemId ? [r.proposal.wishlistItemId] : [],
+  );
+
+// The Rack (PRD §4.6): its heading with the grid | list toggle, the rows or the tiles, and the
+// Rack card under them as the add slot. Before the first piece the card stands alone.
+function Rack({
+  rows,
+  imageOf,
+  layout,
+  onLayout,
+  hasWardrobe,
+  onAdd,
+  children,
+}: {
+  rows: readonly RackRow[];
+  imageOf: Parameters<typeof RackGrid>[0]['imageOf'];
+  layout: WardrobeLayout;
+  onLayout: (next: WardrobeLayout) => void;
+  hasWardrobe: boolean;
+  onAdd: () => void;
+  // The rows, as RackRowCards.
+  children: ReactNode;
+}) {
+  if (rows.length === 0) return <RackCard hasWardrobe={hasWardrobe} onPress={onAdd} />;
+  return (
+    <View className="gap-2.5" testID="the-rack">
+      <View className="h-9 flex-row items-center justify-between gap-3">
+        <Text
+          weight="medium"
+          maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+          className="text-ink-muted uppercase"
+          style={{ fontSize: 10, letterSpacing: 1.6 }}
+        >
+          {copy.rack}
+        </Text>
+        <LayoutToggle layout={layout} onLayout={onLayout} />
+      </View>
+      {layout === 'grid' ? (
+        <RackGrid rows={rows} imageOf={imageOf} />
+      ) : (
+        <PieceList rows={rows.length}>{children}</PieceList>
+      )}
+      <RackCard hasWardrobe={hasWardrobe} onPress={onAdd} testID="rack-card-add" />
+    </View>
+  );
 }
 
 // The draft look (Felix DraftLook; plan 2026-11-06 D14, D17, D18): ONE component for every draft
@@ -320,7 +409,7 @@ function NewDraft({
   onCreated,
 }: {
   pieceId?: string;
-  // Describe on Home (D22): the day the draft is for; Style it makes that day's one draft.
+  // Describe on Home (D22): the day the draft is for; Generate makes that day's one draft.
   day?: string;
   // From pieces: the picker is already up when the sheet opens.
   pick?: boolean;
@@ -333,8 +422,13 @@ function NewDraft({
   const toast = useToast();
   const refresh = useInvalidateLooks();
   const model = useApi('me.model.get');
+  const summary = useApi('wardrobe.summary');
   const control = useColor('border-control');
+  const owned = summary.data?.total ?? null;
+  const hasWardrobe = owned !== null && owned > 0;
+  const shop = useShop(owned);
   const [picker, setPicker] = useState<PickerMode | null>(pick ? { add: true } : null);
+  const [adding, setAdding] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [full, setFull] = useState<{ input: CreateLookInput; oldest: string } | null>(null);
@@ -357,8 +451,15 @@ function NewDraft({
       setFull({ input, oldest: drafts?.items.at(-1)?.name ?? lookbook.draftTile.untitled });
     }
   };
-  const start = (pieces: Piece[]) =>
-    void create({ status: 'draft', pieces: pieces.map((p) => ({ pieceId: p.id })) });
+  // The first pieces make the draft; a wish from the picker rides as a proposal already hers.
+  const start = (pieces: Piece[], wishes: Wish[] = []) =>
+    void create({
+      status: 'draft',
+      pieces: pieces.map((p) => ({ pieceId: p.id })),
+      ...(wishes.length
+        ? { proposals: wishes.flatMap((w) => (wishRow(w).proposal ? [wishRow(w).proposal] : [])) }
+        : {}),
+    } as CreateLookInput);
   const snap = useSnap((piece) => start([piece]));
   // "Start a look with it" from a piece: the draft opens with that piece on the rack.
   const started = useRef(false);
@@ -372,7 +473,7 @@ function NewDraft({
   // carries on with it once the diary shows it. Without a day they deal suggestions (the deck).
   const [weatherOff, setWeatherOff] = useState(false);
   const [waiting, setWaiting] = useState(false);
-  // The job behind Style it: if it ends without the day's draft, the wait ends with a word.
+  // The job behind Generate: if it ends without the day's draft, the wait ends with a word.
   const [promptJob, setPromptJob] = useState<string | null>(null);
   useJobResult(
     promptJob,
@@ -411,6 +512,7 @@ function NewDraft({
             prompt: words,
             date: day,
             draft: true,
+            balance: shop.balance,
             ...(place && !weatherOff ? { place } : {}),
             ...(weatherOff ? { weather: false } : {}),
           },
@@ -419,7 +521,9 @@ function NewDraft({
         setWaiting(true);
         return;
       }
-      const { jobId } = await api.call('looks.prompt', { input: { prompt: words } });
+      const { jobId } = await api.call('looks.prompt', {
+        input: { prompt: words, balance: shop.balance },
+      });
       router.replace(`/looks/job/${jobId}`);
     } catch (err) {
       setBusy(false);
@@ -433,6 +537,16 @@ function NewDraft({
       title={copy.title}
       onClose={onClose}
       done={{ label: copy.done, onPress: () => undefined, disabled: true }}
+      footer={
+        <Button
+          onPress={() => void generate()}
+          disabled={prompt.trim().length < 2 || busy}
+          icon="check"
+          testID="draft-generate"
+        >
+          {copy.generate}
+        </Button>
+      }
     >
       <View className="overflow-hidden bg-surface-sunk">
         {stand ? (
@@ -448,10 +562,12 @@ function NewDraft({
         {waiting ? <Scanning line={d.dressing} corner /> : null}
       </View>
       <View className="gap-3 px-5 pt-3">
-        <PieceList rows={0} onAdd={() => setPicker({ add: true })}>
-          {null}
-        </PieceList>
-        <PromptCard
+        <Tabs items={TABS} value={TABS[0]} onChange={() => undefined} testID="draft-tabs" />
+        <RackCard
+          hasWardrobe={hasWardrobe}
+          onPress={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
+        />
+        <StylingCard
           {...(day
             ? {
                 context: (
@@ -459,16 +575,14 @@ function NewDraft({
                 ),
               }
             : {})}
-          placeholder={copy.placeholder}
+          shop={shop.on}
+          onShop={shop.set}
+          placeholders={copy.placeholders}
           value={prompt}
           onChange={setPrompt}
-          chip={{ label: copy.generate, disabled: prompt.trim().length < 2 || busy }}
-          onGenerate={() => void generate()}
+          onSend={() => void generate()}
           busy={busy}
         />
-        <Button variant="quiet" className="self-center" onPress={() => router.push('/looks/photo')}>
-          {copy.startFromPhoto}
-        </Button>
       </View>
       <PiecePicker
         mode={picker}
@@ -476,6 +590,11 @@ function NewDraft({
         onClose={() => setPicker(null)}
         onPick={start}
         onSnap={() => void snap.snap()}
+      />
+      <AddPiecesSheet
+        open={adding}
+        onClose={() => setAdding(false)}
+        onPhoto={() => void snap.snap()}
       />
       <AlertDialog
         open={full !== null}
@@ -522,6 +641,14 @@ function DraftBody({
   const remove = useRemoveLook();
   const update = useLookDetails(look);
   const model = useApi('me.model.get');
+  const summary = useApi('wardrobe.summary');
+  const owned = summary.data?.total ?? null;
+  const hasWardrobe = owned !== null && owned > 0;
+  const shop = useShop(owned);
+  const [rackLayout, setRackLayout] = useState<WardrobeLayout>('list');
+  const [adding, setAdding] = useState(false);
+  const [weatherOff, setWeatherOff] = useState(false);
+  const askContext = useAskContext(forDay, weatherOff);
   const adjustRef = useRef<Adjust | null>(null);
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
   const adjust = useAdjust(look, editor, mode === 'edit' ? 'saved' : 'draft');
@@ -545,6 +672,11 @@ function DraftBody({
   const [prompt, setPrompt] = useState('');
   const rows = editor.rack.rows;
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
+  const imageOf = (row: RackRow) => (row.pieceId ? piecesById.get(row.pieceId)?.image : null);
+  const sendOpts = {
+    balance: shop.balance,
+    ...(askContext ? { context: askContext } : {}),
+  };
   // A photograph filed from the picker lands where the picker was opened.
   const snapFor = useRef<PickerMode>({ add: true });
   const snap = useSnap((piece) => {
@@ -573,7 +705,7 @@ function DraftBody({
   const apply = () => {
     if (mode !== 'edit' || busy || !pending) return;
     if (words && rows.length > 0) {
-      adjust.send(words);
+      adjust.send(words, sendOpts);
       setPrompt('');
       setApplying('asked');
       return;
@@ -632,21 +764,22 @@ function DraftBody({
   const generate = () => {
     if (busy) return;
     if (words) {
-      adjust.send(words, { draw: true });
+      adjust.send(words, { ...sendOpts, draw: true });
       setPrompt('');
       return;
     }
     if (adjust.stale) adjust.updateModel();
   };
-  // A saved look's words wait for Update look (D17): its card has no chip of its own.
-  const chip =
+  // The sticky GENERATE ✓ at the draft's foot (PRD §4.6): her words, or the model drawn again
+  // while the picture is behind. A saved look's words wait for Update look (D17) instead.
+  const generateFoot =
     mode === 'edit'
       ? null
       : words
-        ? { label: copy.generate, disabled: busy }
+        ? { label: copy.generate, disabled: busy, refresh: false }
         : adjust.stale
           ? { label: d.updateModel(adjust.badge), disabled: busy, refresh: true }
-          : { label: copy.generate, disabled: true };
+          : { label: copy.generate, disabled: true, refresh: false };
   const dialog: { title: string; message: string; actions: AlertDialogAction[] } | null =
     confirm === 'delete'
       ? {
@@ -689,6 +822,15 @@ function DraftBody({
           // The Edit look sheet's one accept (3k): she stays to see it land.
           <Button onPress={apply} disabled={!pending || busy} icon="refresh" testID="update-look">
             {copy.update}
+          </Button>
+        ) : generateFoot ? (
+          <Button
+            onPress={generate}
+            disabled={generateFoot.disabled}
+            icon={generateFoot.refresh ? 'refresh' : 'check'}
+            testID="draft-generate"
+          >
+            {generateFoot.label}
           </Button>
         ) : undefined
       }
@@ -753,12 +895,19 @@ function DraftBody({
         <Tabs items={TABS} value={tab} onChange={setTab} testID="draft-tabs" />
         {tab === TABS[0] ? (
           <View className="gap-3" testID="pieces-tab">
-            <PieceList rows={rows.length} onAdd={() => setPicker({ add: true })}>
+            <Rack
+              rows={rows}
+              imageOf={imageOf}
+              layout={rackLayout}
+              onLayout={setRackLayout}
+              hasWardrobe={hasWardrobe}
+              onAdd={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
+            >
               {rows.map((row) => (
                 <RackRowCard
                   key={row.key}
                   row={row}
-                  image={row.pieceId ? piecesById.get(row.pieceId)?.image : null}
+                  image={imageOf(row)}
                   mark={editor.mark(row.key)}
                   styled={editor.rack.styling[row.key]}
                   {...(row.proposal ? { onWish: () => editor.wish(row.key) } : {})}
@@ -768,15 +917,28 @@ function DraftBody({
                   onRemove={() => editor.remove(row.key)}
                 />
               ))}
-            </PieceList>
-            <PromptCard
-              context={forDay ? <ContextChip date={forDay} /> : null}
+            </Rack>
+            <StylingCard
+              {...(forDay
+                ? {
+                    context: (
+                      <DayContext
+                        date={forDay}
+                        weatherOff={weatherOff}
+                        onWeatherOff={setWeatherOff}
+                      />
+                    ),
+                  }
+                : {})}
+              shop={shop.on}
+              onShop={shop.set}
               thread={<ThreadLines thread={adjust.state.thread} />}
-              placeholder={mode === 'edit' ? copy.editPlaceholder : copy.placeholder}
+              {...(mode === 'edit'
+                ? { placeholder: copy.editPlaceholder }
+                : { placeholders: copy.placeholders })}
               value={prompt}
               onChange={setPrompt}
-              chip={chip}
-              onGenerate={mode === 'edit' ? apply : generate}
+              onSend={mode === 'edit' ? apply : generate}
               {...(adjust.canRedress
                 ? { onDescribe: () => setSheet('describe'), describeLabel: d.redress }
                 : {})}
@@ -817,17 +979,28 @@ function DraftBody({
       </View>
       <PiecePicker
         mode={picker}
-        onRack={rows.flatMap((r) => (r.pieceId ? [r.pieceId] : []))}
+        onRack={onRackIds(rows)}
         onClose={() => setPicker(null)}
-        onPick={(pieces) => {
+        onPick={(pieces, wishes) => {
           if (!picker) return;
           if ('swap' in picker) {
             const [piece] = pieces;
             if (piece) editor.swap(picker.swap.key, piece);
-          } else for (const piece of pieces) editor.add(piece);
+            return;
+          }
+          for (const piece of pieces) editor.add(piece);
+          for (const wish of wishes) editor.addWish(wish);
         }}
         onSnap={() => {
           if (picker) snapFor.current = picker;
+          void snap.snap();
+        }}
+      />
+      <AddPiecesSheet
+        open={adding}
+        onClose={() => setAdding(false)}
+        onPhoto={() => {
+          snapFor.current = { add: true };
           void snap.snap();
         }}
       />
@@ -859,83 +1032,6 @@ function DraftBody({
   );
 }
 
-// The prompt card (Felix DraftLook): `white` on a 0.5pt `rule-mid` edge — the context chip, the
-// thread's lines, the one-line field in the serif and the Generate chip centred under it, at 40%
-// until there is something to generate from. "Dress it again" beside it opens the DescribeSheet.
-function PromptCard({
-  context,
-  thread,
-  placeholder,
-  value,
-  onChange,
-  chip,
-  onGenerate,
-  onDescribe,
-  describeLabel,
-  busy,
-}: {
-  context?: ReactNode;
-  thread?: ReactNode;
-  placeholder: string;
-  value: string;
-  onChange: (v: string) => void;
-  chip: { label: string; disabled: boolean; refresh?: boolean } | null;
-  onGenerate: () => void;
-  onDescribe?: () => void;
-  describeLabel?: string;
-  busy: boolean;
-}) {
-  return (
-    <View
-      accessibilityLabel={copy.thread}
-      testID="prompt-card"
-      className="gap-2 rounded-soft border-rule-mid bg-surface-raised px-1.5 pt-1.5 pb-3"
-      style={{ borderWidth: FINE_EDGE }}
-    >
-      {context ? <View className="flex-row px-1.5 pt-1">{context}</View> : null}
-      {thread}
-      <View className="flex-row items-center pl-2.5">
-        <SheetField
-          label={placeholder}
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          onSend={onGenerate}
-          disabled={busy}
-          autoFocus={false}
-          testID="draft-prompt"
-        />
-      </View>
-      <View className="flex-row items-center justify-center gap-3">
-        {chip ? (
-          <View style={{ opacity: chip.disabled ? 0.4 : 1 }}>
-            <Button
-              variant="chip"
-              onPress={onGenerate}
-              icon={chip.refresh ? 'refresh' : 'check'}
-              testID="draft-generate"
-            >
-              {chip.label}
-            </Button>
-          </View>
-        ) : null}
-        {onDescribe ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={onDescribe}
-            disabled={busy}
-            className="min-h-7 justify-center"
-          >
-            <Text size="caption" tone="muted" style={{ textDecorationLine: 'underline' }}>
-              {describeLabel}
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
 // 3e's Update look ↻: the chip's size in ink, under the prompt card once a change waits (D17).
 // The page's one filled button stays Schedule look; this is the chip-sized accept.
 function UpdatePill({ onPress, busy }: { onPress: () => void; busy: boolean }) {
@@ -962,29 +1058,6 @@ function UpdatePill({ onPress, busy }: { onPress: () => void; busy: boolean }) {
       </Text>
       <Icon name="refresh" size={11} color={onInk} />
     </Pressable>
-  );
-}
-
-// The day's place and weather, read from the diary: a passive `warm-100` chip with the pin.
-function ContextChip({ date }: { date: string }) {
-  const today = useApi('today.get');
-  const ink = useColor('ink');
-  const day: DiaryDay | undefined = today.data?.diary?.days.find((x) => x.date === date);
-  const wx = day?.weather;
-  if (!day || !wx) return null;
-  const icon = weatherIcon(wx.code);
-  return (
-    <View
-      testID="draft-context"
-      className="h-7 flex-row items-center gap-1.5 rounded-pill border-selected-line bg-selected px-2.5"
-      style={{ borderWidth: 1 }}
-    >
-      <Icon name="pin" size={11} color={ink} />
-      <Text style={{ fontSize: 11 }}>
-        {copy.context(day.place?.city ?? wx.city ?? '', shortRange(wx.tempRange))}
-      </Text>
-      {icon ? <Icon name={icon} size={11} color={ink} /> : null}
-    </View>
   );
 }
 

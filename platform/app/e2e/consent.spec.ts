@@ -64,7 +64,6 @@ async function saveALook(page: Page): Promise<void> {
   await page.goto(`/piece/${piece.id}`);
   await page.getByRole('button', { name: 'Style this piece' }).click();
   await page.getByRole('button', { name: 'Send' }).click();
-  await page.getByRole('button', { name: 'A mix' }).click();
   await expect(page.getByTestId(/^deck-card-/)).toBeVisible({ timeout: 30_000 });
   await page.getByTestId(/^deck-card-/).click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
@@ -188,8 +187,6 @@ test.describe('product events', () => {
     });
     await expect.poll(() => sent('look_pinned').length, { timeout: 20_000 }).toBe(1);
     expect(sent('look_pinned')[0]).toMatchObject({ offset_from_today: 0 });
-    expect(sent('balance_asked')[0]).toMatchObject({ surface: 'create', piece: true });
-    expect(sent('balance_answered')[0]).toMatchObject({ surface: 'create', balance: 'mix' });
     expect(sent('prompt_submitted')[0]).toMatchObject({
       surface: 'create',
       intent: 'piece',

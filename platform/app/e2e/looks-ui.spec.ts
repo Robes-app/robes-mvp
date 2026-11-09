@@ -128,13 +128,13 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   // name field (D16: the name is the Caption in Details).
   await expect(page).toHaveURL(/\/looks\/draft\/new$/);
   await expect(page.getByLabel('Name this look')).toHaveCount(0);
-  // The add slot opens the piece picker; Add 1 piece makes the draft.
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  // The Rack card opens the piece picker (PRD rev 3 §4.6); Add 1 piece makes the draft.
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   const picker = page.getByTestId('piece-picker');
   await picker.getByRole('button', { name: 'Include White wide-leg trouser' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
-  // The draft carries on in the same drawer: the piece on the rack, the prompt card under it.
+  // The draft carries on in the same drawer: the piece on the rack, the styling card under it.
   await expect(page.getByText('Draft look')).toBeVisible();
   await expect(page.getByRole('list', { name: 'The rack · 1 piece' })).toBeVisible();
   // Her words go through the look prompt (plan 2026-11-03) and the picture follows (D14).
@@ -202,7 +202,7 @@ test('the draft look at 390: her model, the piece picker, and the done disc', as
 
   // The piece picker (Felix WardrobePicker): a search, one row of pills with counts (All leads),
   // Photograph one first, a tick on every piece, Add N pieces at the foot.
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   const picker = page.getByTestId('piece-picker');
   await expect(picker.getByRole('button', { name: /^All/ })).toHaveAttribute(
     'aria-pressed',
@@ -222,7 +222,7 @@ test('the draft look at 390: her model, the piece picker, and the done disc', as
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('list', { name: 'The rack · 1 piece' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   await picker.getByRole('button', { name: 'Include White wide-leg trouser' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();

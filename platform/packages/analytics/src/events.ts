@@ -1,7 +1,7 @@
 import { JOB_KINDS, LEGACY_CATEGORIES } from '@robes/core';
 import { ADD_DESTINATIONS } from '@robes/core/add-flow';
 import { HOME_STEPS } from '@robes/core/home';
-import { BALANCES, LOOK_STATUSES } from '@robes/core/looks';
+import { LOOK_STATUSES } from '@robes/core/looks';
 import { z } from 'zod';
 
 // One catalogue for web, native and server (infrastructure.md §9). Props are ids, counts, booleans
@@ -115,11 +115,6 @@ export const EVENTS = {
     })
     .strict(),
   // The box holds her ask to ask where its pieces come from.
-  balance_asked: z.object({ surface: boxSurface, piece: z.boolean() }).strict(),
-  // She answers it (`words` when she wrote her own answer).
-  balance_answered: z
-    .object({ surface: boxSurface, balance: z.enum([...BALANCES, 'words']) })
-    .strict(),
 
   // Home: a step card (O1–O4) is shown.
   home_module_view: z.object({ id: z.enum(HOME_STEPS) }).strict(),

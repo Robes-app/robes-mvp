@@ -97,16 +97,29 @@ export function CountRow({
       >
         {count ?? ''}
       </UiText>
-      <SegmentedControl
-        size="sm"
-        label={copy.header.layout}
-        options={[
-          { value: 'grid', label: copy.header.grid, icon: 'grid' },
-          { value: 'list', label: copy.header.list, icon: 'list' },
-        ]}
-        value={layout}
-        onChange={onLayout}
-      />
+      <LayoutToggle layout={layout} onLayout={onLayout} />
     </View>
+  );
+}
+
+// The small grid | list control, the wardrobe's and The Rack's (Front Door PRD rev 3 §4.6).
+export function LayoutToggle({
+  layout,
+  onLayout,
+}: {
+  layout: WardrobeLayout;
+  onLayout: (next: WardrobeLayout) => void;
+}) {
+  return (
+    <SegmentedControl
+      size="sm"
+      label={copy.header.layout}
+      options={[
+        { value: 'grid', label: copy.header.grid, icon: 'grid' },
+        { value: 'list', label: copy.header.list, icon: 'list' },
+      ]}
+      value={layout}
+      onChange={onLayout}
+    />
   );
 }

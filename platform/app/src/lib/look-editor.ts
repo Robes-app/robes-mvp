@@ -10,6 +10,8 @@ import {
   rackFromLook,
   rackUpdate,
   type UpdateLookInput,
+  type Wish,
+  wishRow,
 } from '@robes/contracts';
 import { errors, lookbook, wardrobe } from '@robes/copy';
 import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/looks';
@@ -246,6 +248,13 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
       track('look_piece_added', { surface: look.status, cat: piece.category });
       change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] });
     },
+    // A wish from the picker's WISHLIST tab (PRD rev 3 §4.6): a proposal row that is already hers
+    // to find, so the look carries a piece to find and Save files nothing twice.
+    addWish: (wish: Wish) => {
+      if (rack.rows.some((r) => r.proposal?.wishlistItemId === wish.id)) return;
+      track('look_piece_added', { surface: look.status, cat: wish.category });
+      change({ ...rack, rows: [...rack.rows, wishRow(wish)] });
+    },
     remove: (key: string) => {
       track('look_piece_removed', { surface: look.status });
       const { [key]: _gone, ...edits } = rack.edits;
@@ -265,12 +274,12 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
             ...(p.retailerHint ? { sourceLabel: p.retailerHint } : {}),
           },
         })
-        .then(() =>
+        .then((wish) =>
           change({
             ...rack,
             rows: rack.rows.map((r) =>
               r.key === key && r.proposal
-                ? { ...r, proposal: { ...r.proposal, wishlisted: true } }
+                ? { ...r, proposal: { ...r.proposal, wishlisted: true, wishlistItemId: wish.id } }
                 : r,
             ),
           }),

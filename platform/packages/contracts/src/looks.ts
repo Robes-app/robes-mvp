@@ -123,6 +123,9 @@ export const Proposal = z.object({
   pricePoint: z.string().max(20).default(''),
   role: LookRole.nullable().default(null),
   wishlisted: z.boolean().default(false),
+  // The wish it stands for, when it came from her wishlist or Save filed it there (plan
+  // 2026-11-09 R1); the wishlist's own row, never a second copy.
+  wishlistItemId: z.uuid().nullable().default(null),
 });
 export type Proposal = z.infer<typeof Proposal>;
 
@@ -417,6 +420,10 @@ export const LookAskInput = z.object({
     .max(ASK_THREAD_MAX)
     .default([]),
   rack: z.array(AskRackRow).min(1).max(ASK_RACK_MAX),
+  // The Shop toggle (Front Door PRD rev 3 §4.6, plan R1): off (`owned`) and the answer draws from
+  // her wardrobe alone; on (`mix`) it may reach for her wishlist and new pieces. Unset reads as
+  // the older clients' wardrobe-first pool.
+  balance: z.enum(BALANCES).optional(),
   context: z
     .object({
       day: z.string().trim().max(40).optional(),
@@ -445,6 +452,9 @@ export const AskTarget = z.union([
       brand: z.string(),
       retailerHint: z.string(),
       pricePoint: z.string(),
+      // A swap to a piece on her wishlist keeps its row's identity.
+      wishlisted: z.boolean().optional(),
+      wishlistItemId: z.uuid().nullable().optional(),
     }),
   }),
 ]);

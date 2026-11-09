@@ -96,6 +96,8 @@ export interface StoredPiece {
   retailerHint: string;
   pricePoint: string;
   pieceId: string | null;
+  // The wish it names, when Shop is on and Robes listed a piece from her wishlist (v7).
+  wishlistItemId?: string | null;
 }
 
 // Collapses the stray newlines the model writes ("\n€380") and trims (legacy txt()).

@@ -45,13 +45,12 @@ test('styling a chosen piece sends a piece anchor with the occasion and opens th
   expect(await screen.findByRole('radio', { name: 'Camel wool coat', checked: true })).toBeTruthy();
   await fireEvent.changeText(screen.getByLabelText(looks.stylePiece.occasionLabel), 'Dinner');
   await fireEvent.press(screen.getByRole('button', { name: looks.stylePiece.start }));
-  // She has pieces filed, so the ask waits on where its pieces come from (legacy 2026-10-19).
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.prompt.balance.mix }));
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith(`/looks/job/${JOB_ID}`));
+  // She has pieces filed, so the look is built from them (the Shop toggle's rest, plan R1).
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     anchor: { type: 'piece', pieceId: PIECE_ID },
     occasion: 'Dinner',
-    balance: 'mix',
+    balance: 'owned',
   });
 });
 

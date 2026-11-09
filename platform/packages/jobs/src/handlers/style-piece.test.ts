@@ -10,6 +10,7 @@ const ASSET = '33333333-3333-4333-8333-333333333333';
 const SET = '55555555-5555-4555-8555-555555555555';
 const LOOK = '77777777-7777-4777-8777-777777777777';
 const JOB = '66666666-6666-4666-8666-666666666666';
+const WISH = '88888888-8888-4888-8888-888888888888';
 const owned = {
   id: PIECE,
   label: 'Camel coat',
@@ -30,6 +31,7 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fake() })) {
       gender: 'woman' as const,
       styleIcons: [],
       closet: [owned],
+      wishes: [{ id: WISH, label: 'Silk cami', category: 'Tops', color: 'coral', brand: 'Vince' }],
       styleDna: {},
       wardrobeCount: 1,
     })),
@@ -160,7 +162,7 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       expect.objectContaining({
         title: 'Camel coat',
-        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 6 }),
+        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 7 }),
       }),
     );
     const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
@@ -484,6 +486,33 @@ describe('key_piece handler (suggested looks)', () => {
       'WHERE THE PIECES COME FROM — in her own words: <user_input>\ntwo of mine',
     );
     expect(suggested.rewrite).toHaveBeenCalled();
+  });
+
+  it('with Shop on, names the pieces she wants and files one Robes picks as her wish (v7)', async () => {
+    const out = fake();
+    const way = out.ways[0];
+    if (!way) throw new Error('no way');
+    // Robes lists the wished piece by its exact label, as the prompt asks.
+    way.pieces = way.pieces.map((p, i) => (i === 0 ? { ...p, name: 'Silk cami' } : p));
+    const { run, generateJson, suggested } = setup(
+      createFakeProvider({ 'looks.style_piece': () => out }),
+    );
+    await run({ anchor: { type: 'piece', pieceId: PIECE }, balance: 'mix' });
+    const system = generateJson.mock.calls[0]?.[0].system ?? '';
+    expect(system).toContain('THE PIECES SHE WANTS');
+    expect(system).toContain('Silk cami [Tops], coral, Vince');
+    const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
+    expect(specs[0]?.proposals[0]).toMatchObject({
+      name: 'Silk cami',
+      wishlisted: true,
+      wishlistItemId: WISH,
+    });
+    expect(specs[0]?.proposals[1]).toMatchObject({ wishlisted: false, wishlistItemId: null });
+    // Shop off: the wishlist stays out of the brief, and nothing is marked.
+    await run({ anchor: { type: 'piece', pieceId: PIECE }, balance: 'owned' });
+    expect(generateJson.mock.calls[1]?.[0].system).not.toContain('THE PIECES SHE WANTS');
+    const later = suggested.mintSet.mock.calls[1]?.[2] as ReturnType<typeof specFromWay>[];
+    expect(later[0]?.proposals[0]).toMatchObject({ name: 'Silk cami', wishlisted: false });
   });
 
   it('counts her own pieces per way, and logs that she wrote words, never the words', async () => {

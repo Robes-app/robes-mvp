@@ -16,13 +16,16 @@ const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const chip =
   'inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-pill border px-2.5 font-sans text-[11px]';
-const warm = `${chip} border-selected-line bg-selected text-ink`;
-const quiet = `${chip} border-rule-mid bg-surface-raised text-ink`;
+// The Front Door's weather chip (PRD rev 3 §4.6): the deep rose fill with a cream label; out, an
+// outline chip on the warm line offers it back.
+const warm = `${chip} border-accent-warm bg-accent-warm text-surface-raised`;
+const quiet = `${chip} border-warm-line bg-transparent text-ink`;
 const WEATHER_STALE_MS = 15 * 60_000;
 
-// The day's context in the draft drawer (Felix 3a: "Dublin · 9–13° ×"): where she is that day and
-// its range. The place decides the weather (root CLAUDE.md), so tapping it opens the place search;
-// × leaves the weather out of this draft's brief. Moved here from Home's prompt box (D22). The
+// The day's context in the draft drawer (Front Door PRD rev 3 §4.6: "📍 Dublin · ☁ 9–13° ×" in
+// rose): where she is that day and its range. The place decides the weather (root CLAUDE.md), so
+// tapping the pin opens the place search; × leaves the weather out of this draft's brief, and the
+// outline "Add location & weather" brings it back. Moved here from Home's prompt box (D22). The
 // native twin is mobile/src/features/looks/DayContext.tsx.
 export function DayContext({
   date,
@@ -75,6 +78,7 @@ export function DayContext({
           data-state="off"
           className={`${quiet} self-start ${focus}`}
         >
+          <Icon name="pin" size={11} />
           {copy.weather}
         </button>
       ) : city ? (
@@ -90,7 +94,7 @@ export function DayContext({
             {city}
             {wx ? (
               <>
-                <span aria-hidden className="text-ink-faint">
+                <span aria-hidden className="text-surface-raised/70">
                   ·
                 </span>
                 {icon ? <Icon name={icon} size={11} /> : null}
@@ -103,7 +107,7 @@ export function DayContext({
             aria-label={copy.weatherOut}
             title={copy.weatherOut}
             onClick={() => onWeatherOff(true)}
-            className={`flex size-5 items-center justify-center rounded-pill text-ink-muted ${focus}`}
+            className={`flex size-5 items-center justify-center rounded-pill text-surface-raised ${focus}`}
           >
             <Icon name="close" size={11} />
           </button>

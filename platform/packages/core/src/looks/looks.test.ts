@@ -8,6 +8,7 @@ import {
   changedKeys,
   deckReduce,
   deckTop,
+  defaultBalance,
   emptyDeck,
   forecastWord,
   frameKey,
@@ -23,10 +24,10 @@ import {
   pickerOrder,
   pieceNoun,
   pinnedFor,
+  priceFromPoint,
   type RackRow,
   type RackState,
   rackSignature,
-  readBalance,
   rowNote,
   SORTS,
   sortLooks,
@@ -323,26 +324,19 @@ describe('pieceNoun', () => {
   });
 });
 
-describe('readBalance', () => {
-  it.each([
-    ['just my own pieces', 'owned'],
-    ['All mine', 'owned'],
-    ['nothing new please', 'owned'],
-    ['mostly mine', 'mix'],
-    ['a mix of both', 'mix'],
-    ['new pieces please', 'new'],
-    ['suggest something fresh', 'new'],
-  ])('%s → %s', (text, balance) => {
-    expect(readBalance(text)).toEqual({ balance, note: null });
+describe('the Shop toggle (balance)', () => {
+  it('rests off once she has a wardrobe, on when there is nothing else to style from', () => {
+    expect(defaultBalance(0)).toBe('mix');
+    expect(defaultBalance(1)).toBe('owned');
   });
 
-  it('keeps words it cannot place as her note, capped', () => {
-    expect(readBalance('  whatever suits the brunch  ')).toEqual({
-      balance: null,
-      note: 'whatever suits the brunch',
-    });
-    expect(readBalance('x'.repeat(400)).note).toHaveLength(160);
-    expect(readBalance('   ')).toEqual({ balance: null, note: null });
+  it("reads a proposal's price point as a wish's price, or files none", () => {
+    expect(priceFromPoint('€120')).toEqual({ price: 120, currency: 'EUR' });
+    expect(priceFromPoint('£ 85.50')).toEqual({ price: 85.5, currency: 'GBP' });
+    expect(priceFromPoint('$200')).toEqual({ price: 200, currency: 'USD' });
+    expect(priceFromPoint('about 90 EUR')).toEqual({ price: 90, currency: 'EUR' });
+    expect(priceFromPoint('investment piece')).toBeNull();
+    expect(priceFromPoint('')).toBeNull();
   });
 });
 
