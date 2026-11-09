@@ -10,11 +10,14 @@ export const palette = {
   ink900: '#252526',
   inkSoft: '#6E6A64',
   inkFaint: '#74664A',
-  rose: '#8E7077',
+  // Felix's rose (9 Nov, darkened from #8E7077): 4.7:1 on cream, 4.9:1 on white.
+  rose: '#856970',
   roseLight: '#B8969D',
-  // The rose darkened for small text (eyebrow brands, "Never worn"): 4.5:1 on every cream.
+  // The rose darkened for small text (eyebrow brands, "Never worn"): 4.5:1 on every cream. Felix's
+  // rose misses 4.5 on cream-100 (4.4) and cream-200 (4.1), where small rose text also sits.
   roseDeep: '#7A5D64',
-  sage: '#7E7C5A',
+  // Felix's sage (9 Nov, darkened from #7E7C5A): 4.6:1 on cream, 4.8:1 on white.
+  sage: '#757354',
   sageLight: '#A9A67E',
   mauve: '#D4C8C4',
   // The warm end of the sign-in ground (legacy signup.html).
@@ -30,6 +33,8 @@ export const palette = {
   warmDash: '#D9CBB7',
   // The base of Felix's sage washes (avatar disc, sage chips).
   sageTint: '#E3E1CC',
+  // The base of Felix's band glass behind the Lookbook and Wardrobe header.
+  bandTint: '#F4EFE5',
   // Felix's unread dot: never text.
   alert: '#D0342C',
   success: '#3F6B4C',
@@ -89,6 +94,10 @@ export const semanticNames = [
   'nav-glass',
   'dock-glass',
   'dock-line',
+  // Felix (9 Nov): the frosted band behind the Lookbook and Wardrobe header (with `blur-band`), and
+  // the glass action sheets, New look and Add pieces (with `blur-sheet`).
+  'band-glass',
+  'sheet-glass',
   // Washes behind a rose or sage chip; `sage-mid` is the avatar disc.
   'rose-bg',
   'rose-mid',
@@ -133,6 +142,8 @@ export const light: Record<Semantic, ColorRef> = {
   'nav-glass': { base: 'cream50', alpha: 0.9 },
   'dock-glass': { base: 'white', alpha: 0.7 },
   'dock-line': { base: 'cream300', alpha: 0.85 },
+  'band-glass': { base: 'bandTint', alpha: 0.72 },
+  'sheet-glass': { base: 'cream50', alpha: 0.68 },
   'rose-bg': { base: 'mauve', alpha: 0.26 },
   'rose-mid': { base: 'mauve', alpha: 0.6 },
   'sage-bg': { base: 'sageTint', alpha: 0.4 },
@@ -175,13 +186,16 @@ export const dark: Record<Semantic, ColorRef> = {
   'nav-glass': { base: 'ink', alpha: 0.9 },
   'dock-glass': { base: 'ink800', alpha: 0.7 },
   'dock-line': { base: 'cream50', alpha: 0.12 },
+  'band-glass': { base: 'ink800', alpha: 0.72 },
+  'sheet-glass': { base: 'ink800', alpha: 0.68 },
   'rose-bg': { base: 'mauve', alpha: 0.12 },
   'rose-mid': { base: 'mauve', alpha: 0.24 },
   'sage-bg': { base: 'sageTint', alpha: 0.12 },
   'sage-mid': { base: 'sageTint', alpha: 0.24 },
 };
 
-// Accent colours are declared at 3:1 (large text, icons, fills only) per the brand guideline.
+// Accent colours are declared at 3:1 (large text, icons, fills only) per the brand guideline. Felix's
+// sage (9 Nov) reads as small text on cream and white, so it is held to 4.5 there.
 export const pairs: Array<{ fg: Semantic; bg: Semantic; min: number }> = [
   { fg: 'ink', bg: 'bg', min: 4.5 },
   { fg: 'ink', bg: 'surface', min: 4.5 },
@@ -202,7 +216,8 @@ export const pairs: Array<{ fg: Semantic; bg: Semantic; min: number }> = [
   { fg: 'accent-warm', bg: 'bg', min: 4.5 },
   { fg: 'accent-warm', bg: 'surface', min: 4.5 },
   { fg: 'accent-warm', bg: 'surface-sunk', min: 4.5 },
-  { fg: 'accent-plan', bg: 'bg', min: 3 },
+  { fg: 'accent-plan', bg: 'bg', min: 4.5 },
+  { fg: 'accent-plan', bg: 'surface-raised', min: 4.5 },
   { fg: 'accent-plan', bg: 'surface', min: 3 },
   { fg: 'success', bg: 'bg', min: 4.5 },
   { fg: 'success', bg: 'surface', min: 4.5 },
@@ -250,6 +265,8 @@ export const shadow = {
   disc: '0 8px 18px -6px rgba(32, 32, 33, 0.38), 0 1px 3px rgba(32, 32, 33, 0.12)',
   // White + discs and small floating buttons.
   float: '0 6px 16px -6px rgba(32, 32, 33, 0.30)',
+  // Grid tiles on cream (LookCard, PieceTile, the EmptyState disc): lifts a white tile without a border.
+  card: '0 1px 2px rgba(32, 32, 33, 0.08), 0 4px 10px -4px rgba(32, 32, 33, 0.16)',
   // Floating sheets and popovers.
   sheet: '0 18px 40px -14px rgba(32, 32, 33, 0.35)',
   modal: '0 18px 48px -18px rgba(32, 32, 33, 0.28)',
@@ -269,16 +286,20 @@ function nativeShadow(y: number, radius: number, opacity: number, elevation: num
 export const shadowNative = {
   disc: nativeShadow(8, 18, 0.38, 6),
   float: nativeShadow(6, 16, 0.3, 6),
+  card: nativeShadow(4, 10, 0.16, 2),
   sheet: nativeShadow(18, 40, 0.35, 10),
   modal: nativeShadow(18, 48, 0.28, 12),
   dialog: nativeShadow(30, 60, 0.5, 16),
 } as const;
 
-// Backdrop blur under glass: the top bar, the dock, and a scrim disc on a photograph.
+// Backdrop blur under glass: the top bar, the dock, a scrim disc on a photograph, the collection
+// header's band and the glass sheets. Felix pairs `band` and `sheet` with saturate(180%).
 export const blur = {
   nav: '16px',
   dock: '22px',
   disc: '8px',
+  band: '26px',
+  sheet: '28px',
 } as const;
 
 export { colorValue, semanticColor } from './value';
