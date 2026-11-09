@@ -51,7 +51,7 @@ test('Today reads her day in her timezone: today’s looks, the week, the wear',
   await api.post(`/api/v1/looks/${look.id}/wears`, { data: { wornOn: date } });
   const worn = await get();
   expect(worn.today[0].worn).toBe(true);
-  expect(worn.diary.days[10].entries[0].worn).toBe(true);
+  expect(worn.diary.days[at].entries[0].worn).toBe(true);
 
   // Where she is on a day rides on its diary day, with that place's weather when known.
   const paris = { city: 'Paris', country: 'France', lat: 48.86, lon: 2.35 };
