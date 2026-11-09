@@ -1,4 +1,4 @@
-import { wardrobe, you } from '@robes/copy';
+import { filters, ui, wardrobe, you } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { PieceDetail } from '../src/features/wardrobe/PieceDetail';
 import { WardrobeView } from '../src/features/wardrobe/WardrobeView';
@@ -33,7 +33,7 @@ test('an empty wardrobe invites her to add pieces', async () => {
   mockFetch({ 'GET /me': ME, 'GET /wardrobe/items': { items: [], nextCursor: null } });
   await renderWithApi(<WardrobeView />);
   expect(await screen.findByText(wardrobe.empty.title)).toBeTruthy();
-  expect(screen.getByRole('button', { name: wardrobe.empty.action })).toBeTruthy();
+  expect(screen.getByRole('button', { name: `+ ${wardrobe.empty.action}` })).toBeTruthy();
 });
 
 test('a reading piece says so and offers no styling yet', async () => {
@@ -444,7 +444,7 @@ test('the list is the rack card: eyebrow, status line, the star, and the count r
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ hero: true });
   expect(await screen.findByText(wardrobe.card.starred)).toBeTruthy();
 
-  await fireEvent.press(await screen.findByRole('button', { name: 'Accessories' }));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Accessories 1' }));
   expect(await screen.findByText('1 piece')).toBeTruthy();
   expect(calls.some((c) => c.url.includes('category=Accessories'))).toBe(true);
 });
@@ -489,49 +489,70 @@ test('grid | list switches the layout; the list swipes (or acts) to remove with 
   expect(await screen.findByText(wardrobe.empty.title)).toBeTruthy();
 });
 
-test('Filter counts the season and the colour family before she applies them', async () => {
+test('the filter sheet applies live: a colour family and a season narrow the grid; Clear undoes them', async () => {
   const calls = mockFetch({
     'GET /me': ME,
+    'GET /wardrobe/summary': {
+      total: 1,
+      categories: [{ category: 'Outerwear', count: 1 }],
+      brands: [],
+      wearFor: [],
+    },
     'GET /wardrobe/items': (_: RequestInit, url: string) =>
-      url.includes('seasonBand=spring_summer')
+      url.includes('seasons=spring')
         ? { items: [], nextCursor: null, total: 0 }
         : { items: [piece()], nextCursor: null, total: 1 },
   });
   await renderWithApi(<WardrobeView />);
-  await fireEvent.press(await screen.findByTestId('wardrobe-filter'));
+  await fireEvent.press(await screen.findByRole('button', { name: ui.filter }));
   await fireEvent.press(await screen.findByRole('button', { name: 'Neutrals' }));
   await waitFor(() =>
-    expect(calls.some((c) => c.url.includes('colourFamily=neutrals'))).toBe(true),
+    expect(calls.some((c) => c.url.includes('colourFamilies=neutrals'))).toBe(true),
   );
-  await fireEvent.press(
-    await screen.findByRole('button', { name: wardrobe.filter.seasons.spring_summer }),
-  );
-  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.filter.show(0) }));
+  await fireEvent.press(await screen.findByRole('button', { name: filters.seasons.spring }));
+  await waitFor(() => expect(calls.some((c) => c.url.includes('seasons=spring'))).toBe(true));
+  // The one button reads what the filters leave, and closes the sheet.
+  await fireEvent.press(await screen.findByRole('button', { name: filters.showPieces(0) }));
   expect(await screen.findByText(wardrobe.filter.nothing)).toBeTruthy();
-  expect(calls.some((c) => c.url.includes('seasonBand=spring_summer'))).toBe(true);
+  // Two filters on: the Filter button says so.
+  expect(screen.getByRole('button', { name: `${ui.filter} 2` })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: wardrobe.filter.showEverything }));
   expect(await screen.findByText('Camel wool coat')).toBeTruthy();
 });
 
-test('Filter refines by what she wears it for and by brand', async () => {
+test('the filter sheet refines by what she wears it for and by one brand from the select', async () => {
   const calls = mockFetch({
     'GET /me': ME,
-    'GET /wardrobe/summary': { total: 1, categories: [], brands: ['Toteme'], wearFor: ['Skiing'] },
+    'GET /wardrobe/summary': {
+      total: 1,
+      categories: [{ category: 'Outerwear', count: 1 }],
+      brands: ['Toteme'],
+      wearFor: ['Skiing'],
+    },
     'GET /wardrobe/items': { items: [piece()], nextCursor: null, total: 1 },
   });
   await renderWithApi(<WardrobeView />);
-  await fireEvent.press(await screen.findByTestId('wardrobe-filter'));
-  expect(await screen.findByText(wardrobe.filter.wearFor)).toBeTruthy();
+  await fireEvent.press(await screen.findByRole('button', { name: ui.filter }));
+  expect(await screen.findByText(filters.wearFor)).toBeTruthy();
+  // The shared list leads (Weekend among it), then her own tag.
+  expect(screen.getByRole('button', { name: 'Weekend' })).toBeTruthy();
   await fireEvent.press(await screen.findByRole('button', { name: 'Skiing' }));
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.filter.brand }));
   await fireEvent.press(await screen.findByRole('button', { name: 'Toteme' }));
   await waitFor(() =>
     expect(
       calls.some((c) => c.url.includes('wearFor=Skiing') && c.url.includes('brand=Toteme')),
     ).toBe(true),
   );
+  // The chips count under the sheet's picks: the summary is asked with them, the category aside.
+  await waitFor(() =>
+    expect(
+      calls.some((c) => c.path.endsWith('/wardrobe/summary') && c.url.includes('brand=Toteme')),
+    ).toBe(true),
+  );
 });
 
-test('Pieces | Wishlist only; the receipt notice shows only while a receipt waits', async () => {
+test('Owned · Wishlist · Shop; the receipt notice shows only while a receipt waits', async () => {
   const entry = {
     id: '00000000-0000-4000-8000-0000000000e1',
     source: 'receipt',
@@ -557,14 +578,20 @@ test('Pieces | Wishlist only; the receipt notice shows only while a receipt wait
   });
   await renderWithApi(<WardrobeView />);
   expect(await screen.findByText('2 pieces')).toBeTruthy();
-  const segments = screen.getAllByRole('radio').map((r) => r.props.accessibilityLabel);
-  expect(segments).toEqual(
-    expect.arrayContaining([wardrobe.segments.wardrobe, wardrobe.segments.wishlist]),
-  );
-  expect(segments).not.toContain(wardrobe.segments.inbox);
-  // "Other" isn't a tab; its pieces stay under All.
-  expect(screen.getByRole('button', { name: 'Outerwear' })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: 'Other' })).toBeNull();
+  // Owned · Wishlist · Shop (Front Door PRD rev 3 §7.1): Shop stands disabled; no Inbox tab.
+  const tabs = screen.getAllByRole('tab').map((r) => r.props.accessibilityLabel);
+  expect(tabs).toEqual([
+    wardrobe.segments.owned,
+    wardrobe.segments.wishlist,
+    wardrobe.segments.shop,
+  ]);
+  expect(
+    screen.getByRole('tab', { name: wardrobe.segments.shop }).props.accessibilityState.disabled,
+  ).toBe(true);
+  // The category chips carry their counts; "Other" isn't a chip, its pieces stay under All.
+  expect(screen.getByRole('button', { name: 'Outerwear 1' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: `${filters.all} 2` })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^Other/ })).toBeNull();
 
   await screen.findByTestId('wardrobe-inbox-notice');
   expect(screen.getByText(`${wardrobe.inbox.notice(1)} · ${you.receipts.waiting(2)}`)).toBeTruthy();

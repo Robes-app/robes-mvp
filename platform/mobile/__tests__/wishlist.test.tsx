@@ -92,9 +92,16 @@ test('a wish reads as the rack card: Category · Brand, its price and "Not yours
   });
   await renderWithApi(<WishlistView />);
   expect(await screen.findByText('2 wishlisted')).toBeTruthy();
-  expect(screen.getByText('€27.95 · Not yours yet')).toBeTruthy();
-  expect(screen.getByText(/ · Toteme$/)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: 'Shoes' }));
+  await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.grid }));
+  // The 3-up tile reads the price alone (PRD rev 3 §7.2); "Not yours yet" where there is none.
+  expect(await screen.findByText('€27.95')).toBeTruthy();
+  expect(screen.getByText('Not yours yet')).toBeTruthy();
+  // The filled heart on the photograph lets a wish go.
+  expect(
+    screen.getByRole('button', { name: wardrobe.wishlist.unwish('Black leather loafers') }),
+  ).toBeTruthy();
+  // The category chips carry their counts and narrow the grid.
+  await fireEvent.press(screen.getByRole('button', { name: 'Shoes 1' }));
   expect(await screen.findByText('1 wishlisted')).toBeTruthy();
   expect(screen.queryByText('Silk scarf')).toBeNull();
 });

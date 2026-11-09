@@ -274,26 +274,68 @@ export function CardTile({
   status,
   href,
   action,
+  compact = false,
+  onImage,
 }: {
   piece: CardPiece;
   photo: ReactNode;
   status: CardStatus;
   href?: string;
-  action: ReactNode;
+  action?: ReactNode;
+  // The Front Door's 3-up tile (PRD rev 3 §2.4): the photograph, the serif name on one line, the
+  // meta; no eyebrow.
+  compact?: boolean;
+  // On the photograph (a wish's heart), bottom right.
+  onImage?: ReactNode;
 }) {
   const lines = cardLines({ piece, ...(href ? { href } : {}), status });
   return (
     <div className="relative flex min-w-0 flex-col overflow-hidden rounded-soft border border-hairline bg-surface-raised hover:border-border-control">
-      <div className="relative bg-surface-raised p-3.5">
+      <div className={`relative bg-surface-raised ${compact ? 'p-1.5' : 'p-3.5'}`}>
         <div className="overflow-hidden rounded-crisp">{photo}</div>
+        {onImage ? <div className="absolute right-2 bottom-2 z-10">{onImage}</div> : null}
       </div>
-      <div className="absolute top-1.5 right-1.5 z-10">{action}</div>
-      <div className="flex flex-col gap-[3px] px-3 pt-2.5 pb-3">
-        {lines.eyebrow}
-        {lines.name}
-        {lines.status}
-      </div>
+      {action ? <div className="absolute top-1.5 right-1.5 z-10">{action}</div> : null}
+      {compact ? (
+        <div className="flex flex-col gap-[2px] px-2 pt-1.5 pb-2.5">
+          <h3 className="truncate font-display font-normal text-[15px] text-ink leading-[19px]">
+            {href ? (
+              <Link
+                href={href}
+                draggable={false}
+                className={`after:absolute after:inset-0 ${focus}`}
+              >
+                {nameWithoutBrand(piece.label, piece.brand)}
+              </Link>
+            ) : (
+              nameWithoutBrand(piece.label, piece.brand)
+            )}
+          </h3>
+          {lines.status}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-[3px] px-3 pt-2.5 pb-3">
+          {lines.eyebrow}
+          {lines.name}
+          {lines.status}
+        </div>
+      )}
     </div>
+  );
+}
+
+// The filled heart on a wish's photograph (PRD rev 3 §7.2): a click lets the wish go.
+export function HeartButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={`relative z-10 inline-flex size-7 items-center justify-center rounded-pill bg-surface-raised/90 text-ink after:absolute after:-inset-2 hover:bg-surface ${focus}`}
+    >
+      <Icon name="heart" size={14} filled />
+    </button>
   );
 }
 

@@ -1,26 +1,28 @@
-import { EmptyInput, LEGACY_CATEGORY, WardrobeSummary } from '@robes/contracts';
+import { LEGACY_CATEGORY, WardrobeSummary, WardrobeSummaryInput } from '@robes/contracts';
 import { verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
 import { route } from '@/server/route';
 
-// The category tabs (the categories she has pieces in, with their counts) and the Filter's
+// The category chips (the categories she has pieces in, with their counts under the sheet's
+// filters — Front Door PRD rev 3 §7.1), every piece she owns (the dock's badge), and the Filter's
 // choices (her brands, what she wears her pieces for).
 export const GET = route({
   auth: 'user',
-  input: EmptyInput,
+  input: WardrobeSummaryInput,
   output: WardrobeSummary,
   rateLimit: { key: 'wardrobe.summary', limit: 240, windowSeconds: 60 },
-  handler: async ({ user }) => {
+  handler: async ({ user, input }) => {
     const userId = verifiedUserId(user.id);
-    const [counts, brands, wearFor] = await Promise.all([
-      repos.wardrobe.categoryCounts(userId),
+    const [counts, total, brands, wearFor] = await Promise.all([
+      repos.wardrobe.categoryCounts(userId, input),
+      repos.wardrobe.count(userId),
       repos.wardrobe.brands(userId),
       repos.wardrobe.wearLabels(userId),
     ]);
     return {
       brands,
       wearFor,
-      total: counts.reduce((n, c) => n + c.count, 0),
+      total,
       categories: counts
         .filter((c) => c.count > 0)
         .map((c) => ({

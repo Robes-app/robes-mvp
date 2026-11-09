@@ -1,9 +1,10 @@
 import { ui } from '@robes/copy';
 import { Button, GlassSheet, Pill, Text, typeStyle } from '@robes/ui-native';
+import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import type { FilterOption } from './use-look-filters';
 
-export interface FilterSection {
+export interface PillSection {
   key: string;
   // The eyebrow over the section, authored in sentence case.
   title: string;
@@ -13,6 +14,16 @@ export interface FilterSection {
   selected: readonly string[];
   onToggle: (value: string) => void;
 }
+
+// A section drawn by its caller under the shared eyebrow: the wardrobe's colour swatches and its
+// brand select (PRD rev 3 §7.1a).
+export interface CustomSection {
+  key: string;
+  title: string;
+  custom: ReactNode;
+}
+
+export type FilterSection = PillSection | CustomSection;
 
 export interface FilterSheetProps {
   open: boolean;
@@ -55,25 +66,29 @@ export function FilterSheet({
             <Text className="text-ink-faint" style={typeStyle('label')}>
               {section.title}
             </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {section.options.map((option) => {
-                const on = section.selected.some(
-                  (v) => v.toLowerCase() === option.value.toLowerCase(),
-                );
-                return (
-                  <Pill
-                    key={option.value}
-                    tone="ink"
-                    selected={on}
-                    {...(section.counts === false ? {} : { count: option.count })}
-                    onPress={() => section.onToggle(option.value)}
-                    testID={`filter-${section.key}-${option.value}`}
-                  >
-                    {option.label}
-                  </Pill>
-                );
-              })}
-            </View>
+            {'custom' in section ? (
+              section.custom
+            ) : (
+              <View className="flex-row flex-wrap gap-2">
+                {section.options.map((option) => {
+                  const on = section.selected.some(
+                    (v) => v.toLowerCase() === option.value.toLowerCase(),
+                  );
+                  return (
+                    <Pill
+                      key={option.value}
+                      tone="ink"
+                      selected={on}
+                      {...(section.counts === false ? {} : { count: option.count })}
+                      onPress={() => section.onToggle(option.value)}
+                      testID={`filter-${section.key}-${option.value}`}
+                    >
+                      {option.label}
+                    </Pill>
+                  );
+                })}
+              </View>
+            )}
           </View>
         ))}
         <Button onPress={onClose} disabled={ctaDisabled} testID="filter-cta">

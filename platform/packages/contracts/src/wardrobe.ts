@@ -127,18 +127,39 @@ export const PieceWearPage = z.object({
 });
 export type PieceWearPage = z.infer<typeof PieceWearPage>;
 
-export const ListPiecesInput = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(60),
-  cursor: z.string().max(200).optional(),
+// A query-string value that may repeat (`?seasons=autumn&seasons=winter`): one arrives as a string,
+// several as an array; either becomes a list.
+const many = <T extends z.ZodType>(item: T) =>
+  z.preprocess(
+    (v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v]),
+    z.array(item).max(16).optional(),
+  );
+
+// The wardrobe's filters (Front Door PRD rev 3 §7.1a): every section multi-select, values OR'd
+// within a section and AND'd across. `seasonBand` and `colourFamily` stay for installed builds.
+const pieceFilters = {
   category: LEGACY_CATEGORY.optional(),
   categoryL2: z.string().max(60).optional(),
   seasonBand: SeasonBand.optional(),
+  // The four seasons and Year round (`year_round`), which an untagged piece answers (D12).
+  seasons: many(z.enum(['spring', 'summer', 'autumn', 'winter', 'year_round'])),
   colourFamily: ColourFamily.optional(),
-  // Filter (legacy Refine): what she wears it for, and the brand on the label.
-  wearFor: z.string().trim().min(1).max(40).optional(),
+  colourFamilies: many(ColourFamily),
+  // What she wears it for (one or several of her wear_for tags), and the brand on the label.
+  wearFor: many(z.string().trim().min(1).max(40)),
   brand: z.string().trim().min(1).max(80).optional(),
+};
+
+export const ListPiecesInput = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(60),
+  cursor: z.string().max(200).optional(),
+  ...pieceFilters,
 });
 export type ListPiecesInput = z.infer<typeof ListPiecesInput>;
+
+// The summary takes the same filters, so the category chips count what the sheet left (§7.1).
+export const WardrobeSummaryInput = z.object(pieceFilters);
+export type WardrobeSummaryInput = z.infer<typeof WardrobeSummaryInput>;
 
 export const PiecePage = z.object({
   items: z.array(Piece),
@@ -261,7 +282,8 @@ export type CreateWishInput = z.infer<typeof CreateWishInput>;
 export const UpdateWishInput = z.object(wishEditable).partial();
 export type UpdateWishInput = z.infer<typeof UpdateWishInput>;
 
-// The wardrobe's category tabs: how many pieces she has in each.
+// The wardrobe's category chips: how many pieces she has in each, under the sheet's filters;
+// `total` is every piece she owns (the dock's badge), whatever the filters.
 export const WardrobeSummary = z.object({
   total: z.number().int().min(0),
   categories: z.array(z.object({ category: LEGACY_CATEGORY, count: z.number().int().min(1) })),
