@@ -131,11 +131,8 @@ describe('inbox repo', () => {
       // × on the scarf: discarded; the same coat asked again files nothing twice.
       const second = await inbox.decide(dana, id, 'dismiss', [0, 1]);
       expect(second?.filedIds).toHaveLength(1);
-      expect((second?.items as { state?: string }[]).map((i) => i.state ?? 'inbox')).toEqual([
-        'added',
-        'discarded',
-        'inbox',
-      ]);
+      const after = (second?.items ?? []) as { state?: string }[];
+      expect(after.map((i) => i.state ?? 'inbox')).toEqual(['added', 'discarded', 'inbox']);
       expect(await inbox.counts(dana)).toEqual({ inbox: 1, added: 1, discarded: 1 });
       // The group's ✓ takes every piece still waiting; nothing waits, so the row is filed.
       const last = await inbox.decide(dana, id, 'wardrobe');
