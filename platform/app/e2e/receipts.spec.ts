@@ -94,10 +94,10 @@ test('the receipt notice opens Receipts; each piece is added or discarded on its
   const group = page.getByRole('region', { name: /^Sézane \(\d\)$/ });
   await expect(group).toHaveAccessibleName('Sézane (2)');
   await group.getByRole('button', { name: 'Discard Silk scarf' }).click();
-  await expect(page.getByText('Discarded.')).toBeVisible();
+  await expect(page.getByText('Discarded.', { exact: true })).toBeVisible();
   await expect(group.getByText('Silk scarf')).toHaveCount(0);
   await group.getByRole('button', { name: 'Add Camel wool coat to your wardrobe' }).click();
-  await expect(page.getByText('Added to your wardrobe.')).toBeVisible();
+  await expect(page.getByText('Added to your wardrobe.', { exact: true })).toBeVisible();
   // Nothing waits: the Inbox tab empties and the others count what she decided.
   await expect(page.getByRole('heading', { name: 'Forwarded receipts land here.' })).toBeVisible();
   await page.getByRole('tab', { name: 'Added 1' }).click();
