@@ -247,17 +247,10 @@ export const diary = {
   },
   drawer: {
     eyebrow: (dayWord: string, date: string): string => `${dayWord} · ${date}`,
-    yourLooks: 'Your looks',
-    lastWorn: 'Last worn ↓',
-    firstWorn: 'First worn ↑',
-    sortLabel: 'Order',
-    refine: 'Refine',
-    refineOn: (n: number): string => `Refine · ${n}`,
-    search: 'Search by name or piece',
-    season: 'Season',
-    wearFor: 'Wear it for',
-    none: 'No looks match.',
-    clear: 'Clear refine',
+    // The search under the filter row (Front Door PRD rev 3 §4.5): a title or a piece word.
+    search: 'Search your looks',
+    // The ✓ that applies her picks, while nothing has changed yet.
+    done: 'Done',
     scheduled: 'Scheduled',
     adding: 'Adding',
     wears: (n: number): string => (n === 1 ? '1 wear' : `${n} wears`),

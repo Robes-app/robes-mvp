@@ -280,18 +280,25 @@ test('the diary: the strip selects a day, the slot adds and changes its look, De
   await expect(page.getByTestId('disc-describe')).toBeVisible();
   expect(await seriousViolations(page), 'home, the diary').toEqual([]);
 
-  // Pick → the drawer asks what she is wearing and schedules one.
+  // Pick → the drawer asks what she is wearing and schedules one (Front Door PRD rev 3 §4.5):
+  // the ✓ waits grey until her picks change the day; the filter row and search sit under the
+  // question.
   await page.getByRole('button', { name: 'Pick a look for today' }).click();
-  const drawer = page.getByRole('dialog', { name: 'What are you wearing?' });
-  await expect(drawer.getByTestId('drawer-idle')).toHaveText('Schedule Looks');
+  const drawer = page.getByRole('dialog').filter({
+    has: page.getByRole('heading', { name: 'What are you wearing?' }),
+  });
+  await expect(drawer.getByTestId('drawer-done')).toHaveAttribute('aria-disabled', 'true');
+  await expect(drawer.getByRole('button', { name: 'Filter' })).toBeVisible();
+  await expect(drawer.getByRole('searchbox', { name: 'Search your looks' })).toBeVisible();
   await drawer.getByRole('button', { name: /Office/ }).click();
   await drawer.getByRole('button', { name: 'Schedule 1 Look' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Office');
   await expect(page.getByTestId(`diary-day-${date}`)).toHaveAccessibleName('Today, 1 look planned');
 
-  // Swap on the look changes it: one tap replaces it.
+  // Swap opens the same sheet with the day's look ticked: untick it, tick another, ✓.
   await page.getByRole('button', { name: 'Swap Office for another look' }).click();
-  await expect(drawer.getByTestId('drawer-idle')).toHaveText('Tap looks to add or take off today');
+  await expect(drawer.getByText('Scheduled')).toHaveCount(1);
+  await drawer.getByRole('button', { name: /Office/ }).click();
   await drawer.getByRole('button', { name: /Dinner/ }).click();
   await drawer.getByRole('button', { name: 'Wear this look today' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Dinner');
@@ -314,7 +321,9 @@ test('the diary: the strip selects a day, the slot adds and changes its look, De
   await page.getByTestId(`diary-day-${yesterday}`).click();
   await expect(page.getByTestId('disc-describe')).toHaveCount(0);
   await page.getByRole('button', { name: /^Pick a look for \w+day$/ }).click();
-  const past = page.getByRole('dialog', { name: 'What did you wear?' });
+  const past = page.getByRole('dialog').filter({
+    has: page.getByRole('heading', { name: 'What did you wear?' }),
+  });
   await past.getByRole('button', { name: /Office/ }).click();
   await past.getByRole('button', { name: 'Schedule 1 Look' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Office');

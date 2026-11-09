@@ -701,6 +701,28 @@ export const ui = {
   clear: 'Clear',
 } as const;
 
+// The shared filter pattern (Front Door PRD rev 3 §2.5): the row's chips, the sheet's sections
+// and its one button. Seasons are the four plus Year round, the empty set (D12).
+export const filters = {
+  all: 'All',
+  season: 'Season',
+  wearFor: 'Wear it for',
+  seasons: {
+    spring: 'Spring',
+    summer: 'Summer',
+    autumn: 'Autumn',
+    winter: 'Winter',
+    year_round: 'Year round',
+  } as const,
+  removeSeason: (season: string): string => `Remove ${season}`,
+  showLooks: (n: number): string =>
+    n === 0 ? 'No looks match' : n === 1 ? 'Show 1 look' : `Show ${n} looks`,
+  showPieces: (n: number): string =>
+    n === 0 ? 'No pieces match' : n === 1 ? 'Show 1 piece' : `Show ${n} pieces`,
+  noLooks: 'No looks match.',
+  clear: 'Clear filters',
+} as const;
+
 // App shell (IA §3.2): nav, Create sheet, command bar, placeholder routes.
 export const shell = {
   primaryNav: 'Main',

@@ -11,7 +11,7 @@ const sizes = {
   sm: "min-h-7 px-[11px] text-[11px] after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
 } as const;
 
-export type PillTone = 'warm' | 'rose';
+export type PillTone = 'warm' | 'rose' | 'ink';
 
 // The pill anatomy on its own, for the controls that are not toggles — a menu
 // trigger or a disclosure, which must not claim aria-pressed.
@@ -30,7 +30,9 @@ export function pillClasses({
     selected
       ? tone === 'rose'
         ? 'border border-accent-warm bg-accent-warm text-surface-raised'
-        : 'border border-selected-line bg-selected'
+        : tone === 'ink'
+          ? 'border border-ink bg-ink text-bg'
+          : 'border border-selected-line bg-selected'
       : 'border-[0.5px] border-rule-mid bg-surface-raised hover:border-border-control',
     // A disabled chip (a count of 0) sits back at 45% with no pointer, so it reads as a value
     // that isn't here today rather than a choice she could make.
@@ -42,9 +44,10 @@ export function pillClasses({
 export interface PillProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-pressed'> {
   selected?: boolean;
   size?: keyof typeof sizes;
-  // How a selected pill reads: Felix's warm fill (a kept choice), or the Front Door's deep rose
-  // with a cream label (an active quick chip in a filter row, PRD rev 3 §2.5). The PRD's lighter
-  // rose misses 4.5:1 under an 11px label, so the darkened rose carries it (D1).
+  // How a selected pill reads: Felix's warm fill (a kept choice), the Front Door's deep rose
+  // with a cream label (an active quick chip in a filter row, PRD rev 3 §2.5), or ink with a
+  // cream label (an option picked in the filter sheet). The PRD's lighter rose misses 4.5:1
+  // under an 11px label, so the darkened rose carries it (D1).
   tone?: PillTone;
   // A live count after the label, lighter ("Work 3").
   count?: number;
@@ -68,7 +71,7 @@ export function Pill({
   children,
   ...rest
 }: PillProps) {
-  const rose = selected && tone === 'rose';
+  const rose = selected && tone !== 'warm';
   // The count is part of the name ("Work 3"): inline text nodes would otherwise run together.
   const name =
     count !== undefined && typeof children === 'string' ? `${children} ${count}` : undefined;
