@@ -1,55 +1,84 @@
 'use client';
 
+import { useApi } from '@robes/api-client/react';
 import { wardrobe } from '@robes/copy';
-import { TileSheet } from '@robes/ui';
+import type { AddDestination } from '@robes/core/add-flow';
+import { Button, Field, TileSheet } from '@robes/ui';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useRef } from 'react';
+import { type FormEvent, useRef, useState } from 'react';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 
 const copy = wardrobe.addSheet;
+const focus =
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// The Add your pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles on glass — PASTE URL
-// opens the link reader, PHOTO the file picker (the photograph files straight in), FROM RECEIPT
-// the receipts inbox. Over the draft and, in time, over the Wardrobe (plan PR 7). Native twin:
-// mobile/src/features/wardrobe/add/AddPiecesSheet.tsx.
+// The Add pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles on glass — PASTE URL turns
+// the sheet into Add from Link with the field inline (✓ reads the page), PHOTO the file picker
+// (over the draft the photograph files straight onto the look; elsewhere it opens the camera
+// flow), FROM RECEIPT the Receipts with the count waiting on its corner. "Add without a photo"
+// stays as a quiet line under the tiles. Native twin: mobile/src/features/wardrobe/add/AddPiecesSheet.tsx.
 export function AddPiecesSheet({
   open,
   onClose,
   onPhoto,
-  receipts,
+  to = 'wardrobe',
+  draft = false,
 }: {
   open: boolean;
   onClose: () => void;
-  // The photo tile: the photograph she picks.
-  onPhoto: (file: File) => void;
-  // Receipts waiting to be reviewed, on the tile's corner.
-  receipts?: number;
+  // The photo tile over the draft: the photograph she picks. Without it the tile opens the
+  // wardrobe's camera flow.
+  onPhoto?: (file: File) => void;
+  // Where the pieces go (the Wishlist tab's + files wishes).
+  to?: AddDestination;
+  // Over the draft the sheet reads "Add your pieces".
+  draft?: boolean;
 }) {
   const router = useRouter();
+  const inbox = useApi('inbox.list', undefined, { enabled: open });
+  const receipts = inbox.data?.count ?? 0;
   const camera = useRef<HTMLInputElement>(null);
-  const go = (href: string) => {
+  const [link, setLink] = useState(false);
+  const [url, setUrl] = useState('');
+  const close = () => {
+    setLink(false);
+    setUrl('');
     onClose();
+  };
+  const go = (href: string) => {
+    close();
     router.push(href);
+  };
+  const read = (event?: FormEvent) => {
+    event?.preventDefault();
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    go(`/wardrobe/link?to=${to}&url=${encodeURIComponent(trimmed)}`);
   };
   return (
     <>
       <TileSheet
         open={open}
         onOpenChange={(next) => {
-          if (!next) onClose();
+          if (!next) close();
         }}
-        title={copy.title}
+        title={link ? copy.linkTitle : draft ? copy.draftTitle : copy.title}
+        {...(link ? { selected: copy.pasteUrl } : {})}
         tiles={[
           {
             icon: 'link',
             label: copy.pasteUrl,
-            onClick: () => go('/wardrobe/link'),
+            onClick: () => setLink(true),
             testId: 'add-sheet-link',
           },
           {
             icon: 'camera',
             label: copy.photo,
-            onClick: () => camera.current?.click(),
+            onClick: () => {
+              if (onPhoto) camera.current?.click();
+              else go(`/wardrobe/add?to=${to}&start=camera`);
+            },
             testId: 'add-sheet-photo',
           },
           {
@@ -60,23 +89,53 @@ export function AddPiecesSheet({
             testId: 'add-sheet-receipt',
           },
         ]}
-      />
-      <input
-        ref={camera}
-        type="file"
-        accept={PHOTO_ACCEPT}
-        capture="environment"
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          e.target.value = '';
-          if (!f) return;
-          onClose();
-          onPhoto(f);
-        }}
-      />
+      >
+        {link ? (
+          <form onSubmit={read} className="flex flex-col gap-3">
+            <Field
+              label={copy.linkField}
+              name="url"
+              type="url"
+              inputMode="url"
+              autoFocus
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={wardrobe.add.link.placeholder}
+              maxLength={2048}
+              data-testid="add-sheet-url"
+            />
+            <Button type="submit" variant="primary" block disabled={url.trim() === ''}>
+              {copy.linkGo}
+            </Button>
+          </form>
+        ) : (
+          <Link
+            href={`/wardrobe/manual?to=${to}`}
+            onClick={close}
+            className={`block min-h-11 text-center font-sans text-ink-muted text-sm leading-[44px] underline underline-offset-4 hover:text-ink ${focus}`}
+          >
+            {copy.manual}
+          </Link>
+        )}
+      </TileSheet>
+      {onPhoto ? (
+        <input
+          ref={camera}
+          type="file"
+          accept={PHOTO_ACCEPT}
+          capture="environment"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (!f) return;
+            close();
+            onPhoto(f);
+          }}
+        />
+      ) : null}
     </>
   );
 }

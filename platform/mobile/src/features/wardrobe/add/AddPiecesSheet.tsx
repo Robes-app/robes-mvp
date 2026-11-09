@@ -1,50 +1,76 @@
+import { useApi } from '@robes/api-client/react';
 import { wardrobe } from '@robes/copy';
-import { TileSheet } from '@robes/ui-native';
+import type { AddDestination } from '@robes/core/add-flow';
+import { Button, Field, PrimaryScope, Text, TileSheet } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { Pressable, View } from 'react-native';
 
 const copy = wardrobe.addSheet;
 
-// The Add your pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles on glass — PASTE URL
-// opens the link reader, PHOTO the camera (the photograph files straight in), FROM RECEIPT the
-// receipts inbox. Over the draft and, in time, over the Wardrobe (plan PR 7). Web twin:
+// The Add pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles on glass — PASTE URL turns
+// the sheet into Add from Link with the field inline (✓ reads the page), PHOTO the camera (over the
+// draft the photograph files straight onto the look), FROM RECEIPT the Receipts with the count
+// waiting on its corner. "Add without a photo" stays as a quiet line under the tiles. Web twin:
 // app/src/components/wardrobe/add/add-pieces-sheet.tsx.
 export function AddPiecesSheet({
   open,
   onClose,
   onPhoto,
-  receipts,
+  to = 'wardrobe',
+  draft = false,
 }: {
   open: boolean;
   onClose: () => void;
-  // The photo tile: the parent opens the camera once the sheet has gone.
-  onPhoto: () => void;
-  // Receipts waiting to be reviewed, on the tile's corner.
-  receipts?: number;
+  // The photo tile over the draft: the parent opens the camera once the sheet has gone. Without
+  // it the tile opens the wardrobe's camera.
+  onPhoto?: () => void;
+  // Where the pieces go (the Wishlist tab's + files wishes).
+  to?: AddDestination;
+  // Over the draft the sheet reads "Add your pieces".
+  draft?: boolean;
 }) {
   const router = useRouter();
+  const inbox = useApi('inbox.list', undefined, { enabled: open });
+  const receipts = inbox.data?.count ?? 0;
+  const [link, setLink] = useState(false);
+  const [url, setUrl] = useState('');
   const go = (href: Parameters<typeof router.push>[0]) => {
     onClose();
     router.push(href);
   };
   // The camera waits for the sheet to have gone (iOS refuses to present over a dismissing modal).
   const photoNext = useRef(false);
+  const close = () => {
+    setLink(false);
+    setUrl('');
+    onClose();
+  };
+  const read = () => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    setLink(false);
+    setUrl('');
+    go({ pathname: '/wardrobe/link', params: { to, url: trimmed } });
+  };
   return (
     <TileSheet
       open={open}
-      onClose={onClose}
+      onClose={close}
       onClosed={() => {
         if (!photoNext.current) return;
         photoNext.current = false;
-        onPhoto();
+        if (onPhoto) onPhoto();
+        else router.push({ pathname: '/wardrobe/camera', params: { to } });
       }}
-      title={copy.title}
+      title={link ? copy.linkTitle : draft ? copy.draftTitle : copy.title}
       testID="add-pieces-sheet"
+      {...(link ? { selected: copy.pasteUrl } : {})}
       tiles={[
         {
           icon: 'link',
           label: copy.pasteUrl,
-          onPress: () => go('/wardrobe/link'),
+          onPress: () => setLink(true),
           testID: 'add-sheet-link',
         },
         {
@@ -64,6 +90,47 @@ export function AddPiecesSheet({
           testID: 'add-sheet-receipt',
         },
       ]}
-    />
+    >
+      {link ? (
+        <PrimaryScope>
+          <View className="gap-3">
+            <Field
+              label={copy.linkField}
+              labelHidden
+              autoFocus
+              value={url}
+              onChangeText={setUrl}
+              placeholder={wardrobe.add.link.placeholder}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              returnKeyType="go"
+              onSubmitEditing={read}
+              maxLength={2048}
+              testID="add-sheet-url"
+            />
+            <Button
+              disabled={url.trim() === ''}
+              onPress={read}
+              icon="check"
+              testID="add-sheet-read"
+            >
+              {copy.linkGo}
+            </Button>
+          </View>
+        </PrimaryScope>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => go({ pathname: '/wardrobe/manual', params: { to } })}
+          className="min-h-11 items-center justify-center"
+          testID="add-sheet-manual"
+        >
+          <Text size="small" tone="muted" style={{ textDecorationLine: 'underline' }}>
+            {copy.manual}
+          </Text>
+        </Pressable>
+      )}
+    </TileSheet>
   );
 }

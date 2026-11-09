@@ -126,7 +126,13 @@ export type { AdminActor } from './admin-reads';
 export type { AssetKind, DiscardOutcome, RemoveAssetFiles } from './assets';
 export type { ConsentAnswers } from './consents';
 export type { FramedType, StoredFrame, StoredFrameStatus } from './frames';
-export { heldItems, type InboxAction, type InboxItem } from './inbox';
+export {
+  heldItems,
+  type InboxAction,
+  type InboxItem,
+  type InboxItemState,
+  itemState,
+} from './inbox';
 export type { CreateJobInput, QuotaCost } from './jobs';
 export type { CallRecord } from './ledger';
 export {

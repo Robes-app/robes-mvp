@@ -9,6 +9,7 @@ import { FlatList, RefreshControl, View } from 'react-native';
 import { FilterRow } from '@/features/filters/FilterRow';
 import { useWardrobeFilters } from '@/features/filters/use-wardrobe-filters';
 import { errorMessage } from '@/lib/errors';
+import { AddPiecesSheet } from './add/AddPiecesSheet';
 import { useWardrobeLayout } from './layout';
 import { BoughtButton, CardRow, type CardStatus, CardTile, HeartButton } from './PieceCard';
 import { CountRow } from './WardrobeHeader';
@@ -40,6 +41,8 @@ function wishMatches(
 // keeps Bought and the swipe to remove. Web twin: app/src/components/wardrobe/wishlist.tsx.
 export function WishlistView() {
   const router = useRouter();
+  // The empty wishlist's door: the Add pieces sheet (PRD rev 3 §7.4) on the wishlist.
+  const [adding, setAdding] = useState(false);
   const { wishes, isPending, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage } =
     useWishes();
   const promote = usePromoteWish();
@@ -164,11 +167,7 @@ export function WishlistView() {
               icon="heart"
               title={copy.wishlistEmpty.title}
               body={copy.wishlistEmpty.body}
-              action={{
-                label: copy.header.savePiece,
-                onPress: () =>
-                  router.push({ pathname: '/wardrobe/add', params: { to: 'wishlist' } }),
-              }}
+              action={{ label: copy.header.savePiece, onPress: () => setAdding(true) }}
             />
           ) : (
             <View className="items-start gap-3 py-6">
@@ -180,6 +179,7 @@ export function WishlistView() {
           )
         }
       />
+      <AddPiecesSheet open={adding} onClose={() => setAdding(false)} to="wishlist" />
       <WardrobeFilterSheet
         open={sheet}
         onClose={() => setSheet(false)}

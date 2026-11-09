@@ -30,12 +30,18 @@ const wish = {
 };
 
 test('an empty wishlist opens the Add pieces sheet on the wishlist', async () => {
-  mockFetch({ 'GET /wishlist/items': { items: [], nextCursor: null } });
+  mockFetch({
+    'GET /wishlist/items': { items: [], nextCursor: null },
+    'GET /inbox': { items: [], count: 0, counts: { inbox: 0, added: 0, discarded: 0 } },
+  });
   await renderWithApi(<WishlistView />);
   expect(await screen.findByText(wardrobe.wishlistEmpty.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: wardrobe.header.savePiece }));
+  expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
+  // Add without a photo carries the wishlist as the destination.
+  await fireEvent.press(screen.getByTestId('add-sheet-manual'));
   expect(mockRouter.push).toHaveBeenCalledWith({
-    pathname: '/wardrobe/add',
+    pathname: '/wardrobe/manual',
     params: { to: 'wishlist' },
   });
 });

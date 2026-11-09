@@ -6,9 +6,8 @@ import { filters as filterCopy, wardrobe } from '@robes/copy';
 import { SEASON_OPTIONS, type SeasonOption, WEAR_FOR_ALL } from '@robes/core/filters';
 import { rankCategories, type WardrobeLayout } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
-import { Button, buttonClasses, CardSkeleton, EmptyState, ErrorText, Text } from '@robes/ui';
+import { Button, CardSkeleton, EmptyState, ErrorText, Text } from '@robes/ui';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BrandSelect } from '@/components/filters/brand-select';
 import { FilterRow } from '@/components/filters/filter-row';
@@ -20,6 +19,7 @@ import {
 } from '@/components/filters/use-wardrobe-filters';
 import { errorCopy } from '@/lib/error-copy';
 import { anyReading } from '@/lib/wardrobe';
+import { AddPiecesSheet } from './add/add-pieces-sheet';
 import { AddCard, CardRow, type CardStatus, CardTile, StarButton } from './piece-card';
 import { PieceImage } from './piece-image';
 import { useWardrobeLayout } from './use-layout';
@@ -126,6 +126,9 @@ export function PieceGrid() {
   const [layout, setLayout] = useWardrobeLayout();
   const filters = useWardrobeFilters();
   const [sheet, setSheet] = useState(false);
+  // Every way in starts on the Add pieces sheet (Front Door PRD rev 3 §7.4): the three tiles
+  // over the Wardrobe.
+  const [adding, setAdding] = useState(false);
   // The chips count under the sheet's filters (the category itself set aside); the last answer
   // stands while the next loads, so the sheet's brand list never blinks away between picks.
   const summary = useApi(
@@ -183,7 +186,13 @@ export function PieceGrid() {
   const header = (
     <WardrobeHeader
       current="/wardrobe"
-      add={<AddCircle href="/wardrobe/add" label={wardrobe.header.addPiece} />}
+      add={
+        <AddCircle
+          onClick={() => setAdding(true)}
+          expanded={adding}
+          label={wardrobe.header.addPiece}
+        />
+      }
     >
       {owned === 0 ? null : (
         <FilterRow
@@ -224,11 +233,12 @@ export function PieceGrid() {
           title={wardrobe.empty.title}
           body={wardrobe.empty.body}
           action={
-            <Link href="/wardrobe/add" className={buttonClasses({ variant: 'primary' })}>
+            <Button variant="primary" onClick={() => setAdding(true)}>
               + {wardrobe.empty.action}
-            </Link>
+            </Button>
           }
         />
+        <AddPiecesSheet open={adding} onClose={() => setAdding(false)} />
       </div>
     );
   }
@@ -288,6 +298,7 @@ export function PieceGrid() {
         wearChoices={wearChoicesOf(summary.data?.wearFor ?? [])}
         count={total}
       />
+      <AddPiecesSheet open={adding} onClose={() => setAdding(false)} />
     </div>
   );
 }

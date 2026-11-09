@@ -14,6 +14,7 @@ import { FilterSheet } from '@/features/filters/FilterSheet';
 import { SwatchGrid } from '@/features/filters/SwatchGrid';
 import { useWardrobeFilters, type WardrobeFilters } from '@/features/filters/use-wardrobe-filters';
 import { errorMessage } from '@/lib/errors';
+import { AddPiecesSheet } from './add/AddPiecesSheet';
 import { useInbox } from './inbox';
 import { useWardrobeLayout } from './layout';
 import { AddRow, CardRow, type CardStatus, CardTile, StarButton } from './PieceCard';
@@ -111,7 +112,7 @@ export function wearChoicesOf(own: readonly string[]): string[] {
   return [...WEAR_FOR_ALL, ...extra];
 }
 
-function Pieces() {
+function Pieces({ onAdd }: { onAdd: () => void }) {
   const tabScroll = useTabScroll();
   const router = useRouter();
   const [layout, setLayout] = useWardrobeLayout();
@@ -137,8 +138,8 @@ function Pieces() {
   } = usePieces(filters.input);
   const star = useStarPiece();
   const remove = useDeletePiece();
-  // Every way in starts on the Add pieces sheet (design "Add Piece — Handoff").
-  const addPieces = () => router.push('/wardrobe/add');
+  // Every way in starts on the Add pieces sheet (Front Door PRD rev 3 §7.4), the Wardrobe's.
+  const addPieces = onAdd;
   const owned = summary.data?.total ?? null;
   // "Other" isn't a place to browse to; its pieces stay under All (beta's sheet).
   const categories = useMemo(
@@ -292,6 +293,9 @@ export function WardrobeView() {
   const inbox = useInbox();
   const receipts = inbox.data?.items.length ?? 0;
   const waiting = inbox.data?.count ?? 0;
+  // The + and the empty states open the Add pieces sheet (PRD rev 3 §7.4): the three tiles over
+  // the Wardrobe, filing to the segment she is on.
+  const [adding, setAdding] = useState(false);
   return (
     <TabScreen
       toolbar={
@@ -299,12 +303,7 @@ export function WardrobeView() {
           segment={segment}
           onSegment={setSegment}
           addLabel={segment === 'wishlist' ? copy.header.savePiece : copy.header.addPiece}
-          onAdd={() =>
-            router.push({
-              pathname: '/wardrobe/add',
-              params: { to: segment === 'wishlist' ? 'wishlist' : 'wardrobe' },
-            })
-          }
+          onAdd={() => setAdding(true)}
         />
       }
     >
@@ -315,8 +314,13 @@ export function WardrobeView() {
           onOpen={() => router.push('/wardrobe/inbox')}
         />
       ) : null}
-      {segment === 'pieces' ? <Pieces /> : null}
+      {segment === 'pieces' ? <Pieces onAdd={() => setAdding(true)} /> : null}
       {segment === 'wishlist' ? <WishlistView /> : null}
+      <AddPiecesSheet
+        open={adding}
+        onClose={() => setAdding(false)}
+        to={segment === 'wishlist' ? 'wishlist' : 'wardrobe'}
+      />
     </TabScreen>
   );
 }

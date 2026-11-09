@@ -33,6 +33,7 @@ import {
   InboxDecision,
   InboxEntry,
   InboxList,
+  InboxListInput,
   InboxParams,
 } from './inbox';
 import { JOB_EVENT, JobIdParams, JobSnapshot, StartJobOutput } from './jobs';
@@ -1146,7 +1147,7 @@ export const routes = {
     method: 'GET',
     path: '/inbox',
     auth: 'user',
-    input: EmptyInput,
+    input: InboxListInput,
     output: InboxList,
   },
   // One held entry of any source (Review opens a pasted link here); 404 once decided.

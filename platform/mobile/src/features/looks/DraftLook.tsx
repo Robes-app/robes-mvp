@@ -640,6 +640,7 @@ function NewDraft({
         open={adding}
         onClose={() => setAdding(false)}
         onPhoto={() => void snap.snap()}
+        draft
       />
       <AlertDialog
         open={full !== null}
@@ -1069,6 +1070,7 @@ function DraftBody({
           snapFor.current = { add: true };
           void snap.snap();
         }}
+        draft
       />
       <TagsView look={look} open={subview === 'tags'} onBack={() => setSubview(null)} />
       <SeasonsView look={look} open={subview === 'seasons'} onBack={() => setSubview(null)} />

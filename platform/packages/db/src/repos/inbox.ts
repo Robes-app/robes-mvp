@@ -6,6 +6,8 @@ import { wardrobeRepo } from './wardrobe';
 import { wishlistRepo } from './wishlist';
 
 // One held item (a link import or a receipt line). Stored as jsonb; the API parses it.
+export type InboxItemState = 'inbox' | 'added' | 'discarded';
+
 export interface InboxItem {
   label: string;
   brand?: string | null;
@@ -14,7 +16,13 @@ export interface InboxItem {
   // Product image as the shop published it; metadata only, never fetched or hotlinked.
   imageUrl?: string | null;
   sourceUrl?: string | null;
+  // Decided on its own (Front Door PRD rev 3 §7.5): added as a piece or wish (`filedId`), or
+  // discarded. Unset is waiting in the Inbox.
+  state?: InboxItemState;
+  filedId?: string | null;
 }
+
+export const itemState = (item: InboxItem): InboxItemState => item.state ?? 'inbox';
 
 // Rows written by older code or a receipt parser may hold odd entries; only labelled ones file.
 export function heldItems(value: unknown): InboxItem[] {
@@ -29,7 +37,9 @@ const INBOX_COLUMNS = [
   'id',
   'source',
   'retailer',
+  'orderRef',
   'subject',
+  'fromEmail',
   'items',
   'status',
   'filedIds',
@@ -45,28 +55,50 @@ export type InboxAction = 'wardrobe' | 'wishlist' | 'dismiss';
 // goes before pasting it, so only receipts ask her here (Add Piece redline 04b).
 export function inboxRepo(db: Db) {
   const mine = (userId: UserId) => db.selectFrom('wardrobeInbox').where('userId', '=', userId);
-  const waiting = (userId: UserId) =>
-    mine(userId).where('status', '=', 'held').where('source', '=', 'receipt');
+  const receipts = (userId: UserId) => mine(userId).where('source', '=', 'receipt');
+  // Receipts holding at least one piece in the state (a piece with no state is waiting).
+  const withPieces = (userId: UserId, state: InboxItemState) =>
+    receipts(userId).where(
+      sql<boolean>`exists (select 1 from jsonb_array_elements(items) e where coalesce(e->>'state', 'inbox') = ${state})`,
+    );
 
   return {
-    listHeld(userId: UserId, limit = 50) {
-      return waiting(userId)
+    // The Receipts' tabs (Front Door PRD rev 3 §7.5): the receipts with pieces waiting, added or
+    // discarded, newest first; links never show here.
+    list(userId: UserId, state: InboxItemState = 'inbox', limit = 50) {
+      return withPieces(userId, state)
         .select(INBOX_COLUMNS)
         .orderBy('receivedAt', 'desc')
         .limit(limit)
         .execute();
     },
 
+    listHeld(userId: UserId, limit = 50) {
+      return this.list(userId, 'inbox', limit);
+    },
+
+    // Pieces per state across her receipts: the tabs' counts and the Inbox badge.
+    async counts(userId: UserId): Promise<Record<InboxItemState, number>> {
+      const rows = await receipts(userId)
+        .innerJoin(sql`jsonb_array_elements(items)`.as('e'), (join) => join.onTrue())
+        .select([
+          sql<string>`coalesce(e.value->>'state', 'inbox')`.as('state'),
+          sql<string>`count(*)`.as('n'),
+        ])
+        .groupBy(sql`coalesce(e.value->>'state', 'inbox')`)
+        .execute();
+      const out: Record<InboxItemState, number> = { inbox: 0, added: 0, discarded: 0 };
+      for (const r of rows) {
+        if (r.state === 'inbox' || r.state === 'added' || r.state === 'discarded') {
+          out[r.state] = Number(r.n);
+        }
+      }
+      return out;
+    },
+
     // Pieces (not receipts) waiting, so "N pieces waiting" counts what she will tick through.
     async piecesWaiting(userId: UserId): Promise<number> {
-      const row = await waiting(userId)
-        .select(
-          sql<string>`coalesce(sum(case when jsonb_typeof(items) = 'array' then jsonb_array_length(items) else 0 end), 0)`.as(
-            'n',
-          ),
-        )
-        .executeTakeFirst();
-      return Number(row?.n ?? 0);
+      return (await this.counts(userId)).inbox;
     },
 
     get(userId: UserId, id: string) {
@@ -82,8 +114,10 @@ export function inboxRepo(db: Db) {
         .executeTakeFirst();
     },
 
-    // Files the chosen items (all when none are named) as pieces or wishes, or dismisses the row,
-    // in one transaction. Deciding a row that is no longer held changes nothing (idempotent).
+    // Files the chosen pieces (every one still waiting when none are named) as pieces or wishes,
+    // or discards them, in one transaction. Each piece is decided on its own (PRD rev 3 §7.5):
+    // the others keep waiting, and the row is filed or dismissed once none does. A piece already
+    // decided is left as it is, so deciding twice changes nothing (idempotent).
     async decide(userId: UserId, id: string, action: InboxAction, itemIndexes?: readonly number[]) {
       return db.transaction().execute(async (trx) => {
         const row = await trx
@@ -95,20 +129,23 @@ export function inboxRepo(db: Db) {
           .executeTakeFirst();
         if (!row) return undefined;
         if (row.status !== 'held') return row;
-        if (action === 'dismiss') {
-          return trx
-            .updateTable('wardrobeInbox')
-            .set({ status: 'dismissed', decidedAt: sql`now()` })
-            .where('id', '=', id)
-            .returning(INBOX_COLUMNS)
-            .executeTakeFirstOrThrow();
-        }
-        const items = heldItems(row.items).filter(
-          (_, i) => itemIndexes === undefined || itemIndexes.includes(i),
-        );
-        const filed: string[] = [];
-        for (const item of items) {
+        const items = heldItems(row.items);
+        const chosen = (i: number) =>
+          itemState(items[i] as InboxItem) === 'inbox' &&
+          (itemIndexes === undefined || itemIndexes.includes(i));
+        const filed: string[] = [...row.filedIds];
+        const next: InboxItem[] = [];
+        for (const [i, item] of items.entries()) {
+          if (!chosen(i)) {
+            next.push(item);
+            continue;
+          }
+          if (action === 'dismiss') {
+            next.push({ ...item, state: 'discarded' });
+            continue;
+          }
           const label = item.label.slice(0, 120);
+          let filedId: string;
           if (action === 'wardrobe') {
             const piece = await wardrobeRepo(trx).create(userId, {
               label,
@@ -117,7 +154,7 @@ export function inboxRepo(db: Db) {
               currency: item.currency ?? null,
               acquiredVia: row.source === 'receipt' ? 'receipt' : 'url',
             });
-            filed.push(piece.id);
+            filedId = piece.id;
           } else {
             const wish = await wishlistRepo(trx).create(userId, {
               label,
@@ -127,16 +164,23 @@ export function inboxRepo(db: Db) {
               sourceUrl: item.sourceUrl ?? null,
               sourceLabel: row.retailer?.slice(0, 120) ?? null,
             });
-            filed.push(wish.id);
+            filedId = wish.id;
           }
+          filed.push(filedId);
+          next.push({ ...item, state: 'added', filedId });
         }
+        // Only the odd malformed entries (no label) are dropped; everything she can see stays.
+        const waiting = next.some((item) => itemState(item) === 'inbox');
+        const added = next.some((item) => itemState(item) === 'added');
+        const status = waiting ? 'held' : added ? 'filed' : 'dismissed';
         return trx
           .updateTable('wardrobeInbox')
           .set({
-            status: 'filed',
-            filedTo: action,
+            items: JSON.stringify(next),
+            status,
+            ...(action !== 'dismiss' ? { filedTo: action } : {}),
             filedIds: filed,
-            decidedAt: sql`now()`,
+            ...(waiting ? {} : { decidedAt: sql`now()` }),
           })
           .where('id', '=', id)
           .returning(INBOX_COLUMNS)
