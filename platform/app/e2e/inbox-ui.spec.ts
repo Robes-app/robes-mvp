@@ -34,7 +34,7 @@ test('paste a link from Create, review it, and it files to the wishlist', async 
   // Where it goes is chosen once, on the Add pieces sheet; the link screen says so (redline 04).
   await expect(page.getByText(/Filing to your wardrobe/)).toBeVisible();
   await page.getByRole('link', { name: 'Change' }).click();
-  await page.getByRole('tab', { name: 'Wishlist' }).click();
+  await page.getByRole('radio', { name: 'Wishlist' }).click();
   await page.getByRole('link', { name: 'Paste a link' }).click();
   await expect(page.getByText(/Filing to your wishlist/)).toBeVisible();
   await page.getByLabel('Link to the piece').fill(shopUrl);

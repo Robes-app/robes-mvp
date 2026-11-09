@@ -74,7 +74,7 @@ test('You shows the address with copy, new address and turn off', async ({ page 
   await expect(section.getByRole('button', { name: 'Get an address' })).toBeVisible();
 });
 
-test('the receipt notice opens one receipt, all ticked; the pill files what stays ticked', async ({
+test('the receipt notice opens Receipts; each piece is added or discarded on its own', async ({
   page,
 }) => {
   await signIn(page);
@@ -87,14 +87,21 @@ test('the receipt notice opens one receipt, all ticked; the pill files what stay
   await expect(notice).toContainText('Robes read one receipt · 2 pieces waiting');
   await notice.getByRole('link', { name: 'Review them →' }).click();
 
-  await expect(page.getByRole('heading', { name: '2 pieces read' })).toBeVisible();
-  const scarf = page.getByRole('button', { name: /Silk scarf/ });
-  await expect(scarf).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('button', { name: 'File 2 pieces' })).toBeVisible();
-  await scarf.click();
-  await expect(scarf).toHaveAttribute('aria-pressed', 'false');
-  await page.getByRole('button', { name: 'File 1 piece' }).click();
-  await expect(page.getByText('Forwarded receipts land here.')).toBeVisible();
+  // Receipts (PRD rev 3 §7.5): INBOX · ADDED · DISCARDED with their counts, the receipt as a group
+  // by retailer, each piece with its × and ✓.
+  await expect(page.getByRole('tab', { name: 'Inbox 2' })).toBeVisible();
+  // The group's count is the pieces in this tab: (2) waiting, then (1) once the scarf goes.
+  const group = page.getByRole('region', { name: /^Sézane \(\d\)$/ });
+  await expect(group).toHaveAccessibleName('Sézane (2)');
+  await group.getByRole('button', { name: 'Discard Silk scarf' }).click();
+  await expect(page.getByText('Discarded.', { exact: true })).toBeVisible();
+  await expect(group.getByText('Silk scarf')).toHaveCount(0);
+  await group.getByRole('button', { name: 'Add Camel wool coat to your wardrobe' }).click();
+  await expect(page.getByText('Added to your wardrobe.', { exact: true })).toBeVisible();
+  // Nothing waits: the Inbox tab empties and the others count what she decided.
+  await expect(page.getByRole('heading', { name: 'Forwarded receipts land here.' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Added 1' }).click();
+  await expect(group.getByText('Camel wool coat')).toBeVisible();
 
   const pieces = await (await page.request.get('/api/v1/wardrobe/items')).json();
   const labels = pieces.items.map((p: { label: string }) => p.label);

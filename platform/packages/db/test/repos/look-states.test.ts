@@ -174,7 +174,7 @@ describe('suggested looks (look states)', () => {
       brand: 'Toteme',
       color: 'black',
       sourceLabel: 'toteme.com',
-      price: '390',
+      price: '390.00',
       currency: 'EUR',
       category: 'Shoes',
     });

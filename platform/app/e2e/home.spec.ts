@@ -268,8 +268,9 @@ test('the diary: the strip selects a day, the slot adds and changes its look, De
     await api.post('/api/v1/looks', { data: { name, pieces: [] } });
   }
   const { date, diary } = await (await api.get('/api/v1/today')).json();
-  const tomorrow = diary.days[11].date;
-  const yesterday = diary.days[9].date;
+  const at = diary.days.findIndex((d: { date: string }) => d.date === date);
+  const tomorrow = diary.days[at + 1].date;
+  const yesterday = diary.days[at - 1].date;
   await page.goto('/');
 
   // Twenty-one cells, today's current; an empty day is her model with the three ways in.

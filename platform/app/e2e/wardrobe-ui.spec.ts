@@ -27,9 +27,7 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
   await page.goto('/wardrobe');
-  await expect(
-    page.getByRole('heading', { name: 'Every look starts with a photograph.' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your wardrobe is empty' })).toBeVisible();
 
   await filePhoto(page.request);
   await page.reload();
@@ -121,13 +119,14 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   // The web opens on the grid; the count row counts and the star files it to the Hero Rack.
   await expect(page.getByText('1 piece', { exact: true })).toBeVisible();
   await expect(pieces.getByText('Never worn')).toBeVisible();
+  // The list is the rack card: the star sits on its rows (the grid is compact tiles, PRD rev 3
+  // §7), and the row swipes (or tabs) to Remove.
+  await page.getByRole('radio', { name: 'List', exact: true }).click();
   await pieces.getByRole('button', { name: 'Feature Camel wool coat in your Hero Rack' }).click();
   await expect(page.getByText('Saved to your Hero Rack.').first()).toBeVisible();
   await expect(
     pieces.getByRole('button', { name: 'Remove Camel wool coat from your Hero Rack' }),
   ).toHaveAttribute('aria-pressed', 'true');
-  // The list is the rack card; its row swipes (or tabs) to Remove.
-  await page.getByRole('radio', { name: 'List', exact: true }).click();
   // Re-filed above as a crew neck tee, so the card's eyebrow reads Tops now.
   await expect(pieces.getByText('Tops · Harbour')).toBeVisible();
   // A drag to the left past the threshold lets it go (legacy swipe, with a mouse here).

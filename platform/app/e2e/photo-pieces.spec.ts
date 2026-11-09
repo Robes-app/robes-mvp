@@ -173,9 +173,7 @@ test('a photo can go to the wishlist instead', async ({ page }) => {
   await expect(wishes.getByText('Black leggings')).toBeVisible();
   // Nothing reached the wardrobe.
   await page.goto('/wardrobe');
-  await expect(
-    page.getByRole('heading', { name: 'Every look starts with a photograph.' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your wardrobe is empty' })).toBeVisible();
 });
 
 test('a look from a photo', async ({ page }) => {
@@ -183,8 +181,10 @@ test('a look from a photo', async ({ page }) => {
   await declineConsent(page);
   await ownShoes(page.request);
 
-  await page.goto('/looks/new');
-  await page.getByRole('link', { name: /Start from a photo/ }).click();
+  // The New look sheet's Photo door (PRD rev 3 §5.5).
+  await page.goto('/looks');
+  await page.getByTestId('lookbook-new').click();
+  await page.getByTestId('new-look-photo').click();
   await choosePhoto(page, /Add a photo/);
   const cards = page.getByRole('list', { name: 'Pieces in your photo' }).getByRole('listitem');
   await expect(cards).toHaveCount(3, { timeout: 30_000 });

@@ -50,7 +50,7 @@ test('a pasted link waits for Review, never the Inbox, and files into the wardro
 
   // Links are not receipts: nothing in the Inbox, nothing counted on Today (Add Piece 04b).
   const inbox = await (await api.get('/api/v1/inbox')).json();
-  expect(inbox).toEqual({ items: [], count: 0 });
+  expect(inbox).toEqual({ items: [], count: 0, counts: { inbox: 0, added: 0, discarded: 0 } });
   expect((await (await api.get('/api/v1/today')).json()).inboxCount).toBe(0);
 
   // Review opens the entry by its id.
