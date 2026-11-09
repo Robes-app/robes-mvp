@@ -183,7 +183,7 @@ export function backFor(pathname: string, search: URLSearchParams): Back | null 
   if (/^\/piece\/[^/]+$/.test(pathname) || pathname === '/wardrobe/inbox') {
     return { href: '/wardrobe', label: wardrobe.piece.back };
   }
-  if (pathname === '/wardrobe/add') return { href: '/wardrobe', label: wardrobe.title };
+  if (pathname === '/wardrobe/add') return { href: '/wardrobe', label: wardrobe.piece.back };
   if (pathname === '/wardrobe/receipt') return { href: '/wardrobe/add', label: wardrobe.add.title };
   if (pathname === '/wardrobe/manual' || pathname === '/wardrobe/link') {
     const to = search.get('to');

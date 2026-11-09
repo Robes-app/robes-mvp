@@ -27,9 +27,7 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
   await page.goto('/wardrobe');
-  await expect(
-    page.getByRole('heading', { name: 'Every look starts with a photograph.' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your wardrobe is empty' })).toBeVisible();
 
   await filePhoto(page.request);
   await page.reload();
