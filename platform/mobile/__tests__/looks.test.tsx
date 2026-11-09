@@ -369,8 +369,9 @@ test('Update on a saved look her model wears asks her model to wear the new rack
   });
   // Home's Edit look sheet (D18): the rack is worked there, Update look keeps it.
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  await fireEvent.press(await screen.findByTestId('rack-pencil'));
   await fireEvent.press(
-    await screen.findByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
+    screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
   // The piece taken off leaves the picture behind, so Update look draws it after (D6).
   await fireEvent.press(screen.getByTestId('update-look'));

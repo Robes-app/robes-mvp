@@ -229,6 +229,9 @@ export const lookbook = {
     // The Rack card before the first piece (PRD §4.6): with a wardrobe it opens the picker; empty
     // it opens Add your pieces. The heading shows once a piece hangs.
     rack: 'The Rack',
+    // The pencil on The Rack (PRD §6.1, plan R2): edit-pieces mode shows each row's swap and ×;
+    // at rest a row opens its piece.
+    editPieces: 'Edit pieces',
     rackCard: {
       eyebrow: 'Your wardrobe',
       pick: 'Pick from your wardrobe',

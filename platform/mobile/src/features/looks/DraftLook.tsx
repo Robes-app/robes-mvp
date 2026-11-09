@@ -130,10 +130,21 @@ function useShop(owned: number | null): {
   on: boolean;
   set: (next: boolean) => void;
   balance: Balance;
+  // Flipped since the look was last applied (a saved look's Update, PRD §6.1).
+  changed: boolean;
+  settle: () => void;
 } {
   const [chosen, setChosen] = useState<boolean | null>(null);
-  const on = chosen ?? (owned === null ? false : defaultBalance(owned) === 'mix');
-  return { on, set: setChosen, balance: on ? 'mix' : 'owned' };
+  const [applied, setApplied] = useState<boolean | null>(null);
+  const rest = owned === null ? false : defaultBalance(owned) === 'mix';
+  const on = chosen ?? rest;
+  return {
+    on,
+    set: setChosen,
+    balance: on ? 'mix' : 'owned',
+    changed: chosen !== null && on !== (applied ?? rest),
+    settle: () => setApplied(on),
+  };
 }
 
 // The day's weather for the look prompt, while its chip stands (D22; the ask's context).
@@ -160,39 +171,73 @@ function Rack({
   imageOf,
   layout,
   onLayout,
+  editing,
+  onEditing,
+  saved,
   hasWardrobe,
   onAdd,
+  onOpen,
   children,
 }: {
   rows: readonly RackRow[];
   imageOf: Parameters<typeof RackGrid>[0]['imageOf'];
   layout: WardrobeLayout;
   onLayout: (next: WardrobeLayout) => void;
+  // Edit-pieces mode (PRD §6.2, plan R2): the pencil ink-filled, the rows' swap and × out.
+  editing: boolean;
+  onEditing: (next: boolean) => void;
+  // A saved look's add slot is the small hanger under the list (§6.1); a draft keeps the card.
+  saved: boolean;
   hasWardrobe: boolean;
   onAdd: () => void;
+  onOpen?: (row: RackRow) => void;
   // The rows, as RackRowCards.
   children: ReactNode;
 }) {
+  const ink = useColor('ink');
+  const onInk = useColor('bg');
   if (rows.length === 0) return <RackCard hasWardrobe={hasWardrobe} onPress={onAdd} />;
   return (
     <View className="gap-2.5" testID="the-rack">
-      <View className="h-9 flex-row items-center justify-between gap-3">
+      <View className="h-11 flex-row items-center justify-between gap-3">
         <Text
           weight="medium"
           maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-          className="text-ink-muted uppercase"
+          className="flex-1 text-ink-muted uppercase"
           style={{ fontSize: 10, letterSpacing: 1.6 }}
         >
           {copy.rack}
         </Text>
         <LayoutToggle layout={layout} onLayout={onLayout} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.editPieces}
+          accessibilityState={{ selected: editing }}
+          onPress={() => onEditing(!editing)}
+          testID="rack-pencil"
+          className={`items-center justify-center rounded-pill border ${
+            editing ? 'border-ink bg-ink' : 'border-rule-mid bg-surface-raised'
+          }`}
+          style={{ width: MIN_TOUCH, height: MIN_TOUCH }}
+        >
+          <Icon name="pencil" size={16} color={editing ? onInk : ink} />
+        </Pressable>
       </View>
       {layout === 'grid' ? (
-        <RackGrid rows={rows} imageOf={imageOf} />
+        <>
+          <RackGrid rows={rows} imageOf={imageOf} {...(onOpen ? { onOpen } : {})} />
+          {saved ? (
+            <PieceList rows={0} onAdd={onAdd}>
+              {null}
+            </PieceList>
+          ) : null}
+        </>
       ) : (
-        <PieceList rows={rows.length}>{children}</PieceList>
+        <PieceList rows={rows.length} {...(saved ? { onAdd } : {})}>
+          {children}
+        </PieceList>
       )}
-      <RackCard hasWardrobe={hasWardrobe} onPress={onAdd} testID="rack-card-add" />
+      {saved ? null : <RackCard hasWardrobe={hasWardrobe} onPress={onAdd} testID="rack-card-add" />}
     </View>
   );
 }
@@ -646,6 +691,7 @@ function DraftBody({
   const hasWardrobe = owned !== null && owned > 0;
   const shop = useShop(owned);
   const [rackLayout, setRackLayout] = useState<WardrobeLayout>('list');
+  const [editingPieces, setEditingPieces] = useState(false);
   const [adding, setAdding] = useState(false);
   const [weatherOff, setWeatherOff] = useState(false);
   const askContext = useAskContext(forDay, weatherOff);
@@ -673,6 +719,10 @@ function DraftBody({
   const rows = editor.rack.rows;
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const imageOf = (row: RackRow) => (row.pieceId ? piecesById.get(row.pieceId)?.image : null);
+  // At rest a row opens its piece (PRD §6.1); a proposal has no page yet (PR 6).
+  const openPiece = (row: RackRow) => {
+    if (row.pieceId) router.push({ pathname: '/piece/[id]', params: { id: row.pieceId } });
+  };
   const sendOpts = {
     balance: shop.balance,
     ...(askContext ? { context: askContext } : {}),
@@ -687,7 +737,8 @@ function DraftBody({
   const words = prompt.trim();
   // A saved look's edit: anything not yet applied with Update look (D17, D18, D20).
   const pending =
-    mode === 'edit' && (editor.dirty || adjust.stale || words.length > 0 || stack.changed);
+    mode === 'edit' &&
+    (editor.dirty || adjust.stale || words.length > 0 || stack.changed || shop.changed);
   const canDone =
     mode === 'draft' ? (rows.length > 0 || look.image !== null) && !busy : !pending && !busy;
   // Update look: the rack written, then the picture drawn for it. Words still in the field go
@@ -700,6 +751,7 @@ function DraftBody({
     if (editor.dirty) {
       if (!(await editor.update())) return;
     } else toast.show({ message: lookbook.updated });
+    shop.settle();
     adjust.drawForSave();
   };
   const apply = () => {
@@ -900,8 +952,12 @@ function DraftBody({
               imageOf={imageOf}
               layout={rackLayout}
               onLayout={setRackLayout}
+              editing={editingPieces}
+              onEditing={setEditingPieces}
+              saved={mode === 'edit'}
               hasWardrobe={hasWardrobe}
               onAdd={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
+              onOpen={openPiece}
             >
               {rows.map((row) => (
                 <RackRowCard
@@ -910,11 +966,21 @@ function DraftBody({
                   image={imageOf(row)}
                   mark={editor.mark(row.key)}
                   styled={editor.rack.styling[row.key]}
-                  {...(row.proposal ? { onWish: () => editor.wish(row.key) } : {})}
-                  onSwap={() =>
-                    setPicker({ swap: { key: row.key, name: row.name, category: row.category } })
-                  }
-                  onRemove={() => editor.remove(row.key)}
+                  {...(mode === 'edit' && row.pieceId
+                    ? { wears: piecesById.get(row.pieceId)?.wearCount ?? 0 }
+                    : {})}
+                  {...(row.proposal && editingPieces ? { onWish: () => editor.wish(row.key) } : {})}
+                  {...(editingPieces
+                    ? {
+                        onSwap: () =>
+                          setPicker({
+                            swap: { key: row.key, name: row.name, category: row.category },
+                          }),
+                        onRemove: () => editor.remove(row.key),
+                      }
+                    : row.pieceId
+                      ? { onOpen: () => openPiece(row) }
+                      : {})}
                 />
               ))}
             </Rack>
@@ -1129,6 +1195,8 @@ function DraftPhoto({
     drawing,
   );
   const failed = !drawing && look.onModel === 'failed' && !own;
+  // Adjust model image is for Robes' picture alone (PRD §6.4): never on a photograph of hers.
+  const robesFront = staged ? staged.kind === 'robes' : !own;
   return (
     <View className="overflow-hidden bg-surface-sunk" testID="draft-photo">
       <View
@@ -1206,17 +1274,19 @@ function DraftPhoto({
           </Text>
         </Pressable>
       ) : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={lookbook.savedLook.adjust}
-        onPress={onAdjust}
-        hitSlop={10}
-        testID="draft-adjust"
-        className="absolute items-center justify-center rounded-pill bg-veil-soft"
-        style={{ left: 20, bottom: 25, width: 24, height: 24 }}
-      >
-        <Icon name="describe" size={13} color={ink} />
-      </Pressable>
+      {robesFront ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={lookbook.savedLook.adjust}
+          onPress={onAdjust}
+          hitSlop={10}
+          testID="draft-adjust"
+          className="absolute items-center justify-center rounded-pill bg-veil-soft"
+          style={{ left: 20, bottom: 25, width: 24, height: 24 }}
+        >
+          <Icon name="describe" size={13} color={ink} />
+        </Pressable>
+      ) : null}
       <ImageStack look={look} onOpen={onImages} />
     </View>
   );
