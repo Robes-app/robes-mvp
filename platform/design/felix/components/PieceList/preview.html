@@ -1,13 +1,23 @@
-<!-- @dsCard group="Looks" height=380 -->
+<!-- @dsCard group="Looks" height=640 width=1262 subtitle="Included pieces from 2b: list, swipe and edit, grid" -->
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><title>PieceList — preview</title></head>
 <body>
-<div id="root" style="width:350px;padding:16px 20px;display:flex;flex-direction:column;gap:20px"></div>
+<div id="root" style="display:flex;gap:24px;padding:16px;align-items:flex-start;background:var(--cream-300);width:max-content"></div>
 <script>
 var F = window.Felix, h = React.createElement;
-var items=[{img:'/_blob/045693b3417feb00a48ceb46f01e48c1',category:'Tops',brand:'Adidas',name:'Lime green sweatshirt'},{img:'/_blob/1b9efb672ddd48508701d0e03f6e2ebe',category:'Bottoms',name:'Black leggings'},{img:'/_blob/0254148f4ceda43a923848a63e4165a9',category:'Shoes',brand:'Salomon XT-4',name:'White Salomon running shoes'}];
-ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment,null,h(F.PieceList,{items:items,mode:'edit',onAdd:function(){}}),h(F.PieceList,{items:items.slice(0,2).map(function(i,k){return Object.assign({},i,{meta:k?'Worn 4×':'New'});})})));
+var items = [
+  { img: '/_blob/045693b3417feb00a48ceb46f01e48c1', category: 'Tops', name: 'Lime green sweatshirt', brand: 'Adidas', worn: 5 },
+  { img: '/_blob/1b9efb672ddd48508701d0e03f6e2ebe', category: 'Bottoms', name: 'Black leggings', brand: 'Lululemon', worn: 5 },
+  { img: '/_blob/0254148f4ceda43a923848a63e4165a9', category: 'Shoes', name: 'White Salomon running shoes', brand: 'Salomon', worn: 5 },
+  { img: '/_blob/adb4e9ebaed5da4084730ceda75ac8ae', category: 'Bags', name: 'Leather tote', brand: 'Arket', price: '€179', shop: true }];
+var col = { width: 350, padding: '20px', background: 'var(--cream)', borderRadius: 'var(--rad-device)', display: 'flex', flexDirection: 'column', gap: 28 };
+function Live(o) { var v = React.useState(o.view || 'list'), e = React.useState(!!o.editing);
+  return h(F.PieceList, Object.assign({ items: items, onAdd: function () {} }, o, { view: v[0], onView: v[1], editing: e[0], onEditToggle: function () { e[1](!e[0]); } })); }
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h('div', { style: col }, h(Live, {}), h(Live, { items: items.slice(0, 2), swiped: 1, title: 'Swipe a row' })),
+  h('div', { style: col }, h(Live, { editing: true })),
+  h('div', { style: col }, h(Live, { view: 'grid' }), h(Live, { view: 'grid', editing: true, items: items.slice(0, 3), title: 'Editing' }))));
 </script>
 </body>
 </html>

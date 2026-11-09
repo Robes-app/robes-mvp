@@ -1,14 +1,22 @@
-<!-- @dsCard group="Navigation" height=160 width=1200 -->
+<!-- @dsCard group="Navigation" height=420 width=1200 subtitle="Home greeting, titled tab, back + add, desktop" -->
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><title>TopNav — preview</title></head>
 <body>
-<div id="root" style="display:flex;flex-direction:column;gap:24px;background:var(--cream-100);padding:16px 0"></div>
+<div id="root" style="display:flex;flex-direction:column;gap:20px;background:var(--cream-100);padding:16px"></div>
 <script>
 var F = window.Felix, h = React.createElement;
-ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment,null,
- h('div',{style:{width:390}},h(F.TopNav,{bell:true,alert:true})),
- h(F.TopNav,{variant:'desktop',current:'Lookbook',weather:{day:'Saturday',place:'Dublin',temp:'12°C',icon:'rain'}})));
+var m = { width: 390 };
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h('div', { style: { display: 'flex', gap: 24, flexWrap: 'wrap' } },
+    h('div', { style: m }, h(F.TopNav, { title: 'Good morning, Annie.', bell: true, alert: true, swapMark: true })),
+    h('div', { style: m }, h(F.TopNav, { title: 'Good morning, Annie.', bell: true, swapMark: true, swapAfter: 1 })),
+    h('div', { style: m }, h(F.TopNav, { bell: true, alert: true }))),
+  h('div', { style: { display: 'flex', gap: 24, flexWrap: 'wrap' } },
+    h('div', { style: m }, h(F.TopNav, { title: 'Lookbook', glass: true })),
+    h('div', { style: m }, h(F.TopNav, { title: 'Your wardrobe', onBack: function () {}, onAdd: function () {}, addLabel: 'Add pieces', noProfile: true })),
+    h('div', { style: m }, h(F.TopNav, { title: 'Wishlist', mark: true }))),
+  h(F.TopNav, { variant: 'desktop', current: 'Lookbook', weather: { day: 'Saturday', place: 'Dublin', temp: '12°C', icon: 'rain' } })));
 </script>
 </body>
 </html>

@@ -1,18 +1,22 @@
 import * as React from 'react';
-export type IconName = 'home'|'lookbook'|'diary'|'wardrobe'|'capture'|'describe'|'edit'|'bell'|'close'|'check'|'chevron'|'back'|'plus'|'cloud'|'sun'|'rain'|'pin'|'forward'|'refresh'|'spring'|'summer'|'autumn'|'winter'|'tag'|'camera'|'search'|'receipt'|'calendar'|'star';
+export type IconName = 'home'|'lookbook'|'diary'|'wardrobe'|'capture'|'describe'|'edit'|'bell'|'close'|'check'|'chevron'|'back'|'plus'|'cloud'|'sun'|'rain'|'pin'|'forward'|'refresh'|'spring'|'summer'|'autumn'|'winter'|'tag'|'camera'|'search'|'receipt'|'calendar'|'star'|'bookmark'|'sparkle'|'heart'|'bag'|'grid'|'list'|'worn'|'pencil'|'link'|'inbox'|'photo';
 export interface IconProps { name: IconName; size?: number; stroke?: number; label?: string; className?: string }
 export interface WordmarkProps { children?: React.ReactNode; className?: string; style?: React.CSSProperties }
-export interface TopNavProps { variant?: 'mobile'|'desktop'; initial?: string; bell?: boolean; alert?: boolean; links?: string[]; current?: string; weather?: { day: string; place: string; temp: string; icon?: 'cloud'|'sun'|'rain' }; onProfile?: () => void; onBell?: () => void; onNavigate?: (link: string) => void }
-export interface DockProps { active?: 'home'|'lookbook'|'diary'|'wardrobe'; dots?: Partial<Record<'home'|'lookbook'|'diary'|'wardrobe', boolean>>; onSelect?: (key: string) => void }
+export interface TopNavProps { variant?: 'mobile'|'desktop'; title?: string; swapMark?: boolean; swapAfter?: number; glass?: boolean; mark?: boolean; onBack?: () => void; onAdd?: () => void; addLabel?: string; noProfile?: boolean; initial?: string; bell?: boolean; alert?: boolean; links?: string[]; current?: string; weather?: { day: string; place: string; temp: string; icon?: 'cloud'|'sun'|'rain' }; onProfile?: () => void; onBell?: () => void; onNavigate?: (link: string) => void }
+export type DockKey = 'home'|'lookbook'|'diary'|'wardrobe';
+export interface DockBadge { count: number|string; tone?: 'ink'|'alert'; title?: string }
+export interface DockProps { active?: DockKey; dots?: Partial<Record<DockKey, boolean>>; badges?: Partial<Record<DockKey, DockBadge|number>>; onSelect?: (key: string) => void }
 export interface WeekDay { w?: string; n: number; today?: boolean; future?: boolean; worn?: boolean; looks?: number }
 export interface WeekStripProps { days: WeekDay[]; selected?: number; onSelect?: (index: number) => void }
 export interface ActionDiscProps { icon: IconName; label: string; title?: string; onClick?: () => void; className?: string }
 export interface ButtonProps { variant?: 'primary'|'outline'|'chip'; children: React.ReactNode; icon?: IconName; block?: boolean; disabled?: boolean; type?: 'button'|'submit'; onClick?: () => void; className?: string }
 export interface TabsProps { items: string[]; value: string; onChange?: (label: string) => void }
-export interface Piece { img?: string; category: string; brand?: string; name: string; meta?: string }
-export interface PieceListProps { items: Piece[]; mode?: 'view'|'edit'; onSwap?: (i: number) => void; onRemove?: (i: number) => void; onAdd?: () => void }
+export interface Piece { img?: string; category: string; name: string; brand?: string; worn?: number; price?: string; wishlist?: boolean; shop?: boolean; meta?: string }
+export interface PieceListProps { items: Piece[]; title?: string | null; view?: 'list'|'grid'; onView?: (v: 'list'|'grid') => void; editing?: boolean; onEditToggle?: () => void; /** @deprecated use editing */ mode?: 'view'|'edit'; swiped?: number; onOpen?: (i: number) => void; onSwap?: (i: number) => void; onRemove?: (i: number) => void; onAdd?: () => void }
+export interface SheetAction { key?: string; icon: IconName; label: string; count?: number; onClick?: () => void }
+/** @deprecated use SheetAction */
 export interface SheetRow { icon: IconName; label: string; onClick?: () => void }
-export interface SheetProps { eyebrow?: string; question?: string; rows?: SheetRow[]; floating?: boolean; children?: React.ReactNode }
+export interface SheetProps { title?: string; actions?: SheetAction[]; active?: string; onClose?: () => void; header?: React.ReactNode; headerAction?: React.ReactNode; children?: React.ReactNode; /** @deprecated use title */ question?: string; /** @deprecated use actions */ rows?: SheetRow[] }
 export interface SavedLookProps { image?: string; images?: string[]; count?: number; alt?: string; adjustLabel?: string; onBack?: (() => void) | null; onAdjust?: (() => void) | null; onImages?: (() => void) | null; className?: string; style?: React.CSSProperties }
 export interface DraftContext { place: string; weather?: 'cloud'|'sun'|'rain'; range?: string }
 export interface DraftDetails { tags?: string[]; seasons?: Array<'Spring'|'Summer'|'Autumn'|'Winter'>; worn?: string; caption?: string }
@@ -40,7 +44,19 @@ export interface AlertDialogProps { title: string; message?: string; actions: Di
 export interface LookDetailsProps { tags?: string[]; seasons?: Season[]; worn?: string; caption?: string; captionEditing?: boolean; captionDraft?: string; autoFocus?: boolean; onTags?: () => void; onSeasons?: () => void; onWorn?: () => void; onCaption?: () => void; onCaptionChange?: (v: string) => void; onCaptionSave?: (v: string) => void }
 export interface PieceDetails { category?: string[]; colour?: { name: string; hex?: string }; material?: string; seasons?: Season[]; occasions?: string[]; worn?: string; note?: string }
 export interface PieceLook { img: string; title: string }
-export interface WardrobePieceProps { image: string; images?: string[]; count?: number; category: string; name: string; brand?: string; favourite?: boolean; tab?: 'Details'|'Looks'; details?: PieceDetails; looks?: PieceLook[]; onBack?: (() => void) | null; onImages?: (() => void) | null; onEdit?: () => void; onFavourite?: () => void; onTab?: (t: string) => void; onCategory?: () => void; onColour?: () => void; onMaterial?: () => void; onSeasons?: () => void; onOccasions?: () => void; onWorn?: () => void; onNote?: () => void; onLook?: (i: number) => void }
+export interface WardrobePieceProps { image: string; images?: string[]; count?: number; name: string; tab?: 'Piece'|'Colour'|'Wearing'; shop?: boolean;
+  piece?: { category?: string; brand?: string; shop?: string; size?: string; price?: string; notes?: string };
+  colour?: { colour?: { name: string; hex?: string }; additional?: string[]; print?: { name: string; swatch?: string }; material?: string[] };
+  wearing?: { worn?: string; looks?: number; seasons?: Season[]; occasions?: string[] };
+  onBack?: () => void; onAdjust?: () => void; onImages?: () => void; onTab?: (t: string) => void; onField?: (label: string) => void; onDelete?: () => void; onAddToWardrobe?: () => void }
+export interface FilterChipProps { label: string; count?: number; icon?: IconName; selected?: boolean; disabled?: boolean; title?: string; onClick?: () => void; className?: string }
+export interface CollectionSegment { key?: string; label: string; icon?: IconName }
+export interface CollectionFilter { key?: string; label: string; count?: number }
+export interface CollectionBarProps { segments: CollectionSegment[]; value: string; onChange?: (key: string) => void; onAdd?: () => void; addLabel?: string; filters?: CollectionFilter[]; filter?: string; onFilter?: (key: string) => void; search?: { placeholder?: string; value?: string; onChange?: (q: string) => void }; view?: 'grid'|'list'; onView?: (v: 'grid'|'list') => void; sticky?: boolean }
+export interface LookCardProps { image?: string; name: string; occasion?: string; worn?: number; isNew?: boolean; wishlist?: boolean; shop?: boolean; /** @deprecated use shop */ store?: boolean; suggested?: boolean; saved?: boolean; onSave?: () => void; onOpen?: () => void }
+export interface PieceTileProps { image?: string; name: string; worn?: number; meta?: string; wished?: boolean; onWish?: () => void; onOpen?: () => void }
+export interface EmptyStateProps { icon?: IconName; title: string; message?: string; action?: string; onAction?: () => void }
+export interface PageDotsProps { count: number; value?: number; label?: string }
 export declare const Icon: React.FC<IconProps>;
 export declare const Wordmark: React.FC<WordmarkProps>;
 export declare const TopNav: React.FC<TopNavProps>;
@@ -67,3 +83,9 @@ export declare const SettingsView: React.FC<SettingsViewProps>;
 export declare const AlertDialog: React.FC<AlertDialogProps>;
 export declare const LookDetails: React.FC<LookDetailsProps>;
 export declare const WardrobePiece: React.FC<WardrobePieceProps>;
+export declare const FilterChip: React.FC<FilterChipProps>;
+export declare const CollectionBar: React.FC<CollectionBarProps>;
+export declare const LookCard: React.FC<LookCardProps>;
+export declare const PieceTile: React.FC<PieceTileProps>;
+export declare const EmptyState: React.FC<EmptyStateProps>;
+export declare const PageDots: React.FC<PageDotsProps>;

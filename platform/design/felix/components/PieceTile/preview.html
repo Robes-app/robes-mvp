@@ -1,0 +1,17 @@
+<!-- @dsCard group="Wardrobe" height=520 width=420 subtitle="Wardrobe grid tile, three across" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>PieceTile — preview</title></head>
+<body>
+<div id="root" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 10px;padding:20px;background:var(--cream);width:350px"></div>
+<script>
+var F = window.Felix, h = React.createElement; var IM={"way1": "/_blob/d299121b7ee19b76bcb95cec5e0b4f47", "way2": "/_blob/dd740bfa87e00a5bf25ccda73bd466e6", "way3": "/_blob/963aef8bd203cb87e5113a54e2a70a7e", "rom": "/_blob/a396bd4f5f254ddf3bbbe537f5f4fe3a", "model": "/_blob/e9559bed176af4e02501eb7346faa305", "top": "/_blob/045693b3417feb00a48ceb46f01e48c1", "bottom": "/_blob/1b9efb672ddd48508701d0e03f6e2ebe", "shoes": "/_blob/0254148f4ceda43a923848a63e4165a9", "waist": "/_blob/c1e5a36fd6239951ac1049083bba9671", "jacket": "/_blob/d66a92ff19f7b32be622a884ca1ee7e4", "trousers": "/_blob/34ecd9ea179a08dcb3184e52841f9219", "sneak": "/_blob/ba762bb26d1884775aa2965e050b09a3", "tote": "/_blob/adb4e9ebaed5da4084730ceda75ac8ae", "dress": "/_blob/4618f82c6467c005fccf0c4fb79cc143"};
+var P = [['top', 'Lime green sweatshirt', 5], ['bottom', 'Black leggings', 5], ['shoes', 'White Salomon XT-6', 5], ['waist', 'Tailored waistcoat', 3], ['jacket', 'Wool jacket', 8], ['trousers', 'Wide trousers', 4]];
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  P.map(function (x) { return h(F.PieceTile, { key: x[1], image: IM[x[0]], name: x[1], worn: x[2] }); }),
+  h(F.PieceTile, { image: IM.sneak, name: 'White trainers', meta: 'Wishlist', onWish: function () {}, wished: true }),
+  h(F.PieceTile, { image: IM.tote, name: 'Leather tote', meta: 'Shop', onWish: function () {} }),
+  h(F.PieceTile, { image: IM.dress, name: 'Red jacquard mini dress', worn: 0 })));
+</script>
+</body>
+</html>

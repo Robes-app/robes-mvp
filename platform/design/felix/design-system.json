@@ -176,6 +176,48 @@
           "name": "star.svg",
           "size": 281,
           "type": "image/svg+xml"
+        },
+        "bookmark.svg": {
+          "blob": "fa67f80661c07d24d6ac8bba3bbfe390",
+          "name": "bookmark.svg",
+          "size": 225,
+          "type": "image/svg+xml"
+        },
+        "sparkle.svg": {
+          "blob": "cb014d9fbdd4b7aebce77cc9e4f8a759",
+          "name": "sparkle.svg",
+          "size": 330,
+          "type": "image/svg+xml"
+        },
+        "heart.svg": {
+          "blob": "6badcd217373b67a1ea274ca11c3c146",
+          "name": "heart.svg",
+          "size": 282,
+          "type": "image/svg+xml"
+        },
+        "bag.svg": {
+          "blob": "eeae73161587b6c62c3b2165cf5c52e6",
+          "name": "bag.svg",
+          "size": 294,
+          "type": "image/svg+xml"
+        },
+        "grid.svg": {
+          "blob": "d7a0e6709e348f0a18fc77953294f14a",
+          "name": "grid.svg",
+          "size": 424,
+          "type": "image/svg+xml"
+        },
+        "list.svg": {
+          "blob": "437ce7f27af45147f223e1aad8e4dd96",
+          "name": "list.svg",
+          "size": 326,
+          "type": "image/svg+xml"
+        },
+        "worn.svg": {
+          "blob": "9fd06a78812f37f3fdde443176d3f08e",
+          "name": "worn.svg",
+          "size": 292,
+          "type": "image/svg+xml"
         }
       },
       "name": "Icons",
@@ -189,6 +231,10 @@
         "describe.svg",
         "edit.svg",
         "star.svg",
+        "bookmark.svg",
+        "sparkle.svg",
+        "heart.svg",
+        "bag.svg",
         "bell.svg",
         "close.svg",
         "check.svg",
@@ -202,6 +248,9 @@
         "search.svg",
         "receipt.svg",
         "calendar.svg",
+        "worn.svg",
+        "grid.svg",
+        "list.svg",
         "cloud.svg",
         "sun.svg",
         "rain.svg",
@@ -412,10 +461,10 @@
     "Pieces"
   ],
   "lastChange": {
-    "at": "2026-11-06T10:25:06Z",
+    "at": "2026-11-09T09:51:21Z",
     "by": "Annie",
-    "note": "WardrobePiece: removed the Style this piece CTA",
-    "via": "Cowork"
+    "via": "Cowork",
+    "note": "Sheet rebuilt as the glass New look / Add pieces sheet (2b, 3b)"
   },
   "layout": "files",
   "libraries": [
