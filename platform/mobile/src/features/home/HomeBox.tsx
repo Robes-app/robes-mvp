@@ -18,7 +18,7 @@ import {
 import { useRouter } from 'expo-router';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, TextInput, type TextInputInstance, View } from 'react-native';
-import { SwapSheet } from '@/features/looks/SwapSheet';
+import { PiecePicker } from '@/features/looks/PiecePicker';
 import { localDate } from '@/features/looks/saved-looks';
 import { dayLabel } from '@/features/plan/plan';
 import { nativeAnalytics } from '@/lib/analytics';
@@ -348,12 +348,14 @@ export const HomeBox = forwardRef<
           </View>
         ))}
       </Sheet>
-      <SwapSheet
-        open={picking}
-        swapping={null}
+      {/* The one wardrobe picker (plan 2026-11-09 PR 9); the box takes the first piece picked.
+          shortcut: a wish can't be attached to the prompt yet — the box speaks of her pieces. */}
+      <PiecePicker
+        mode={picking ? { add: true } : null}
         onRack={[]}
         onClose={() => setPicking(false)}
-        onPick={(p) => {
+        onPick={([p]) => {
+          if (!p) return;
           reset();
           setPhoto(false);
           setPiece(p);

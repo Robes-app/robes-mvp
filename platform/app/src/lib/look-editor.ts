@@ -14,7 +14,7 @@ import {
   wishRow,
 } from '@robes/contracts';
 import { errors, lookbook, wardrobe } from '@robes/copy';
-import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/looks';
+import { applyAsk, changedKeys, type RackRow, type RackState, rowNote } from '@robes/core/looks';
 import { useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
@@ -33,6 +33,12 @@ import {
 // 2026-11-03 D3) — through `redraw`: Robes' frame for a look it framed, else her model. A
 // suggestion's swap-in-place still re-frames by itself (its tile says so). `onChange` fires on
 // every change to the rack, so the thread can count what the picture is behind.
+// The pieces and wishes already on the rack, so the picker never offers one twice.
+export const onRackIds = (rows: readonly RackRow[]): string[] =>
+  rows.flatMap((r) =>
+    r.pieceId ? [r.pieceId] : r.proposal?.wishlistItemId ? [r.proposal.wishlistItemId] : [],
+  );
+
 export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) {
   const api = useApiClient();
   const queryClient = useQueryClient();

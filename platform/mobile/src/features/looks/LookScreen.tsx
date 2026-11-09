@@ -23,11 +23,11 @@ import { DraftLook } from './DraftLook';
 import { JOB_REFRESH_MS } from './ideas';
 import { LookMix, LookPicture } from './LookPicture';
 import { LookVerdict } from './LookVerdict';
-import { useLookEditor } from './look-editor';
+import { onRackIds, useLookEditor } from './look-editor';
 import { useLetGo, useSaveLook } from './look-states';
+import { type PickerMode, PiecePicker } from './PiecePicker';
 import { RackRowCard } from './RackRow';
 import { RobesModelBadge } from './RobesModelBadge';
-import { SwapSheet } from './SwapSheet';
 
 // A look in whichever state it stands (docs/look-states-brief.md §3.2): one page, one bar.
 export function LookScreen({
@@ -105,6 +105,13 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
   const suggested = look.status === 'suggested';
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const swapRow = editor.rack.rows.find((r) => r.key === swapping) ?? null;
+  // One picker for every + and every swap (plan 2026-11-09 PR 9: the older swap sheet is gone).
+  const picker: PickerMode | null =
+    swapping && swapRow
+      ? { swap: { key: swapping, name: swapRow.name, category: swapRow.category } }
+      : adding
+        ? { add: true }
+        : null;
   const hasAny = editor.rack.rows.length > 0 || look.image !== null;
   return (
     <View className="flex-1">
@@ -254,22 +261,25 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
           </Button>
         </PrimaryScope>
       </View>
-      <SwapSheet
-        open={swapping !== null || adding}
-        swapping={swapRow ? { name: swapRow.name, category: swapRow.category } : null}
-        onRack={editor.rack.rows.flatMap((r) => (r.pieceId ? [r.pieceId] : []))}
+      <PiecePicker
+        mode={picker}
+        onRack={onRackIds(editor.rack.rows)}
         onClose={() => {
           setSwapping(null);
           setAdding(false);
         }}
-        instant={suggested}
-        onPick={(piece) =>
-          swapping
-            ? suggested
-              ? editor.swapKeep(swapping, piece)
-              : editor.swap(swapping, piece)
-            : editor.add(piece)
-        }
+        onPick={(pieces, wishes) => {
+          if (swapping) {
+            const [piece] = pieces;
+            if (!piece) return;
+            // A suggestion's swap keeps the look's picture (↻ redraws it), behind an Undo.
+            if (suggested) editor.swapKeep(swapping, piece);
+            else editor.swap(swapping, piece);
+            return;
+          }
+          for (const piece of pieces) editor.add(piece);
+          for (const wish of wishes) editor.addWish(wish);
+        }}
       />
     </View>
   );
