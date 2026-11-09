@@ -83,67 +83,34 @@ async function saveALook(page: Page): Promise<void> {
   await expect(page.getByText(/is in your diary for/).first()).toBeVisible();
 }
 
-const banner = (page: Page) => page.getByRole('region', { name: 'Help shape Robes.' });
-
-// The ask waits for her first real moment: a filed piece.
-async function signInWithPiece(page: Page): Promise<void> {
-  await signIn(page);
-  await photographedPiece(page, 'Cream long-sleeve t-shirt');
-  await page.goto('/');
-  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
-}
-
-test('the ask never meets her before a piece is filed', async ({ page }) => {
-  await signIn(page);
-  await page.waitForLoadState('networkidle');
-  await expect(banner(page)).toHaveCount(0);
-});
-
-test('declining hides the banner for good and nothing reaches PostHog', async ({ page }) => {
-  const hits = await watchPostHog(page);
-  await signInWithPiece(page);
-  await expect(banner(page)).toBeVisible();
-  await expect(banner(page).getByRole('button')).toHaveText(['Don’t allow', 'Allow']);
-
-  await banner(page).getByRole('button', { name: 'Don’t allow' }).focus();
-  await page.keyboard.press('Enter');
-  await expect(banner(page)).toBeHidden();
-
-  await page.reload();
-  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
-  await expect(banner(page)).toBeHidden();
-  await page.waitForLoadState('networkidle');
-  expect(hits).toEqual([]);
-  expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
-    analytics: false,
-  });
-});
-
-test('accepting starts PostHog only then, persists, and can be withdrawn', async ({ page }) => {
+// No page asks (the banner is gone, Annie 9 Nov): she answers in You › Privacy.
+test('nothing reaches PostHog until she turns usage counts on, and it stops when she turns them off', async ({
+  page,
+}) => {
   const hits = await watchPostHog(page);
   const violations = watchCsp(page);
-  await signInWithPiece(page);
+  await signIn(page);
+  await photographedPiece(page, 'Cream long-sleeve t-shirt');
   // A full load settles to network idle (a client-side navigation doesn't report it reliably).
-  await page.reload();
-  await expect(banner(page)).toBeVisible();
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
   await page.waitForLoadState('networkidle');
   expect(hits, 'PostHog was contacted before consent').toEqual([]);
+  expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
+    analytics: null,
+  });
 
-  await banner(page).getByRole('button', { name: 'Allow', exact: true }).click();
-  await expect(banner(page)).toBeHidden();
+  await page.goto('/you/privacy');
+  const usage = page.getByRole('switch', { name: /Usage counts/ });
+  await expect(usage).not.toBeChecked();
+  await usage.check();
+  await expect(page.getByRole('status')).toHaveText('Saved.');
   await expect.poll(() => hits.length).toBeGreaterThan(0);
-
-  await page.reload();
-  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
-  await expect(banner(page)).toBeHidden();
   expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
     analytics: true,
     replay: null,
   });
 
-  await page.goto('/you/privacy');
-  const usage = page.getByRole('switch', { name: /Usage counts/ });
-  await expect(usage).toBeChecked();
   await usage.uncheck();
   await expect(page.getByRole('status')).toHaveText('Saved.');
   await expect(page.getByRole('switch', { name: /Screen recordings/ })).toBeDisabled();

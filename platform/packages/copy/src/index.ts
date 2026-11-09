@@ -711,13 +711,8 @@ export const wardrobe = {
   },
 } as const;
 
-// SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.
+// SEC-84: answered in You › Privacy (the web's banner is gone, Annie 9 Nov).
 export const consent = {
-  bannerTitle: 'Help shape Robes.',
-  bannerBody:
-    'May Robes count which screens you open and what you tap? It never sees your photos, words or email.',
-  allow: 'Allow',
-  decline: 'Don’t allow',
   failed: 'Robes couldn’t save that. Try again in a moment.',
   privacyEyebrow: 'You',
   privacyTitle: 'Privacy.',
