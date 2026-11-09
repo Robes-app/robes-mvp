@@ -19,6 +19,7 @@ test.each([
   [`/today/style/${ID}`, `/today/job/${ID}`],
   [`/plan/${DAY}`, `/day/${DAY}`],
   ['/wardrobe/wishlist', '/wardrobe?segment=wishlist'],
+  [`/wardrobe/wishlist/${ID}`, `/wish/${ID}`],
   ['/soon/trips', '/soon'],
   ['/auth/sign-in', '/sign-in'],
   // Paths both apps share pass through.

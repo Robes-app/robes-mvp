@@ -1,18 +1,20 @@
 'use client';
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import type { Piece, UpdatePieceInput } from '@robes/contracts';
-import { lookbook, looks as looksCopy, wardrobe } from '@robes/copy';
+import type { UpdatePieceInput } from '@robes/contracts';
+import { lookbook, wardrobe } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
 import {
+  AlertDialog,
   Button,
   buttonClasses,
   ErrorText,
-  Eyebrow,
   Heading,
   IconButton,
+  Sheet,
   Skeleton,
+  Tabs,
   Text,
 } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -25,7 +27,7 @@ import { SuggestedRail } from '@/components/looks/suggested-rail';
 import { StarButton } from '@/components/wardrobe/piece-card';
 import { type PieceField, PieceFieldSheet } from '@/components/wardrobe/piece-field-sheet';
 import { PieceImage } from '@/components/wardrobe/piece-image';
-import { RecordRows } from '@/components/wardrobe/piece-rows';
+import { PieceRow, RecordRows, type RecordTab } from '@/components/wardrobe/piece-rows';
 import { usePiecePhoto } from '@/components/wardrobe/use-piece-photo';
 import { useRemovePiece } from '@/components/wardrobe/use-remove-piece';
 import { useStarPiece } from '@/components/wardrobe/use-star-piece';
@@ -36,15 +38,27 @@ import { invalidateWardrobe, pieceIsReading } from '@/lib/wardrobe';
 const copy = wardrobe.piece;
 const READING_REFRESH_MS = 2000;
 const LOOKS_LIMIT = 30;
+const TABS = [copy.tabs.piece, copy.tabs.colour, copy.tabs.wearing] as const;
+type TabLabel = (typeof TABS)[number];
+const TAB_OF: Record<TabLabel, RecordTab> = {
+  [copy.tabs.piece]: 'piece',
+  [copy.tabs.colour]: 'colour',
+  [copy.tabs.wearing]: 'wearing',
+};
 
-// The record (legacy Piece_Sheet 01): the photograph, her name for it with the pencil on it, the
-// facts she has given, then the days she wore it. Every fact is a row that opens its own drawer —
-// there is no form, so what the title says and what a row says can never disagree.
+// The record (legacy Piece_Sheet 01; Front Door PRD rev 3 §7.3): the photograph, her name for it
+// with the pencil on it, then PIECE · COLOUR · WEARING over the record's rows. Every fact is a row
+// that opens its own drawer — there is no form, so what the title says and what a row says can
+// never disagree. Delete piece closes the page, asked first (plan R14). Native twin:
+// mobile/src/features/wardrobe/PieceDetail.tsx.
 export function PieceDetail({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const star = useStarPiece();
   const [field, setField] = useState<PieceField | null>(null);
+  const [tab, setTab] = useState<TabLabel>(TABS[0]);
+  const [open, setOpen] = useState<'wears' | 'looks' | null>(null);
+  const [confirm, setConfirm] = useState(false);
   const query = useApi(
     'wardrobe.get',
     { params: { id } },
@@ -113,14 +127,6 @@ export function PieceDetail({ id }: { id: string }) {
               onToggle={() => star.toggle(piece)}
             />
           </div>
-          {/* The brand is its own line, and says so when it is missing — one source, the saved piece. */}
-          <button
-            type="button"
-            onClick={() => setField('brand')}
-            className="self-start font-display text-lg text-ink-muted italic"
-          >
-            {piece.brand ?? copy.addBrand}
-          </button>
           {piece.status === 'reading' ? (
             <Text role="status" tone="muted">
               {wardrobe.reading}
@@ -128,8 +134,6 @@ export function PieceDetail({ id }: { id: string }) {
           ) : null}
           {piece.status === 'failed' ? <ErrorText>{wardrobe.noPieceFound}</ErrorText> : null}
         </header>
-
-        {ready ? <Stats piece={piece} /> : null}
 
         <div className="flex flex-wrap items-center gap-3">
           {/* The piece page's door opens the new-look box with the piece inside it (legacy ✦), so
@@ -150,27 +154,68 @@ export function PieceDetail({ id }: { id: string }) {
           <HomeBox initialPiece={piece} hasPieces autoFocus fromHome={false} />
         ) : null}
 
-        <RecordRows values={piece} onField={setField} />
+        {/* PIECE · COLOUR · WEARING (PRD §7.3): one tab's rows at a time. */}
+        <Tabs items={TABS} value={tab} onChange={setTab} label={copy.sections.piece} />
+        <RecordRows
+          values={piece}
+          onField={setField}
+          only={TAB_OF[tab]}
+          wearing={
+            <WearingRows
+              piece={piece}
+              onWorn={() => setOpen('wears')}
+              onLooks={() => setOpen('looks')}
+            />
+          }
+        />
         {update.isError ? <ErrorText>{errorCopy(update.error)}</ErrorText> : null}
       </div>
 
       <div className="flex min-w-0 flex-col gap-8">
-        <Wears pieceId={id} />
-        <InLooks pieceId={id} />
         <SuggestedRail pieceId={id} />
 
-        {/* Destructive, so away from the primary action; Undo follows in a toast. */}
-        <Button
-          variant="quiet"
-          className="self-center"
-          onClick={() => {
-            remove.mutate({ params: { id } });
-            router.push('/wardrobe');
-          }}
-        >
-          {copy.remove}
+        {/* Delete piece (§7.3, R14): outline, asked first; the Undo toast still follows. */}
+        <Button variant="outline" block onClick={() => setConfirm(true)} data-testid="delete-piece">
+          {copy.delete}
         </Button>
       </div>
+
+      <AlertDialog
+        open={confirm}
+        title={copy.deleteTitle}
+        message={copy.deleteBody}
+        actions={[
+          {
+            label: copy.deleteConfirm,
+            variant: 'danger',
+            onClick: () => {
+              setConfirm(false);
+              remove.mutate({ params: { id } });
+              router.push('/wardrobe');
+            },
+          },
+          { label: copy.cancel, variant: 'quiet', onClick: () => setConfirm(false) },
+        ]}
+        onDismiss={() => setConfirm(false)}
+      />
+      <Sheet
+        open={open === 'wears'}
+        onOpenChange={(next) => {
+          if (!next) setOpen(null);
+        }}
+        title={copy.rows.worn}
+      >
+        <Wears pieceId={id} />
+      </Sheet>
+      <Sheet
+        open={open === 'looks'}
+        onOpenChange={(next) => {
+          if (!next) setOpen(null);
+        }}
+        title={copy.rows.inLooks}
+      >
+        <InLooks pieceId={id} />
+      </Sheet>
 
       <PieceFieldSheet
         piece={piece}
@@ -219,38 +264,32 @@ function ChangePhoto({ id, hasPhoto }: { id: string; hasPhoto: boolean }) {
   );
 }
 
-// Worn · Last worn · In looks, as beta's strip reads them: facts side by side under the name,
-// between two hairlines. The native twin is Stats in mobile/src/features/wardrobe/PieceDetail.tsx.
-function Stats({ piece }: { piece: Piece }) {
+// The WEARING tab's first rows (PRD §7.3): Worn ("8 times · last 27 Oct") and In looks, each
+// opening its list in a sheet. Native twin: WearingRows in PieceDetail.tsx.
+function WearingRows({
+  piece,
+  onWorn,
+  onLooks,
+}: {
+  piece: { id: string; wearCount: number };
+  onWorn: () => void;
+  onLooks: () => void;
+}) {
   const wears = useApi('wardrobe.wears', { params: { id: piece.id } });
   const looks = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId: piece.id } });
   const last = wears.data?.items[0]?.wornOn;
-  const cells: [string, string][] = [
-    [
-      copy.stats.worn,
-      piece.wearCount ? looksCopy.page.wears.count(piece.wearCount) : copy.stats.never,
-    ],
-    [copy.stats.lastWorn, last ? dayMonth(last) : '—'],
-    [copy.stats.inLooks, looks.data ? String(looks.data.items.length) : '—'],
-  ];
+  const worn = piece.wearCount
+    ? lookbook.savedLook.details.wornSummary(piece.wearCount, last ? dayMonth(last) : null)
+    : lookbook.savedLook.details.notWorn;
   return (
-    <dl className="grid grid-cols-3 border-hairline border-y">
-      {cells.map(([k, v], i) => (
-        <div
-          key={k}
-          className={`flex min-w-0 flex-col gap-1.5 py-3 ${i ? 'border-hairline border-l pl-3.5' : ''}`}
-        >
-          <dt>
-            <Eyebrow>{k}</Eyebrow>
-          </dt>
-          <dd>
-            <Text size="small" className="truncate">
-              {v}
-            </Text>
-          </dd>
-        </div>
-      ))}
-    </dl>
+    <>
+      <PieceRow label={copy.rows.worn} value={worn} onClick={onWorn} />
+      <PieceRow
+        label={copy.rows.inLooks}
+        value={looks.data ? String(looks.data.items.length) : '—'}
+        onClick={onLooks}
+      />
+    </>
   );
 }
 
@@ -260,12 +299,9 @@ function InLooks({ pieceId }: { pieceId: string }) {
   const items = query.data?.items ?? [];
   if (query.isPending) return <Skeleton shape="text" className="h-4 w-40" />;
   return (
-    <section aria-labelledby="piece-looks" className="flex flex-col gap-2">
-      <Eyebrow id="piece-looks">
-        {items.length ? copy.sections.looks(items.length) : copy.sections.noLooks}
-      </Eyebrow>
+    <section aria-label={copy.rows.inLooks} className="flex flex-col gap-2 pb-4">
       {items.length ? (
-        <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <ul className="grid grid-cols-2 gap-3">
           {items.map((look) => (
             <li key={look.id}>
               <SavedTile look={look} />
@@ -286,12 +322,16 @@ function Wears({ pieceId }: { pieceId: string }) {
   const query = useApi('wardrobe.wears', { params: { id: pieceId } });
   const items = query.data?.items ?? [];
   const undated = query.data?.undated ?? 0;
-  // Nothing worn yet: the stats strip already says so, so the section stands down (beta).
   if (query.isPending) return <Skeleton shape="text" className="h-4 w-40" />;
-  if (items.length === 0 && !undated) return null;
+  if (items.length === 0 && !undated) {
+    return (
+      <Text size="small" tone="muted" italic className="pb-4">
+        {copy.wears.none}
+      </Text>
+    );
+  }
   return (
-    <section aria-labelledby="piece-wears" className="flex flex-col gap-2">
-      <Eyebrow id="piece-wears">{copy.sections.wears}</Eyebrow>
+    <section aria-label={copy.rows.worn} className="flex flex-col gap-2 pb-4">
       {items.length ? (
         <ul className="flex flex-col divide-y divide-hairline overflow-hidden rounded-crisp border border-hairline bg-surface">
           {items.map((wear) => (

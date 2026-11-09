@@ -391,12 +391,29 @@ export const wardrobe = {
       extra: 'Additional colours',
       print: 'Print',
       material: 'Material',
-      season: 'Season',
+      // The four seasons (D12); none filed reads Year round.
+      season: 'Seasons',
       wearFor: 'Wear it for',
       size: 'Size',
       price: 'Price',
       notes: 'Notes',
+      // A wish's retailer, where an owned piece reads Brand (Front Door PRD rev 3 §7.3).
+      shop: 'Shop',
+      // The Wearing tab's record rows (§7.3): "8 times · last 27 Oct", "3".
+      worn: 'Worn',
+      inLooks: 'In looks',
     },
+    // The page's tabs (PRD rev 3 §7.3): PIECE · COLOUR · WEARING.
+    tabs: { piece: 'Piece', colour: 'Colour', wearing: 'Wearing' },
+    // Delete piece (PRD §7.3, plan R14): an outline button, asked first; Undo still follows.
+    delete: 'Delete piece',
+    deleteTitle: 'Delete this piece?',
+    deleteBody: 'It will be removed from your wardrobe and from any looks it’s in.',
+    deleteConfirm: 'Delete',
+    cancel: 'Cancel',
+    // A wish's page (§7.3): the same anatomy, Bought where Delete sits.
+    removeWish: 'Remove from wishlist',
+    openShop: 'Open the shop page',
     // What a row says when there is nothing filed yet — a door, not a blank.
     add: 'Add',
     // Robes' read on this row is a guess she should look at (until she touches it).

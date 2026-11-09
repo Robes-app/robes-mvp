@@ -47,10 +47,26 @@ export function resolveTaxonomy(
 }
 
 // The picker's three levels (Category › Subcategory › Item type), in the sheet's own order.
+// The picker's first level (Front Door PRD rev 3 §7.3, plan R13): the PRD's eight lead, in its
+// order, and the families it does not draw follow, so nothing she filed becomes unreachable.
+const FIRST_LEVEL_LEAD = [
+  'Tops',
+  'Knitwear',
+  'Bottoms',
+  'Dresses & jumpsuits',
+  'Outerwear',
+  'Shoes',
+  'Bags',
+  'Accessories',
+];
+
 export function sheetCategories(): string[] {
   const seen: string[] = [];
   for (const g of TAXONOMY_GROUPS) if (!seen.includes(g.sheetL1)) seen.push(g.sheetL1);
-  return seen;
+  return [
+    ...FIRST_LEVEL_LEAD.filter((c) => seen.includes(c)),
+    ...seen.filter((c) => !FIRST_LEVEL_LEAD.includes(c)),
+  ];
 }
 
 export function subcategoriesOf(sheetL1: string): string[] {

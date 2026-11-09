@@ -1,8 +1,9 @@
 import { wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { WishDetail } from '../src/features/wardrobe/WishDetail';
 import { WishlistView } from '../src/features/wardrobe/WishlistView';
 import { mockFetch, renderWithApi } from './support/api';
-import { piece } from './support/fixtures';
+import { PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -104,4 +105,33 @@ test('a wish reads as the rack card: Category · Brand, its price and "Not yours
   await fireEvent.press(screen.getByRole('button', { name: 'Shoes 1' }));
   expect(await screen.findByText('1 wishlisted')).toBeTruthy();
   expect(screen.queryByText('Silk scarf')).toBeNull();
+});
+
+// A wish's page (PRD rev 3 §7.3): the piece's anatomy with Shop for the brand, Bought at the foot.
+test('a wish opens its page: Shop where Brand sits, a note saves as the wish’s, Bought promotes', async () => {
+  const calls = mockFetch({
+    [`GET /wishlist/items/${WISH_ID}`]: { ...wish, sourceLabel: 'toteme.com' },
+    [`PATCH /wishlist/items/${WISH_ID}`]: { ...wish, note: 'For the wedding' },
+    [`POST /wishlist/items/${WISH_ID}/promote`]: piece({ label: wish.label }),
+    'GET /wishlist/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<WishDetail id={WISH_ID} />);
+  expect(await screen.findByRole('header', { name: wish.label })).toBeTruthy();
+  expect(screen.getByText(wardrobe.piece.rows.shop)).toBeTruthy();
+  expect(screen.queryByText(wardrobe.piece.brand)).toBeNull();
+  expect(screen.queryByRole('tab', { name: wardrobe.piece.tabs.wearing })).toBeNull();
+  await fireEvent.press(
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.notes}: ${wardrobe.piece.add}` }),
+  );
+  await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.rows.notes), 'For the wedding');
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.saveField }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ note: 'For the wedding' });
+  await fireEvent.press(screen.getByTestId('wish-bought'));
+  await waitFor(() =>
+    expect(mockRouter.replace).toHaveBeenCalledWith({
+      pathname: '/piece/[id]',
+      params: { id: PIECE_ID },
+    }),
+  );
 });
