@@ -13,7 +13,7 @@ export interface PillProps {
   // How a selected pill reads: Felix's warm fill (a kept choice), or the Front Door's deep rose
   // with a cream label (an active quick chip in a filter row, PRD rev 3 §2.5). The PRD's lighter
   // rose misses 4.5:1 under an 11pt label, so the darkened rose carries it (D1).
-  tone?: 'warm' | 'rose';
+  tone?: 'warm' | 'rose' | 'ink';
   // A live count after the label, lighter ("Work 3"). A disabled chip is one whose count is 0.
   count?: number;
   // A kept name she can let go: × after the label instead of the check.
@@ -46,7 +46,8 @@ export function Pill({
   const ink = useColor('ink');
   const muted = useColor('ink-muted');
   const onRose = useColor('surface-raised');
-  const rose = selected && tone === 'rose';
+  // Rose and ink both carry a cream label and need no check.
+  const rose = selected && tone !== 'warm';
   const textSize = size === 'sm' ? 11 : 12;
   const body = (
     <View
@@ -54,7 +55,9 @@ export function Pill({
         'flex-row items-center justify-center gap-1.5 rounded-pill',
         size === 'sm' ? 'min-h-7 px-[11px]' : 'min-h-8 px-[13px]',
         rose
-          ? 'border-accent-warm bg-accent-warm'
+          ? tone === 'ink'
+            ? 'border-ink bg-ink'
+            : 'border-accent-warm bg-accent-warm'
           : selected
             ? 'border-selected-line bg-selected'
             : 'border-rule-mid bg-surface-raised',
@@ -66,7 +69,7 @@ export function Pill({
       {selected && !removable && !rose ? <Icon name="check" size={14} color={ink} /> : null}
       <Text
         maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-        className={rose ? 'text-surface-raised' : 'text-ink'}
+        className={rose ? (tone === 'ink' ? 'text-bg' : 'text-surface-raised') : 'text-ink'}
         style={{ fontFamily: fonts.sansRegular, fontSize: textSize }}
       >
         {children}
@@ -74,7 +77,7 @@ export function Pill({
       {count !== undefined ? (
         <Text
           maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-          className={rose ? 'text-surface-raised' : 'text-ink-faint'}
+          className={rose ? (tone === 'ink' ? 'text-bg' : 'text-surface-raised') : 'text-ink-faint'}
           style={{ fontFamily: fonts.sansRegular, fontSize: textSize - 1, opacity: rose ? 0.7 : 1 }}
         >
           {count}

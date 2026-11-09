@@ -421,6 +421,12 @@ describe('a look’s Wear it for', () => {
   const look = (...tags: string[][]) => ({
     pieces: tags.map((wearFor) => ({ piece: { wearFor } })),
   });
+  it('reads her own tags on the look first, and the pieces only when it has none', () => {
+    const tagged = { ...look(['Work'], ['Work']), tags: ['Gallery', 'Weekend'] };
+    expect(lookWearFor(tagged)).toEqual(['Gallery', 'Weekend']);
+    expect(lookWearFor({ ...tagged, tags: [] })).toEqual(['Work']);
+  });
+
   it('is what every piece carries, Everyday aside, two at most', () => {
     expect(
       lookWearFor(look(['Work', 'Everyday', 'Evening'], ['Evening', 'Work', 'Everyday'])),

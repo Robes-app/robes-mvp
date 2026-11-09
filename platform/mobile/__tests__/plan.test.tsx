@@ -222,7 +222,10 @@ test('an empty day’s dashed door opens the drawer, which schedules several loo
   });
   await renderWithApi(<DayView date={today} />);
   await fireEvent.press(await screen.findByRole('button', { name: diary.day.add }));
-  expect(await screen.findByTestId('drawer-idle')).toHaveTextContent(diary.drawer.schedule(0));
+  // The ✓ waits grey until a pick (Front Door PRD rev 3 §4.5).
+  expect(
+    (await screen.findByRole('button', { name: diary.drawer.done })).props.accessibilityState,
+  ).toEqual({ disabled: true });
   await fireEvent.press(await screen.findByRole('button', { name: 'Weekend navy' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Gallery night' }));
   expect(screen.getAllByText(diary.drawer.adding)).toHaveLength(2);
@@ -248,9 +251,11 @@ test('a look already on the day starts ticked as Scheduled; unticking it takes i
   expect(await screen.findByText(diary.drawer.scheduled)).toBeTruthy();
   const tile = screen.getByTestId(`drawer-look-${LOOK_ID}`);
   expect(tile.props.accessibilityState.selected).toBe(true);
-  // From Pick Look, unticking the only look leaves nothing to schedule: the foot stays idle.
+  // From Pick Look, unticking the only look leaves nothing to schedule: the ✓ stays grey.
   await fireEvent.press(tile);
-  expect(screen.getByTestId('drawer-idle')).toHaveTextContent(diary.drawer.schedule(0));
+  expect(screen.getByRole('button', { name: diary.drawer.done }).props.accessibilityState).toEqual({
+    disabled: true,
+  });
   expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
 });
 

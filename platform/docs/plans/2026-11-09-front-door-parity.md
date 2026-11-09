@@ -70,6 +70,7 @@ Each is a place where the PRD, the code, or an earlier decision pull apart. The 
 | R13 | **Category picker on a piece.** PRD: a flat list of eight. Today: a three-level drill that sets L2/L3 too. | **Keep the drill** (it carries the taxonomy the analysis and tag defaults need); its first level shows the PRD's eight with Knitwear, and a ✓ on the current value. |
 | R14 | **Delete a piece.** PRD: outline DELETE PIECE + a confirm dialog. Today: a quiet Remove with Undo (UX D13 "undo, not confirm"). | **PRD wins for the button and the dialog** (it removes the piece from looks too, which an undo toast under-sells); the Undo toast stays after Delete. |
 | R15 | **Lookbook search (PRD Q6: hidden, pull to reveal).** | **Build it on both** as a collapsed search pill under the filter row that a pull reveals (native: `ScrollView` over-scroll; web: a pull on touch, always visible with a pointer). |
+| R17 | **The filter sheet's picked option is an ink fill with a cream label (the canvas) vs "a selection is the warm fill, never black" (root CLAUDE.md principle 3, Felix D2).** | **The canvas wins inside the filter sheet** (`Pill tone="ink"`): it is the newest drawing and the warm fill reads too close to the white option pills in a wrap of eight. Everywhere else a selection stays warm. Flagged for Annie. |
 | R16 | **Glass sheets on native.** No blur dependency today. | **Add `expo-blur`** (runs in Expo Go) for the three tile sheets and the Filter sheet; web uses `backdrop-filter`. One `GlassSheet` in `@robes/ui-native` / `@robes/ui`. |
 
 ---
@@ -100,7 +101,7 @@ Each PR: native first, the web twin in the same PR, a comment naming the twin, t
 
 ### PR 1 · The shared filter pattern, on the Pick sheet
 
-**Core** (`packages/core/src/filters/`): `FilterState` (PRD §8), `matchesSeasons` (Year Round / untagged rule), `facetCounts(items, state, facet)` for looks, `applyLookFilters(looks, state)` (search over title and piece names, seasons, wear-it-for). `lookWearFor` takes the look's own tags first (R7). `WEAR_SEEDS` gains `weekend` (R6); `scripts gen:sql` regenerates the seeds.
+**Core** (`packages/core/src/filters/`): `FilterState` (PRD §8), `matchesSeasons` (Year Round / untagged rule), `facetCounts(items, state, facet)` for looks, `applyLookFilters(looks, state)` (search over title and piece names, seasons, wear-it-for). `lookWearFor` takes the look's own tags first (R7). Weekend joins the filter vocabulary (`WEAR_FOR_ALL`, R6) rather than `WEAR_SEEDS`: the seed migration is already applied and forward-only, and a tag row is minted on first use anyway.
 
 **Components** (`features/filters/` [`components/filters/`]): `FilterRow` (FilterButton · applied season chips with × · divider · quick chips), `QuickChips`, `FilterSheet` (sections of option pills with live faceted counts, Clear, CTA "SHOW n LOOKS" / "SHOW 1 LOOK" / "NO LOOKS MATCH"). Configured with facets, so the three surfaces pass different facet lists.
 

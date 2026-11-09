@@ -1,5 +1,5 @@
 import type { DiaryDay, PlanEntry, Today } from '@robes/contracts';
-import { diary, today as todayCopy, ui } from '@robes/copy';
+import { diary, filters, today as todayCopy, ui } from '@robes/copy';
 import { diaryWindow } from '@robes/core/calendar';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { DiaryHome } from '../src/features/home/DiaryHome';
@@ -211,11 +211,23 @@ test('an empty day: her model with Capture · Describe · Pick; Pick opens the d
   expect(screen.getByRole('button', { name: diary.discs.describeLabel('Friday') })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: diary.discs.pickLabel('Friday') }));
   expect(await screen.findByTestId('look-picker')).toBeTruthy();
-  expect(await screen.findByTestId('drawer-idle')).toHaveTextContent(diary.drawer.schedule(0));
+  // The ✓ waits grey until her picks change the day (Front Door PRD rev 3 §4.5).
+  const done = await screen.findByRole('button', { name: diary.drawer.done });
+  expect(done.props.accessibilityState).toEqual({ disabled: true });
   expect(screen.getByText(diary.drawer.eyebrow('Friday', 'Fri 2 Oct'))).toBeTruthy();
+  expect(screen.getByRole('header', { name: diary.log.ahead })).toBeTruthy();
+  // The shared filter row and the search sit under the question.
+  expect(screen.getByTestId('filter-row')).toBeTruthy();
+  expect(screen.getByRole('button', { name: `${filters.all} 1` })).toBeTruthy();
+  expect(screen.getByLabelText(diary.drawer.search)).toBeTruthy();
   expect(await screen.findByText(diary.drawer.wears(2))).toBeTruthy();
-  // One tap readies Schedule 1 Look; a pin follows.
+  // One tap readies Schedule 1 Look on the ✓; a pin follows.
   await fireEvent.press(screen.getByTestId(`drawer-look-${LOOK_ID}`));
+  expect(screen.getByRole('button', { name: diary.drawer.schedule(1) })).toBeTruthy();
+  // A search that matches nothing offers Clear filters, and the pick survives it.
+  await fireEvent.changeText(screen.getByLabelText(diary.drawer.search), 'nothing like this');
+  expect(await screen.findByText(filters.noLooks)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: filters.clear }));
   expect(screen.getByRole('button', { name: diary.drawer.schedule(1) })).toBeTruthy();
 });
 

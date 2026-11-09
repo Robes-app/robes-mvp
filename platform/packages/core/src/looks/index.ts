@@ -514,12 +514,15 @@ export function lookMatches(
   );
 }
 
-// What a look is worn for, read from its pieces (legacy _rbInheritLookTags): the tags every one
-// of its pieces carries, Everyday aside (nearly every piece has it, so it says nothing), A–Z, two
-// at most. Filters (the picker's Refine, the Lookbook's Filter) read it as the look's Wear it for.
+// What a look is worn for: her own tags on the look lead (Felix 3e Details › Tags; plan R7), and
+// when it has none, what its pieces agree on (legacy _rbInheritLookTags): the tags every one of
+// its pieces carries, Everyday aside (nearly every piece has it, so it says nothing), A–Z, two at
+// most. Filters (the Pick sheet, the Lookbook) read it as the look's Wear it for.
 export function lookWearFor(look: {
+  tags?: readonly string[];
   pieces: readonly { piece: { wearFor?: readonly string[] } }[];
 }): string[] {
+  if (look.tags?.length) return [...look.tags];
   const pieces = look.pieces.map((p) => p.piece.wearFor ?? []);
   if (!pieces.length) return [];
   const counts = new Map<string, number>();
@@ -535,7 +538,10 @@ export function lookWearFor(look: {
 
 // The Wear it for options a set of looks offers, A–Z.
 export function wearForOptions(
-  looks: readonly { pieces: readonly { piece: { wearFor?: readonly string[] } }[] }[],
+  looks: readonly {
+    tags?: readonly string[];
+    pieces: readonly { piece: { wearFor?: readonly string[] } }[];
+  }[],
 ): string[] {
   return [...new Set(looks.flatMap(lookWearFor))].sort((a, b) => a.localeCompare(b, 'en-GB'));
 }

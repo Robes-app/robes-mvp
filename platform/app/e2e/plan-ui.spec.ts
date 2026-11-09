@@ -40,9 +40,12 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   await page.getByRole('link', { name: /^Open Today/ }).click();
   await page.getByTestId('day-add').click();
 
-  // The drawer (design 3k) asks what she is wearing today and schedules one or several.
-  const picker = page.getByRole('dialog', { name: 'What are you wearing?' });
-  await expect(picker.getByTestId('drawer-idle')).toHaveText('Schedule Looks');
+  // The drawer (design 3k) asks what she is wearing today and schedules one or several; the ✓
+  // waits grey until a pick (Front Door PRD rev 3 §4.5).
+  const picker = page.getByRole('dialog').filter({
+    has: page.getByRole('heading', { name: 'What are you wearing?' }),
+  });
+  await expect(picker.getByTestId('drawer-done')).toHaveAttribute('aria-disabled', 'true');
   await picker.getByRole('button', { name: /Office/ }).click();
   await picker.getByRole('button', { name: /Dinner/ }).click();
   await picker.getByRole('button', { name: 'Schedule 2 Looks' }).click();
@@ -58,7 +61,7 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   // A look already on the day opens ticked as Scheduled; unticking it takes it off.
   await page.getByTestId('day-add').click();
   await expect(picker.getByText('Scheduled')).toHaveCount(2);
-  await expect(picker.getByTestId('drawer-idle')).toHaveText('Schedule Looks');
+  await expect(picker.getByTestId('drawer-done')).toHaveAttribute('aria-disabled', 'true');
   await picker.getByRole('button', { name: 'Close' }).click();
   await expect(picker).toBeHidden();
 

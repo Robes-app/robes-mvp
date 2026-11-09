@@ -21,6 +21,7 @@
     "./trips": "./src/trips/index.ts",
     "./avatar": "./src/avatar/index.ts",
     "./looks": "./src/looks/index.ts",
+    "./filters": "./src/filters/index.ts",
     "./photo-pieces": "./src/photo-pieces/index.ts",
     "./add-flow": "./src/add-flow/index.ts",
     "./inbox": "./src/inbox/index.ts",
