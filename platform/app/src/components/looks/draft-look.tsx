@@ -46,7 +46,7 @@ import { LayoutToggle } from '@/components/wardrobe/wardrobe-header';
 import { type Adjust, useAdjust } from '@/lib/adjust';
 import { errorCopy } from '@/lib/error-copy';
 import { usePhotoFiling } from '@/lib/file-photo';
-import { useLookEditor } from '@/lib/look-editor';
+import { onRackIds, useLookEditor } from '@/lib/look-editor';
 import { useImageStage } from '@/lib/look-images';
 import { isDraftsFull, useLetGo, useRefreshLooks, useSaveLook } from '@/lib/look-states';
 import { useJob } from '@/lib/use-job';
@@ -130,12 +130,6 @@ function useAskContext(date: string | null, weatherOff: boolean): LookAskInput['
   const city = day.place?.city ?? wx.city ?? '';
   return { weather: `${shortRange(wx.tempRange)}${city ? ` in ${city}` : ''}`.slice(0, 60) };
 }
-
-// The pieces and wishes already on the rack, so the picker never offers one twice.
-const onRackIds = (rows: readonly RackRow[]): string[] =>
-  rows.flatMap((r) =>
-    r.pieceId ? [r.pieceId] : r.proposal?.wishlistItemId ? [r.proposal.wishlistItemId] : [],
-  );
 
 // The Rack (PRD §4.6): its heading with the grid | list toggle, the rows or the tiles, and the
 // Rack card under them as the add slot. Before the first piece the card stands alone.

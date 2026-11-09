@@ -224,6 +224,8 @@ Each PR: native first, the web twin in the same PR, a comment naming the twin, t
 - `docs/design-system.md`: the new primitives. `docs/api.md`: the changed inputs. `docs/plans/README.md`: this plan's row.
 - Remove `BalanceQuestion`, `SwapSheet` (older), the Lookbook sort sheet, and the three private filter cards.
 
+**As built (9 Nov).** `platform/CLAUDE.md` carries the Front Door's shared parts as a product rule (the filter pattern, the styling card, Shop as `balance`, the pencil rule, the wear-it-for list, the picker and the Add pieces sheet); `docs/design-system.md` §5 lists the new primitives; `docs/api.md` had taken each changed input in its PR; the plans index marks this plan done. The older `SwapSheet` is gone from both platforms: the suggested look's swap and + and the prompt box's attach-a-piece open the one `PiecePicker` (a swap confirms with Swap it in rather than landing on the tap; the prompt box takes the first piece picked — a wish can't be attached to it yet). `BalanceQuestion` went in PR 4, the Lookbook's sort sheet and the private filter cards in PR 2; nothing of them remained to remove.
+
 ---
 
 ## 5. Order and dependencies

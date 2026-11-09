@@ -419,19 +419,6 @@ export const lookbook = {
     stale: 'The picture is behind your changes',
   },
   // The one wardrobe sheet behind every + and every swap (legacy 2026-10-15, design 2 / 4a).
-  sheet: {
-    eyebrow: 'From your wardrobe',
-    swapEyebrow: 'Swap from your wardrobe',
-    slot: { top: 'Add a top', bottom: 'Add a bottom', shoes: 'Add shoes' },
-    search: 'Search your wardrobe',
-    photograph: 'Photograph one',
-    filesIn: 'Files straight in',
-    swapsIn: 'Swaps straight in',
-    inLook: '✓ In the look',
-    noMatch: (q: string): string => `Nothing in your wardrobe matches “${q}”.`,
-    emptyCategory: (category: string): string => `No ${category.toLowerCase()} yet.`,
-    emptyHint: 'Photograph one to add it to your wardrobe',
-  },
   rack: {
     title: (n: number): string => `The rack · ${pieces(n)}`,
     addPiece: '+ Add a piece',
@@ -454,12 +441,6 @@ export const lookbook = {
     hint: 'A tee, jeans, a knit…',
   },
   swap: {
-    title: (piece: string): string => `Swap the ${piece}`,
-    add: 'Add a piece',
-    all: 'All',
-    swapIn: (name: string): string => `Swap in ${name}`,
-    addIn: (name: string): string => `Add ${name}`,
-    empty: 'Nothing else of this kind in your wardrobe.',
     // A swap on a suggested look lands at once, behind Undo.
     swapped: (name: string): string => `${name} is on the look.`,
   },

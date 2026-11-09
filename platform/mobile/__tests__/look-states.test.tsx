@@ -1,5 +1,5 @@
 import type { Look, LookSet } from '@robes/contracts';
-import { filters, lookbook, ui } from '@robes/copy';
+import { diary, filters, lookbook, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert } from 'react-native';
@@ -267,7 +267,7 @@ test('closing the diary after Save is not yet: nothing is pinned', async () => {
   expect(calls.some((c) => c.path.endsWith('/days'))).toBe(false);
 });
 
-test('↻ on a suggested look swaps in one tap, stays suggested, and Undo puts it back', async () => {
+test('↻ on a suggested look swaps through the picker, stays suggested, and Undo puts it back', async () => {
   const COAT = '99999999-9999-4999-8999-999999999999';
   const coat = piece({ id: COAT, label: 'Navy wool coat' });
   const shown = suggestion({ pieces: [{ piece: piece(), slot: null, role: 'anchor' }] });
@@ -284,7 +284,11 @@ test('↻ on a suggested look swaps in one tap, stays suggested, and Undo puts i
   await fireEvent.press(
     await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );
-  await fireEvent.press(await screen.findByRole('radio', { name: 'Navy wool coat' }));
+  // The one PiecePicker (plan 2026-11-09 PR 9): a tick on the piece, then Swap it in.
+  await fireEvent.press(
+    await screen.findByRole('checkbox', { name: diary.flyout.pick('Navy wool coat') }),
+  );
+  await fireEvent.press(screen.getByTestId('picker-confirm'));
   const patches = () => calls.filter((c) => c.method === 'PATCH');
   await waitFor(() => expect(patches()).toHaveLength(1));
   expect(patches()[0]?.body).toMatchObject({ keepSuggested: true });

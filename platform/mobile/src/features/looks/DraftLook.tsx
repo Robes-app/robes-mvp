@@ -57,7 +57,7 @@ import { AdjustSheet, DescribeSheet } from './DraftSheets';
 import { CardPicture, ImageManager } from './ImageManager';
 import { LookDetails } from './LookDetails';
 import { LookPicture } from './LookPicture';
-import { useLookEditor } from './look-editor';
+import { onRackIds, useLookEditor } from './look-editor';
 import { useImageStage } from './look-images';
 import {
   isDraftsFull,
@@ -157,12 +157,6 @@ function useAskContext(date: string | null, weatherOff: boolean): LookAskInput['
   const city = day.place?.city ?? wx.city ?? '';
   return { weather: `${shortRange(wx.tempRange)}${city ? ` in ${city}` : ''}`.slice(0, 60) };
 }
-
-// The pieces and wishes already on the rack, so the picker never offers one twice.
-const onRackIds = (rows: readonly RackRow[]): string[] =>
-  rows.flatMap((r) =>
-    r.pieceId ? [r.pieceId] : r.proposal?.wishlistItemId ? [r.proposal.wishlistItemId] : [],
-  );
 
 // The Rack (PRD §4.6): its heading with the grid | list toggle, the rows or the tiles, and the
 // Rack card under them as the add slot. Before the first piece the card stands alone.

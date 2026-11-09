@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 import { useFeatures } from '@/components/features';
-import { SwapSheet } from '@/components/looks/swap-sheet';
+import { PiecePicker } from '@/components/looks/piece-picker';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { formatDay, localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
@@ -355,12 +355,14 @@ export function HomeBox({
         </Text>
       ) : null}
       {error ? <ErrorText size="caption">{error}</ErrorText> : null}
-      <SwapSheet
-        open={picking}
-        swapping={null}
+      {/* The one wardrobe picker (plan 2026-11-09 PR 9); the box takes the first piece picked.
+          shortcut: a wish can't be attached to the prompt yet — the box speaks of her pieces. */}
+      <PiecePicker
+        mode={picking ? { add: true } : null}
         onRack={[]}
         onClose={() => setPicking(false)}
-        onPick={(p) => {
+        onPick={([p]) => {
+          if (!p) return;
           reset();
           setAttached({ kind: 'piece', piece: p });
           field.current?.focus();
