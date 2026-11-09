@@ -122,6 +122,7 @@ export function WishlistView() {
               piece={item}
               status={wishStatus(item)}
               compact
+              onOpen={() => router.push({ pathname: '/wish/[id]', params: { id: item.id } })}
               onImage={
                 <HeartButton
                   label={copy.wishlist.unwish(item.label)}
@@ -133,6 +134,7 @@ export function WishlistView() {
             <CardRow
               piece={item}
               status={wishStatus(item)}
+              onOpen={() => router.push({ pathname: '/wish/[id]', params: { id: item.id } })}
               action={
                 <BoughtButton
                   label={item.label}

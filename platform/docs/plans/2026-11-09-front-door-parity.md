@@ -192,6 +192,8 @@ Each PR: native first, the web twin in the same PR, a comment naming the twin, t
 
 **Acceptance (§10 10).**
 
+**As built (9 Nov).** PIECE · COLOUR · WEARING stand over the record's rows on both platforms (`RecordRows only=`), one box per tab: PIECE = Name (→ the name drawer), Category, Brand, Size, Price, Notes; COLOUR = the colour and material rows; WEARING = Worn ("8 times · last 27 Oct", opens the wears in a sheet), In looks (opens the tiles in a sheet), Seasons, Wear it for. The brand line under the name and the stats strip went into those rows. Seasons is the four seasons (D12), each tap the answer, none filed reading Year round; the band drawer is gone. The category drill's first level leads with the PRD's eight, in its order, the other families after (R13). Delete piece is an outline button into the confirm (R14); the Undo toast still follows. The wish page (web `/wardrobe/wishlist/:id`, native `/wish/:id`) is the same anatomy with PIECE · COLOUR, Shop (the retailer, editable) for Brand, the shop link under the name, Bought and Remove from wishlist; a wish carries no seasons or wear-for yet, so it has no WEARING tab and that migration waits with the Shop PRD. "Style this piece" and "Start a look with it" stay above the tabs on an owned piece. The ✓ "when opened from Edit Look" is not drawn: Back is the way to the look.
+
 ### PR 7 · Add Pieces and Receipts
 
 `app/wardrobe/add.tsx`, `features/wardrobe/add/AddPiecesPanel.tsx`, `InboxView.tsx`, `LinkImport.tsx` [`components/wardrobe/add/add-flow.tsx`, `inbox.tsx`, `link-import.tsx`]:

@@ -52,11 +52,12 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'Photo of Camel wool coat' })).toBeVisible();
   // Every fact is a row that opens its own drawer, and the line under the name is the truth:
   // a brand she adds shows there at once, with no form to save.
-  await page.getByRole('button', { name: 'Add the brand' }).click();
+  // The PIECE tab leads (PRD rev 3 §7.3): the Brand row opens its drawer.
+  await page.getByRole('button', { name: /^Brand/ }).click();
   const brand = page.getByRole('dialog', { name: 'Brand' });
   await brand.getByLabel('Brand').fill('Harbour');
   await brand.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByRole('button', { name: 'Harbour', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Brand.*Harbour/ })).toBeVisible();
 
   // Category drills Category › Subcategory › Item type, from wardrobe_taxonomy.
   await page.getByRole('button', { name: /^Category/ }).click();
@@ -82,6 +83,8 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^Category.*Crew neck t-shirt/ })).toBeVisible();
 
   // What she wears it for is a styling signal, so it is hers to set and reads back on the row.
+  // Wear it for lives on the WEARING tab.
+  await page.getByRole('tab', { name: 'Wearing' }).click();
   await page.getByRole('button', { name: /^Wear it for/ }).click();
   const wear = page.getByRole('dialog', { name: 'Wear it for' });
   await wear.getByRole('button', { name: 'Work', exact: true }).click();
@@ -90,6 +93,8 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
 
   // Material is the fourth row of Colour & material: the read files Wool, a pick from another
   // family answers it, and "Not sure" files nothing.
+  // Material lives on the COLOUR tab.
+  await page.getByRole('tab', { name: 'Colour' }).click();
   await expect(page.getByRole('button', { name: /^Material.*Wool/ })).toBeVisible();
   await page.getByRole('button', { name: /^Material/ }).click();
   const fabric = page.getByRole('dialog', { name: 'Material' });

@@ -201,6 +201,7 @@ export function Wishlist() {
               {list_ ? (
                 <CardRow
                   piece={wish}
+                  href={`/wardrobe/wishlist/${wish.id}`}
                   status={wishStatus(wish)}
                   thumb={<PieceImage piece={wish} sizes="52px" />}
                   action={
@@ -216,6 +217,7 @@ export function Wishlist() {
               ) : (
                 <CardTile
                   piece={wish}
+                  href={`/wardrobe/wishlist/${wish.id}`}
                   status={wishStatus(wish)}
                   compact
                   photo={

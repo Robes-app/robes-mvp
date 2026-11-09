@@ -46,7 +46,7 @@ test('a reading piece says so and offers no styling yet', async () => {
   ).toBe(true);
 });
 
-test('each fact is its own drawer: a brand saves and shows under the name at once', async () => {
+test('each fact is its own drawer: a brand saves and the PIECE row shows it at once', async () => {
   const calls = mockFetch({
     [`GET /wardrobe/items/${PIECE_ID}`]: piece({ brand: null }),
     [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
@@ -54,14 +54,78 @@ test('each fact is its own drawer: a brand saves and shows under the name at onc
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
-  // The line under the name is the door, and it says what is missing.
-  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.piece.addBrand }));
+  // The PIECE tab leads (PRD rev 3 §7.3): Name, Category, Brand, Size, Price, Notes.
+  expect(await screen.findByRole('tab', { name: wardrobe.piece.tabs.piece })).toBeTruthy();
+  await fireEvent.press(
+    screen.getByRole('button', { name: `${wardrobe.piece.brand}: ${wardrobe.piece.add}` }),
+  );
   await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.brand), 'Toteme');
   await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.saveField }));
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ brand: 'Toteme' });
-  // The line under the name and the row read the same saved piece, so both say it.
-  expect(await screen.findAllByText('Toteme')).toHaveLength(2);
+  expect(await screen.findByText('Toteme')).toBeTruthy();
+});
+
+test('COLOUR and WEARING hold their rows; Worn opens the record; Delete piece asks first', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({ wearCount: 2 }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: {
+      items: [
+        {
+          id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+          wornOn: '2026-10-27',
+          lookId: null,
+          lookName: 'Office',
+        },
+      ],
+      undated: 0,
+    },
+    [`DELETE /wardrobe/items/${PIECE_ID}`]: { ok: true },
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  // The colour rows wait on their tab.
+  expect(await screen.findByRole('tab', { name: wardrobe.piece.tabs.colour })).toBeTruthy();
+  expect(screen.queryByText(wardrobe.piece.rows.material)).toBeNull();
+  await fireEvent.press(screen.getByRole('tab', { name: wardrobe.piece.tabs.colour }));
+  expect(screen.getByText(wardrobe.piece.rows.material)).toBeTruthy();
+  // WEARING: Worn reads the count and the last day, Seasons the four seasons filed.
+  await fireEvent.press(screen.getByRole('tab', { name: wardrobe.piece.tabs.wearing }));
+  expect(await screen.findByText('2 times · last 27 Oct')).toBeTruthy();
+  expect(screen.getByText('Autumn · Winter')).toBeTruthy();
+  await fireEvent.press(
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.worn}: 2 times · last 27 Oct` }),
+  );
+  expect(await screen.findByText('Office')).toBeTruthy();
+  // Delete piece (R14): the dialog asks; Cancel keeps it, Delete lets it go and leaves.
+  await fireEvent.press(screen.getByTestId('delete-piece'));
+  expect(await screen.findByText(wardrobe.piece.deleteTitle)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.cancel }));
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+  await fireEvent.press(screen.getByTestId('delete-piece'));
+  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.piece.deleteConfirm }));
+  await waitFor(() => expect(mockRouter.back).toHaveBeenCalled());
+});
+
+test('Seasons are the four seasons, each tap the answer; none filed reads Year round', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({ seasons: [], seasonBand: 'year_round' }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ seasons: ['spring'] }),
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.wearing }));
+  await fireEvent.press(
+    screen.getByRole('button', {
+      name: `${wardrobe.piece.rows.season}: ${wardrobe.filter.seasons.year_round}`,
+    }),
+  );
+  await fireEvent.press(await screen.findByRole('checkbox', { name: filters.seasons.spring }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ seasons: ['spring'] });
 });
 
 test('the category drills Category › Subcategory › Item type and files the legacy column', async () => {
@@ -107,8 +171,9 @@ test('wear it for is hers to set, and each tap is the answer', async () => {
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.wearing }));
   await fireEvent.press(
-    await screen.findByRole('button', { name: `${wardrobe.piece.rows.wearFor}: Everyday` }),
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.wearFor}: Everyday` }),
   );
   await fireEvent.press(screen.getByRole('button', { name: 'Work' }));
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
@@ -126,9 +191,10 @@ test('a colour answers on the tap, from the family tiles and their shades', asyn
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.colour }));
   // The fixture is filed as Camel, so the row says so.
   await fireEvent.press(
-    await screen.findByRole('button', { name: `${wardrobe.piece.rows.colour}: Camel` }),
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.colour}: Camel` }),
   );
   await fireEvent.press(screen.getByRole('button', { name: 'Blues' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Navy' }));
@@ -162,7 +228,7 @@ test('material is a row of Colour & material: the read marks Check, a pick answe
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
-  expect(await screen.findByText(wardrobe.piece.sections.colour)).toBeTruthy();
+  await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.colour }));
   // Robes was unsure, so the row says so until she answers it.
   const row = await screen.findByRole('button', {
     name: `${wardrobe.piece.rows.material}: Wool. ${wardrobe.material.check}`,
@@ -191,8 +257,9 @@ test('"Not sure" files no material', async () => {
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.colour }));
   await fireEvent.press(
-    await screen.findByRole('button', { name: `${wardrobe.piece.rows.material}: Silk` }),
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.material}: Silk` }),
   );
   await fireEvent.press(screen.getByRole('button', { name: wardrobe.material.notSure }));
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
@@ -206,8 +273,9 @@ test('an unfiled material reads as the door, and its sheet opens on Natural', as
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.colour }));
   await fireEvent.press(
-    await screen.findByRole('button', {
+    screen.getByRole('button', {
       name: `${wardrobe.piece.rows.material}: ${wardrobe.piece.add}`,
     }),
   );
@@ -328,8 +396,9 @@ test('a print is a list with its own drawn square; a pick saves', async () => {
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.colour }));
   await fireEvent.press(
-    await screen.findByRole('button', {
+    screen.getByRole('button', {
       name: `${wardrobe.piece.rows.print}: ${wardrobe.colour.plain}`,
     }),
   );
@@ -351,8 +420,9 @@ test('her own wear tag is added from "+ Your own" and picked at once', async () 
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.wearing }));
   await fireEvent.press(
-    await screen.findByRole('button', { name: `${wardrobe.piece.rows.wearFor}: Everyday` }),
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.wearFor}: Everyday` }),
   );
   expect(screen.getByText(wardrobe.fields.wearFor.helper)).toBeTruthy();
   // Done sits in the header; there is no ×.
@@ -379,7 +449,9 @@ test('removing a piece goes back and offers Undo, which restores it', async () =
     'GET /wardrobe/items': { items: [piece()], nextCursor: null },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.piece.remove }));
+  // Delete piece asks first (R14); Delete lets it go, and Undo still follows in the toast.
+  await fireEvent.press(await screen.findByTestId('delete-piece'));
+  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.piece.deleteConfirm }));
   expect(mockRouter.back).toHaveBeenCalled();
   expect(await screen.findByText(wardrobe.deleted)).toBeTruthy();
   await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));

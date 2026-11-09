@@ -24,8 +24,9 @@ const RULES: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   // The day page: web /plan/:date, native /day/:date. A malformed date falls to +not-found, as
   // the web 404s it.
   rule(`/plan/${DATE}`, (m) => `/day/${m[1]}`),
-  // The Wishlist is a segment of the Wardrobe tab on native.
+  // The Wishlist is a segment of the Wardrobe tab on native; a wish's page is /wish/:id.
   rule('/wardrobe/wishlist', () => '/wardrobe?segment=wishlist'),
+  rule(`/wardrobe/wishlist/${UUID}`, (m) => `/wish/${m[1]}`),
   rule('/soon/[a-z-]+', () => '/soon'),
   rule('/auth/sign-in', () => '/sign-in'),
 ];

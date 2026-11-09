@@ -1,5 +1,5 @@
-import type { PieceValues } from '@robes/contracts';
-import { wardrobe } from '@robes/copy';
+import type { PieceValues, Season } from '@robes/contracts';
+import { filters as filterCopy, wardrobe } from '@robes/copy';
 import { pattern, shade } from '@robes/core/colour';
 import { material } from '@robes/core/material';
 import { suggestPieceName } from '@robes/core/wardrobe';
@@ -16,10 +16,10 @@ const fields = wardrobe.fields;
 // One piece anatomy (legacy Piece_Sheet 01): every fact is a row under a named section, and a
 // tap opens that one field's drawer. Nothing on the record is a form. Resting rows sit on white with
 // a hairline; the warm edge means selected, and no row is selected. Web twin: piece-rows.tsx.
-export function PieceSection({ title, children }: { title: string; children: ReactNode }) {
+export function PieceSection({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <View className="gap-2">
-      <Eyebrow>{title}</Eyebrow>
+      {title ? <Eyebrow>{title}</Eyebrow> : null}
       <View className="overflow-hidden rounded-crisp border border-hairline bg-surface-raised">
         {children}
       </View>
@@ -146,10 +146,24 @@ export const money = (price: number | null, currency: string | null): string | n
 
 export type RecordValues = PieceValues & {
   category?: string | null;
+  // The four seasons (D12) where the record carries them; none filed reads Year round.
+  seasons?: readonly Season[];
+  // A wish's retailer (PRD rev 3 §7.3), where an owned piece has its brand.
+  sourceLabel?: string | null;
   colourCheck?: boolean;
   materialCheck?: boolean;
   brandCheck?: boolean;
 };
+
+// The page's tabs (PRD rev 3 §7.3): which of the record's rows show.
+export type RecordTab = 'piece' | 'colour' | 'wearing';
+
+// "Spring · Autumn", or Year round when none is filed (the band stands in for older rows).
+export function seasonsLine(v: Pick<RecordValues, 'seasons' | 'seasonBand'>): string {
+  if (v.seasons?.length) return v.seasons.map((x) => filterCopy.seasons[x]).join(' · ');
+  if (v.seasonBand) return wardrobe.filter.seasons[v.seasonBand];
+  return filterCopy.seasons.year_round;
+}
 
 // The leaf of the category (redline 08): "Crew neck jumper", not the whole path — the family
 // belongs to the picker's header.
@@ -167,12 +181,22 @@ export function RecordRows({
   onName,
   withName = false,
   reading = false,
+  only,
+  wish = false,
+  wearing,
 }: {
   values: RecordValues;
   onField: (field: PieceField) => void;
   onName?: (label: string) => void;
   withName?: boolean;
   reading?: boolean;
+  // One tab's rows alone, in one box without an eyebrow (the piece page's PIECE · COLOUR ·
+  // WEARING, PRD rev 3 §7.3): the Name row leads PIECE, Size · Price · Notes close it.
+  only?: RecordTab;
+  // A wish (§7.3): Shop (the retailer) where an owned piece has its brand.
+  wish?: boolean;
+  // The WEARING tab's own rows (Worn, In looks), ahead of Seasons and Wear it for.
+  wearing?: ReactNode;
 }) {
   const mainShade = shade(values.colourShade);
   // Each additional colour shows its own dot, and the print its own square, beside the names
@@ -185,6 +209,119 @@ export function RecordRows({
   const print = pattern(values.print);
   const v = (value: string | null | undefined) => (reading ? wardrobe.add.review.reading : value);
   const open = (field: PieceField) => (reading ? undefined : () => onField(field));
+  const brandRow = wish ? (
+    <PieceRow
+      label={copy.rows.shop}
+      value={v(values.sourceLabel)}
+      hint={fields.hints.brand}
+      onPress={open('shop')}
+    />
+  ) : (
+    <PieceRow
+      label={copy.brand}
+      value={v(values.brand)}
+      hint={fields.hints.brand}
+      check={values.brandCheck && !reading ? copy.brandCheck : undefined}
+      onPress={open('brand')}
+    />
+  );
+  const sizeRow = <PieceRow label={copy.rows.size} value={v(values.size)} onPress={open('size')} />;
+  const priceRow = (
+    <PieceRow
+      label={copy.rows.price}
+      value={v(money(values.price, values.currency))}
+      onPress={open('price')}
+    />
+  );
+  // A filled note prints beneath, and the row's own value says the door is to change it.
+  const notesRow = (
+    <PieceRow
+      label={copy.rows.notes}
+      value={v(values.notes ? fields.edit : null)}
+      spoken={reading ? null : values.notes}
+      note={reading ? null : values.notes}
+      onPress={open('notes')}
+    />
+  );
+  const colourRows = (
+    <>
+      <PieceRow
+        first
+        label={copy.rows.colour}
+        value={v(mainShade?.name ?? null)}
+        swatch={mainShade && !reading ? <ShadeSwatch shade={mainShade} size={18} /> : undefined}
+        check={values.colourCheck && !reading ? wardrobe.colour.check : undefined}
+        onPress={open('colour')}
+      />
+      <PieceRow
+        label={copy.rows.extra}
+        value={v(extras)}
+        swatch={
+          extraShades.length && !reading ? (
+            <View className="flex-row items-center gap-1">
+              {extraShades.map((x) => (
+                <ShadeSwatch key={x.id} shade={x} size={18} />
+              ))}
+            </View>
+          ) : undefined
+        }
+        onPress={open('extra')}
+      />
+      <PieceRow
+        label={copy.rows.print}
+        value={v(print?.name ?? wardrobe.colour.plain)}
+        swatch={print && !reading ? <PrintSwatch id={print.id} size={18} /> : undefined}
+        onPress={open('print')}
+      />
+      <PieceRow
+        label={copy.rows.material}
+        value={v(material(values.material)?.name ?? null)}
+        check={values.materialCheck && !reading ? wardrobe.material.check : undefined}
+        onPress={open('material')}
+      />
+    </>
+  );
+  const wearingRows = (
+    <>
+      <PieceRow
+        first={!wearing}
+        label={copy.rows.season}
+        value={v(seasonsLine(values))}
+        onPress={open('season')}
+      />
+      <PieceRow
+        label={copy.rows.wearFor}
+        value={v(values.wearFor.join(' · '))}
+        onPress={open('wearFor')}
+      />
+    </>
+  );
+  if (only === 'piece') {
+    return (
+      <PieceSection>
+        <PieceRow first label={copy.label} value={v(values.label)} onPress={open('label')} />
+        <PieceRow
+          label={copy.rows.category}
+          value={v(categoryLeaf(values))}
+          hint={fields.hints.category}
+          onPress={open('category')}
+        />
+        {brandRow}
+        {sizeRow}
+        {priceRow}
+        {notesRow}
+      </PieceSection>
+    );
+  }
+  if (only === 'colour') return <PieceSection>{colourRows}</PieceSection>;
+  if (only === 'wearing') {
+    return (
+      <PieceSection>
+        {wearing}
+        {wearingRows}
+      </PieceSection>
+    );
+  }
   return (
     // The sections own their spacing, so every screen that holds them reads the same.
     <View className="gap-5">
@@ -209,81 +346,17 @@ export function RecordRows({
           hint={fields.hints.category}
           onPress={open('category')}
         />
-        <PieceRow
-          label={copy.brand}
-          value={v(values.brand)}
-          hint={fields.hints.brand}
-          check={values.brandCheck && !reading ? copy.brandCheck : undefined}
-          onPress={open('brand')}
-        />
+        {brandRow}
       </PieceSection>
 
-      <PieceSection title={copy.sections.colour}>
-        <PieceRow
-          first
-          label={copy.rows.colour}
-          value={v(mainShade?.name ?? null)}
-          swatch={mainShade && !reading ? <ShadeSwatch shade={mainShade} size={18} /> : undefined}
-          check={values.colourCheck && !reading ? wardrobe.colour.check : undefined}
-          onPress={open('colour')}
-        />
-        <PieceRow
-          label={copy.rows.extra}
-          value={v(extras)}
-          swatch={
-            extraShades.length && !reading ? (
-              <View className="flex-row items-center gap-1">
-                {extraShades.map((x) => (
-                  <ShadeSwatch key={x.id} shade={x} size={18} />
-                ))}
-              </View>
-            ) : undefined
-          }
-          onPress={open('extra')}
-        />
-        <PieceRow
-          label={copy.rows.print}
-          value={v(print?.name ?? wardrobe.colour.plain)}
-          swatch={print && !reading ? <PrintSwatch id={print.id} size={18} /> : undefined}
-          onPress={open('print')}
-        />
-        <PieceRow
-          label={copy.rows.material}
-          value={v(material(values.material)?.name ?? null)}
-          check={values.materialCheck && !reading ? wardrobe.material.check : undefined}
-          onPress={open('material')}
-        />
-      </PieceSection>
+      <PieceSection title={copy.sections.colour}>{colourRows}</PieceSection>
 
-      <PieceSection title={copy.sections.wearing}>
-        <PieceRow
-          first
-          label={copy.rows.season}
-          value={v(values.seasonBand ? wardrobe.filter.seasons[values.seasonBand] : null)}
-          onPress={open('season')}
-        />
-        <PieceRow
-          label={copy.rows.wearFor}
-          value={v(values.wearFor.join(' · '))}
-          onPress={open('wearFor')}
-        />
-      </PieceSection>
+      <PieceSection title={copy.sections.wearing}>{wearingRows}</PieceSection>
 
       <PieceSection title={copy.sections.fit}>
-        <PieceRow first label={copy.rows.size} value={v(values.size)} onPress={open('size')} />
-        <PieceRow
-          label={copy.rows.price}
-          value={v(money(values.price, values.currency))}
-          onPress={open('price')}
-        />
-        {/* A filled note prints beneath, and the row's own value says the door is to change it. */}
-        <PieceRow
-          label={copy.rows.notes}
-          value={v(values.notes ? fields.edit : null)}
-          spoken={reading ? null : values.notes}
-          note={reading ? null : values.notes}
-          onPress={open('notes')}
-        />
+        {sizeRow}
+        {priceRow}
+        {notesRow}
       </PieceSection>
     </View>
   );
