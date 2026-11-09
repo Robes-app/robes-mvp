@@ -181,7 +181,9 @@ test('a day with two looks shows the OOTD, then the second look, each with Swap 
   await fireEvent.press(card);
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}?day=${TWO}`);
   // Its image stack opens the same detail, on the Add a photo card (PRD §6.1).
-  await fireEvent.press(screen.getAllByTestId('saved-look-stack')[0]);
+  const [stack] = screen.getAllByTestId('saved-look-stack');
+  if (!stack) throw new Error('no image stack');
+  await fireEvent.press(stack);
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}?day=${TWO}&images=add`);
   // Each look carries Swap and Edit; its name stands under the discs.
   expect(screen.getByRole('button', { name: diary.discs.swapLabel('Weekend navy') })).toBeTruthy();
