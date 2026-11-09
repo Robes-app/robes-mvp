@@ -154,6 +154,10 @@ export const ICONS = {
   ],
   autumn: ['M5 19C5 11 10 5 20 4c-1 10-7 15-15 15z', 'M5 19l8-8'],
   winter: ['M12 2v20', 'M3.3 7l17.4 10M3.3 17l17.4-10', 'M9 4l3 2 3-2M9 20l3-2 3 2'],
+  // Front Door PRD rev 3 (Felix's bookmark and bag): the Lookbook's Saved tab and the save on a
+  // suggestion; the Wardrobe's Shop tab and the mark on a look with pieces still to find.
+  bookmark: ['M7 4h10v16l-5-3.5L7 20z'],
+  bag: ['M5 11h14v9.5H5z', 'M9 11C9 6.5 10.3 4 12 4s3 2.5 3 7'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type IconName = keyof typeof ICONS;

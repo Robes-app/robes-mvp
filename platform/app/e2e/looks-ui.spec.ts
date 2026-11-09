@@ -53,7 +53,7 @@ test('a styled piece lands on the deck: keep, pass with Undo, then See Suggested
   const grid = page.getByRole('list', { name: 'Suggested' });
   await expect(grid.getByRole('link', { name: first })).toBeVisible();
   await expect(grid.getByRole('link', { name: second })).toBeVisible();
-  await expect(page.getByTestId('looks-count')).toHaveText(/2 suggested|3 suggested/);
+  expect(await grid.getByRole('link').count()).toBeGreaterThanOrEqual(2);
   expect(await seriousViolations(page), 'Suggested').toEqual([]);
 });
 
@@ -103,7 +103,7 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
   await page.goto('/looks');
   await expect(page.getByRole('link', { name: name })).toBeVisible();
   await expect(page.getByText('In progress', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('looks-count')).toHaveText('1 look · 1 in progress');
+  await expect(page.getByRole('list', { name: 'Saved' }).getByRole('link')).toHaveCount(1);
 });
 
 test('a new look is a draft; the look prompt swaps a piece and names what it replaced', async ({
@@ -170,12 +170,12 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
     timeout: 30_000,
   });
   await page.goto('/looks');
-  await expect(page.getByTestId('looks-count')).toHaveText('1 look');
-  // Under four looks Sort and Filter are hidden, as beta — never rendered inert (L1).
+  await expect(page.getByRole('list', { name: 'Saved' }).getByRole('link')).toHaveCount(1);
+  // The Front Door's filter row stands on both tabs (PRD rev 3 §5.1); there is no sort.
   await expect(page.getByRole('button', { name: /^Sort/ })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Filter' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Filter' })).toBeVisible();
   // Nothing suggested: beta's line, and the prompt (L7).
-  await page.getByRole('radio', { name: 'Suggested' }).click();
+  await page.getByRole('tab', { name: 'Suggested' }).click();
   await expect(
     page.getByText('Tell Robes where you’re going, or pick a piece, and it dresses you.'),
   ).toBeVisible();

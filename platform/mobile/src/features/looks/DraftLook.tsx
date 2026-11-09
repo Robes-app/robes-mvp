@@ -122,6 +122,7 @@ export function DraftLook({
   pieceId,
   day,
   images,
+  pick = false,
   schedule,
   presentation,
   onClose,
@@ -132,6 +133,8 @@ export function DraftLook({
   day?: string;
   // Opened from Home's image stack (3k): image mode, Add a photo in focus (D19).
   images?: 'add';
+  // New Look › From pieces (Front Door PRD rev 3 §5.5): a new draft with the piece picker up.
+  pick?: boolean;
   // A saved look opened with the diary up (a draft just saved, `?schedule=1`).
   schedule?: boolean;
   presentation: DraftPresentation;
@@ -153,6 +156,7 @@ export function DraftLook({
       <NewDraft
         {...(pieceId ? { pieceId } : {})}
         {...(day ? { day } : {})}
+        pick={pick}
         presentation={presentation}
         onClose={onClose}
         onCreated={(made) => {
@@ -310,6 +314,7 @@ function Bare() {
 function NewDraft({
   pieceId,
   day,
+  pick = false,
   presentation,
   onClose,
   onCreated,
@@ -317,6 +322,8 @@ function NewDraft({
   pieceId?: string;
   // Describe on Home (D22): the day the draft is for; Style it makes that day's one draft.
   day?: string;
+  // From pieces: the picker is already up when the sheet opens.
+  pick?: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
   onCreated: (look: Look) => void;
@@ -327,7 +334,7 @@ function NewDraft({
   const refresh = useInvalidateLooks();
   const model = useApi('me.model.get');
   const control = useColor('border-control');
-  const [picker, setPicker] = useState<PickerMode | null>(null);
+  const [picker, setPicker] = useState<PickerMode | null>(pick ? { add: true } : null);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [full, setFull] = useState<{ input: CreateLookInput; oldest: string } | null>(null);

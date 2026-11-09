@@ -102,9 +102,10 @@ describe('the weather line', () => {
 });
 
 describe('season labels', () => {
-  it('spell a band one way on the wardrobe, the Lookbook and a look', () => {
-    expect(copy.lookbook.refine.seasons).toBe(copy.wardrobe.filter.seasons);
-    expect(copy.lookbook.refine.seasons.spring_summer).toBe('Spring/Summer');
+  it('spell the four seasons and Year round one way in every filter (Front Door PRD rev 3)', () => {
+    expect(copy.filters.seasons.year_round).toBe('Year round');
+    expect(copy.filters.seasons.autumn).toBe('Autumn');
+    expect(copy.wardrobe.filter.seasons.spring_summer).toBe('Spring/Summer');
   });
 });
 

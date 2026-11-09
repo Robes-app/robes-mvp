@@ -1,87 +1,52 @@
 import type { Look } from '@robes/contracts';
-import { lookbook as copy, ui } from '@robes/copy';
-import {
-  type LookSort,
-  lookWearFor,
-  SORT_FROM,
-  SORTS,
-  sortLooks,
-  wearForOptions,
-} from '@robes/core/looks';
-import type { IconName } from '@robes/icons';
+import { lookbook as copy, filters as filterCopy, ui } from '@robes/copy';
+import { lookFacets } from '@robes/core/filters';
 import { Icon } from '@robes/icons/native';
 import {
-  Button,
   CardSkeleton,
-  Chip,
   EmptyState,
   Eyebrow,
+  FINE_EDGE,
   fonts,
   IconButton,
-  MIN_TOUCH,
   maxFontSizeMultiplier,
-  SegmentedControl,
-  Sheet,
+  Tabs,
   useColor,
 } from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  RefreshControl,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { TabScreen } from '@/components/TabScreen';
+import { FilterRow } from '@/features/filters/FilterRow';
+import { FilterSheet } from '@/features/filters/FilterSheet';
+import { useLookFilters } from '@/features/filters/use-look-filters';
 import { NewLookBox } from '@/features/home/HomeBox';
 import { errorMessage } from '@/lib/errors';
 import { DiarySheet } from './DiarySheet';
 import { DraftTile, SavedTile, SuggestedTile } from './LookTiles';
-import { useLetGo, useLooksByStatus, useRestyle } from './look-states';
+import { useLetGo, useLooksByStatus, useRestyle, useSaveLook } from './look-states';
+import { NewLookSheet } from './NewLookSheet';
 
 type Tab = 'saved' | 'suggested';
-// Season, and Wear it for read from the look's pieces (Vibe needs look tags the platform lacks).
-const SEASON_BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
-type SeasonBandId = (typeof SEASON_BANDS)[number];
-const TABS = [
-  { value: 'saved', label: copy.tabs.saved },
-  { value: 'suggested', label: copy.tabs.suggested },
-] as const;
+const TABS = [copy.tabs.saved, copy.tabs.suggested] as const;
+type TabLabel = (typeof TABS)[number];
+const tabOf = (label: TabLabel): Tab => (label === copy.tabs.saved ? 'saved' : 'suggested');
+const labelOf = (tab: Tab): TabLabel => (tab === 'saved' ? copy.tabs.saved : copy.tabs.suggested);
+// A pull past this reveals the search (PRD Q6: hidden, drag it down).
+const REVEAL_PULL = -48;
 
-// A tool pill on the count row (beta's Last worn · Filter): 36pt white on the fine edge, the
-// label ink-muted, the hit area reaching 44pt.
-function ToolPill({
-  icon,
-  label,
-  accessibilityLabel,
-  expanded,
-  onPress,
-}: {
-  icon?: IconName;
-  label: string;
-  accessibilityLabel?: string;
-  expanded: boolean;
-  onPress: () => void;
-}) {
-  const muted = useColor('ink-muted');
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ expanded }}
-      onPress={onPress}
-      hitSlop={{ top: (MIN_TOUCH - 36) / 2, bottom: (MIN_TOUCH - 36) / 2 }}
-      className={`h-9 flex-row items-center gap-[6px] rounded-pill border bg-surface-raised px-3 ${expanded ? 'border-selected-line' : 'border-rule-mid'}`}
-    >
-      {icon ? <Icon name={icon} size={14} color={muted} /> : null}
-      <Text
-        maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-        className="text-ink-muted"
-        style={{ fontFamily: fonts.sans, fontSize: 12 }}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-// The Lookbook (legacy F2–F7; native parity canvas 02): Saved | Suggested pinned under the header,
-// the italic count with Last worn · Filter, drafts as a small dashed In progress row, then the grid.
+// The Lookbook (Front Door PRD rev 3 §5): SAVED · SUGGESTED as underline tabs with their glyphs
+// and the + that opens New Look; one filter row (and sheet) shared by both tabs, its counts
+// following the tab in view; a search the pull reveals; drafts as the In progress row; then the
+// grid. Web twin: app/src/components/looks/lookbook.tsx.
 export function LooksView() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
@@ -95,151 +60,72 @@ export function LooksView() {
   const suggested = useLooksByStatus('suggested', { refetch: true });
   const restyle = useRestyle();
   const letGo = useLetGo();
-  // Beta opens on the looks she wore last.
-  const [sort, setSort] = useState<LookSort>('lastWorn');
-  const [sortOpen, setSortOpen] = useState(false);
-  const [refineOpen, setRefineOpen] = useState(false);
-  const [bands, setBands] = useState<SeasonBandId[]>([]);
-  const [wear, setWear] = useState<string[]>([]);
-  const filters = bands.length + wear.length;
-  const clearFilters = () => {
-    setBands([]);
-    setWear([]);
-  };
+  const save = useSaveLook(undefined, 'suggested');
+  const [newLook, setNewLook] = useState(false);
+  const [sheet, setSheet] = useState(false);
+  const [searching, setSearching] = useState(false);
   // The calendar on a card opens the same diary sheet, over the grid — she never leaves it.
   const [diary, setDiary] = useState<Look | null>(null);
+  const ink = useColor('ink');
+  const muted = useColor('ink-muted');
+  const faint = useColor('ink-faint');
+
   const current = tab === 'saved' ? saved : suggested;
-  const all = current.data?.items ?? [];
-  // Sort and Filter stand on Saved from four looks; below, beta hides them — never inert. A
-  // filter left on holds only while the tools that show it stand (twin: lookbook.tsx).
-  const sortable = tab === 'saved' && all.length >= SORT_FROM;
-  const filtering = sortable && filters > 0;
-  // Within an axis picks OR, across axes AND.
-  const raw = filtering
-    ? all.filter(
-        (l) =>
-          (!bands.length || bands.includes(l.climateBand as SeasonBandId)) &&
-          (!wear.length || lookWearFor(l).some((t) => wear.includes(t))),
-      )
-    : all;
-  const wearOpts = tab === 'saved' ? wearForOptions(all) : [];
-  const items = sortable ? sortLooks(raw, sort) : raw;
+  const all = useMemo(() => (current.data?.items ?? []).map(lookFacets), [current.data]);
+  // One filter state for both tabs: switching Saved ↔ Suggested keeps it; the counts follow.
+  const filters = useLookFilters(all);
+  const items = filters.filtered;
   const draftItems = drafts.data?.items ?? [];
-  const count =
-    tab === 'saved'
-      ? [
-          items.length ? copy.count.looks(items.length) : null,
-          draftItems.length ? copy.count.inProgress(draftItems.length) : null,
-        ]
-          .filter(Boolean)
-          .join(' · ')
-      : items.length
-        ? copy.count.suggested(items.length)
-        : '';
   const open = (look: Look) =>
     router.push(look.status === 'draft' ? `/looks/draft/${look.id}` : `/look/${look.id}`);
+  const onPull = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (e.nativeEvent.contentOffset.y < REVEAL_PULL) setSearching(true);
+  };
 
   const toolbar = (
-    <View className="flex-row items-center justify-between gap-3">
-      <SegmentedControl label={copy.title} options={TABS} value={tab} onChange={setTab} />
-      {/* The + stands on both tabs (twin: lookbook.tsx). */}
-      <IconButton
-        framed
-        icon="plus"
-        label={copy.newLook}
-        onPress={() => router.push('/looks/draft/new')}
-      />
-    </View>
+    <Tabs
+      items={TABS}
+      value={labelOf(tab)}
+      onChange={(label) => setTab(tabOf(label))}
+      icons={{ [copy.tabs.saved]: 'bookmark', [copy.tabs.suggested]: 'looks' }}
+      trailing={
+        <IconButton framed icon="plus" label={copy.newLook} onPress={() => setNewLook(true)} />
+      }
+      testID="lookbook-tabs"
+    />
   );
 
   const header = (
-    <View className="gap-5 pb-5">
-      {count || tab === 'saved' ? (
-        <View className="min-h-9 flex-row items-center justify-between gap-3">
-          <Text
-            testID="looks-count"
-            maxFontSizeMultiplier={maxFontSizeMultiplier.body}
-            className="flex-1 text-ink-faint"
-            style={{ fontFamily: fonts.displayItalic, fontSize: 19 }}
-          >
-            {count}
-          </Text>
-          {sortable ? (
-            <View className="flex-row gap-[6px]">
-              {/* One pill naming the sort in play, opening the three — never three pills. */}
-              <ToolPill
-                icon="sort"
-                label={copy.sort[sort]}
-                accessibilityLabel={`${copy.sort.label}: ${copy.sort[sort]}`}
-                expanded={sortOpen}
-                onPress={() => setSortOpen(true)}
-              />
-              <ToolPill
-                icon="filter"
-                label={copy.refine.open}
-                accessibilityLabel={`${copy.refine.open}${filters ? ` · ${copy.refine.on}` : ''}`}
-                expanded={refineOpen}
-                onPress={() => setRefineOpen(!refineOpen)}
-              />
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-      {refineOpen && sortable ? (
+    <View className="gap-4 pb-5">
+      <FilterRow
+        sheetCount={filters.sheetCount}
+        onOpenSheet={() => setSheet(true)}
+        seasons={filters.state.seasons}
+        onRemoveSeason={filters.toggleSeason}
+        quick={filters.quick}
+        active={filters.state.wearFor}
+        onToggle={filters.toggleWear}
+        allCount={filters.allCount}
+        onAll={filters.clearWear}
+        testID="lookbook-filter-row"
+      />
+      {searching || filters.state.query ? (
         <View
-          accessibilityLabel={copy.refine.title}
-          className="gap-3 rounded-soft border border-hairline bg-surface-raised p-4"
+          className="h-10 flex-row items-center gap-2 rounded-pill border-rule-mid bg-surface-raised px-3.5"
+          style={{ borderWidth: FINE_EDGE }}
         >
-          {/* Beta's drawer (twin: lookbook.tsx): FILTER with a quiet Clear at its right, the
-              groups, then the count to close it on as a hairline pill. */}
-          <View className="flex-row items-center justify-between">
-            <Eyebrow>{copy.refine.title}</Eyebrow>
-            <Button variant="quiet" disabled={!filters} onPress={clearFilters}>
-              {copy.refine.clear}
-            </Button>
-          </View>
-          <Eyebrow className="text-accent-warm">{copy.refine.season}</Eyebrow>
-          <View className="flex-row flex-wrap gap-2">
-            {SEASON_BANDS.map((b) => (
-              <Chip
-                key={b}
-                selected={bands.includes(b)}
-                onPress={() =>
-                  setBands(bands.includes(b) ? bands.filter((x) => x !== b) : [...bands, b])
-                }
-              >
-                {copy.refine.seasons[b]}
-              </Chip>
-            ))}
-          </View>
-          {wearOpts.length ? (
-            <>
-              <Eyebrow className="text-accent-warm">{copy.refine.wearFor}</Eyebrow>
-              <View className="flex-row flex-wrap gap-2">
-                {wearOpts.map((t) => (
-                  <Chip
-                    key={t}
-                    selected={wear.includes(t)}
-                    onPress={() =>
-                      setWear(wear.includes(t) ? wear.filter((x) => x !== t) : [...wear, t])
-                    }
-                  >
-                    {t}
-                  </Chip>
-                ))}
-              </View>
-            </>
-          ) : null}
-          {/* shortcut: Vibe is a placeholder — looks carry no vibe yet; the founder builds the options separately. Twin of web lookbook.tsx. */}
-          <Eyebrow className="text-accent-warm">{copy.refine.vibe}</Eyebrow>
-          <View className="flex-row justify-end border-t border-hairline pt-3">
-            <ToolPill
-              label={copy.refine.show(items.length)}
-              accessibilityLabel={copy.refine.show(items.length)}
-              expanded={false}
-              onPress={() => setRefineOpen(false)}
-            />
-          </View>
+          <Icon name="search" size={13} color={muted} />
+          <TextInput
+            autoFocus
+            value={filters.state.query}
+            onChangeText={filters.setQuery}
+            placeholder={copy.search}
+            placeholderTextColor={faint}
+            accessibilityLabel={copy.search}
+            className="min-w-0 flex-1 py-0 text-xs"
+            style={{ fontFamily: fonts.sans, color: ink }}
+            testID="lookbook-search"
+          />
         </View>
       ) : null}
       {tab === 'saved' && draftItems.length ? (
@@ -282,8 +168,10 @@ export function LooksView() {
               keyExtractor={(l) => l.id}
               numColumns={2}
               columnWrapperClassName="gap-3"
-              contentContainerClassName="gap-3 px-5 pt-[18px] pb-8"
+              contentContainerClassName="gap-3 px-5 pt-[14px] pb-8"
               ListHeaderComponent={header}
+              onScrollEndDrag={onPull}
+              keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <View className="flex-1">
                   {tab === 'saved' ? (
@@ -302,6 +190,8 @@ export function LooksView() {
                       onRemove={() => letGo(item.id)}
                       onSwap={() => restyle.restyle(item.id)}
                       swapping={restyle.busyId === item.id}
+                      onSave={() => save.mutate({ params: { id: item.id }, input: {} })}
+                      saving={save.isPending && save.variables?.params.id === item.id}
                     />
                   )}
                 </View>
@@ -313,29 +203,28 @@ export function LooksView() {
                 />
               }
               ListEmptyComponent={
-                filtering ? (
-                  // A filter that matches nothing names it and offers the way back.
-                  <View className="items-center gap-2 py-8">
-                    <Text
-                      className="text-ink text-xl"
-                      style={{ fontFamily: fonts.displayRegular }}
-                      maxFontSizeMultiplier={maxFontSizeMultiplier.body}
-                    >
-                      {copy.refine.none}
-                    </Text>
-                    <Button variant="quiet" onPress={clearFilters}>
-                      {copy.refine.clear}
-                    </Button>
-                  </View>
+                filters.active ? (
+                  // A filter that matches nothing names it (PRD §5.1): the italic serif line.
+                  <Text
+                    className="py-8 text-center text-ink text-xl"
+                    style={{ fontFamily: fonts.displayItalic }}
+                    maxFontSizeMultiplier={maxFontSizeMultiplier.body}
+                    testID="lookbook-no-match"
+                  >
+                    {copy.noMatch}
+                  </Text>
                 ) : tab === 'saved' ? (
                   draftItems.length ? undefined : (
                     <EmptyState
+                      icon="bookmark"
                       title={copy.savedEmpty.title}
                       body={copy.savedEmpty.body}
                       action={{
-                        label: copy.newLook,
-                        onPress: () => router.push('/looks/draft/new'),
+                        label: `+ ${copy.newLook}`,
+                        variant: 'primary',
+                        onPress: () => setNewLook(true),
                       }}
+                      testID="lookbook-empty"
                     />
                   )
                 ) : (
@@ -347,22 +236,32 @@ export function LooksView() {
               }
             />
           )}
-          <Sheet open={sortOpen} onClose={() => setSortOpen(false)} title={copy.sort.label}>
-            <View className="gap-2">
-              {SORTS.map((s) => (
-                <Button
-                  key={s}
-                  variant={sort === s ? 'outline' : 'quiet'}
-                  onPress={() => {
-                    setSort(s);
-                    setSortOpen(false);
-                  }}
-                >
-                  {copy.sort[s]}
-                </Button>
-              ))}
-            </View>
-          </Sheet>
+          <FilterSheet
+            open={sheet}
+            onClose={() => setSheet(false)}
+            sections={[
+              {
+                key: 'season',
+                title: filterCopy.season,
+                options: filters.seasonSection,
+                selected: filters.state.seasons,
+                onToggle: (v) => filters.toggleSeason(v as (typeof filters.state.seasons)[number]),
+              },
+              {
+                key: 'wear',
+                title: filterCopy.wearFor,
+                options: filters.wearSection,
+                selected: filters.state.wearFor,
+                onToggle: filters.toggleWear,
+              },
+            ]}
+            onClear={filters.clear}
+            clearable={filters.active}
+            cta={filterCopy.showLooks(items.length)}
+            ctaDisabled={items.length === 0}
+            testID="lookbook-filter-sheet"
+          />
+          <NewLookSheet open={newLook} onClose={() => setNewLook(false)} />
           <DiarySheet look={diary} onClose={() => setDiary(null)} />
         </>
       )}
