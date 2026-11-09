@@ -56,16 +56,25 @@ async function watchEvents(page: Page): Promise<{ hits: string[]; events: Captur
   return { hits, events };
 }
 
-// A piece's door → the one question → the deck → the first look, saved and put in today's diary.
+// Create's new-look box with a piece from her wardrobe → the deck → the first look, saved and put
+// in today's diary. (The piece page carries no styling door since canvas 3b; the Create sheet's box
+// is the same box it opened, so the prompt still reads surface create, intent piece.)
 async function saveALook(page: Page): Promise<void> {
   const piece = await (
     await page.request.post('/api/v1/wardrobe/items', { data: { label: 'Navy blazer' } })
   ).json();
-  // Create › Style a piece (the piece page carries no styling buttons since canvas 3b).
   expect(piece.id).toBeTruthy();
-  await page.goto('/looks/style');
-  await page.getByRole('button', { name: 'Navy blazer' }).click();
-  await page.getByRole('button', { name: 'Style it' }).click();
+  // Load afresh so the picker counts the piece just filed behind the page's back.
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Create' }).first().click();
+  const create = page.getByRole('dialog', { name: 'Create' });
+  await create.getByRole('button', { name: 'Add a piece' }).click();
+  await create.getByRole('menuitem', { name: /From your wardrobe/ }).click();
+  const picker = page.getByTestId('piece-picker');
+  await picker.getByRole('button', { name: 'Include Navy blazer' }).click();
+  await picker.getByRole('button', { name: 'Add 1 piece' }).click();
+  await expect(create.getByTestId('box-piece')).toContainText('Navy blazer');
+  await create.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByTestId(/^deck-card-/)).toBeVisible({ timeout: 30_000 });
   await page.getByTestId(/^deck-card-/).click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
