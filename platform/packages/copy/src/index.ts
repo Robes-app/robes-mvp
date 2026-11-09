@@ -2025,6 +2025,7 @@ export const copy = {
   devUpload,
   consent,
   ui,
+  filters,
   shell,
   looks,
   you,

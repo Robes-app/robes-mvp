@@ -1,8 +1,6 @@
 // Look states, the keep-or-pass deck and the look prompt (legacy beta 2026-10-01 → 10-13).
 // en-GB, curly apostrophes, Robes in the third person, no exclamation marks.
 
-import { SEASON_LABELS } from './seasons';
-
 const pieces = (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`);
 const TO_FIND_WORDS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'] as const;
 const KEPT_WORDS = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
@@ -23,18 +21,15 @@ export interface LookFacts {
 export const lookbook = {
   title: 'Lookbook',
   tabs: { saved: 'Saved', suggested: 'Suggested' },
-  count: {
-    looks: (n: number): string => (n === 1 ? '1 look' : `${n} looks`),
-    inProgress: (n: number): string => `${n} in progress`,
-    suggested: (n: number): string => `${n} suggested`,
-  },
   newLook: 'New look',
-  sort: {
-    label: 'Sort',
-    newest: 'Newest',
-    lastWorn: 'Last worn',
-    name: 'Name',
+  // The New Look sheet (Front Door PRD rev 3 §5.5): three doors on glass.
+  newLookSheet: {
+    describe: 'Describe',
+    photo: 'Photo',
+    fromPieces: 'From pieces',
   },
+  // The Lookbook's hidden search, revealed by a pull (PRD Q6).
+  search: 'Search your looks',
   inProgress: 'In progress',
   draftTile: {
     eyebrow: 'Draft',
@@ -51,16 +46,28 @@ export const lookbook = {
     yourPiece: (piece: string): string => `Your ${piece}`,
     remove: (name: string): string => `Remove ${name}`,
     swap: (name: string): string => `Swap ${name} for another look`,
+    // The bookmark on a suggestion's photograph (Front Door PRD rev 3 §5.3) saves it to Saved.
+    save: (name: string): string => `Save ${name}`,
+    saved: (name: string): string => `${name} is saved`,
+    // Why Robes suggested it, under the name (core suggestionReason).
+    reason: {
+      day: (weekday: string): string => `For ${weekday}`,
+      wishlist: 'Works with your wishlist',
+      own: (n: number): string => (n === 1 ? 'Uses 1 piece you own' : `Uses ${n} pieces you own`),
+      wearMost: 'Built from what you wear most',
+    },
     framing: 'Creating the frame…',
     restyling: 'Changing the look…',
   },
   removed: 'Removed',
   passed: 'Passed',
   swapFailed: 'Robes couldn’t swap that look — please try again in a moment.',
+  // Front Door PRD rev 3 §5.4.
   savedEmpty: {
-    title: 'Looks you keep live here.',
-    body: 'Save one Robes suggests, or start one from your pieces.',
+    title: 'No saved looks yet',
+    body: 'Describe a look, start from a photo or build one from your pieces. Looks you save from Suggested land here too.',
   },
+  noMatch: 'No looks match',
   suggestedEmpty: {
     title: 'Nothing suggested yet.',
     body: 'Tell Robes where you’re going, or pick a piece, and it dresses you.',
@@ -84,6 +91,9 @@ export const lookbook = {
     around: (piece: string): string => `around your ${piece}`,
     pinnedFor: (day: string): string => `pinned for ${day}`,
     photographOnly: 'Photograph · not yet filed',
+    // The Lookbook card (Front Door PRD rev 3 §5.2): the wears, or New, then the seasons.
+    frontDoor: (wears: number, seasons: readonly string[], yearRound: string): string =>
+      `${wears > 0 ? wears : 'New'} · ${seasons.length ? seasons.join(', ') : yearRound}`,
     // One line of facts, built from the same words wherever a saved look says them.
     // On a card the wears LEAD — how often a look actually gets worn is the card's
     // job in a lookbook she browses; the look page leads with its rack instead.
@@ -108,23 +118,11 @@ export const lookbook = {
   // The text block over a look's picture (plan 2026-11-03 §1.3): what it is made of.
   mix: (yours: number, toFind: number): string =>
     toFind === 0 ? `The look · ${pieces(yours)}` : `The look · ${yours} yours, ${toFind} to find`,
-  // The Lookbook's Filter drawer (legacy Refine): the axes a saved look can be narrowed by.
-  refine: {
-    open: 'Filter',
-    title: 'Filter',
-    clear: 'Clear',
-    show: (n: number): string => `Show ${n} ${n === 1 ? 'look' : 'looks'}`,
-    season: 'Season',
-    wearFor: 'Wear it for',
-    vibe: 'Vibe',
-    // The wardrobe's labels (wardrobe.filter.seasons): one spelling for a band.
-    seasons: SEASON_LABELS,
-    none: 'Nothing in this edit.',
-    on: 'Filters on',
-  },
   card: {
     diary: 'Put this look in the diary',
     delete: 'Delete this look',
+    // A look with pieces still to find (Front Door PRD rev 3 §5.2): the small bag on the card.
+    shop: 'Includes pieces to find',
   },
   // The saved look as Felix 3e (plan 2026-11-06 D8–D10): the photo with its three discs, Pieces ·
   // Details, and one Schedule look. Web components/looks/saved-look.tsx and look-details.tsx;

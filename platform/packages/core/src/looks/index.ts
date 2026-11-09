@@ -546,6 +546,33 @@ export function wearForOptions(
   return [...new Set(looks.flatMap(lookWearFor))].sort((a, b) => a.localeCompare(b, 'en-GB'));
 }
 
+// Why Robes suggested a look (Front Door PRD rev 3 §5.3), read from what the look carries: the
+// piece it was styled around, the day it was made for, a wish it works with, how much of it is
+// hers, or her own words. A stored reason from the jobs can replace this later (plan PR 2).
+export type SuggestionReason =
+  | { kind: 'anchor'; piece: string }
+  | { kind: 'day'; date: string }
+  | { kind: 'wishlist' }
+  | { kind: 'own'; pieces: number }
+  | { kind: 'wearMost' }
+  | { kind: 'prompt' };
+
+export function suggestionReason(look: {
+  anchor?: { label: string; brand: string | null } | null;
+  dateHint?: string | null;
+  pieces: readonly unknown[];
+  proposals: readonly { wishlisted?: boolean }[];
+}): SuggestionReason {
+  if (look.anchor)
+    return { kind: 'anchor', piece: anchorName(look.anchor.label, look.anchor.brand) };
+  if (look.dateHint) return { kind: 'day', date: look.dateHint };
+  if (look.proposals.some((p) => p.wishlisted)) return { kind: 'wishlist' };
+  if (look.pieces.length && look.proposals.length)
+    return { kind: 'own', pieces: look.pieces.length };
+  if (look.pieces.length) return { kind: 'wearMost' };
+  return { kind: 'prompt' };
+}
+
 // Where a new look's pieces come from (legacy 2026-10-19): her answer to the one question asked on
 // a new look, a chip or her own words. Words that name none of the three ride verbatim as a note.
 export const BALANCES = ['owned', 'mix', 'new'] as const;

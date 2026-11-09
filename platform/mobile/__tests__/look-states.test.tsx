@@ -1,5 +1,5 @@
 import type { Look, LookSet } from '@robes/contracts';
-import { lookbook, ui } from '@robes/copy';
+import { filters, lookbook, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert } from 'react-native';
@@ -112,14 +112,13 @@ test('the Lookbook: Saved leads with drafts in progress; Suggested tiles go with
   expect(await screen.findByText('Weekend navy')).toBeTruthy();
   expect(screen.getByText(lookbook.inProgress)).toBeTruthy();
   expect(screen.getByText(lookbook.draftTile.untitled)).toBeTruthy();
-  expect(screen.getByText('1 look · 1 in progress')).toBeTruthy();
   await fireEvent.press(
     screen.getByRole('button', { name: `Draft: ${lookbook.draftTile.untitled}` }),
   );
   // A draft opens as its sheet (D14).
   expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${SECOND}`);
 
-  await fireEvent.press(screen.getByRole('radio', { name: lookbook.tabs.suggested }));
+  await fireEvent.press(screen.getByRole('tab', { name: lookbook.tabs.suggested }));
   expect(await screen.findByText('Garden party')).toBeTruthy();
   expect(screen.getByText(lookbook.suggestedTile.around('camel wool coat'))).toBeTruthy();
   expect(screen.queryByText('Weekend navy')).toBeNull();
@@ -711,34 +710,35 @@ test('editing a suggestion at five drafts asks, then lets the oldest go', async 
   expect(sent[1]?.letGoOldest).toBe(true);
 });
 
-test('the Lookbook opens on the looks worn last; a draft reads as started; suggestions say where they came from', async () => {
+test('the Lookbook: cards read wears and seasons, drafts read as started, suggestions say why', async () => {
   const id = (n: number) => `dddddddd-dddd-4ddd-8ddd-00000000000${n}`;
   mockFetch({
     'GET /me': ME,
     'GET /looks': byStatus({
       saved: [
-        look({ id: id(1), name: 'Never worn', timesWorn: 0, lastWornOn: null }),
-        look({ id: id(2), name: 'Worn in August', lastWornOn: '2026-08-02' }),
-        look({ id: id(3), name: 'Worn last', lastWornOn: '2026-10-20' }),
-        look({ id: id(4), name: 'Worn in September', lastWornOn: '2026-09-12' }),
+        look({ id: id(1), name: 'Never worn', timesWorn: 0, lastWornOn: null, seasons: [] }),
+        look({ id: id(2), name: 'Worn in August', timesWorn: 3, seasons: ['autumn', 'winter'] }),
       ],
       draft: [look({ id: SECOND, status: 'draft', name: 'Minion Day' })],
       suggested: [suggestion(), suggestion({ id: JEAN, name: 'Gallery night', anchor: null })],
     }),
   });
   await renderWithApi(<LooksView />);
-  await screen.findByText('Worn last');
-  expect(
-    screen.getByRole('button', { name: `${lookbook.sort.label}: ${lookbook.sort.lastWorn}` }),
-  ).toBeTruthy();
-  const order = ['Worn last', 'Worn in September', 'Worn in August', 'Never worn'].map(
-    (name) => screen.getByText(name).props.children,
-  );
-  expect(screen.getAllByText(/^(Worn|Never)/).map((t) => t.props.children)).toEqual(order);
+  await screen.findByText('Worn in August');
+  // The card's line (PRD rev 3 §5.2): the wears or New, then the seasons, Year round when none.
+  expect(screen.getByText(`3 · ${filters.seasons.autumn}, ${filters.seasons.winter}`)).toBeTruthy();
+  expect(screen.getByText(`New · ${filters.seasons.year_round}`)).toBeTruthy();
   expect(screen.getByText(/^Not saved · started /)).toBeTruthy();
+  // The filter row stands over the grid on both tabs; there is no sort.
+  expect(screen.getByTestId('lookbook-filter-row')).toBeTruthy();
+  expect(screen.getByRole('button', { name: ui.filter })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^Sort/ })).toBeNull();
 
-  await fireEvent.press(screen.getByRole('radio', { name: lookbook.tabs.suggested }));
+  await fireEvent.press(screen.getByRole('tab', { name: lookbook.tabs.suggested }));
   await screen.findByText('Gallery night');
+  // Why Robes suggested it: around her piece, or how much of it is hers (one piece, one to find).
+  expect(screen.getByText(lookbook.suggestedTile.around('camel wool coat'))).toBeTruthy();
+  expect(screen.getByText(lookbook.suggestedTile.reason.own(1))).toBeTruthy();
   // Styled from her words: the rose open-quote. Styled around a piece: the piece, which opens.
   expect(
     screen.getByTestId(`suggested-${JEAN}-quote`, { includeHiddenElements: true }),
@@ -749,41 +749,61 @@ test('the Lookbook opens on the looks worn last; a draft reads as started; sugge
   expect(mockRouter.push).toHaveBeenCalledWith(`/piece/${PIECE_ID}`);
 });
 
-test('Sort and Filter hide below four looks — never inert; a tile wears no Robes model tag', async () => {
-  mockFetch({
-    'GET /looks': byStatus({ saved: [look({ id: LOOK_ID, onRobesModel: true })] }),
-    'GET /plan': { from: localDate(), to: localDate(), days: [] },
-  });
-  await renderWithApi(<LooksView />);
-  await screen.findByText('Weekend navy');
-  // The tag lives on the saved look itself (Annie, 5 Nov), never on a tile standing in for it.
-  expect(screen.queryByTestId('robes-model-tag')).toBeNull();
-  expect(screen.queryByRole('button', { name: lookbook.deck.robesModelLabel })).toBeNull();
-  expect(screen.queryByRole('button', { name: new RegExp(`^${lookbook.sort.label}`) })).toBeNull();
-  expect(screen.queryByRole('button', { name: new RegExp(`^${lookbook.refine.open}`) })).toBeNull();
-});
-
-test('from four looks Sort and Filter stand, the menu in beta’s order', async () => {
+test('a quick chip narrows the grid live; nothing left reads No looks match; a tile wears no Robes model tag', async () => {
   const id = (n: number) => `dddddddd-dddd-4ddd-8ddd-00000000000${n}`;
   mockFetch({
     'GET /looks': byStatus({
-      saved: [1, 2, 3, 4].map((n) => look({ id: id(n), name: `Look ${n}` })),
+      saved: [
+        look({ id: id(1), name: 'Office', onRobesModel: true, tags: ['Work'] }),
+        look({ id: id(2), name: 'Sunday', tags: ['Weekend'] }),
+      ],
     }),
     'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LooksView />);
-  await screen.findByText('Look 4');
-  expect(screen.getByRole('button', { name: new RegExp(`^${lookbook.refine.open}`) })).toBeTruthy();
+  await screen.findByText('Office');
+  // The tag lives on the saved look itself (Annie, 5 Nov), never on a tile standing in for it.
+  expect(screen.queryByTestId('robes-model-tag')).toBeNull();
+  expect(screen.queryByRole('button', { name: lookbook.deck.robesModelLabel })).toBeNull();
+  // Work 1 · Weekend 1 · Active 0 (disabled).
+  await fireEvent.press(screen.getByRole('button', { name: 'Work 1' }));
+  expect(screen.queryByText('Sunday')).toBeNull();
+  expect(screen.getByText('Office')).toBeTruthy();
+  const active = screen.getByRole('button', { name: 'Active 0' });
+  expect(active.props.accessibilityState).toEqual({ selected: false, disabled: true });
+  // The sheet's option pills carry faceted counts: Travel reads 0, and picking it ORs with Work
+  // (one look still shows); Clear lets both go.
+  await fireEvent.press(screen.getByRole('button', { name: ui.filter }));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Travel 0' }));
+  expect(screen.getByRole('button', { name: filters.showLooks(1) })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: ui.clear }));
+  expect(await screen.findByRole('button', { name: filters.showLooks(2) })).toBeTruthy();
+});
+
+test('the bookmark on a suggestion saves it; + opens New Look; an empty Saved says so', async () => {
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET /looks': byStatus({ suggested: [suggestion()] }),
+    [`POST /looks/${LOOK_ID}/save`]: look({ status: 'saved' }),
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
+  });
+  await renderWithApi(<LooksView />);
+  expect(await screen.findByText(lookbook.savedEmpty.title)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: `+ ${lookbook.newLook}` }));
+  expect(await screen.findByTestId('new-look-sheet')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('new-look-pieces'));
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    pathname: '/looks/draft/[id]',
+    params: { id: 'new', pick: '1' },
+  });
+  await fireEvent.press(screen.getByRole('tab', { name: lookbook.tabs.suggested }));
   await fireEvent.press(
-    screen.getByRole('button', { name: new RegExp(`^${lookbook.sort.label}`) }),
+    await screen.findByRole('button', { name: lookbook.suggestedTile.save('Garden party') }),
   );
-  // The sheet lists the three after the pill naming the sort in play.
-  await screen.findByText(lookbook.sort.newest);
-  const menu = [lookbook.sort.lastWorn, lookbook.sort.newest, lookbook.sort.name];
-  const shown = screen
-    .getAllByText(new RegExp(`^(${menu.join('|')})$`))
-    .map((t) => t.props.children);
-  expect(shown.slice(-3)).toEqual(menu);
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/save'))).toBe(true),
+  );
+  expect(await screen.findByText(lookbook.saved)).toBeTruthy();
 });
 
 test('nothing suggested says beta’s line and offers the prompt', async () => {

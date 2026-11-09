@@ -1,4 +1,5 @@
 import type { Look } from '@robes/contracts';
+import { Icon, type IconName } from '@robes/icons/web';
 import { type Aspect, Card } from '@robes/ui';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -24,6 +25,10 @@ export interface LookTileProps {
   // A small warm chip at the eyebrow's right: Worn ✓ on a day she wore it.
   badge?: string | null;
   meta?: ReactNode;
+  // A glyph before the meta (the Lookbook card's calendar, PRD rev 3 §2.4) and a small mark at
+  // the card's bottom right (the bag on a look with pieces to find), each named for a reader.
+  metaIcon?: IconName;
+  mark?: { icon: IconName; label: string } | null;
   // The look's first tag, a small chip between the name and the facts (Look redline 27 Oct).
   tag?: string | null;
   name?: string;
@@ -61,6 +66,8 @@ export function LookTile({
   eyebrowTone = 'faint',
   badge,
   meta,
+  metaIcon,
+  mark,
   tag,
   name,
   italic = false,
@@ -154,7 +161,13 @@ export function LookTile({
                 </span>
               ) : null}
               {meta ? (
-                <p className="truncate font-sans text-[11px] text-ink-muted">{meta}</p>
+                <p className="flex min-w-0 items-center gap-1.5 font-sans text-[11px] text-ink-muted">
+                  {metaIcon ? <Icon name={metaIcon} size={11} className="shrink-0" /> : null}
+                  <span className="min-w-0 flex-1 truncate">{meta}</span>
+                  {mark ? (
+                    <Icon name={mark.icon} size={12} label={mark.label} className="shrink-0" />
+                  ) : null}
+                </p>
               ) : null}
             </div>
           )}

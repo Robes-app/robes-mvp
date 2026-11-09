@@ -204,7 +204,7 @@ test('a styled piece lands on the deck and home carries it on', async ({ page })
   await expect(page.getByRole('heading', { level: 1, name: /, Annie\.$/ })).toBeVisible();
   await expect(page.getByTestId('diary-strip')).toBeVisible();
   await page.getByRole('link', { name: 'Lookbook' }).first().click();
-  await page.getByRole('radio', { name: 'Suggested' }).click();
+  await page.getByRole('tab', { name: 'Suggested' }).click();
   const card = page.getByRole('list', { name: 'Suggested' }).getByRole('link', { name });
   await expect(card).toBeVisible();
   await card.click();
