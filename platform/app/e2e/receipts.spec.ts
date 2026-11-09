@@ -90,8 +90,9 @@ test('the receipt notice opens Receipts; each piece is added or discarded on its
   // Receipts (PRD rev 3 §7.5): INBOX · ADDED · DISCARDED with their counts, the receipt as a group
   // by retailer, each piece with its × and ✓.
   await expect(page.getByRole('tab', { name: 'Inbox 2' })).toBeVisible();
-  const group = page.getByRole('region', { name: 'Sézane (2)' });
-  await expect(group).toBeVisible();
+  // The group's count is the pieces in this tab: (2) waiting, then (1) once the scarf goes.
+  const group = page.getByRole('region', { name: /^Sézane \(\d\)$/ });
+  await expect(group).toHaveAccessibleName('Sézane (2)');
   await group.getByRole('button', { name: 'Discard Silk scarf' }).click();
   await expect(page.getByText('Discarded.')).toBeVisible();
   await expect(group.getByText('Silk scarf')).toHaveCount(0);
@@ -100,9 +101,7 @@ test('the receipt notice opens Receipts; each piece is added or discarded on its
   // Nothing waits: the Inbox tab empties and the others count what she decided.
   await expect(page.getByRole('heading', { name: 'Forwarded receipts land here.' })).toBeVisible();
   await page.getByRole('tab', { name: 'Added 1' }).click();
-  await expect(
-    page.getByRole('region', { name: 'Sézane (2)' }).getByText('Camel wool coat'),
-  ).toBeVisible();
+  await expect(group.getByText('Camel wool coat')).toBeVisible();
 
   const pieces = await (await page.request.get('/api/v1/wardrobe/items')).json();
   const labels = pieces.items.map((p: { label: string }) => p.label);

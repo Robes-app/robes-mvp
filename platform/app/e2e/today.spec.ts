@@ -58,9 +58,9 @@ test('Today reads her day in her timezone: today’s looks, the week, the wear',
   expect((await api.put(`/api/v1/plan/days/${date}/place`, { data: { place: paris } })).ok()).toBe(
     true,
   );
-  expect((await get()).diary.days[10].place).toEqual(paris);
+  expect((await get()).diary.days[at].place).toEqual(paris);
   await api.put(`/api/v1/plan/days/${date}/place`, { data: { place: null } });
-  expect((await get()).diary.days[10].place).toBeNull();
+  expect((await get()).diary.days[at].place).toBeNull();
 });
 
 test('the tray shows a styling job while it runs and just after', async ({ page }) => {
