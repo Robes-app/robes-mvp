@@ -18,6 +18,8 @@ import {
   type StoredPiece,
   sceneOf,
   VERSION,
+  type WantedPiece,
+  wantedByLabel,
 } from '@robes/ai/prompts/style-piece';
 import { KeyPieceJobInput } from '@robes/contracts';
 import { LANDSCAPES, type PlaceRead, readPlace } from '@robes/core/landscape';
@@ -201,7 +203,9 @@ export function specFromWay(
       retailerHint: p.retailerHint,
       pricePoint: p.pricePoint,
       role: role ?? 'canvas',
-      wishlisted: false,
+      // A piece from her wishlist (Shop on, v7) is already hers to find.
+      wishlisted: Boolean(p.wishlistItemId),
+      wishlistItemId: p.wishlistItemId ?? null,
     });
   }
   if (o.anchorPieceId && !pieces.some((x) => x.pieceId === o.anchorPieceId)) {
@@ -238,6 +242,21 @@ function askDetail(steer: Steer, day: DayContext | null = null): Record<string, 
     ...(shown ? { shown } : {}),
     ...(place && (place.landscapes.length || place.wx !== 'today') ? { place } : {}),
   };
+}
+
+// With Shop on (`mix`), a proposal that names a piece on her wishlist by its exact label is that
+// wish (v7): the look's row reads Wishlist and Save never files it twice.
+function markWants(
+  pieces: StoredPiece[],
+  ctx: { wishes?: readonly WantedPiece[] },
+  steer: Steer,
+): StoredPiece[] {
+  if (steer.balance !== 'mix' || !ctx.wishes?.length) return pieces;
+  return pieces.map((p) => {
+    if (p.pieceId) return p;
+    const wish = wantedByLabel(p.name, ctx.wishes);
+    return wish ? { ...p, wishlistItemId: wish.id } : p;
+  });
 }
 
 // Counted on the pieces as they will be stored, so the row says what she was actually shown.
@@ -585,7 +604,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         const way = {
           ...raw,
           scene: sceneOf(raw),
-          pieces: normalisePieces(raw.pieces, styleCtx.closet),
+          pieces: markWants(normalisePieces(raw.pieces, styleCtx.closet), styleCtx, steer),
         };
         const spec = specFromWay(way, found.look.setIndex ?? 0, {
           anchorPieceId: anchorPiece?.id ?? null,
@@ -698,7 +717,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       const ways = out.ways.slice(0, count).map((w) => ({
         ...w,
         scene: sceneOf(w),
-        pieces: normalisePieces(w.pieces, styleCtx.closet),
+        pieces: markWants(normalisePieces(w.pieces, styleCtx.closet), styleCtx, steer),
       }));
       const label = fallback ? FALLBACK_PIECE : anchor.label;
       const setId = await deps.styling.createSet(ctx.userId, {

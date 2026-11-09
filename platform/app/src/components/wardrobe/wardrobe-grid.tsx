@@ -1,6 +1,6 @@
 'use client';
 
-import type { Piece } from '@robes/contracts';
+import type { PieceImage as PieceImageData } from '@robes/contracts';
 import { diary } from '@robes/copy';
 import { pieceMatches, sheetCategoryOf, sheetChips } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
@@ -13,16 +13,32 @@ const copy = diary.flyout;
 const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-const inCategory = (p: Piece, c: string) => sheetCategoryOf(p) === c || p.category === c;
+// What the grid draws: a piece of hers, or a wish (the Add Pieces picker's WISHLIST tab) with
+// its price as the line under the name.
+export interface GridItem {
+  id: string;
+  label: string;
+  category: string;
+  categoryL2?: string | null;
+  categoryL3?: string | null;
+  brand?: string | null;
+  color?: string | null;
+  image: PieceImageData | null;
+  meta?: string | null;
+}
+
+const inCategory = (p: GridItem, c: string) => sheetCategoryOf(p) === c || p.category === c;
 
 // The one wardrobe grid behind home's flyout (design 3k) and the draft's piece picker (Felix
-// WardrobePicker): the search pill, one row of category pills with counts (All leads), a 3-up grid
-// with Photograph one first and a tick disc on every piece. What is picked, searched and filtered
-// is the parent's; the grid only draws it. Native twin: mobile/src/features/wardrobe/WardrobeGrid.tsx.
-export function WardrobeGrid({
+// WardrobePicker): the search pill, one row of category chips with counts (All leads, the active
+// one rose — Front Door PRD rev 3 §4.6), a 3-up grid with Photograph one first and a tick disc on
+// every piece. What is picked, searched and filtered is the parent's; the grid only draws it.
+// Native twin: mobile/src/features/wardrobe/WardrobeGrid.tsx.
+export function WardrobeGrid<T extends GridItem>({
   pieces,
   picked,
   onToggle,
+  pickLabel = copy.pick,
   query,
   onQuery,
   category,
@@ -32,9 +48,11 @@ export function WardrobeGrid({
   empty,
 }: {
   // Undefined while the wardrobe loads.
-  pieces: readonly Piece[] | undefined;
-  picked: readonly Piece[];
-  onToggle: (piece: Piece) => void;
+  pieces: readonly T[] | undefined;
+  picked: readonly T[];
+  onToggle: (piece: T) => void;
+  // What a reader hears on a tile ("Include Silk scarf").
+  pickLabel?: (label: string) => string;
   query: string;
   onQuery: (q: string) => void;
   category: string | null;
@@ -54,7 +72,7 @@ export function WardrobeGrid({
       ? all.filter((p) => inCategory(p, category))
       : all;
   const count = (c: string | null) => (c ? all.filter((p) => inCategory(p, c)).length : all.length);
-  const on = (p: Piece) => picked.some((x) => x.id === p.id);
+  const on = (p: GridItem) => picked.some((x) => x.id === p.id);
   const choose = (c: string | null) => {
     onQuery('');
     onCategory(c);
@@ -77,21 +95,25 @@ export function WardrobeGrid({
       <div className="-mx-6 flex gap-1.5 overflow-x-auto px-6 pb-1 [scrollbar-width:none]">
         <Pill
           size="sm"
+          tone="rose"
           className="shrink-0"
           selected={!searching && category === null}
+          count={count(null)}
           onClick={() => choose(null)}
         >
-          {copy.all} <span className="text-ink-faint">{count(null)}</span>
+          {copy.all}
         </Pill>
         {chips.map((c) => (
           <Pill
             key={c}
             size="sm"
+            tone="rose"
             className="shrink-0 whitespace-nowrap"
             selected={!searching && category === c}
+            count={count(c)}
             onClick={() => choose(c)}
           >
-            {c} <span className="text-ink-faint">{count(c)}</span>
+            {c}
           </Pill>
         ))}
       </div>
@@ -143,7 +165,7 @@ export function WardrobeGrid({
                   <button
                     type="button"
                     aria-pressed={ticked}
-                    aria-label={copy.pick(piece.label)}
+                    aria-label={pickLabel(piece.label)}
                     onClick={() => onToggle(piece)}
                     data-testid={`flyout-piece-${piece.id}`}
                     className={`relative flex w-full flex-col overflow-hidden rounded-input border text-left ${
@@ -162,9 +184,16 @@ export function WardrobeGrid({
                       {ticked ? <Icon name="check" size={11} /> : null}
                     </span>
                   </button>
-                  <span className="mt-1.5 line-clamp-2 font-display text-ink text-sm leading-tight">
+                  <span
+                    className={`mt-1.5 font-display text-ink text-sm leading-tight ${piece.meta ? 'truncate' : 'line-clamp-2'}`}
+                  >
                     {piece.label}
                   </span>
+                  {piece.meta ? (
+                    <span className="truncate font-sans text-[11px] text-ink-muted">
+                      {piece.meta}
+                    </span>
+                  ) : null}
                 </li>
               );
             })}

@@ -550,6 +550,13 @@ export const wardrobe = {
 
   // Add a piece, end to end (design "Add Piece — Handoff", 2026-10-26): one sheet, every way in,
   // one Review before anything files. Where the pieces go is chosen once and carried through.
+  // The Add your pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles over the screen.
+  addSheet: {
+    title: 'Add your pieces',
+    pasteUrl: 'Paste URL',
+    photo: 'Photo',
+    fromReceipt: 'From receipt',
+  },
   add: {
     title: 'Add pieces',
     close: 'Close',

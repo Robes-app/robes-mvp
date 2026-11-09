@@ -161,6 +161,8 @@ Each PR: native first, the web twin in the same PR, a comment naming the twin, t
 
 **Acceptance (§10 7).**
 
+**As built (9 Nov).** The foot's button reads **Style it**, not GENERATE: the copy voice guard bans "generat" (Robes styles, it never generates) and the guard stands; flagged for Annie. The Rack card, the styling card (`StylingCard`) and the Add your pieces sheet (`AddPiecesSheet`: Paste URL → the link reader, Photo → the camera, From receipt → the inbox, until PR 7's sheet) land on both platforms; The Rack's grid | list toggle shows the rows as `RackGrid` tiles. The Shop toggle rides as `balance` on `looks.prompt` and `looks.ask` (a `LookAskInput` field; `owned` keeps the look prompt's pool to her wardrobe and drops any new piece, `mix` adds her wishes to the pool and the style prompt's THE PIECES SHE WANTS block, style-piece v7); the day's weather rides as the ask's `context` while its chip stands. A wish from the picker's WISHLIST tab is a proposal row carrying `wishlistItemId` (no new FK); `looks.save` files every un-wishlisted proposal to her wishlist in the same transaction and the row then names its wish. `BalanceQuestion`, `readBalance` and the `balance_asked` / `balance_answered` events are gone; HomeBox and Style a piece send the toggle's rest (`owned` with a wardrobe, `mix` without). Toggling Shop on a saved look sends with the next Update; it is not yet a change on its own (PR 5). Pieces · Details on a new draft: Details waits for the first piece as before.
+
 ### PR 5 · Look detail and Edit Look
 
 `features/looks/DraftLook.tsx` (saved and sheet presentations), `RackRow.tsx` [`draft-look.tsx`, `rack-row.tsx`]:

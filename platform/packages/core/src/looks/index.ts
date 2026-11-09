@@ -106,6 +106,8 @@ export interface Proposal {
   pricePoint: string;
   role: LookRole | null;
   wishlisted: boolean;
+  // The wish it stands for, once it is on her wishlist (plan 2026-11-09 R1).
+  wishlistItemId?: string | null;
 }
 
 export interface RackRow {
@@ -180,7 +182,7 @@ export type AskTarget =
       brand: string | null;
     }
   | {
-      proposal: Omit<Proposal, 'key' | 'role' | 'wishlisted'>;
+      proposal: Omit<Proposal, 'key' | 'role' | 'wishlisted'> & { wishlisted?: boolean };
     };
 export interface AskEdit {
   swaps: { key: string; to: AskTarget }[];
@@ -241,7 +243,13 @@ export function applyAsk(
         category: p.category,
         brand: p.brand || null,
         role: cur.role,
-        proposal: { ...p, key, role: cur.role, wishlisted: false },
+        proposal: {
+          ...p,
+          key,
+          role: cur.role,
+          wishlisted: p.wishlisted ?? false,
+          wishlistItemId: p.wishlistItemId ?? null,
+        },
       };
     }
     // The first change on a row remembers the original; a second keeps it.
@@ -573,32 +581,32 @@ export function suggestionReason(look: {
   return { kind: 'prompt' };
 }
 
-// Where a new look's pieces come from (legacy 2026-10-19): her answer to the one question asked on
-// a new look, a chip or her own words. Words that name none of the three ride verbatim as a note.
+// Where a new look's pieces come from. Since the Front Door (PRD rev 3 §4.6, plan 2026-11-09 R1)
+// the Shop toggle answers it: off is `owned` (her wardrobe alone), on is `mix` (her pieces first,
+// her wishlist and new pieces where the look needs them). `new` is no longer offered; the sets
+// that carry it still read. The question's chips went with the toggle; `balanceNote` stays on the
+// contracts for the sets that hold one.
 export const BALANCES = ['owned', 'mix', 'new'] as const;
 export type Balance = (typeof BALANCES)[number];
 export const BALANCE_NOTE_MAX = 160;
 
-export function readBalance(text: string): { balance: Balance | null; note: string | null } {
-  const t = text.trim();
-  const low = t.toLowerCase();
-  if (
-    /\b(all|only|just|everything|entirely)\b.*\b(mine|my|own|wardrobe|closet|have)\b|\b(mine|my wardrobe|my own|what i own|what i have)\b.*\b(only|alone)\b|^\s*(all )?mine\s*$|^\s*(from )?my (wardrobe|closet|own)\s*$|\bnothing new\b|\bno new\b/.test(
-      low,
-    )
-  ) {
-    return { balance: 'owned', note: null };
-  }
-  if (
-    /\b(new|shop|buy|suggest|fresh|something different)\b/.test(low) &&
-    !/\b(no|nothing|not|don'?t)\b.{0,14}\b(new|shop|buy)\b/.test(low)
-  ) {
-    return { balance: 'new', note: null };
-  }
-  if (/\b(a |the )?mix\b|\bboth\b|\bmostly mine\b|\bsome new\b|\bbalance\b/.test(low)) {
-    return { balance: 'mix', note: null };
-  }
-  return { balance: null, note: t ? t.slice(0, BALANCE_NOTE_MAX) : null };
+// The toggle's rest: off once she has a wardrobe to style from, on when there is nothing else.
+export function defaultBalance(ownedPieces: number): Balance {
+  return ownedPieces > 0 ? 'owned' : 'mix';
+}
+
+// A proposal's price point ("€120", "£85", "$200") as a wish's price and currency; words that
+// carry no number file no price.
+export function priceFromPoint(point: string): { price: number; currency: string } | null {
+  const m = /([€£$])\s*(\d+(?:[.,]\d{1,2})?)|(\d+(?:[.,]\d{1,2})?)\s*(EUR|GBP|USD)/i.exec(point);
+  if (!m) return null;
+  const raw = (m[2] ?? m[3] ?? '').replace(',', '.');
+  const price = Number(raw);
+  if (!(price > 0)) return null;
+  const sign = m[1] ?? m[4]?.toUpperCase() ?? '€';
+  const currency =
+    sign === '£' || sign === 'GBP' ? 'GBP' : sign === '$' || sign === 'USD' ? 'USD' : 'EUR';
+  return { price, currency };
 }
 
 // The word a piece goes by in the prompt (legacy _rbLpPieceNoun): the last word of its name —

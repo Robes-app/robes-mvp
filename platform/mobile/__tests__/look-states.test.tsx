@@ -44,6 +44,7 @@ const mules = {
   pricePoint: '€390',
   role: 'exclamation' as const,
   wishlisted: false,
+  wishlistItemId: null,
 };
 // No twin on file, so every frame stands on a generic model and carries its badge.
 const GENERIC_MODEL = {
@@ -154,13 +155,15 @@ test('an empty Suggested tab offers the prompt; her words go with the day they n
   const today = localDate();
   const [y, m, d] = today.split('-').map(Number);
   const tomorrow = localDate(new Date(y ?? 0, (m ?? 1) - 1, (d ?? 1) + 1));
+  // Nothing filed yet: the look may reach for new pieces (the Shop toggle's rest, plan R1).
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     prompt: 'Dinner tomorrow, chic',
     date: tomorrow,
+    balance: 'mix',
   });
 });
 
-test('every new-look door asks where the pieces come from once she has filed any', async () => {
+test('a new-look door builds from her wardrobe once she has filed any (the Shop toggle at rest)', async () => {
   const calls = mockFetch({
     'GET /me': ME,
     'GET /wardrobe/items': { items: [piece()], nextCursor: null },
@@ -170,13 +173,10 @@ test('every new-look door asks where the pieces come from once she has filed any
   await waitFor(() => expect(calls.some((c) => c.path.includes('/wardrobe/items'))).toBe(true));
   await fireEvent.changeText(screen.getByLabelText(lookbook.prompt.doorNew), 'Gallery opening');
   await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
-  expect(await screen.findByText(lookbook.prompt.balance.question)).toBeTruthy();
-  expect(calls.some((c) => c.method === 'POST')).toBe(false);
-  await fireEvent.press(screen.getByTestId('balance-mix'));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       prompt: 'Gallery opening',
-      balance: 'mix',
+      balance: 'owned',
     }),
   );
   await waitFor(() =>
@@ -187,8 +187,6 @@ test('every new-look door asks where the pieces come from once she has filed any
       ok: true,
     }),
   );
-  expect(track).toHaveBeenCalledWith('balance_asked', { surface: 'create', piece: false });
-  expect(track).toHaveBeenCalledWith('balance_answered', { surface: 'create', balance: 'mix' });
 });
 
 test('a suggested look reads as Robes composed it; Save to lookbook opens the diary', async () => {

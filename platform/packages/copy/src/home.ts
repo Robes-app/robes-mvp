@@ -309,7 +309,8 @@ export const diary = {
       range ? `${place}, ${range}` : place,
     changePlace: 'Change where you are that day',
     weatherOut: 'Leave the weather out',
-    weather: 'Weather',
+    // The outline chip once the weather is out (Front Door PRD rev 3 §4.6); a tap restores it.
+    weather: 'Add location & weather',
     weatherBack: 'Bring the weather back',
     pieces: 'Add pieces from your wardrobe',
     piecesOn: (n: number): string => `${n} ${n === 1 ? 'piece' : 'pieces'} to build around`,

@@ -14,20 +14,27 @@ const copy = diary.door;
 // The chips stand 28pt (design 3k); a tap reaches them from 8pt either side (44pt).
 const CHIP_SLOP = { top: 8, bottom: 8 };
 const chip = 'min-h-7 flex-row items-center gap-1.5 self-start rounded-pill border px-2.5';
-const warm = `${chip} border-selected-line bg-selected`;
-const quiet = `${chip} border-rule-mid bg-surface-raised`;
+// The Front Door's weather chip (PRD rev 3 §4.6): the deep rose fill with a cream label; out, an
+// outline chip on the warm line offers it back.
+const warm = `${chip} border-accent-warm bg-accent-warm`;
+const quiet = `${chip} border-warm-line bg-transparent`;
 
-function ChipText({ children }: { children: string }) {
+function ChipText({ children, onRose = false }: { children: string; onRose?: boolean }) {
   return (
-    <RNText className="text-[11px] text-ink" style={{ fontFamily: fonts.sans }} numberOfLines={1}>
+    <RNText
+      className={`text-[11px] ${onRose ? 'text-surface-raised' : 'text-ink'}`}
+      style={{ fontFamily: fonts.sans }}
+      numberOfLines={1}
+    >
       {children}
     </RNText>
   );
 }
 
-// The day's context in the draft sheet (Felix 3a: "Dublin · 9–13° ×"): where she is that day and
-// its range. The place decides the weather (root CLAUDE.md), so tapping it opens the place sheet;
-// × leaves the weather out of this draft's brief. Moved here from Home's prompt box (D22). Web
+// The day's context in the draft sheet (Front Door PRD rev 3 §4.6: "📍 Dublin · ☁ 9–13° ×" in
+// rose): where she is that day and its range. The place decides the weather (root CLAUDE.md), so
+// tapping the pin opens the place sheet; × leaves the weather out of this draft's brief, and the
+// outline "Add location & weather" brings it back. Moved here from Home's prompt box (D22). Web
 // twin: app/src/components/looks/day-context.tsx.
 export function DayContext({
   date,
@@ -42,7 +49,7 @@ export function DayContext({
   const toast = useToast();
   const queryClient = useQueryClient();
   const ink = useColor('ink');
-  const muted = useColor('ink-muted');
+  const onRose = useColor('surface-raised');
   const today = useApi('today.get');
   const weather = useApi('today.weather', undefined, {
     staleTime: WEATHER_STALE_MS,
@@ -82,6 +89,7 @@ export function DayContext({
           className={quiet}
           testID="weather-chip"
         >
+          <Icon name="pin" size={11} color={ink} />
           <ChipText>{copy.weather}</ChipText>
         </Pressable>
       ) : city ? (
@@ -94,13 +102,15 @@ export function DayContext({
             hitSlop={CHIP_SLOP}
             className="h-full flex-row items-center gap-1.5 rounded-pill"
           >
-            <Icon name="pin" size={11} color={ink} />
-            <ChipText>{city}</ChipText>
+            <Icon name="pin" size={11} color={onRose} />
+            <ChipText onRose>{city}</ChipText>
             {wx ? (
               <>
-                <RNText className="text-[11px] text-ink-faint">·</RNText>
-                {icon ? <Icon name={icon} size={11} color={ink} /> : null}
-                <ChipText>{shortRange(wx.tempRange)}</ChipText>
+                <RNText className="text-[11px] text-surface-raised" style={{ opacity: 0.7 }}>
+                  ·
+                </RNText>
+                {icon ? <Icon name={icon} size={11} color={onRose} /> : null}
+                <ChipText onRose>{shortRange(wx.tempRange)}</ChipText>
               </>
             ) : null}
           </Pressable>
@@ -111,7 +121,7 @@ export function DayContext({
             hitSlop={{ top: 12, bottom: 12, left: 4, right: 8 }}
             className="size-5 items-center justify-center rounded-pill"
           >
-            <Icon name="close" size={11} color={muted} />
+            <Icon name="close" size={11} color={onRose} />
           </Pressable>
         </View>
       ) : (

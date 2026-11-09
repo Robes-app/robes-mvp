@@ -70,14 +70,17 @@ export interface PoolItem {
   category: string | null;
   color: string | null;
   brand: string | null;
+  // A piece on her wishlist, not hers yet (Shop on, plan 2026-11-09 R1).
+  wish?: boolean;
 }
 
 export interface AskContext {
   gender: 'woman' | 'man' | 'non_binary' | 'unspecified';
   styleDna: unknown;
   styleIcons: string[];
-  // 'capsule' = a trip's packed case: only these pieces may go on the look.
-  pool: { kind: 'wardrobe' | 'capsule'; items: PoolItem[] };
+  // 'capsule' = a trip's packed case: only these pieces may go on the look. 'owned' = the Shop
+  // toggle off (Front Door PRD rev 3 §4.6): her wardrobe, and never a new piece.
+  pool: { kind: 'wardrobe' | 'capsule' | 'owned'; items: PoolItem[] };
   rack: RackRow[];
   context: { day?: string; weather?: string; occasion?: string; trip?: string } | null;
   thread: { who: 'her' | 'robes'; text: string }[];
@@ -92,7 +95,6 @@ const clip = (v: string | null | undefined, n: number) =>
     .slice(0, n);
 
 export function buildSystem(ctx: AskContext): string {
-  const held = ctx.pool.kind === 'capsule';
   const rack = ctx.rack.slice(0, RACK_MAX);
   const rackBlock = rack
     .map(
@@ -105,7 +107,7 @@ export function buildSystem(ctx: AskContext): string {
     ? pool
         .map(
           (p, idx) =>
-            `[${idx}] ${clip(p.label, 80)}${p.category ? ` [${clip(p.category, 24)}]` : ''}${p.color ? `, ${clip(p.color, 30)}` : ''}${p.brand ? `, ${clip(p.brand, 40)}` : ''}`,
+            `[${idx}] ${clip(p.label, 80)}${p.category ? ` [${clip(p.category, 24)}]` : ''}${p.color ? `, ${clip(p.color, 30)}` : ''}${p.brand ? `, ${clip(p.brand, 40)}` : ''}${p.wish ? ' (on her wishlist, not hers yet)' : ''}`,
         )
         .join('\n')
     : '(nothing)';
@@ -116,16 +118,24 @@ export function buildSystem(ctx: AskContext): string {
   if (ctx.context?.trip) ctxLines.push(`The trip: ${clip(ctx.context.trip, 60)}.`);
   const dna = styleDnaPromptBlock(
     ctx.styleDna,
-    ctx.pool.kind === 'wardrobe' ? pool.length : 0,
+    ctx.pool.kind === 'capsule' ? 0 : pool.filter((p) => !p.wish).length,
     ctx.styleIcons,
   );
+  const poolRule =
+    ctx.pool.kind === 'capsule'
+      ? ' — THIS IS THE CASE SHE PACKED. ONLY these pieces may go on the look; never propose a piece outside it. If nothing in the case fits, say so plainly, offer the nearest piece in the case as a draft, and change nothing.'
+      : ctx.pool.kind === 'owned'
+        ? ' — her wardrobe, and Shop is OFF: ONLY pieces she owns may go on the look; never propose a new piece. If nothing she owns fits, say so plainly, offer the nearest piece she owns as a draft, and change nothing.'
+        : pool.some((p) => p.wish)
+          ? ' — her wardrobe, then the pieces on her wishlist. Prefer a piece she owns whenever one fits; then a wishlist piece that fits; otherwise propose ONE new piece with a real brand, a retailer and a realistic EUR price (pool_index -1).'
+          : ' — her wardrobe. Prefer a piece she owns whenever one fits; otherwise propose ONE new piece with a real brand, a retailer and a realistic EUR price (pool_index -1).';
   return `You are Robes — a stylist editing ONE look she already has, in her own words. ${genderDirective(ctx.gender)} You answer in sentences, as Robes, in the third person ("Robes would change both"). Never "I", never "AI", never "assistant". Name pieces as she would ("the grey merino", "the wide-leg trouser", "her black pointed flats") — never role names. No exclamation marks. One or two sentences. Lead an applied change with "Done." then what is on the look now. Never flatter her, never judge her. ${BANNED_CONSTRUCTIONS_RULE}
 ${FENCE_RULE} Piece names, notes and the context below are fenced the same way.
 
 THE LOOK AS IT STANDS (indexed; "hers" = a piece she owns; KEEP = anchored, it never changes; "worn:" = how it is styled):
 ${fenceUserText(rackBlock, FENCED_MAX)}
 
-THE POOL SHE CAN SWAP FROM (indexed by pool_index)${held ? ' — THIS IS THE CASE SHE PACKED. ONLY these pieces may go on the look; never propose a piece outside it. If nothing in the case fits, say so plainly, offer the nearest piece in the case as a draft, and change nothing.' : ' — her wardrobe. Prefer a piece she owns whenever one fits; otherwise propose ONE new piece with a real brand, a retailer and a realistic EUR price (pool_index -1).'}:
+THE POOL SHE CAN SWAP FROM (indexed by pool_index)${poolRule}:
 ${fenceUserText(poolBlock, FENCED_MAX)}
 ${ctxLines.length ? `\nCONTEXT:\n${fenceUserText(ctxLines.join('\n'), FENCED_MAX)}\n` : ''}
 READ HER WORDS IN THIS ORDER — the first that matches decides the intent:
@@ -183,7 +193,7 @@ export function normaliseAnswer(out: Output, ctx: Pick<AskContext, 'rack' | 'poo
   const intent: Intent = (INTENTS as readonly string[]).includes(out.intent)
     ? (out.intent as Intent)
     : 'clarify';
-  const held = ctx.pool.kind === 'capsule';
+  const held = ctx.pool.kind !== 'wardrobe';
   const rack = ctx.rack.slice(0, RACK_MAX);
   const poolN = Math.min(ctx.pool.items.length, POOL_MAX);
   const row = (i: number) => (Number.isInteger(i) && i >= 0 && i < rack.length ? rack[i] : null);

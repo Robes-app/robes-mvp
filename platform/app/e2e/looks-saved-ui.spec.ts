@@ -27,13 +27,13 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // The draft drawer (D14) opens over the screen; the first pieces make the draft, the done disc
   // saves it, and the saved look opens with the diary up.
   await expect(page).toHaveURL(/\/looks\/draft\/new$/);
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   const picker = page.getByTestId('piece-picker');
   await picker.getByRole('button', { name: 'Include Camel coat' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Draft look')).toBeVisible();
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   await picker.getByRole('button', { name: 'Include Straight jeans' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();

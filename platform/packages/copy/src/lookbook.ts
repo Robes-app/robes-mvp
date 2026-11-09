@@ -206,19 +206,41 @@ export const lookbook = {
     // A saved look's one accept (3e's pill, the Edit look drawer's footer; D17, D18).
     update: 'Update look',
     doneForDay: 'Save and schedule for this day',
-    // The prompt card.
+    // The styling card (Front Door PRD rev 3 §4.6): the prompt row's placeholders turn while it
+    // is empty; a saved look's row asks for the change instead.
     placeholder: 'Describe look…',
-    editPlaceholder: 'Describe other changes…',
-    // Felix's Generate, in Robes' words: Robes styles, it never generates.
+    placeholders: [
+      'dinner date, smart casual…',
+      'the office, a long day…',
+      'a walk, then lunch…',
+      'drinks after work…',
+    ],
+    editPlaceholder: 'more casual…',
+    // The sticky primary at the foot (PRD §4.6 draws it as GENERATE ✓), in Robes' words: Robes
+    // styles, it never generates (the voice guard in index.test.ts).
     generate: 'Style it',
+    // The Shop toggle (PRD §4.6, plan R1): off keeps the look to her wardrobe; on lets Robes reach
+    // for her wishlist and new pieces. What a reader hears for each state.
+    shop: {
+      label: 'Shop',
+      on: 'Shop is on: looks can include your wishlist and new pieces',
+      off: 'Shop is off: looks use your wardrobe pieces only',
+    },
+    // The Rack card before the first piece (PRD §4.6): with a wardrobe it opens the picker; empty
+    // it opens Add your pieces. The heading shows once a piece hangs.
+    rack: 'The Rack',
+    rackCard: {
+      eyebrow: 'Your wardrobe',
+      pick: 'Pick from your wardrobe',
+      orRobes: 'Or let Robes style below',
+      add: 'Add your pieces',
+      ways: 'Photo, link or receipt',
+    },
     // Describe's day draft: the job behind Style it ended without a look (D22).
     styleFailed: 'Robes couldn’t style that one. Try again in a moment.',
     thread: 'Your words on this look',
     // The context chip: the day's place and weather, read from the diary.
     context: (place: string, range: string): string => `${place} · ${range}`,
-    // The add slot before the first piece.
-    addPieces: 'Add pieces',
-    startFromPhoto: 'Start from a photo',
     // Delete, in edit mode (D9).
     delete: 'Delete this look',
     adjustSheet: {
@@ -244,6 +266,11 @@ export const lookbook = {
         n === 0 ? 'Add pieces' : n === 1 ? 'Add 1 piece' : `Add ${n} pieces`,
       swapCta: 'Swap it in',
       empty: 'Nothing here yet.',
+      // The WISHLIST tab (PRD §4.6): her wishes join the rack as pieces to find.
+      wishEmpty: 'Nothing on your wishlist yet.',
+      pickWish: (label: string): string => `Include ${label} from your wishlist`,
+      // The ink + at the rail's end: a new piece, filed as she adds it.
+      addNew: 'Add a new piece',
     },
     discard: {
       title: 'Discard this draft?',
@@ -522,14 +549,6 @@ export const lookbook = {
     label: (name: string): string => `Change ${name}`,
     newLabel: 'A new look',
     failed: 'Robes couldn’t read that just now. Try again.',
-    // The one question on a new look: where its pieces come from.
-    balance: {
-      question: 'Where should the pieces in your look come from?',
-      owned: 'All mine',
-      mix: 'A mix',
-      new: 'Suggest new pieces',
-      typed: 'Or say it your way',
-    },
   },
   // F8: a verdict on a suggestion lands in her memory; "not quite" lets it go.
   verdict: {

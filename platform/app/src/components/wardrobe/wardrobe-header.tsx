@@ -99,18 +99,29 @@ export function CountRow({
       <p className="font-display font-light text-[19px] text-ink-faint italic" aria-live="polite">
         {count}
       </p>
-      {layout ? (
-        <SegmentedControl
-          size="sm"
-          label={wardrobe.header.layout}
-          options={[
-            { value: 'grid', label: wardrobe.header.grid, icon: 'grid' },
-            { value: 'list', label: wardrobe.header.list, icon: 'list' },
-          ]}
-          value={layout}
-          onChange={onLayout}
-        />
-      ) : null}
+      {layout ? <LayoutToggle layout={layout} onLayout={onLayout} /> : null}
     </div>
+  );
+}
+
+// The small grid | list control, the wardrobe's and The Rack's (Front Door PRD rev 3 §4.6).
+export function LayoutToggle({
+  layout,
+  onLayout,
+}: {
+  layout: WardrobeLayout;
+  onLayout: (next: WardrobeLayout) => void;
+}) {
+  return (
+    <SegmentedControl
+      size="sm"
+      label={wardrobe.header.layout}
+      options={[
+        { value: 'grid', label: wardrobe.header.grid, icon: 'grid' },
+        { value: 'list', label: wardrobe.header.list, icon: 'list' },
+      ]}
+      value={layout}
+      onChange={onLayout}
+    />
   );
 }

@@ -9,6 +9,7 @@ const LOOK = '77777777-7777-4777-8777-777777777777';
 const TROUSER = '22222222-2222-4222-8222-222222222222';
 const JEAN = '33333333-3333-4333-8333-333333333333';
 const NOT_HERS = '44444444-4444-4444-8444-444444444444';
+const CAMI = '55555555-5555-4555-8555-555555555555';
 
 function setup() {
   const ai = createFakeProvider({ [FEATURE]: (req) => fakeOutput(req.system, req.user) });
@@ -42,6 +43,18 @@ function setup() {
         styleDna: {},
         styleIcons: [],
         closet,
+        wishes: [
+          {
+            id: CAMI,
+            label: 'Silk cami',
+            category: 'Tops',
+            color: 'coral',
+            brand: 'Vince',
+            sourceLabel: 'vince.com',
+            price: 89,
+            currency: 'EUR',
+          },
+        ],
         firstName: null,
         wardrobeCount: 2,
       })),
@@ -146,6 +159,43 @@ describe('look_ask handler (the look prompt)', () => {
     await run('too dressy');
     expect(answer()).toMatchObject({ intent: 'draft', swaps: [] });
     expect((answer() as { draft: string }).draft).toMatch(/^Change the white wide-leg trouser/);
+  });
+
+  it('Shop off keeps the answer to her wardrobe; Shop on reaches for her wishlist', async () => {
+    const { run, answer, generateJson } = setup();
+    // Off: no wishlist in the pool, and a new piece Robes would invent is dropped.
+    await run('swap the trouser for a red skirt', { balance: 'owned' });
+    const off = generateJson.mock.calls[0]?.[0].system ?? '';
+    expect(off).toContain('Shop is OFF');
+    expect(off).not.toContain('Silk cami');
+    expect(answer()).toMatchObject({ intent: 'swap', swaps: [] });
+    // On: her wishes follow her wardrobe in the pool, marked; a swap to one is that wish.
+    await run('swap the trouser for the silk cami', { balance: 'mix' });
+    const on = generateJson.mock.calls[1]?.[0].system ?? '';
+    expect(on).toContain('[1] Silk cami [Tops], coral, Vince (on her wishlist, not hers yet)');
+    expect(answer()).toMatchObject({
+      intent: 'swap',
+      swaps: [
+        {
+          key: TROUSER,
+          to: {
+            proposal: {
+              name: 'Silk cami',
+              category: 'Tops',
+              brand: 'Vince',
+              retailerHint: 'vince.com',
+              pricePoint: '€89',
+              wishlisted: true,
+              wishlistItemId: CAMI,
+            },
+          },
+        },
+      ],
+    });
+    // Unset (an older client): the wardrobe-first pool, as before.
+    await run('swap the trouser for a red skirt');
+    expect(generateJson.mock.calls[2]?.[0].system).not.toContain('Silk cami');
+    expect(answer()).toMatchObject({ swaps: [{ key: TROUSER, to: { proposal: {} } }] });
   });
 
   it('refuses a look that isn’t hers and bad input', async () => {

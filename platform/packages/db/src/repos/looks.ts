@@ -1,5 +1,5 @@
 import type { Season } from '@robes/core';
-import { type LookStatus, MAX_DRAFTS } from '@robes/core/looks';
+import { type LookStatus, MAX_DRAFTS, priceFromPoint } from '@robes/core/looks';
 import { normaliseSeasons } from '@robes/core/wardrobe';
 import { sql, type Transaction } from 'kysely';
 import type { Db } from '../client';
@@ -7,6 +7,7 @@ import type { DB } from '../database.types';
 import type { UserId } from '../ids';
 import { afterCursor, createdMs, toPage } from './paging';
 import { PIECE_COLUMNS } from './wardrobe';
+import { insertWish } from './wishlist';
 
 const LOOK_COLUMNS = [
   'id',
@@ -96,6 +97,42 @@ export class LookNeedsImage extends Error {
 }
 
 const json = (v: unknown) => (v == null ? null : JSON.stringify(v));
+
+// The proposals a save files to her wishlist: each one not yet hers becomes a wish (its name,
+// brand, colour, retailer and price), and the row carries the wish's id. Returns the proposals
+// as they now stand, or null when nothing changed. Legacy rows (no `name`) are left as they are.
+async function fileProposals(
+  trx: Transaction<DB>,
+  userId: UserId,
+  raw: unknown,
+): Promise<Record<string, unknown>[] | null> {
+  if (!Array.isArray(raw)) return null;
+  let changed = false;
+  const out: Record<string, unknown>[] = [];
+  for (const item of raw as unknown[]) {
+    if (!item || typeof item !== 'object') continue;
+    const p = item as Record<string, unknown>;
+    const name = typeof p.name === 'string' ? p.name.trim() : '';
+    if (!name || p.wishlisted === true) {
+      out.push(p);
+      continue;
+    }
+    const str = (k: string) => (typeof p[k] === 'string' && p[k].trim() ? p[k].trim() : null);
+    const price = priceFromPoint(str('pricePoint') ?? '');
+    const wish = await insertWish(trx, userId, {
+      label: name.slice(0, 120),
+      ...(str('category') ? { category: str('category') ?? undefined } : {}),
+      brand: str('brand'),
+      color: str('color'),
+      sourceLabel: str('retailerHint'),
+      price: price?.price ?? null,
+      currency: price?.currency ?? null,
+    });
+    out.push({ ...p, wishlisted: true, wishlistItemId: wish.id });
+    changed = true;
+  }
+  return changed ? out : null;
+}
 const emptyToNull = (v: Record<string, unknown> | readonly unknown[] | null | undefined) =>
   v == null || (Array.isArray(v) ? v.length === 0 : Object.keys(v).length === 0) ? null : v;
 
@@ -766,28 +803,44 @@ export function looksRepo(db: Db) {
     // Suggested or draft → saved (one tap from a suggestion, or the draft's Save). Saved never goes
     // back; saving a saved look changes nothing. A name she typed is hers; `datedName` (an unnamed
     // hand-built draft) replaces the offer but stays provisional, hers to change.
+    // Saving files every piece Robes proposed that she has not yet saved to her wishlist, as a
+    // wish of hers (Front Door PRD rev 3, plan 2026-11-09 R1): the look and its wishes land in one
+    // transaction, and each proposal then names its wish. A wish already hers stays one row.
     save(
       userId: UserId,
       id: string,
       opts: { name?: string | undefined; datedName?: string | undefined } = {},
     ) {
-      return db
-        .updateTable('looks')
-        .set({
-          status: 'saved',
-          edits: null,
-          ...(opts.name !== undefined
-            ? { name: opts.name, nameProvisional: false }
-            : opts.datedName !== undefined
-              ? { name: opts.datedName, nameProvisional: true }
-              : {}),
-          updatedAt: sql`now()`,
-        })
-        .where('userId', '=', userId)
-        .where('id', '=', id)
-        .where('deletedAt', 'is', null)
-        .returning(LOOK_SELECT)
-        .executeTakeFirst();
+      return db.transaction().execute(async (trx) => {
+        const row = await trx
+          .selectFrom('looks')
+          .select(['proposals'])
+          .where('userId', '=', userId)
+          .where('id', '=', id)
+          .where('deletedAt', 'is', null)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!row) return undefined;
+        const proposals = await fileProposals(trx, userId, row.proposals);
+        return trx
+          .updateTable('looks')
+          .set({
+            status: 'saved',
+            edits: null,
+            ...(proposals ? { proposals: json(proposals) } : {}),
+            ...(opts.name !== undefined
+              ? { name: opts.name, nameProvisional: false }
+              : opts.datedName !== undefined
+                ? { name: opts.datedName, nameProvisional: true }
+                : {}),
+            updatedAt: sql`now()`,
+          })
+          .where('userId', '=', userId)
+          .where('id', '=', id)
+          .where('deletedAt', 'is', null)
+          .returning(LOOK_SELECT)
+          .executeTakeFirst();
+      });
     },
 
     // A rack piece's facts for the look prompt, only hers (SEC-16: ids in, labels from here).

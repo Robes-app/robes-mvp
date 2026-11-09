@@ -1,4 +1,4 @@
-import type { Piece } from '@robes/contracts';
+import type { PieceImage } from '@robes/contracts';
 import { diary } from '@robes/copy';
 import { pieceMatches, sheetCategoryOf, sheetChips } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
@@ -17,16 +17,32 @@ import { renditionUri } from '@/lib/images';
 
 const copy = diary.flyout;
 
-const inCategory = (p: Piece, c: string) => sheetCategoryOf(p) === c || p.category === c;
+// What the grid draws: a piece of hers, or a wish (the Add Pieces picker's WISHLIST tab) with
+// its price as the line under the name.
+export interface GridItem {
+  id: string;
+  label: string;
+  category: string;
+  categoryL2?: string | null;
+  categoryL3?: string | null;
+  brand?: string | null;
+  color?: string | null;
+  image: PieceImage | null;
+  meta?: string | null;
+}
+
+const inCategory = (p: GridItem, c: string) => sheetCategoryOf(p) === c || p.category === c;
 
 // The one wardrobe grid behind home's flyout (design 3k) and the draft's piece picker (Felix
-// WardrobePicker): the search pill, one row of category pills with counts (All leads), a 3-up grid
-// with Photograph one first and a tick disc on every piece. What is picked, searched and filtered
-// is the parent's; the grid only draws it. Web twin: app/src/components/wardrobe/wardrobe-grid.tsx.
-export function WardrobeGrid({
+// WardrobePicker): the search pill, one row of category chips with counts (All leads, the active
+// one rose — Front Door PRD rev 3 §4.6), a 3-up grid with Photograph one first and a tick disc on
+// every piece. What is picked, searched and filtered is the parent's; the grid only draws it. Web
+// twin: app/src/components/wardrobe/wardrobe-grid.tsx.
+export function WardrobeGrid<T extends GridItem>({
   pieces,
   picked,
   onToggle,
+  pickLabel = copy.pick,
   query,
   onQuery,
   category,
@@ -36,9 +52,11 @@ export function WardrobeGrid({
   grow = false,
 }: {
   // Undefined while the wardrobe loads.
-  pieces: readonly Piece[] | undefined;
-  picked: readonly Piece[];
-  onToggle: (piece: Piece) => void;
+  pieces: readonly T[] | undefined;
+  picked: readonly T[];
+  onToggle: (piece: T) => void;
+  // What a reader hears on a tile ("Include Silk scarf").
+  pickLabel?: (label: string) => string;
   query: string;
   onQuery: (q: string) => void;
   category: string | null;
@@ -60,7 +78,7 @@ export function WardrobeGrid({
       ? all.filter((p) => inCategory(p, category))
       : all;
   const count = (c: string | null) => (c ? all.filter((p) => inCategory(p, c)).length : all.length);
-  const on = (p: Piece) => picked.some((x) => x.id === p.id);
+  const on = (p: GridItem) => picked.some((x) => x.id === p.id);
   const choose = (c: string | null) => {
     onQuery('');
     onCategory(c);
@@ -88,12 +106,25 @@ export function WardrobeGrid({
         keyboardShouldPersistTaps="handled"
         style={{ flexGrow: 0 }}
       >
-        <Pill size="sm" selected={!searching && category === null} onPress={() => choose(null)}>
-          {`${copy.all} ${count(null)}`}
+        <Pill
+          size="sm"
+          tone="rose"
+          selected={!searching && category === null}
+          count={count(null)}
+          onPress={() => choose(null)}
+        >
+          {copy.all}
         </Pill>
         {chips.map((c) => (
-          <Pill key={c} size="sm" selected={!searching && category === c} onPress={() => choose(c)}>
-            {`${c} ${count(c)}`}
+          <Pill
+            key={c}
+            size="sm"
+            tone="rose"
+            selected={!searching && category === c}
+            count={count(c)}
+            onPress={() => choose(c)}
+          >
+            {c}
           </Pill>
         ))}
       </ScrollView>
@@ -142,7 +173,7 @@ export function WardrobeGrid({
               <View key={piece.id} style={{ width: '33.333%' }} className="gap-1.5 px-1.5">
                 <Pressable
                   accessibilityRole="checkbox"
-                  accessibilityLabel={copy.pick(piece.label)}
+                  accessibilityLabel={pickLabel(piece.label)}
                   accessibilityState={{ checked: ticked }}
                   onPress={() => onToggle(piece)}
                   className={`overflow-hidden rounded-input border ${
@@ -174,12 +205,17 @@ export function WardrobeGrid({
                 </Pressable>
                 <Text
                   size="small"
-                  numberOfLines={2}
+                  numberOfLines={piece.meta ? 1 : 2}
                   className="font-display"
                   style={{ lineHeight: 16 }}
                 >
                   {piece.label}
                 </Text>
+                {piece.meta ? (
+                  <Text size="caption" tone="muted" numberOfLines={1}>
+                    {piece.meta}
+                  </Text>
+                ) : null}
               </View>
             );
           })}

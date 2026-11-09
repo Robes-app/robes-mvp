@@ -11,7 +11,7 @@ import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 const db = createTestDb();
 const CLAIM = { frameKey: 'k2', jobId: '00000000-0000-4000-8000-000000000000' };
-const { looks, wardrobe, plan, jobs } = createRepositories(db);
+const { looks, wardrobe, plan, jobs, wishlist } = createRepositories(db);
 const system = createSystemRepositories(db);
 let ann: UserId;
 let bea: UserId;
@@ -166,6 +166,24 @@ describe('suggested looks (look states)', () => {
       edits: null,
       styling: { [boots]: 'worn under the hem' },
     });
+    // Saving files the piece Robes proposed to her wishlist, once, and the row names its wish
+    // (Front Door PRD rev 3, plan 2026-11-09 R1).
+    const wishes = (await wishlist.list(ann, { limit: 10 })).items;
+    const mules = wishes.find((w) => w.label === 'Black pointed mules');
+    expect(mules).toMatchObject({
+      brand: 'Toteme',
+      color: 'black',
+      sourceLabel: 'toteme.com',
+      price: '390',
+      currency: 'EUR',
+      category: 'Shoes',
+    });
+    expect(saved?.proposals).toEqual([
+      { ...proposal, wishlisted: true, wishlistItemId: mules?.id },
+    ]);
+    expect(wishes.filter((w) => w.label === 'Black pointed mules')).toHaveLength(1);
+    // Nobody else's wishlist gained it.
+    expect((await wishlist.list(bea, { limit: 10 })).items).toEqual([]);
     // A saved look never carries working notes.
     expect(await looks.update(ann, id, { edits: { x: { back: true } } })).toMatchObject({
       edits: null,
