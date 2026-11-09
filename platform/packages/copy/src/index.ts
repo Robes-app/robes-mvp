@@ -337,15 +337,11 @@ export const wardrobe = {
     inbox: 'Inbox',
   },
   removePiece: (label: string): string => `Remove ${label}`,
+  deletePiece: (label: string): string => `Delete ${label}`,
   photoAlt: (label: string): string => `Photo of ${label}`,
   wishlistEmpty: {
     title: 'Pieces you’re after live here.',
     body: 'Keep a list of what you want, then tell Robes when you buy it.',
-  },
-  // The Inbox holds forwarded receipts only; a pasted link goes straight to Review.
-  inboxEmpty: {
-    title: 'Forwarded receipts land here.',
-    body: 'Forward an order email to your Robes address and its pieces wait here for a yes or no.',
   },
   piece: {
     back: 'Wardrobe',
@@ -519,6 +515,7 @@ export const wardrobe = {
     bought: 'Bought',
     boughtLabel: (label: string): string => `I bought ${label}`,
     swipeRemove: 'Remove',
+    swipeDelete: 'Delete',
     addRow: 'Add a piece',
     addHint: 'Photograph · Receipt · Link',
     noPhoto: 'Photograph it',
@@ -557,10 +554,6 @@ export const wardrobe = {
     skip: 'Skip',
     more: (n: number): string =>
       n === 1 ? 'One more receipt after this.' : `${countWord(n)} more receipts after this.`,
-    notice: (receipts: number): string =>
-      receipts === 1
-        ? 'Robes read one receipt'
-        : `Robes read ${countWord(receipts).toLowerCase()} receipts`,
     filed: 'Filed.',
     skipped: 'Skipped.',
   },

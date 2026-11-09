@@ -139,14 +139,15 @@ test('ADDED and DISCARDED list what was decided, without the × and ✓', async 
   expect(await screen.findByText(wardrobe.receipts.discardedEmpty)).toBeTruthy();
 });
 
-test('an empty Inbox points to forwarding a receipt', async () => {
+test('an empty Inbox says nothing past its forwarding card', async () => {
   mockFetch({
     'GET /inbox': { items: [], count: 0, counts: { inbox: 0, added: 0, discarded: 0 } },
     'GET /me/inbox-address': errorReply(404, 'not_found'),
   });
   await renderWithApi(<InboxView />);
-  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.add.doors.receipt }));
-  expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/receipt');
+  expect(await screen.findByTestId('receipts-tabs')).toBeTruthy();
+  // No empty-state card and no second way to forward (Annie, 9 Nov).
+  expect(screen.queryByRole('button', { name: wardrobe.add.doors.receipt })).toBeNull();
 });
 
 test('paste a link reads the page and opens Review on the piece', async () => {

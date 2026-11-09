@@ -92,15 +92,6 @@ export function DraftTile({
             </div>
           </>
         ) : null}
-        {stale ? (
-          <span
-            title={d.stale}
-            className="absolute top-3 left-3 z-10 flex h-[22px] min-w-[22px] items-center justify-center rounded-pill bg-ink px-1.5 font-medium font-sans text-[10px] text-bg"
-          >
-            <span aria-hidden>1</span>
-            <span className="sr-only">{d.behind(1)}</span>
-          </span>
-        ) : null}
         {!generating && look?.setId ? (
           <button
             type="button"

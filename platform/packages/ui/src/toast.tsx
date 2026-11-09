@@ -3,7 +3,16 @@
 import * as RadixToast from '@radix-ui/react-toast';
 import { ui } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
-import { createContext, type ReactNode, useCallback, useContext, useRef, useState } from 'react';
+import {
+  createContext,
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { cn, focusRing } from './cn';
 
 // An Undo stays up for at least 6 s (UX-15).
@@ -33,6 +42,10 @@ export function toastDuration({
 
 type ShowToast = (options: ToastOptions) => void;
 const ToastContext = createContext<ShowToast | null>(null);
+// A bar fixed at the screen's foot (a look's Schedule/Update bar, a drawer's footer) lifts the
+// toasts above it while it stands, so an Undo never covers the button under it.
+type LiftToasts = (px: number) => () => void;
+const ToastLiftContext = createContext<LiftToasts | null>(null);
 
 interface Entry extends ToastOptions {
   id: number;
@@ -52,9 +65,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setEntries((list) => list.filter((entry) => entry.id !== id));
   }, []);
 
+  const [lifts, setLifts] = useState<ReadonlyMap<number, number>>(new Map());
+  const nextLift = useRef(0);
+  const liftToasts = useCallback<LiftToasts>((px) => {
+    nextLift.current += 1;
+    const id = nextLift.current;
+    setLifts((all) => new Map(all).set(id, px));
+    return () =>
+      setLifts((all) => {
+        const next = new Map(all);
+        next.delete(id);
+        return next;
+      });
+  }, []);
+  const lift = Math.max(0, ...lifts.values());
+
   return (
     <RadixToast.Provider label={ui.notifications} swipeDirection="down">
-      <ToastContext.Provider value={show}>{children}</ToastContext.Provider>
+      <ToastContext.Provider value={show}>
+        <ToastLiftContext.Provider value={liftToasts}>{children}</ToastLiftContext.Provider>
+      </ToastContext.Provider>
       {entries.map((entry) => (
         <RadixToast.Root
           key={entry.id}
@@ -92,6 +122,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       ))}
       <RadixToast.Viewport
         label={ui.notificationsRegion}
+        {...(lift > 0 ? { style: { bottom: lift } } : {})}
         className={cn(
           'fixed inset-x-0 bottom-0 z-[60] mx-auto flex w-full max-w-md flex-col gap-2 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
           focusRing,
@@ -105,4 +136,27 @@ export function useToast(): ShowToast {
   const show = useContext(ToastContext);
   if (!show) throw new Error('useToast must be used inside <ToastProvider>');
   return show;
+}
+
+// Holds the toasts `px` above the screen's foot while the caller is mounted (0 lets go).
+export function useToastLift(px: number): void {
+  const liftToasts = useContext(ToastLiftContext);
+  useEffect(() => {
+    if (!liftToasts || px <= 0) return;
+    return liftToasts(px);
+  }, [liftToasts, px]);
+}
+
+// Lifts the toasts above a bar fixed at the foot, by the bar's own measured height.
+export function useToastLiftOver(bar: RefObject<HTMLElement | null>): void {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const el = bar.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => setHeight(el.getBoundingClientRect().height));
+    observer.observe(el);
+    setHeight(el.getBoundingClientRect().height);
+    return () => observer.disconnect();
+  }, [bar]);
+  useToastLift(height);
 }

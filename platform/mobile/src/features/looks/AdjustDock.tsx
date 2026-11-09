@@ -248,16 +248,6 @@ export function AdjustDock({
         >
           {adjust.placeholder}
         </Text>
-        {adjust.badge ? (
-          <View
-            accessibilityLabel={d.behind(adjust.badge)}
-            className="h-[22px] min-w-[22px] items-center justify-center rounded-pill bg-ink px-1.5"
-          >
-            <Text size="caption" className="text-bg" style={{ fontSize: 10 }}>
-              {adjust.badge}
-            </Text>
-          </View>
-        ) : null}
         <View className="size-9 items-center justify-center rounded-pill bg-surface-sunk">
           <Icon name="forward" size={15} color={ink} />
         </View>

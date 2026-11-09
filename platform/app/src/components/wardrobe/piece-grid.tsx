@@ -20,6 +20,7 @@ import {
 import { errorCopy } from '@/lib/error-copy';
 import { anyReading } from '@/lib/wardrobe';
 import { AddPiecesSheet } from './add/add-pieces-sheet';
+import { DeletePieceDialog } from './delete-piece-dialog';
 import { AddCard, CardRow, type CardStatus, CardTile, StarButton } from './piece-card';
 import { PieceImage } from './piece-image';
 import { useWardrobeLayout } from './use-layout';
@@ -123,6 +124,8 @@ export function WardrobeFilterSheet({
 export function PieceGrid() {
   const client = useApiClient();
   const remove = useRemovePiece();
+  // The row's swipe asks first, as the piece page does (R14).
+  const [asking, setAsking] = useState<string | null>(null);
   const [layout, setLayout] = useWardrobeLayout();
   const filters = useWardrobeFilters();
   const [sheet, setSheet] = useState(false);
@@ -277,7 +280,7 @@ export function PieceGrid() {
                 layout={list ? 'list' : 'grid'}
                 priority={i < 6}
                 onStar={() => toggleStar(piece)}
-                onRemove={() => remove.mutate({ params: { id: piece.id } })}
+                onRemove={() => setAsking(piece.id)}
               />
             </li>
           ))}
@@ -299,6 +302,14 @@ export function PieceGrid() {
         count={total}
       />
       <AddPiecesSheet open={adding} onClose={() => setAdding(false)} />
+      <DeletePieceDialog
+        open={asking !== null}
+        onDelete={() => {
+          if (asking) remove.mutate({ params: { id: asking } });
+          setAsking(null);
+        }}
+        onCancel={() => setAsking(null)}
+      />
     </div>
   );
 }
@@ -328,7 +339,8 @@ function PieceCard({
         action={
           <StarButton label={piece.label} on={piece.heroPosition !== null} onToggle={onStar} />
         }
-        removeLabel={wardrobe.removePiece(piece.label)}
+        removeText={wardrobe.card.swipeDelete}
+        removeLabel={wardrobe.deletePiece(piece.label)}
         onRemove={onRemove}
       />
     );

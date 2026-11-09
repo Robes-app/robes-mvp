@@ -210,10 +210,12 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   expect(await screen.findByText(lookbook.eyebrow.suggestedAround('camel wool coat'))).toBeTruthy();
   // The note is three sentences at most; the rack reads like the wardrobe.
   expect(screen.getByText('A long lunch in the sun. The jacket open. Easy.')).toBeTruthy();
-  expect(screen.getByText('Shoes · Toteme')).toBeTruthy();
-  // The role line carries the price of a piece to find (design 3b); the facts follow beneath.
-  expect(screen.getByText('Exclamation · €390')).toBeTruthy();
-  expect(screen.getByText('Not yours yet · toteme.com')).toBeTruthy();
+  // The canvas's row (PRD §6.1): the category and role in small caps, the brand under the name,
+  // and a piece to find's price behind the bag at the right.
+  expect(screen.getByText('Shoes · Exclamation')).toBeTruthy();
+  expect(screen.getByText('Toteme')).toBeTruthy();
+  expect(screen.getByText('€390')).toBeTruthy();
+  expect(screen.getByLabelText(`${lookbook.rack.notYours} · €390`)).toBeTruthy();
   expect(screen.getByText(lookbook.composedByRobes)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.bar.saveToLookbook }));
   // The diary opens every time as beta's month, the day her words named already picked.

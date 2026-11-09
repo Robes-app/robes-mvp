@@ -6,7 +6,6 @@ import { lookbook, wardrobe } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
 import {
-  AlertDialog,
   Button,
   buttonClasses,
   ErrorText,
@@ -24,6 +23,7 @@ import { useRef, useState } from 'react';
 import { HomeBox } from '@/components/home/home-box';
 import { SavedTile } from '@/components/looks/look-tiles';
 import { SuggestedRail } from '@/components/looks/suggested-rail';
+import { DeletePieceDialog } from '@/components/wardrobe/delete-piece-dialog';
 import { StarButton } from '@/components/wardrobe/piece-card';
 import { type PieceField, PieceFieldSheet } from '@/components/wardrobe/piece-field-sheet';
 import { PieceImage } from '@/components/wardrobe/piece-image';
@@ -180,23 +180,14 @@ export function PieceDetail({ id }: { id: string }) {
         </Button>
       </div>
 
-      <AlertDialog
+      <DeletePieceDialog
         open={confirm}
-        title={copy.deleteTitle}
-        message={copy.deleteBody}
-        actions={[
-          {
-            label: copy.deleteConfirm,
-            variant: 'danger',
-            onClick: () => {
-              setConfirm(false);
-              remove.mutate({ params: { id } });
-              router.push('/wardrobe');
-            },
-          },
-          { label: copy.cancel, variant: 'quiet', onClick: () => setConfirm(false) },
-        ]}
-        onDismiss={() => setConfirm(false)}
+        onDelete={() => {
+          setConfirm(false);
+          remove.mutate({ params: { id } });
+          router.push('/wardrobe');
+        }}
+        onCancel={() => setConfirm(false)}
       />
       <Sheet
         open={open === 'wears'}

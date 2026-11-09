@@ -1,17 +1,10 @@
-import { wardrobe as copy, you } from '@robes/copy';
+import { wardrobe as copy } from '@robes/copy';
 import type { WardrobeLayout } from '@robes/core/wardrobe';
-import {
-  Button,
-  fonts,
-  IconButton,
-  SegmentedControl,
-  Tabs,
-  Text as UiText,
-} from '@robes/ui-native';
-import { Text, View } from 'react-native';
+import { fonts, IconButton, SegmentedControl, Tabs, Text as UiText } from '@robes/ui-native';
+import { View } from 'react-native';
 
-// Owned · Wishlist · Shop: Shop stands disabled until the Shop PRD lands (plan R10). The Inbox is a
-// notice that shows while a receipt waits.
+// Owned · Wishlist · Shop: Shop stands disabled until the Shop PRD lands (plan R10). Waiting
+// receipts are announced by the bell, not on the page.
 export type Segment = 'pieces' | 'wishlist';
 const TABS = [copy.segments.owned, copy.segments.wishlist, copy.segments.shop] as const;
 type TabLabel = (typeof TABS)[number];
@@ -47,33 +40,6 @@ export function HeaderRow({
       }
       testID="wardrobe-tabs"
     />
-  );
-}
-
-// Shown only while a forwarded receipt waits (beta's receipt notice, Add Piece redline 05b): a
-// cream card on a hairline that says what Robes read, and one hairline pill into the Inbox.
-// Web twin: InboxNotice in app/src/components/wardrobe/wardrobe-header.tsx.
-export function InboxNotice({
-  receipts,
-  pieces,
-  onOpen,
-}: {
-  receipts: number;
-  pieces: number;
-  onOpen: () => void;
-}) {
-  return (
-    <View
-      testID="wardrobe-inbox-notice"
-      className="mx-5 mt-3 flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-soft border border-hairline bg-surface py-2.5 pr-2.5 pl-4"
-    >
-      <Text className="shrink text-[13px] text-ink-muted" style={{ fontFamily: fonts.sans }}>
-        {`${copy.inbox.notice(receipts)} · ${you.receipts.waiting(pieces)}`}
-      </Text>
-      <Button variant="outline" onPress={onOpen} testID="wardrobe-inbox-review">
-        {you.receipts.review(pieces)}
-      </Button>
-    </View>
   );
 }
 

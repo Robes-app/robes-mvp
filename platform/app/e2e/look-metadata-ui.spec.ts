@@ -23,7 +23,9 @@ test('a jumper reads Knitwear · COS on the rack as in the wardrobe; the grid is
 
   await page.goto(`/look/${look.id}`);
   const row = page.getByTestId(`rack-row-${piece.id}`);
-  await expect(row.getByText('Knitwear · COS', { exact: true })).toBeVisible();
+  // The canvas's row (PRD §6.1): the category in small caps, the brand under the name.
+  await expect(row.getByText('Knitwear', { exact: true })).toBeVisible();
+  await expect(row.getByText('COS', { exact: true })).toBeVisible();
   await expect(row.getByText('Grey jumper', { exact: true })).toBeVisible();
 
   await page.goto('/looks');

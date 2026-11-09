@@ -551,7 +551,7 @@ test('a full Hero Rack says so', async () => {
   expect(await screen.findByText(wardrobe.card.heroFull)).toBeTruthy();
 });
 
-test('grid | list switches the layout; the list swipes (or acts) to remove with Undo', async () => {
+test('grid | list switches the layout; the list swipes (or acts) to Delete, asked first, with Undo', async () => {
   let gone = false;
   const calls = mockFetch({
     'GET /me': ME,
@@ -565,13 +565,20 @@ test('grid | list switches the layout; the list swipes (or acts) to remove with 
     },
   });
   await renderWithApi(<WardrobeView />);
-  // The phone opens on the list, where a row carries Remove.
-  const removeLabel = wardrobe.removePiece('Camel wool coat');
+  // The phone opens on the list, where a row carries Delete (R14: it asks, as the piece page does).
+  const removeLabel = wardrobe.deletePiece('Camel wool coat');
   expect(await screen.findByRole('button', { name: removeLabel })).toBeTruthy();
+  expect(screen.getByText(wardrobe.card.swipeDelete)).toBeTruthy();
   await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.grid }));
   expect(screen.queryByRole('button', { name: removeLabel })).toBeNull();
   await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.list }));
+  // Cancel keeps the piece.
   await fireEvent(screen.getByRole('button', { name: removeLabel }), 'press');
+  expect(await screen.findByText(wardrobe.piece.deleteTitle)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.cancel }));
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+  await fireEvent(screen.getByRole('button', { name: removeLabel }), 'press');
+  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.piece.deleteConfirm }));
   expect(await screen.findByText(wardrobe.deleted)).toBeTruthy();
   await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
   expect(screen.queryByText('Camel wool coat')).toBeNull();
@@ -641,7 +648,7 @@ test('the filter sheet refines by what she wears it for and by one brand from th
   );
 });
 
-test('Owned · Wishlist · Shop; the receipt notice shows only while a receipt waits', async () => {
+test('Owned · Wishlist · Shop, and no receipt card on the page while a receipt waits', async () => {
   const entry = {
     id: '00000000-0000-4000-8000-0000000000e1',
     source: 'receipt',
@@ -682,13 +689,11 @@ test('Owned · Wishlist · Shop; the receipt notice shows only while a receipt w
   expect(screen.getByRole('button', { name: `${filters.all} 2` })).toBeTruthy();
   expect(screen.queryByRole('button', { name: /^Other/ })).toBeNull();
 
-  await screen.findByTestId('wardrobe-inbox-notice');
-  expect(screen.getByText(`${wardrobe.inbox.notice(1)} · ${you.receipts.waiting(2)}`)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: you.receipts.review(2) }));
-  expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/inbox');
+  // Waiting receipts are the bell's news, never a card on the page (Annie, 9 Nov).
+  expect(screen.queryByText(you.receipts.review(2))).toBeNull();
 });
 
-test('with nothing waiting there is no receipt notice, and an old Inbox link opens it', async () => {
+test('an old Inbox link opens the Inbox', async () => {
   mockFetch({
     'GET /me': ME,
     'GET /wardrobe/summary': { total: 1, categories: [{ category: 'Outerwear', count: 1 }] },
@@ -699,7 +704,6 @@ test('with nothing waiting there is no receipt notice, and an old Inbox link ope
   try {
     await renderWithApi(<WardrobeView />);
     expect(await screen.findByText('1 piece')).toBeTruthy();
-    expect(screen.queryByTestId('wardrobe-inbox-notice')).toBeNull();
     expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/inbox');
   } finally {
     delete mockParams.segment;

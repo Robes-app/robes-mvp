@@ -36,6 +36,7 @@ import {
   Skeleton,
   Tabs,
   useToast,
+  useToastLiftOver,
 } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -78,7 +79,8 @@ const TABS = [lookbook.savedLook.tabs.pieces, lookbook.savedLook.tabs.details] a
 type Tab = (typeof TABS)[number];
 
 // `drawer` over the screen that opened it; `page` on a deep link; `saved` is a saved look's own
-// page (Felix 3e: the back disc on the photo, Schedule look at the foot; D17).
+// page (Felix 3e: the back disc on the photo, Schedule look at the foot — Update look in its place
+// while a change waits, PRD §6.1; D17).
 export type DraftPresentation = 'drawer' | 'page' | 'saved';
 export type DraftSheet = 'adjust' | 'describe';
 
@@ -163,7 +165,10 @@ function Rack({
   return (
     <div className="flex flex-col gap-2.5" data-testid="the-rack">
       <div className="flex h-11 items-center justify-between gap-3">
-        <h2 className="type-label flex-1 text-ink-muted">{copy.rack}</h2>
+        {/* The canvas's heading (PRD §6.1): "The Rack" in the serif, warm and quiet. */}
+        <h2 className="flex-1 font-display font-normal text-[17px] text-ink-faint tracking-[0.01em]">
+          {copy.rack}
+        </h2>
         <LayoutToggle layout={layout} onLayout={onLayout} />
         <button
           type="button"
@@ -184,18 +189,10 @@ function Rack({
       {layout === 'grid' ? (
         <>
           <RackGrid rows={rows} imageOf={imageOf} />
-          {saved ? (
-            <PieceList rows={0} onAdd={onAdd}>
-              {null}
-            </PieceList>
-          ) : null}
+          {saved ? <PieceList onAdd={onAdd}>{null}</PieceList> : null}
         </>
       ) : (
-        <PieceList
-          label={lookbook.rack.title(rows.length)}
-          rows={rows.length}
-          {...(saved ? { onAdd } : {})}
-        >
+        <PieceList label={lookbook.rack.title(rows.length)} {...(saved ? { onAdd } : {})}>
           {children}
         </PieceList>
       )}
@@ -344,7 +341,8 @@ function Shell({
 }
 
 // A saved look's own page (3e): no header, the back disc rides the photo; the body runs to the
-// look's one bar, held at the foot (Schedule look) above the tab bar on a phone.
+// look's one bar, held at the foot (Schedule look, or Update look while a change waits) above the
+// tab bar on a phone.
 function SavedShell({
   h1,
   over,
@@ -365,14 +363,7 @@ function SavedShell({
     >
       {h1 ? <h1 className="sr-only">{h1}</h1> : null}
       {children}
-      {footer ? (
-        <div
-          className="fixed inset-x-0 bottom-0 z-30 border-hairline border-t-[0.5px] bg-bg pb-[max(1.375rem,env(safe-area-inset-bottom))]"
-          data-testid="look-bar"
-        >
-          <div className="mx-auto flex w-full max-w-md items-center px-5 pt-3">{footer}</div>
-        </div>
-      ) : null}
+      {footer ? <LookBar>{footer}</LookBar> : null}
       {/* The floating sheets ride the screen, not the page: 8px above everything, the look's bar
           included (redline 7 Nov). The layer lets taps through except where a sheet is. */}
       {over ? (
@@ -381,6 +372,21 @@ function SavedShell({
         </div>
       ) : null}
     </article>
+  );
+}
+
+// The saved look's bar at the foot; toasts rise above it, so an Undo never covers Update look.
+function LookBar({ children }: { children: ReactNode }) {
+  const bar = useRef<HTMLDivElement>(null);
+  useToastLiftOver(bar);
+  return (
+    <div
+      ref={bar}
+      className="fixed inset-x-0 bottom-0 z-30 border-hairline border-t-[0.5px] bg-bg pb-[max(1.375rem,env(safe-area-inset-bottom))]"
+      data-testid="look-bar"
+    >
+      <div className="mx-auto flex w-full max-w-md items-center px-5 pt-3">{children}</div>
+    </div>
   );
 }
 
@@ -877,8 +883,15 @@ function DraftBody({
         testId: 'draft-done',
       }}
       footer={
-        presentation === 'saved' ? (
-          <Button variant="primary" block onClick={() => setDiary(true)}>
+        // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
+        // change waits — never both. Native twin: DraftLook.tsx's footer.
+        presentation === 'saved' && !pending ? (
+          <Button
+            variant="primary"
+            block
+            onClick={() => setDiary(true)}
+            data-testid="schedule-look"
+          >
             {lookbook.savedLook.schedule}
           </Button>
         ) : mode === 'edit' ? (
@@ -958,7 +971,6 @@ function DraftBody({
           model={model.data}
           modelPending={model.isPending}
           stale={adjust.stale}
-          badge={adjust.badge}
           redressing={adjust.busy && !adjust.state.asking}
           chip={reading ? lookbook.figure.reading : null}
           pronoun={pronoun(model.data)}
@@ -1033,19 +1045,6 @@ function DraftBody({
                 : {})}
               busy={busy}
             />
-            {mode === 'edit' && presentation === 'saved' && pending ? (
-              // 3e: the small ink pill under the card, once there is something to apply.
-              <Button
-                variant="chip"
-                onClick={apply}
-                aria-disabled={busy}
-                className={`self-center bg-ink px-4 text-bg ${busy ? 'opacity-40' : ''}`}
-                data-testid="update-look"
-              >
-                {copy.update}
-                <Icon name="undo" size={11} className="-scale-x-100" />
-              </Button>
-            ) : null}
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -1157,7 +1156,6 @@ function DraftPhoto({
   model,
   modelPending,
   stale,
-  badge,
   redressing,
   chip,
   pronoun,
@@ -1171,7 +1169,6 @@ function DraftPhoto({
   model: Model | undefined;
   modelPending: boolean;
   stale: boolean;
-  badge: number;
   redressing: boolean;
   chip: string | null;
   pronoun: string;
@@ -1253,15 +1250,6 @@ function DraftPhoto({
         >
           <Icon name="back" size={20} className="-ml-0.5" />
         </button>
-      ) : null}
-      {!drawing && stale && badge ? (
-        <span
-          title={d.stale}
-          className={`absolute top-3 z-10 ${onBack ? 'left-14' : 'left-3'} flex h-[22px] min-w-[22px] items-center justify-center rounded-pill bg-ink px-1.5 font-medium font-sans text-[10px] text-bg`}
-        >
-          <span aria-hidden>{badge}</span>
-          <span className="sr-only">{d.behind(badge)}</span>
-        </span>
       ) : null}
       {failed ? (
         // The re-draw failed: say so, never pass the old picture off; a tap draws it again.

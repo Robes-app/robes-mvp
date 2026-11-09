@@ -129,9 +129,10 @@ test('the drawer’s words are the web’s (lib/diary.ts)', () => {
 test('the strip: 21 cells, today’s page centred, a ring for a plan and a dot for a wear', async () => {
   mockFetch(ROUTES);
   await renderWithApi(<DiaryHome />);
-  expect(await screen.findByText(todayCopy.greeting('Niall', 8))).toBeTruthy();
-  // Today's weather under the greeting, never the selected day's.
+  // The greeting stands in the bar (TabScreen's HomeMark); the page opens on today's weather,
+  // never the selected day's.
   expect(await screen.findByText('Thursday · Dublin · 9–14°C')).toBeTruthy();
+  expect(screen.queryByText(todayCopy.greeting('Niall', 8))).toBeNull();
   expect(screen.getAllByTestId(/^diary-day-/)).toHaveLength(21);
   const todayCell = screen.getByTestId(`diary-day-${DATE}`);
   expect(todayCell.props.accessibilityState).toEqual({ selected: true });
@@ -179,6 +180,11 @@ test('a day with two looks shows the OOTD, then the second look, each with Swap 
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${SECOND_LOOK}?day=${TWO}`);
   await fireEvent.press(card);
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}?day=${TWO}`);
+  // Its image stack opens the same detail, on the Add a photo card (PRD §6.1).
+  const [stack] = screen.getAllByTestId('saved-look-stack');
+  if (!stack) throw new Error('no image stack');
+  await fireEvent.press(stack);
+  expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}?day=${TWO}&images=add`);
   // Each look carries Swap and Edit; its name stands under the discs.
   expect(screen.getByRole('button', { name: diary.discs.swapLabel('Weekend navy') })).toBeTruthy();
   expect(screen.getAllByRole('button', { name: /^Swap / })).toHaveLength(2);

@@ -1,6 +1,6 @@
 # The Front Door, rev 3: bringing native and staging to parity
 
-Status: plan, 2026-11-09 (Annie + Claude). Not started. Owner: Annie. Native leads, web lands in the same PR (platform/CLAUDE.md, Felix D5).
+Status: built 2026-11-09 (PRs 0–10 merged into beta); Annie's review of the build is §9. Owner: Annie. Native leads, web lands in the same PR (platform/CLAUDE.md, Felix D5).
 
 **Sources.** The PRD *Robes "Front Door" mobile: Home, Lookbook, Wardrobe* (rev 3, 9 Nov 2026) and the Claude Design canvas *Robes MVP — The front door · mobile* (`claude.ai/code/artifact/56398d74-fa24-4518-ba0d-1f26dd9a7d82`), rendered at 390 × 844 (captures in `assets/2026-11-09-front-door/`, one per PRD state and sheet) and walked screen by screen against `mobile/src` (the Expo app) and `app/src` (staging.byrobes.com). The PRD is the source of truth for behaviour, the canvas for the visuals. Where the PRD and an earlier decision in `2026-11-06-felix-native-rebuild.md` disagree, this plan says so in §2 and takes the PRD unless Annie rules otherwise.
 
@@ -289,3 +289,33 @@ The grill. Each has the default the plan takes; a word from Annie changes it.
 ## 8. Out of scope here
 
 Shop catalogue and the Shop tab's content; Capture's camera flow beyond today's; "Use my likeness" onboarding; Settings sub-pages; a Schedule look date picker beyond `DiarySheet`; real link extraction and receipt parsing changes; tablet and desktop layouts; dark mode (D15).
+
+---
+
+## 9. Annie's review of the build (9 Nov)
+
+Where the build parted from the PRD or the canvas, and her answer.
+
+| # | Where it parted | Answer |
+|---|---|---|
+| 1 | The foot's button reads **Style it**, not GENERATE (PR 4) | **Style it is right.** |
+| 2 | Home kept ROBES at the left of the bar (PR 8) | **The canvas's bar:** "Good morning, Annie." (afternoon, evening) centred in the bar on arrival, then ROBES centred in its place. Built below. |
+| 3 | The scrim stayed Felix's 0.28, not the PRD's ~70% grey (PR 8) | Open. |
+| 4 | No badge on an empty wardrobe (R11) | The red 0 meant "add a piece"; it reads as an alert on iOS, so **none at zero stands**. |
+| 5 | The filter sheet's picked pill is ink (R17) | **OK.** |
+| 6 | Receipts is a page, not a glass sheet (PR 7) | **OK for now**, but the empty Inbox's "Forwarded receipts land here." card goes, and so does the Wardrobe's receipt card: waiting receipts are the bell's news. Built below. |
+| 7 | The category picker keeps the drill (R13) | **Correct.** |
+| 8 | Look detail from Home is a page (R3) | **Correct.** |
+| 9 | The model thumbnail hides once her twin exists (R5) | **Correct.** |
+| 10 | Delete piece asks first (R14) | **Correct**, but the wardrobe row's swipe still offered the old Remove, gone without asking, and stayed open. Built below. |
+
+**As built (9 Nov, review pass).**
+- **Home's bar** (native `TabScreen` `greeting` → `HomeMark`, web `HomeMark` in `components/shell/app-shell.tsx`): the greeting centred (serif light, the tab-title size), held 2.4s, out over 0.45s; ROBES in over 0.6s from 0.55s after, both centred, the left empty. Once per launch (per load on the web): back on Home, ROBES stands. The centre stays empty until today's greeting is known, so ROBES never blinks to the greeting. The page's own 32pt greeting goes on the phone (the web keeps it as the page's h1, visible from 768). The 2.4s hold is a choice; the canvas doesn't fix one.
+- **Receipts**: an empty Inbox shows the tabs and the FORWARD RECEIPTS TO card and nothing else; the "Forward a receipt" door under a full Inbox stays.
+- **Wardrobe**: the "Robes read one receipt · n pieces waiting / Review them" card is gone on both platforms (`InboxNotice` deleted); the bell carries it.
+- **Swipe on a piece she owns**: the row opens over **Delete**, which asks "Delete this piece?" through the same `DeletePieceDialog` as the piece page (web `components/wardrobe/delete-piece-dialog.tsx`, native `features/wardrobe/DeletePieceDialog.tsx`); the Undo toast follows a yes, Cancel keeps it. A tap on an open row closes it. A wish's row keeps its swipe to Remove (no question).
+
+**§6.1 Look detail from Home (Annie, 9 Nov).** A tap on a look's photograph on Home opens its Look detail (`/look/:id?day=`, as R3). On that page the foot holds **one** button: Schedule look at rest, **Update look ↻ in its place while any change waits** (pieces, words, photos or the cover, the Shop toggle); the small Update pill under the styling card is gone. Home's image stack now opens the same Look detail with the image carousel on its **Add a photo** card (`/look/:id?day=&images=add`, `focusAdd`) instead of the Edit look sheet. Edit still opens the Edit look sheet.
+
+**The Rack as the canvas draws it (Annie, 9 Nov).** The heading reads "The Rack" in the serif (17, `ink-faint`), no longer small caps. Each piece is its own lifted white card (3 radius, the new `shadow-row` token), 3 apart: the photo flush left at 52 wide, the category (and the piece's role) in small caps, the serif name on one line, the brand under it; at the right the wears behind a calendar, or a piece to find's price behind a bag, then ›. "Not yours yet" / "Wishlist" and the retailer leave the row's text (the bag carries it; readers still hear it); swapped-in / back-in / added and Robes' styling note stay as one quiet line each while they apply. A saved look's add slot is the small "+ hanger" chip under the list (§6.1). On the web a row opens its piece only at rest, as native (R2). The photo's ink change-count disc is gone from the draft and the saved look: Update look carries the change now. Annie ruled the same for Home's and the Lookbook's draft tile and a working look's AdjustDock: the disc goes everywhere (the picture's own dimmed state and the Update the model button say it). The rack row keeps 9/16 type over the canvas's 8.5/15 for a phone's reading distance (Annie, 9 Nov).
+

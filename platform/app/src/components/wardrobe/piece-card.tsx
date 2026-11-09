@@ -138,14 +138,17 @@ export function BoughtButton({
 const OPEN_AT = 88;
 const ASK_AT = 160;
 
-// Swipe to let go (legacy _wrSwipeInit): a drag slides the face over the Remove; past 44px it
-// rests open at 88, past 160 it removes. Keyboard users reach the Remove by tabbing to it.
+// Swipe to let go (legacy _wrSwipeInit): a drag slides the face over the action; past 44px it
+// rests open at 88, past 160 it acts; a click on an open row closes it. The action reads Remove (a
+// wish) or Delete (a piece she owns, which asks first). Keyboard users reach it by tabbing to it.
 function SwipeRow({
   children,
+  removeText = copy.swipeRemove,
   removeLabel,
   onRemove,
 }: {
   children: ReactNode;
+  removeText?: string;
   removeLabel: string;
   onRemove: () => void;
 }) {
@@ -195,7 +198,7 @@ function SwipeRow({
           shown ? '' : 'opacity-0'
         } ${focus}`}
       >
-        {copy.swipeRemove}
+        {removeText}
       </button>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: a gesture layer; the Remove button and the row's links are the keyboard and screen-reader paths. */}
       <div
@@ -209,9 +212,10 @@ function SwipeRow({
         // A link's native drag would cancel the swipe's pointer events.
         onDragStart={(e) => e.preventDefault()}
         onClickCapture={(e) => {
-          // A drag never opens the piece.
-          if (swallow.current) {
+          // A drag never opens the piece, and a click on an open row only closes it.
+          if (swallow.current || dx !== 0) {
             swallow.current = false;
+            setDx(0);
             e.preventDefault();
             e.stopPropagation();
           }
@@ -232,6 +236,7 @@ export function CardRow({
   status,
   href,
   action,
+  removeText,
   removeLabel,
   onRemove,
 }: {
@@ -240,12 +245,13 @@ export function CardRow({
   status: CardStatus;
   href?: string;
   action: ReactNode;
+  removeText?: string;
   removeLabel: string;
   onRemove: () => void;
 }) {
   const lines = cardLines({ piece, ...(href ? { href } : {}), status });
   return (
-    <SwipeRow removeLabel={removeLabel} onRemove={onRemove}>
+    <SwipeRow {...(removeText ? { removeText } : {})} removeLabel={removeLabel} onRemove={onRemove}>
       <div className="relative grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-soft border border-hairline bg-surface-raised py-3.5 pr-2.5 pl-3 hover:border-border-control">
         <div className="row-span-2 w-[52px] overflow-hidden rounded-[6px]">{thumb}</div>
         <div className="min-w-0 self-end">

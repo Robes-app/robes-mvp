@@ -161,7 +161,8 @@ export function DiaryHome({
       data-selected={current.date}
     >
       <header className="flex flex-col gap-2">
-        <h1 className="font-display text-[32px] font-light leading-[1.05] text-ink md:text-[clamp(36px,5vw,48px)]">
+        {/* Below 768 the greeting stands in the bar (the shell's HomeMark); this names the page. */}
+        <h1 className="font-display font-light leading-[1.05] text-ink max-md:sr-only md:text-[clamp(36px,5vw,48px)]">
           {todayCopy.greeting(name, data.hour)}
         </h1>
         {/* Today's weather, only ever today's: the day she picks on the strip never moves it. */}

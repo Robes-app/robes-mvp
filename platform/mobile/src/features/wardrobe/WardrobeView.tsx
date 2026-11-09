@@ -15,11 +15,11 @@ import { SwatchGrid } from '@/features/filters/SwatchGrid';
 import { useWardrobeFilters, type WardrobeFilters } from '@/features/filters/use-wardrobe-filters';
 import { errorMessage } from '@/lib/errors';
 import { AddPiecesSheet } from './add/AddPiecesSheet';
-import { useInbox } from './inbox';
+import { DeletePieceDialog } from './DeletePieceDialog';
 import { useWardrobeLayout } from './layout';
 import { AddRow, CardRow, type CardStatus, CardTile, StarButton } from './PieceCard';
 import { useDeletePiece, usePieces, useStarPiece } from './pieces';
-import { CountRow, HeaderRow, InboxNotice, type Segment } from './WardrobeHeader';
+import { CountRow, HeaderRow, type Segment } from './WardrobeHeader';
 import { WishlistView } from './WishlistView';
 
 const SEGMENTS: readonly Segment[] = ['pieces', 'wishlist'];
@@ -138,6 +138,8 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
   } = usePieces(filters.input);
   const star = useStarPiece();
   const remove = useDeletePiece();
+  // The row's swipe asks first, as the piece page does (R14).
+  const [asking, setAsking] = useState<string | null>(null);
   // Every way in starts on the Add pieces sheet (Front Door PRD rev 3 §7.4), the Wardrobe's.
   const addPieces = onAdd;
   const owned = summary.data?.total ?? null;
@@ -238,8 +240,9 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
                 />
               }
               onOpen={open}
-              removeLabel={copy.removePiece(item.label)}
-              onRemove={() => remove.mutate({ params: { id: item.id } })}
+              removeText={copy.card.swipeDelete}
+              removeLabel={copy.deletePiece(item.label)}
+              onRemove={() => setAsking(item.id)}
             />
           );
         }}
@@ -272,6 +275,14 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
         wearChoices={wearChoicesOf(summary.data?.wearFor ?? [])}
         count={total}
       />
+      <DeletePieceDialog
+        open={asking !== null}
+        onDelete={() => {
+          if (asking) remove.mutate({ params: { id: asking } });
+          setAsking(null);
+        }}
+        onCancel={() => setAsking(null)}
+      />
     </View>
   );
 }
@@ -290,9 +301,6 @@ export function WardrobeView() {
       router.push('/wardrobe/inbox');
     }
   }, [params.segment, router]);
-  const inbox = useInbox();
-  const receipts = inbox.data?.items.length ?? 0;
-  const waiting = inbox.data?.count ?? 0;
   // The + and the empty states open the Add pieces sheet (PRD rev 3 §7.4): the three tiles over
   // the Wardrobe, filing to the segment she is on.
   const [adding, setAdding] = useState(false);
@@ -308,13 +316,6 @@ export function WardrobeView() {
         />
       }
     >
-      {waiting > 0 ? (
-        <InboxNotice
-          receipts={receipts}
-          pieces={waiting}
-          onOpen={() => router.push('/wardrobe/inbox')}
-        />
-      ) : null}
       {segment === 'pieces' ? <Pieces onAdd={() => setAdding(true)} /> : null}
       {segment === 'wishlist' ? <WishlistView /> : null}
       <AddPiecesSheet

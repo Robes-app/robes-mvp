@@ -2,13 +2,12 @@ import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { DiaryDay, PlanEntry, Today } from '@robes/contracts';
 import { diary as copy, home as homeCopy, today as todayCopy, ui } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
-import { greetingName, trayKind, trayState } from '@robes/core/home';
+import { trayKind, trayState } from '@robes/core/home';
 import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/native';
 import {
   ErrorText,
   Eyebrow,
-  Heading,
   MIN_TOUCH,
   PrimaryScope,
   Text,
@@ -49,8 +48,9 @@ export function withoutDiaryEntry(id: string) {
   };
 }
 
-// Home as the OOTD diary (Felix 3a · 3k, D7): the greeting and today's weather, the strip, the
-// selected day — its looks with Swap · Edit, then her model with Capture · Describe · Pick.
+// Home as the OOTD diary (Felix 3a · 3k, D7): today's weather (the greeting is in the bar), the
+// strip, the selected day — its looks with Swap · Edit, then her model with Capture · Describe ·
+// Pick.
 // Describe opens the Draft look sheet for the day (D22); Home holds no prompt box. Alerts live
 // behind the bell. The web twin is app/src/components/home/diary-home.tsx.
 export function DiaryHome({
@@ -145,7 +145,6 @@ export function DiaryHome({
 
   const wx = weather.data;
   const wxIcon = weatherIcon(wx?.code);
-  const name = greetingName(data.firstName);
   // Today's weather, only ever today's: the day she picks on the strip never moves it.
   const metaLine = homeCopy.meta(weekdayLong(today), wx?.city ?? null, wx ? weatherTemp(wx) : null);
 
@@ -162,22 +161,15 @@ export function DiaryHome({
       }
     >
       <PrimaryScope>
-        <View className="gap-2">
-          <Heading size="xl" style={{ fontSize: 32, lineHeight: 34 }}>
-            {todayCopy.greeting(name, data.hour)}
-          </Heading>
-          <View
-            className="flex-row items-center gap-2"
-            accessible
-            accessibilityLabel={homeCopy.metaSpoken(
-              wx && wxIcon ? weatherWord(wx) : null,
-              metaLine,
-            )}
-            testID="home-meta"
-          >
-            <Eyebrow>{metaLine}</Eyebrow>
-            {wx && wxIcon ? <Icon name={wxIcon} size={14} color={faint} /> : null}
-          </View>
+        {/* The greeting stands in the bar (TabScreen's HomeMark); the page opens on today. */}
+        <View
+          className="flex-row items-center gap-2"
+          accessible
+          accessibilityLabel={homeCopy.metaSpoken(wx && wxIcon ? weatherWord(wx) : null, metaLine)}
+          testID="home-meta"
+        >
+          <Eyebrow>{metaLine}</Eyebrow>
+          {wx && wxIcon ? <Icon name={wxIcon} size={14} color={faint} /> : null}
         </View>
 
         {diary ? (

@@ -1,17 +1,15 @@
 'use client';
 
-import { useApi } from '@robes/api-client/react';
-import { wardrobe, you } from '@robes/copy';
+import { wardrobe } from '@robes/copy';
 import type { WardrobeLayout } from '@robes/core/wardrobe';
-import { buttonClasses, SegmentedControl, Tabs } from '@robes/ui';
-import Link from 'next/link';
+import { SegmentedControl, Tabs } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 export { AddCircle } from '../add-circle';
 
-// Owned · Wishlist · Shop: Shop stands disabled until the Shop PRD lands (plan R10). The Inbox is a
-// notice that shows while a receipt waits. The native twin is
+// Owned · Wishlist · Shop: Shop stands disabled until the Shop PRD lands (plan R10). Waiting
+// receipts are announced by the bell, not on the page. The native twin is
 // mobile/src/features/wardrobe/WardrobeHeader.tsx.
 const VIEWS = [
   { value: '/wardrobe', label: wardrobe.segments.owned },
@@ -21,8 +19,7 @@ export type WardrobeView = (typeof VIEWS)[number]['value'];
 const TABS = [wardrobe.segments.owned, wardrobe.segments.wishlist, wardrobe.segments.shop] as const;
 
 // The tab's pinned toolbar (Front Door PRD rev 3 §7.1): underline tabs with their glyphs and the
-// framed + at the right, under the app header while the grid scrolls; the receipt notice follows
-// while one waits.
+// framed + at the right, under the app header while the grid scrolls.
 export function WardrobeHeader({
   current,
   add,
@@ -55,31 +52,7 @@ export function WardrobeHeader({
         />
         {children}
       </div>
-      <InboxNotice />
     </header>
-  );
-}
-
-// Shown only while a forwarded receipt waits (beta's receipt notice, Add Piece redline 05b): a
-// cream card on a hairline that says what Robes read, and one hairline pill into the Inbox.
-// The native twin is InboxNotice in mobile/src/features/wardrobe/WardrobeHeader.tsx.
-function InboxNotice() {
-  const { data } = useApi('inbox.list');
-  const receipts = data?.items.length ?? 0;
-  const pieces = data?.count ?? 0;
-  if (receipts === 0 || pieces === 0) return null;
-  return (
-    <section
-      aria-label={wardrobe.segments.inbox}
-      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-soft border border-hairline bg-surface py-2.5 pr-2.5 pl-4"
-    >
-      <p className="font-sans text-[13px] text-ink-muted">
-        {wardrobe.inbox.notice(receipts)} · {you.receipts.waiting(pieces)}
-      </p>
-      <Link href="/wardrobe/inbox" className={buttonClasses({ variant: 'outline' })}>
-        {you.receipts.review(pieces)}
-      </Link>
-    </section>
   );
 }
 

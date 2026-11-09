@@ -259,6 +259,8 @@ export const radius = {
 // Felix's shadows: things that float over the page or a photograph cast one; nothing else does.
 // The web reads the CSS shadow (`shadow-float`); native takes the same shadow as style props.
 export const shadow = {
+  // A garment row on a look's rack (Front Door canvas, PRD §6.1): each row its own lifted card.
+  row: '0 1px 2px rgba(32, 32, 33, 0.08), 0 4px 10px -4px rgba(32, 32, 33, 0.16)',
   // Action discs on the photo's edge.
   disc: '0 8px 18px -6px rgba(32, 32, 33, 0.38), 0 1px 3px rgba(32, 32, 33, 0.12)',
   // White + discs and small floating buttons.
@@ -280,6 +282,7 @@ function nativeShadow(y: number, radius: number, opacity: number, elevation: num
   };
 }
 export const shadowNative = {
+  row: nativeShadow(2, 5, 0.12, 2),
   disc: nativeShadow(8, 18, 0.38, 6),
   float: nativeShadow(6, 16, 0.3, 6),
   sheet: nativeShadow(18, 40, 0.35, 10),

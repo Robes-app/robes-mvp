@@ -29,15 +29,16 @@ import {
   DrawerHeader,
   EmptyState,
   FINE_EDGE,
+  fonts,
   Image,
   MIN_TOUCH,
-  maxFontSizeMultiplier,
   PrimaryScope,
   Skeleton,
   Tabs,
   Text,
   useColor,
   useToast,
+  useToastLift,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
@@ -85,7 +86,8 @@ const TABS = [lookbook.savedLook.tabs.pieces, lookbook.savedLook.tabs.details] a
 type Tab = (typeof TABS)[number];
 
 // `sheet` over the screen that opened it; `page` on a deep link; `saved` is a saved look's own
-// page (Felix 3e: the back disc on the photo, Schedule look at the foot; D17).
+// page (Felix 3e: the back disc on the photo, Schedule look at the foot — Update look in its place
+// while a change waits, PRD §6.1; D17).
 export type DraftPresentation = 'sheet' | 'page' | 'saved';
 export type DraftSheet = 'adjust' | 'describe';
 
@@ -194,11 +196,11 @@ function Rack({
   return (
     <View className="gap-2.5" testID="the-rack">
       <View className="h-11 flex-row items-center justify-between gap-3">
+        {/* The canvas's heading (PRD §6.1): "The Rack" in the serif, warm and quiet. */}
         <Text
-          weight="medium"
-          maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-          className="flex-1 text-ink-muted uppercase"
-          style={{ fontSize: 10, letterSpacing: 1.6 }}
+          accessibilityRole="header"
+          className="flex-1 text-ink-faint"
+          style={{ fontFamily: fonts.displayRegular, fontSize: 17, letterSpacing: 0.16 }}
         >
           {copy.rack}
         </Text>
@@ -220,16 +222,10 @@ function Rack({
       {layout === 'grid' ? (
         <>
           <RackGrid rows={rows} imageOf={imageOf} {...(onOpen ? { onOpen } : {})} />
-          {saved ? (
-            <PieceList rows={0} onAdd={onAdd}>
-              {null}
-            </PieceList>
-          ) : null}
+          {saved ? <PieceList onAdd={onAdd}>{null}</PieceList> : null}
         </>
       ) : (
-        <PieceList rows={rows.length} {...(saved ? { onAdd } : {})}>
-          {children}
-        </PieceList>
+        <PieceList {...(saved ? { onAdd } : {})}>{children}</PieceList>
       )}
       {saved ? null : <RackCard hasWardrobe={hasWardrobe} onPress={onAdd} testID="rack-card-add" />}
     </View>
@@ -404,6 +400,9 @@ function SavedShell({
   children: ReactNode;
 }) {
   useBareScreen();
+  // The toast rises above the bar while it stands, so an Undo never covers Update look.
+  const [bar, setBar] = useState(0);
+  useToastLift(bar);
   return (
     <View className="flex-1 bg-bg">
       <ScrollView
@@ -419,6 +418,7 @@ function SavedShell({
         <View
           className="absolute inset-x-0 bottom-0 flex-row items-center border-hairline bg-bg px-5 pt-3"
           style={{ borderTopWidth: FINE_EDGE, paddingBottom: 22 }}
+          onLayout={(e) => setBar(e.nativeEvent.layout.height)}
           testID="look-bar"
         >
           <PrimaryScope>{footer}</PrimaryScope>
@@ -861,13 +861,21 @@ function DraftBody({
         disabled: !canDone,
       }}
       footer={
-        presentation === 'saved' ? (
+        // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
+        // change waits — never both.
+        presentation === 'saved' && !pending ? (
           <Button onPress={() => setDiary(true)} className="flex-1" testID="schedule-look">
             {lookbook.savedLook.schedule}
           </Button>
         ) : mode === 'edit' ? (
           // The Edit look sheet's one accept (3k): she stays to see it land.
-          <Button onPress={apply} disabled={!pending || busy} icon="refresh" testID="update-look">
+          <Button
+            onPress={apply}
+            disabled={!pending || busy}
+            icon="refresh"
+            {...(presentation === 'saved' ? { className: 'flex-1' } : {})}
+            testID="update-look"
+          >
             {copy.update}
           </Button>
         ) : generateFoot ? (
@@ -927,7 +935,6 @@ function DraftBody({
           model={model.data}
           modelPending={model.isPending}
           stale={adjust.stale}
-          badge={adjust.badge}
           redressing={adjust.busy && !adjust.state.asking}
           chip={snap.reading ? lookbook.figure.reading : null}
           pronoun={pronoun(model.data)}
@@ -1005,10 +1012,6 @@ function DraftBody({
                 : {})}
               busy={busy}
             />
-            {mode === 'edit' && presentation === 'saved' && pending ? (
-              // 3e: the small ink pill under the card, once there is something to apply.
-              <UpdatePill onPress={apply} busy={busy} />
-            ) : null}
           </View>
         ) : (
           <View className="gap-3">
@@ -1094,35 +1097,6 @@ function DraftBody({
   );
 }
 
-// 3e's Update look ↻: the chip's size in ink, under the prompt card once a change waits (D17).
-// The page's one filled button stays Schedule look; this is the chip-sized accept.
-function UpdatePill({ onPress, busy }: { onPress: () => void; busy: boolean }) {
-  const onInk = useColor('bg');
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={copy.update}
-      accessibilityState={{ disabled: busy }}
-      disabled={busy}
-      onPress={onPress}
-      hitSlop={(MIN_TOUCH - 28) / 2}
-      testID="update-look"
-      className="min-h-7 flex-row items-center justify-center gap-1.5 self-center rounded-pill bg-ink px-4"
-      style={{ opacity: busy ? 0.4 : 1 }}
-    >
-      <Text
-        weight="medium"
-        maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-        className="uppercase text-bg"
-        style={{ fontSize: 9, letterSpacing: 1.44 }}
-      >
-        {copy.update}
-      </Text>
-      <Icon name="refresh" size={11} color={onInk} />
-    </Pressable>
-  );
-}
-
 function ReadingChip() {
   return (
     <View pointerEvents="none" className="absolute inset-x-0 items-center" style={{ top: '44%' }}>
@@ -1145,7 +1119,6 @@ function DraftPhoto({
   model,
   modelPending,
   stale,
-  badge,
   redressing,
   chip,
   pronoun,
@@ -1159,7 +1132,6 @@ function DraftPhoto({
   model: Model | undefined;
   modelPending: boolean;
   stale: boolean;
-  badge: number;
   redressing: boolean;
   chip: string | null;
   pronoun: string;
@@ -1246,17 +1218,6 @@ function DraftPhoto({
         >
           <Icon name="back" size={20} color={ink} />
         </Pressable>
-      ) : null}
-      {!drawing && stale && badge ? (
-        <View
-          accessibilityLabel={d.behind(badge)}
-          className="absolute h-[22px] min-w-[22px] items-center justify-center rounded-pill bg-ink px-1.5"
-          style={{ top, left: onBack ? 56 : 12 }}
-        >
-          <Text size="caption" className="text-bg" style={{ fontSize: 10 }}>
-            {badge}
-          </Text>
-        </View>
       ) : null}
       {failed ? (
         <Pressable

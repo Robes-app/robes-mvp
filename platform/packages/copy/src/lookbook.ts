@@ -414,9 +414,6 @@ export const lookbook = {
     saving: 'Saving…',
     saved: 'Saved',
     discardChanges: 'Discard changes',
-    // The pending count on the picture, read out.
-    behind: (n: number): string => `${n} ${n === 1 ? 'change' : 'changes'} the picture is behind`,
-    stale: 'The picture is behind your changes',
   },
   // The one wardrobe sheet behind every + and every swap (legacy 2026-10-15, design 2 / 4a).
   rack: {

@@ -101,16 +101,6 @@ export function DraftTile({
             </View>
           </>
         ) : null}
-        {stale ? (
-          <View
-            accessibilityLabel={d.behind(1)}
-            className="absolute top-3 left-3 h-[22px] min-w-[22px] items-center justify-center rounded-pill bg-ink px-1.5"
-          >
-            <Text size="caption" className="text-bg" style={{ fontSize: 10 }}>
-              1
-            </Text>
-          </View>
-        ) : null}
         {!generating && look?.setId ? (
           <View className="absolute bottom-3 left-3">
             <OnPhoto icon="undo" label={d.tileRegen} size={36} onPress={() => onAnother(look.id)} />
