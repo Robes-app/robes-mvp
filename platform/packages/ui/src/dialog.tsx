@@ -46,6 +46,22 @@ export interface DialogProps {
   // A Sheet only: the drawer header (× · the tracked title · the ink done disc) in place of the
   // handle, the question and the × (Felix NotificationsSheet). `null` keeps the × and a spacer.
   done?: DrawerDone | null;
+  // A Sheet only: the Front Door's glass sheet (PRD rev 3 §2.4, §2.5) — floating 8px from the
+  // edges on the dock radius, cream glass over the dimmed page, with its own header: the × disc
+  // at the left, a sans title centred, a text action at the right (Clear). The question, eyebrow
+  // and corner × are not drawn. Twin of ui-native Sheet `glass`.
+  glass?: GlassHeader;
+}
+
+export interface GlassAction {
+  label: string;
+  onClick: () => void;
+  // Faint and inert while there is nothing to act on (Clear with no filter picked).
+  disabled?: boolean;
+}
+
+export interface GlassHeader {
+  action?: GlassAction;
 }
 
 export interface SheetRow {
@@ -77,6 +93,7 @@ function Frame({
   eyebrowTone,
   rows,
   drawer,
+  glass,
   overlay = overlaySheet,
 }: Pick<
   DialogProps,
@@ -92,6 +109,7 @@ function Frame({
   | 'floating'
   | 'eyebrowTone'
   | 'rows'
+  | 'glass'
 > & {
   overlay?: string;
   // The drawer header in place of the handle, the titles and the ×.
@@ -138,7 +156,11 @@ function Frame({
     <RadixDialog.Portal>
       <RadixDialog.Overlay className={overlay} />
       <RadixDialog.Content
-        className={cn('fixed z-50 flex flex-col gap-6 bg-bg text-ink', className)}
+        className={cn(
+          'fixed z-50 flex flex-col gap-6 text-ink',
+          glass ? 'bg-veil backdrop-blur-dock' : 'bg-bg',
+          className,
+        )}
         {...(description ? {} : { 'aria-describedby': undefined })}
         {...(initialFocus
           ? {
@@ -151,7 +173,32 @@ function Frame({
           : {})}
       >
         <PrimaryScope>
-          {drawer ? (
+          {glass ? (
+            <header className="flex h-10 shrink-0 items-center justify-between gap-3">
+              <RadixDialog.Close asChild>
+                <CloseDisc label={ui.close} />
+              </RadixDialog.Close>
+              <RadixDialog.Title className="min-w-0 flex-1 truncate text-center font-medium font-sans text-[15px] text-ink">
+                {title}
+              </RadixDialog.Title>
+              {glass.action ? (
+                <button
+                  type="button"
+                  onClick={glass.action.onClick}
+                  disabled={glass.action.disabled}
+                  className={cn(
+                    "relative -mr-2 min-h-11 min-w-11 px-2 text-right font-sans text-sm after:absolute after:inset-0 after:content-['']",
+                    glass.action.disabled ? 'text-ink-faint' : 'text-ink hover:opacity-80',
+                    focusRing,
+                  )}
+                >
+                  {glass.action.label}
+                </button>
+              ) : (
+                <span aria-hidden className="w-9 shrink-0" />
+              )}
+            </header>
+          ) : drawer ? (
             <DrawerHeader
               inSheet
               title={title}
@@ -163,7 +210,7 @@ function Frame({
           ) : null}
           {/* The drawer's own handle: it says this pulls up from the edge, and nothing else. On a
               floating sheet it is also the close, in place of the ×. */}
-          {drawer ? null : grabBar && floating ? (
+          {drawer || glass ? null : grabBar && floating ? (
             <RadixDialog.Close asChild>
               <button
                 type="button"
@@ -179,7 +226,7 @@ function Frame({
               className="mx-auto h-1 w-9 shrink-0 rounded-[4px] bg-cream400 dark:bg-rule-mid"
             />
           ) : null}
-          {drawer ? null : media ? (
+          {drawer || glass ? null : media ? (
             <div className="flex items-start gap-4">
               <span className="shrink-0">{media}</span>
               {head}
@@ -211,7 +258,7 @@ function Frame({
           {children}
           {footer ? <div className="flex flex-col gap-3">{footer}</div> : null}
           {/* Last in DOM order so opening focuses the content, not the close button. */}
-          {floating || drawer ? null : (
+          {floating || drawer || glass ? null : (
             // The corner is held by a wrapper: a quiet button and the disc are `relative` (their
             // hit rings).
             <div className={cn('absolute', closeLabel ? 'top-3 right-3' : 'top-4 right-4')}>
@@ -299,11 +346,13 @@ export function Sheet({
   eyebrowTone,
   rows,
   done,
+  glass,
   ...root
 }: DialogProps) {
   return (
     <Root {...root}>
       <Frame
+        {...(glass ? { glass } : {})}
         {...(done === undefined
           ? {}
           : { drawer: { done, onClose: () => root.onOpenChange?.(false) } })}
@@ -321,9 +370,11 @@ export function Sheet({
         grabBar
         titleSize="md"
         className={
-          floating
-            ? 'inset-x-2 bottom-[calc(8px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl overflow-y-auto rounded-sheet border-[0.5px] border-rule-mid px-5 pt-2.5 pb-[26px] shadow-sheet motion-safe:data-[state=open]:animate-sheet-up'
-            : 'inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-sheet px-5 pt-2.5 pb-[max(34px,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up'
+          glass
+            ? 'inset-x-2 bottom-[calc(8px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl gap-5 overflow-y-auto rounded-dock border-[0.5px] border-rule-mid px-5 pt-3 pb-[26px] shadow-sheet motion-safe:data-[state=open]:animate-sheet-up'
+            : floating
+              ? 'inset-x-2 bottom-[calc(8px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl overflow-y-auto rounded-sheet border-[0.5px] border-rule-mid px-5 pt-2.5 pb-[26px] shadow-sheet motion-safe:data-[state=open]:animate-sheet-up'
+              : 'inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-sheet px-5 pt-2.5 pb-[max(34px,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up'
         }
       >
         {children}
@@ -333,3 +384,26 @@ export function Sheet({
 }
 
 export const DialogClose = RadixDialog.Close;
+
+export type GlassSheetProps = Omit<
+  DialogProps,
+  | 'glass'
+  | 'eyebrow'
+  | 'description'
+  | 'media'
+  | 'leading'
+  | 'closeLabel'
+  | 'rows'
+  | 'done'
+  | 'floating'
+  | 'eyebrowTone'
+> & {
+  title: string;
+  action?: GlassAction;
+};
+
+// The Front Door's glass sheet by name: New Look, Add Pieces, Add your pieces, the Filter sheet
+// and Receipts all stand on it. Twin of ui-native GlassSheet.
+export function GlassSheet({ action, ...rest }: GlassSheetProps) {
+  return <Sheet {...rest} glass={action ? { action } : {}} />;
+}

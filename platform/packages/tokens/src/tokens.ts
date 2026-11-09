@@ -37,6 +37,9 @@ export const palette = {
   // Felix's danger: error text on cream and the swipe-to-delete reveal (white label 5.3:1).
   danger: '#B5483A',
   dangerLight: '#E08A7E',
+  // The Front Door's Shop toggle (PRD rev 3 §4.6): its on-state wash and its off-state track.
+  shopOn: '#F6EEF0',
+  switchOff: '#E4DCCD',
   mutedDark: '#B9B3A8',
   faintDark: '#A89E8C',
 } as const;
@@ -94,6 +97,9 @@ export const semanticNames = [
   'rose-mid',
   'sage-bg',
   'sage-mid',
+  // The Shop toggle: the pill's wash while on, the switch track while off.
+  'shop-on',
+  'switch-off',
 ] as const;
 
 export type Semantic = (typeof semanticNames)[number];
@@ -137,6 +143,8 @@ export const light: Record<Semantic, ColorRef> = {
   'rose-mid': { base: 'mauve', alpha: 0.6 },
   'sage-bg': { base: 'sageTint', alpha: 0.4 },
   'sage-mid': { base: 'sageTint', alpha: 0.72 },
+  'shop-on': 'shopOn',
+  'switch-off': 'switchOff',
 };
 
 export const dark: Record<Semantic, ColorRef> = {
@@ -179,6 +187,8 @@ export const dark: Record<Semantic, ColorRef> = {
   'rose-mid': { base: 'mauve', alpha: 0.24 },
   'sage-bg': { base: 'sageTint', alpha: 0.12 },
   'sage-mid': { base: 'sageTint', alpha: 0.24 },
+  'shop-on': 'ink800',
+  'switch-off': { base: 'cream50', alpha: 0.2 },
 };
 
 // Accent colours are declared at 3:1 (large text, icons, fills only) per the brand guideline.
@@ -218,6 +228,9 @@ export const pairs: Array<{ fg: Semantic; bg: Semantic; min: number }> = [
   { fg: 'alert', bg: 'bg', min: 3 },
   { fg: 'alert', bg: 'surface-raised', min: 3 },
   { fg: 'surface-raised', bg: 'danger', min: 4.5 },
+  // An active quick chip: the cream label on the deep rose (the Front Door's rose chip, D1).
+  { fg: 'surface-raised', bg: 'accent-warm', min: 4.5 },
+  { fg: 'ink', bg: 'shop-on', min: 4.5 },
 ];
 
 export const font = {
