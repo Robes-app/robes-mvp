@@ -129,9 +129,10 @@ test('the drawer’s words are the web’s (lib/diary.ts)', () => {
 test('the strip: 21 cells, today’s page centred, a ring for a plan and a dot for a wear', async () => {
   mockFetch(ROUTES);
   await renderWithApi(<DiaryHome />);
-  expect(await screen.findByText(todayCopy.greeting('Niall', 8))).toBeTruthy();
-  // Today's weather under the greeting, never the selected day's.
+  // The greeting stands in the bar (TabScreen's HomeMark); the page opens on today's weather,
+  // never the selected day's.
   expect(await screen.findByText('Thursday · Dublin · 9–14°C')).toBeTruthy();
+  expect(screen.queryByText(todayCopy.greeting('Niall', 8))).toBeNull();
   expect(screen.getAllByTestId(/^diary-day-/)).toHaveLength(21);
   const todayCell = screen.getByTestId(`diary-day-${DATE}`);
   expect(todayCell.props.accessibilityState).toEqual({ selected: true });

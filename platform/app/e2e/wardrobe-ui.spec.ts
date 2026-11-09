@@ -120,7 +120,7 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await expect(page.getByText('1 piece', { exact: true })).toBeVisible();
   await expect(pieces.getByText('Never worn')).toBeVisible();
   // The list is the rack card: the star sits on its rows (the grid is compact tiles, PRD rev 3
-  // §7), and the row swipes (or tabs) to Remove.
+  // §7), and the row swipes (or tabs) to Delete, which asks first (R14).
   await page.getByRole('radio', { name: 'List', exact: true }).click();
   await pieces.getByRole('button', { name: 'Feature Camel wool coat in your Hero Rack' }).click();
   await expect(page.getByText('Saved to your Hero Rack.').first()).toBeVisible();
@@ -129,7 +129,8 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   ).toHaveAttribute('aria-pressed', 'true');
   // Re-filed above as a crew neck tee, so the card's eyebrow reads Tops now.
   await expect(pieces.getByText('Tops · Harbour')).toBeVisible();
-  // A drag to the left past the threshold lets it go (legacy swipe, with a mouse here).
+  // A drag to the left past the threshold asks, and Delete lets it go (legacy swipe, with a mouse
+  // here).
   const row = pieces.getByRole('heading', { name: 'Camel wool coat' });
   const box = await row.boundingBox();
   if (!box) throw new Error('no row');
@@ -139,6 +140,9 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
     await page.mouse.move(box.x + box.width / 2 - dx, box.y + box.height / 2);
   }
   await page.mouse.up();
+  const ask = page.getByRole('alertdialog', { name: 'Delete this piece?' });
+  await expect(ask).toBeVisible();
+  await ask.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(pieces).toHaveCount(0);
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(

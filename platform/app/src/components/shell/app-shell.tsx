@@ -2,7 +2,8 @@
 
 import { useApi } from '@robes/api-client/react';
 import type { Features } from '@robes/contracts';
-import { lookbook, nav, plan, shell, wardrobe } from '@robes/copy';
+import { lookbook, nav, plan, shell, today, wardrobe } from '@robes/copy';
+import { greetingName } from '@robes/core/home';
 import { Icon } from '@robes/icons/web';
 import {
   Avatar,
@@ -22,6 +23,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { BackLink } from '@/components/back-link';
@@ -51,6 +53,47 @@ const TAB_TITLE: Record<string, string> = {
   '/plan': plan.title,
   '/wardrobe': wardrobe.title,
 };
+
+// Home's mark on the phone (Front Door canvas 1a, Annie 9 Nov): "Good morning, Annie." centred in
+// the bar on arrival, fading out after a hold, then ROBES fading in centred in its place (0.45s
+// out, 0.6s in from 0.55s after). Once per visit to the app: coming back to Home finds ROBES. The
+// centre stays empty until the greeting is known. The native twin is HomeMark in
+// mobile/src/components/TabScreen.tsx.
+let greeted = false;
+function HomeMark() {
+  const { data } = useApi('today.get');
+  const first = useRef(!greeted).current;
+  const greeting = data ? today.greeting(greetingName(data.firstName), data.hour) : null;
+  const showing = first && greeting !== null;
+  useEffect(() => {
+    if (showing) greeted = true;
+  }, [showing]);
+  if (first && greeting === null) return null;
+  const layer = 'absolute inset-0 flex items-center justify-center';
+  return (
+    <Link
+      href="/"
+      aria-label={nav.today}
+      data-testid="home-mark"
+      className={`absolute inset-y-2 inset-x-[66px] md:hidden ${focus}`}
+    >
+      {showing ? (
+        <span
+          aria-hidden
+          data-testid="home-greeting"
+          className={`${layer} font-display font-light text-2xl text-ink animate-[robes-fade-out_450ms_ease-in_2400ms_forwards]`}
+        >
+          <span className="truncate">{greeting}</span>
+        </span>
+      ) : null}
+      <span
+        className={`${layer} text-ink ${showing ? 'animate-[robes-fade-in_600ms_ease-out_2950ms_both]' : ''}`}
+      >
+        <Wordmark />
+      </span>
+    </Link>
+  );
+}
 
 // A pushed view (the draft look, legacy 2026-10-06 second pass): below 768 the header and the dock
 // stand down while it is open, and its own sticky footer closes the screen.
@@ -173,10 +216,11 @@ export function AppShell({
           <Link
             href="/"
             aria-label={nav.today}
-            className={`text-ink ${back || TAB_TITLE[current] ? 'max-md:hidden' : ''} ${focus}`}
+            className={`text-ink ${back || TAB_TITLE[current] || current === '/' ? 'max-md:hidden' : ''} ${focus}`}
           >
             <Wordmark />
           </Link>
+          {current === '/' && !back ? <HomeMark /> : null}
           {/* The tab's serif title, centred on the phone's bar; the page's own h1 names it for
               assistive tech, so this one is decoration. */}
           {TAB_TITLE[current] && !back ? (

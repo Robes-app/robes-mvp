@@ -5,7 +5,6 @@ import { receivedDay, splitAddress } from '@robes/core/inbox';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
-  EmptyState,
   ErrorText,
   fonts,
   MIN_TOUCH,
@@ -294,16 +293,8 @@ export function InboxView() {
       {!query.data ? (
         <Skeleton width="100%" height={120} />
       ) : entries.length === 0 ? (
-        state === 'inbox' ? (
-          <EmptyState
-            title={copy.inboxEmpty.title}
-            body={copy.inboxEmpty.body}
-            action={{
-              label: copy.add.doors.receipt,
-              onPress: () => router.push('/wardrobe/receipt'),
-            }}
-          />
-        ) : (
+        // An empty Inbox says nothing more: the forwarding card above is the way in.
+        state === 'inbox' ? null : (
           <Text tone="muted" className="py-6 text-center">
             {state === 'added' ? rc.addedEmpty : rc.discardedEmpty}
           </Text>

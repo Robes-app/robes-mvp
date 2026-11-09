@@ -74,7 +74,7 @@ test('You shows the address with copy, new address and turn off', async ({ page 
   await expect(section.getByRole('button', { name: 'Get an address' })).toBeVisible();
 });
 
-test('the receipt notice opens Receipts; each piece is added or discarded on its own', async ({
+test('Receipts: no notice on the Wardrobe; each piece is added or discarded on its own', async ({
   page,
 }) => {
   await signIn(page);
@@ -82,10 +82,11 @@ test('the receipt notice opens Receipts; each piece is added or discarded on its
   const { address } = await (await page.request.get('/api/v1/me/inbox-address')).json();
   expect(await forward(address)).toMatchObject({ status: 'held', items: 2 });
 
+  // Waiting receipts are the bell's news, never a card on the Wardrobe (Annie, 9 Nov).
   await page.goto('/wardrobe');
-  const notice = page.getByRole('region', { name: 'Inbox' });
-  await expect(notice).toContainText('Robes read one receipt · 2 pieces waiting');
-  await notice.getByRole('link', { name: 'Review them →' }).click();
+  await expect(page.getByRole('tab', { name: 'Owned' })).toBeVisible();
+  await expect(page.getByText('pieces waiting')).toHaveCount(0);
+  await page.goto('/wardrobe/inbox');
 
   // Receipts (PRD rev 3 §7.5): INBOX · ADDED · DISCARDED with their counts, the receipt as a group
   // by retailer, each piece with its × and ✓.
@@ -99,7 +100,8 @@ test('the receipt notice opens Receipts; each piece is added or discarded on its
   await group.getByRole('button', { name: 'Add Camel wool coat to your wardrobe' }).click();
   await expect(page.getByText('Added to your wardrobe.', { exact: true })).toBeVisible();
   // Nothing waits: the Inbox tab empties and the others count what she decided.
-  await expect(page.getByRole('heading', { name: 'Forwarded receipts land here.' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Inbox 0' })).toBeVisible();
+  await expect(group).toHaveCount(0);
   await page.getByRole('tab', { name: 'Added 1' }).click();
   await expect(group.getByText('Camel wool coat')).toBeVisible();
 

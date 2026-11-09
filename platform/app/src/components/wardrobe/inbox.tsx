@@ -5,15 +5,7 @@ import type { InboxEntry, InboxItemState } from '@robes/contracts';
 import { wardrobe, you } from '@robes/copy';
 import { receivedDay, splitAddress } from '@robes/core/inbox';
 import { Icon } from '@robes/icons/web';
-import {
-  buttonClasses,
-  CardSkeleton,
-  EmptyState,
-  ErrorText,
-  Tabs,
-  Text,
-  useToast,
-} from '@robes/ui';
+import { buttonClasses, CardSkeleton, ErrorText, Tabs, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -265,17 +257,8 @@ export function Inbox() {
       {!query.data ? (
         <CardSkeleton />
       ) : entries.length === 0 ? (
-        state === 'inbox' ? (
-          <EmptyState
-            title={wardrobe.inboxEmpty.title}
-            body={wardrobe.inboxEmpty.body}
-            action={
-              <Link href="/wardrobe/receipt" className="underline underline-offset-4">
-                {wardrobe.add.doors.receipt}
-              </Link>
-            }
-          />
-        ) : (
+        // An empty Inbox says nothing more: the forwarding card above is the way in.
+        state === 'inbox' ? null : (
           <Text tone="muted" className="py-6 text-center">
             {state === 'added' ? rc.addedEmpty : rc.discardedEmpty}
           </Text>

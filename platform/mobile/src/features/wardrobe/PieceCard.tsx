@@ -164,14 +164,17 @@ export function BoughtButton({
 const OPEN_AT = 88;
 const REMOVE_AT = 160;
 
-// Swipe to let go (legacy _wrSwipeInit): past 44 it rests open at 88 over the Remove, past 160 it
-// removes. Screen readers get Remove as an action on the row.
+// Swipe to let go (legacy _wrSwipeInit): past 44 it rests open at 88 over the action, past 160 it
+// acts; a tap on an open row closes it. The action reads Remove (a wish) or Delete (a piece she
+// owns, which asks first). Screen readers get it as an action on the row.
 function SwipeRow({
   children,
+  removeText = copy.card.swipeRemove,
   removeLabel,
   onRemove,
 }: {
   children: ReactNode;
+  removeText?: string;
   removeLabel: string;
   onRemove: () => void;
 }) {
@@ -187,11 +190,17 @@ function SwipeRow({
     return {
       settle,
       responder: PanResponder.create({
+        // An open row takes the tap that would open the piece, and closes.
+        onStartShouldSetPanResponderCapture: () => rest.current !== 0,
         onMoveShouldSetPanResponder: (_, g) =>
           Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
         onPanResponderMove: (_, g) =>
           x.setValue(Math.max(-REMOVE_AT - 20, Math.min(0, rest.current + g.dx))),
         onPanResponderRelease: (_, g) => {
+          if (rest.current !== 0 && Math.abs(g.dx) < 8) {
+            settle(0);
+            return;
+          }
           const at = rest.current + g.dx;
           if (at <= -REMOVE_AT) {
             settle(0);
@@ -218,7 +227,7 @@ function SwipeRow({
           className="text-[10px] text-bg uppercase"
           style={{ fontFamily: fonts.sansMedium, letterSpacing: 2 }}
         >
-          {copy.card.swipeRemove}
+          {removeText}
         </Text>
       </Pressable>
       <Animated.View
@@ -241,6 +250,7 @@ export function CardRow({
   status,
   action,
   onOpen,
+  removeText,
   removeLabel,
   onRemove,
 }: {
@@ -248,12 +258,13 @@ export function CardRow({
   status: CardStatus;
   action: ReactNode;
   onOpen?: () => void;
+  removeText?: string;
   removeLabel: string;
   onRemove: () => void;
 }) {
   const muted = useColor('ink-muted');
   return (
-    <SwipeRow removeLabel={removeLabel} onRemove={onRemove}>
+    <SwipeRow {...(removeText ? { removeText } : {})} removeLabel={removeLabel} onRemove={onRemove}>
       <View className="flex-row gap-3 rounded-soft border border-hairline bg-surface-raised py-3.5 pr-2.5 pl-3">
         <View style={{ width: 52 }} className="overflow-hidden rounded-[6px]">
           <Photo piece={piece} width={52} />
