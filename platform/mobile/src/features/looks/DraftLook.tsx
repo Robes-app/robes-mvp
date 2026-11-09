@@ -29,9 +29,9 @@ import {
   DrawerHeader,
   EmptyState,
   FINE_EDGE,
+  fonts,
   Image,
   MIN_TOUCH,
-  maxFontSizeMultiplier,
   PrimaryScope,
   Skeleton,
   Tabs,
@@ -195,11 +195,11 @@ function Rack({
   return (
     <View className="gap-2.5" testID="the-rack">
       <View className="h-11 flex-row items-center justify-between gap-3">
+        {/* The canvas's heading (PRD §6.1): "The Rack" in the serif, warm and quiet. */}
         <Text
-          weight="medium"
-          maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-          className="flex-1 text-ink-muted uppercase"
-          style={{ fontSize: 10, letterSpacing: 1.6 }}
+          accessibilityRole="header"
+          className="flex-1 text-ink-faint"
+          style={{ fontFamily: fonts.displayRegular, fontSize: 17, letterSpacing: 0.16 }}
         >
           {copy.rack}
         </Text>
@@ -221,16 +221,10 @@ function Rack({
       {layout === 'grid' ? (
         <>
           <RackGrid rows={rows} imageOf={imageOf} {...(onOpen ? { onOpen } : {})} />
-          {saved ? (
-            <PieceList rows={0} onAdd={onAdd}>
-              {null}
-            </PieceList>
-          ) : null}
+          {saved ? <PieceList onAdd={onAdd}>{null}</PieceList> : null}
         </>
       ) : (
-        <PieceList rows={rows.length} {...(saved ? { onAdd } : {})}>
-          {children}
-        </PieceList>
+        <PieceList {...(saved ? { onAdd } : {})}>{children}</PieceList>
       )}
       {saved ? null : <RackCard hasWardrobe={hasWardrobe} onPress={onAdd} testID="rack-card-add" />}
     </View>
@@ -936,7 +930,6 @@ function DraftBody({
           model={model.data}
           modelPending={model.isPending}
           stale={adjust.stale}
-          badge={adjust.badge}
           redressing={adjust.busy && !adjust.state.asking}
           chip={snap.reading ? lookbook.figure.reading : null}
           pronoun={pronoun(model.data)}
@@ -1121,7 +1114,6 @@ function DraftPhoto({
   model,
   modelPending,
   stale,
-  badge,
   redressing,
   chip,
   pronoun,
@@ -1135,7 +1127,6 @@ function DraftPhoto({
   model: Model | undefined;
   modelPending: boolean;
   stale: boolean;
-  badge: number;
   redressing: boolean;
   chip: string | null;
   pronoun: string;
@@ -1222,17 +1213,6 @@ function DraftPhoto({
         >
           <Icon name="back" size={20} color={ink} />
         </Pressable>
-      ) : null}
-      {!drawing && stale && badge ? (
-        <View
-          accessibilityLabel={d.behind(badge)}
-          className="absolute h-[22px] min-w-[22px] items-center justify-center rounded-pill bg-ink px-1.5"
-          style={{ top, left: onBack ? 56 : 12 }}
-        >
-          <Text size="caption" className="text-bg" style={{ fontSize: 10 }}>
-            {badge}
-          </Text>
-        </View>
       ) : null}
       {failed ? (
         <Pressable

@@ -164,7 +164,10 @@ function Rack({
   return (
     <div className="flex flex-col gap-2.5" data-testid="the-rack">
       <div className="flex h-11 items-center justify-between gap-3">
-        <h2 className="type-label flex-1 text-ink-muted">{copy.rack}</h2>
+        {/* The canvas's heading (PRD §6.1): "The Rack" in the serif, warm and quiet. */}
+        <h2 className="flex-1 font-display font-normal text-[17px] text-ink-faint tracking-[0.01em]">
+          {copy.rack}
+        </h2>
         <LayoutToggle layout={layout} onLayout={onLayout} />
         <button
           type="button"
@@ -185,18 +188,10 @@ function Rack({
       {layout === 'grid' ? (
         <>
           <RackGrid rows={rows} imageOf={imageOf} />
-          {saved ? (
-            <PieceList rows={0} onAdd={onAdd}>
-              {null}
-            </PieceList>
-          ) : null}
+          {saved ? <PieceList onAdd={onAdd}>{null}</PieceList> : null}
         </>
       ) : (
-        <PieceList
-          label={lookbook.rack.title(rows.length)}
-          rows={rows.length}
-          {...(saved ? { onAdd } : {})}
-        >
+        <PieceList label={lookbook.rack.title(rows.length)} {...(saved ? { onAdd } : {})}>
           {children}
         </PieceList>
       )}
@@ -967,7 +962,6 @@ function DraftBody({
           model={model.data}
           modelPending={model.isPending}
           stale={adjust.stale}
-          badge={adjust.badge}
           redressing={adjust.busy && !adjust.state.asking}
           chip={reading ? lookbook.figure.reading : null}
           pronoun={pronoun(model.data)}
@@ -1153,7 +1147,6 @@ function DraftPhoto({
   model,
   modelPending,
   stale,
-  badge,
   redressing,
   chip,
   pronoun,
@@ -1167,7 +1160,6 @@ function DraftPhoto({
   model: Model | undefined;
   modelPending: boolean;
   stale: boolean;
-  badge: number;
   redressing: boolean;
   chip: string | null;
   pronoun: string;
@@ -1249,15 +1241,6 @@ function DraftPhoto({
         >
           <Icon name="back" size={20} className="-ml-0.5" />
         </button>
-      ) : null}
-      {!drawing && stale && badge ? (
-        <span
-          title={d.stale}
-          className={`absolute top-3 z-10 ${onBack ? 'left-14' : 'left-3'} flex h-[22px] min-w-[22px] items-center justify-center rounded-pill bg-ink px-1.5 font-medium font-sans text-[10px] text-bg`}
-        >
-          <span aria-hidden>{badge}</span>
-          <span className="sr-only">{d.behind(badge)}</span>
-        </span>
       ) : null}
       {failed ? (
         // The re-draw failed: say so, never pass the old picture off; a tap draws it again.

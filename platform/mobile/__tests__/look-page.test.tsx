@@ -265,6 +265,11 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjus
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   // At rest a row opens its piece (PRD §6.1, plan R2); the pencil shows the swap and ×.
   expect(await screen.findByText(lookbook.draftLook.rack)).toBeTruthy();
+  // The canvas's rack: the serif heading, each row's wears behind a calendar, and the small
+  // + hanger chip under the list.
+  expect(screen.getByRole('header', { name: lookbook.draftLook.rack })).toBeTruthy();
+  expect(screen.getAllByLabelText(/^\d+ wears?$/)).toHaveLength(2);
+  expect(screen.getByTestId('rack-add')).toBeTruthy();
   expect(screen.queryByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeNull();
   await fireEvent.press(
     screen.getByRole('button', { name: lookbook.rack.open('Camel wool coat') }),

@@ -83,7 +83,8 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
   await expect(
     page.getByRole('heading', { level: 2, name: /^The rack · \d+ pieces$/ }),
   ).toBeVisible();
-  await expect(page.getByText('Not yours yet', { exact: false }).first()).toBeVisible();
+  // A piece to find shows its bag and price at the row's right; readers hear "Not yours yet".
+  await expect(page.getByText('Not yours yet', { exact: false }).first()).toBeAttached();
   expect(await seriousViolations(page), 'a suggested look').toEqual([]);
   await page.getByRole('button', { name: 'Save to lookbook' }).click();
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();

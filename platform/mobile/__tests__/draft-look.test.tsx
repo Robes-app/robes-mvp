@@ -190,13 +190,13 @@ test('a swap from the picker leaves the picture behind; the chip draws the model
   await fireEvent.press(screen.getByTestId('picker-confirm'));
   expect(await screen.findByText(lookbook.swap.swapped('Navy silk top'))).toBeTruthy();
   expect(await screen.findByTestId('draft-picture-stale')).toBeTruthy();
-  expect(screen.getAllByLabelText(lookbook.draft.behind(1)).length).toBeGreaterThan(0);
+  // The picture shows it's behind on its own; no count disc rides it (Annie, 9 Nov).
+  expect(screen.queryAllByLabelText(lookbook.draft.behind(1))).toHaveLength(0);
   expect(renders()).toHaveLength(0);
   expect(screen.getByText(lookbook.draft.updateModel(1))).toBeTruthy();
   await fireEvent.press(screen.getByTestId('draft-generate'));
   await waitFor(() => expect(renders()).toHaveLength(1));
   expect(screen.getByText(lookbook.draft.modelAsked)).toBeTruthy();
-  expect(screen.queryAllByLabelText(lookbook.draft.behind(1))).toHaveLength(0);
 });
 
 test('the adjust disc opens the AdjustSheet; her sentence redraws the picture alone (D21)', async () => {
@@ -522,7 +522,8 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
       ],
     }),
   );
-  expect(await screen.findByText(lookbook.rack.wishlist, { exact: false })).toBeTruthy();
+  // A wish reads as a piece to find: the bag and its price at the row's right.
+  expect(await screen.findByLabelText(`${lookbook.rack.wishlist} · €390`)).toBeTruthy();
 });
 
 test('The Rack heading shows once a piece hangs, and the toggle turns the rows to tiles', async () => {
