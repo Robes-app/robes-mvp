@@ -215,7 +215,8 @@ test('an empty day: her model with Capture · Describe · Pick; Pick opens the d
   const done = await screen.findByRole('button', { name: diary.drawer.done });
   expect(done.props.accessibilityState).toEqual({ disabled: true });
   expect(screen.getByText(diary.drawer.eyebrow('Friday', 'Fri 2 Oct'))).toBeTruthy();
-  expect(screen.getByRole('header', { name: diary.log.ahead })).toBeTruthy();
+  // The question stands once her looks have loaded (the empty drawer has none to ask over).
+  expect(await screen.findByRole('header', { name: diary.log.ahead })).toBeTruthy();
   // The shared filter row and the search sit under the question.
   expect(screen.getByTestId('filter-row')).toBeTruthy();
   expect(screen.getByRole('button', { name: `${filters.all} 1` })).toBeTruthy();

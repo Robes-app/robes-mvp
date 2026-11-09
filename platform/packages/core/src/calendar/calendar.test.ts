@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays,
-  DIARY_AHEAD,
-  DIARY_BACK,
+  DIARY_PAGE,
+  DIARY_WEEKS,
   dayOotd,
   daysBetween,
   diaryDays,
@@ -209,14 +209,19 @@ describe('names come from the tables', () => {
 });
 
 describe('the diary window', () => {
-  it('reaches ten days back and ahead of today, every date present', () => {
+  it('is three Monday weeks with today in the middle one, every date present', () => {
+    // 2 Nov 2026 is a Monday: last week, this week, next.
     const w = diaryWindow('2026-11-02');
-    expect([w.from, w.to]).toEqual(['2026-10-23', '2026-11-12']);
-    expect(w.days).toHaveLength(DIARY_BACK + DIARY_AHEAD + 1);
-    expect(w.days[DIARY_BACK]).toBe('2026-11-02');
+    expect([w.from, w.to]).toEqual(['2026-10-26', '2026-11-15']);
+    expect(w.days).toHaveLength(DIARY_WEEKS * DIARY_PAGE);
+    expect(w.days[DIARY_PAGE]).toBe('2026-11-02');
     const pages = diaryPages(w.days);
     expect(pages.map((p) => p.length)).toEqual([7, 7, 7]);
-    expect(pages[1]?.[3]).toBe('2026-11-02');
+    expect(pages[1]?.[0]).toBe('2026-11-02');
+    // A Sunday sits at the end of its week's page, the window the same three weeks.
+    const sunday = diaryWindow('2026-11-08');
+    expect([sunday.from, sunday.to]).toEqual(['2026-10-26', '2026-11-15']);
+    expect(diaryPages(sunday.days)[1]?.[6]).toBe('2026-11-08');
     expect(weekdayDay('2026-11-03')).toBe('Tue 3');
   });
 

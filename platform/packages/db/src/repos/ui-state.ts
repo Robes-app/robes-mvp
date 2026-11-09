@@ -28,13 +28,20 @@ export function uiStateRepo(db: Db) {
       return parse(row?.dismissed);
     },
 
-    // Records a dismissal; stale keys fall away so the object stays small.
-    async dismiss(userId: UserId, key: string, at = new Date()): Promise<void> {
+    // Records a dismissal (one key, or every key the ✓ clears at once); stale keys fall away so
+    // the object stays small.
+    async dismiss(userId: UserId, key: string | readonly string[], at = new Date()): Promise<void> {
+      const keys = (typeof key === 'string' ? [key] : key).slice(0, DISMISSED_MAX);
+      if (keys.length === 0) return;
       const kept = Object.entries(await this.dismissed(userId))
         .filter(([, iso]) => at.getTime() - Date.parse(iso) < DISMISSED_KEEP_MS)
         .sort((a, b) => b[1].localeCompare(a[1]))
-        .slice(0, DISMISSED_MAX - 1);
-      const next = { ...Object.fromEntries(kept), [key]: at.toISOString() };
+        .slice(0, DISMISSED_MAX - keys.length);
+      const stamp = at.toISOString();
+      const next = {
+        ...Object.fromEntries(kept),
+        ...Object.fromEntries(keys.map((k) => [k, stamp])),
+      };
       await db
         .insertInto('userUiState')
         .values({ userId, dismissed: JSON.stringify(next) })

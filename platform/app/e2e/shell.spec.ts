@@ -140,8 +140,8 @@ test('every shell route renders its heading', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
   const routes: [string, string | RegExp][] = [
-    ['/wardrobe', 'Wardrobe'],
-    ['/wardrobe/wishlist', 'Wardrobe'],
+    ['/wardrobe', 'Your wardrobe'],
+    ['/wardrobe/wishlist', 'Your wardrobe'],
     ['/wardrobe/inbox', 'Inbox'],
     ['/wardrobe/add', 'Add pieces'],
     ['/wardrobe/link', 'Add from a shop page.'],

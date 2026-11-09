@@ -1,6 +1,6 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
-import type { NotificationItem, Notifications } from '@robes/contracts';
+import type { DismissNotificationInput, NotificationItem, Notifications } from '@robes/contracts';
 import { bell } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
 import { BELL_NUDGE_DAYS, bellNudgeDays } from '@robes/core/home';
@@ -59,7 +59,20 @@ export async function loadNotifications(userId: UserId, now = new Date()): Promi
   return { items: items.filter((i) => !(i.key in dismissed)) };
 }
 
-export async function dismissNotification(userId: UserId, key: string): Promise<{ ok: true }> {
-  await repos.uiState.dismiss(userId, key);
+// One item by its key, or the sheet's ✓: every item the bell holds right now (PRD rev 3 §10 12).
+// A dismissed receipts line still leaves the receipts waiting in the Wardrobe inbox and its badge.
+export async function dismissNotification(
+  userId: UserId,
+  input: DismissNotificationInput,
+  now = new Date(),
+): Promise<{ ok: true }> {
+  if ('key' in input) await repos.uiState.dismiss(userId, input.key);
+  else {
+    const { items } = await loadNotifications(userId, now);
+    await repos.uiState.dismiss(
+      userId,
+      items.map((i) => i.key),
+    );
+  }
   return { ok: true };
 }

@@ -83,7 +83,8 @@ describe('today weather', () => {
   });
 
   it('nothing outside the forecast’s reach, or further back than the diary shows', async () => {
-    expect(await loadTodayWeather(ann, now, '2026-10-05')).toBeNull();
+    // Friday 16 Oct: the diary's three Monday weeks start on the 5th, so the 4th is past them.
+    expect(await loadTodayWeather(ann, now, '2026-10-04')).toBeNull();
     expect(await loadTodayWeather(ann, now, '2026-11-30')).toBeNull();
     expect(weatherFor).not.toHaveBeenCalled();
     expect(liveFor).not.toHaveBeenCalled();

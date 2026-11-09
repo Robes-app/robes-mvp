@@ -207,6 +207,8 @@ export const bell = {
   openNew: (n: number): string => (n > 0 ? `Notifications, ${n} new` : 'Notifications'),
   empty: 'Nothing new.',
   dismiss: 'Dismiss',
+  // The sheet's ✓.
+  clear: 'Clear all',
   dest: { receipts: 'Wardrobe', diary: 'Diary', overnight: 'Lookbook' },
   overnight: (weekday: string): string => `See ${weekday}’s look`,
   receipts: (n: number): string => (n === 1 ? '1 receipt to review' : `${n} receipts to review`),

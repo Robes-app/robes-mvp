@@ -183,7 +183,9 @@ export function DiaryHome({
         />
       ) : null}
 
+      {/* Keyed by the day: a day change starts the pager on its first page (PRD rev 3 §3). */}
       <DaySlot
+        key={current.date}
         day={current}
         today={today}
         dayWord={dayWord}

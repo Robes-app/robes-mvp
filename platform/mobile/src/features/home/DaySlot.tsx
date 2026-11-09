@@ -189,6 +189,8 @@ function AddPage({
     >
       <View className="overflow-hidden rounded-tile bg-surface-sunk">
         {portrait ? (
+          // One frame kept across a model change: expo-image's `transition` crossfades the new
+          // portrait over the old (PRD rev 3 §2.6). The web twin keys the <img> and fades it in.
           <Image source={portrait} alt="" aspect="4:5" />
         ) : (
           <Skeleton width="100%" aspectRatio={ASPECTS['4:5']} className="rounded-none" />

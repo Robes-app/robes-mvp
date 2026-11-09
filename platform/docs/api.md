@@ -88,7 +88,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `POST /me/location` `{ lat, lon }` → `{ ok }` (10/h/user) | browser geolocation + Nominatim in the client (`dashboard-personalize.js`) | her device position, sent only after she allowed it: rounded to 2 decimals (~1 km), named server-side by Nominatim (rounded coords only, no user id), written to `home_lat`/`home_lon`/`home_city`; an unnamed place keeps her city |
 | `PUT /me/style/palette` (Your colours and Your prints: avoid · love per family, shade and print) | Settings `style_dna.palette` |
 | `GET /me/features` | `_RB_TRIP_HIDDEN`, `?trip=on` | the flagged doors clients show (`trips`, `homeDiary`); flags stay server-side |
-| `GET /me/notifications` · `POST /me/notifications/dismiss` `{ key }` | home's receipts strip and the 7-day nudges mail | the bell (plan 2026-11-02): receipts to review and the last week's unlogged days, computed per read; a dismissed key is kept in `user_ui_state.dismissed` for 30 days |
+| `GET /me/notifications` · `POST /me/notifications/dismiss` `{ key }` or `{ all: true }` | home's receipts strip and the 7-day nudges mail | the bell (plan 2026-11-02): receipts to review and the last week's unlogged days, computed per read; a dismissed key is kept in `user_ui_state.dismissed` for 30 days |
 | `POST /me/onboarding/complete` | client writes `onboarded_at` | server sets |
 | `GET/PATCH /me/preferences` | notification_prefs, avatar_prefs, localStorage state | incl. `user_ui_state` |
 | `POST /me/push-tokens`, `DELETE /me/push-tokens/:id` | — | native |
