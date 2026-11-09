@@ -17,6 +17,9 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await signIn(page);
   await declineConsent(page);
   await makePieces(page, ['Camel coat', 'Straight jeans']);
+  // The pieces were filed behind the page's back, after sign-in had already counted an empty
+  // wardrobe (cached 30s): load afresh so the draft offers Pick from your wardrobe.
+  await page.reload();
 
   // Create › New look is the composer now.
   await page.getByRole('button', { name: 'Create' }).first().click();
