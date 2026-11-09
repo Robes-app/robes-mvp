@@ -59,9 +59,9 @@ async function watchEvents(page: Page): Promise<{ hits: string[]; events: Captur
 // Create's new-look box with a piece from her wardrobe → the deck → the first look, saved and put
 // in today's diary. (The piece page carries no styling door since canvas 3b; the Create sheet's box
 // is the same box it opened, so the prompt still reads surface create, intent piece.)
-async function saveALook(page: Page): Promise<void> {
+async function saveALook(page: Page, label: string): Promise<void> {
   const piece = await (
-    await page.request.post('/api/v1/wardrobe/items', { data: { label: 'Navy blazer' } })
+    await page.request.post('/api/v1/wardrobe/items', { data: { label } })
   ).json();
   expect(piece.id).toBeTruthy();
   // Load afresh so the picker counts the piece just filed behind the page's back.
@@ -71,9 +71,9 @@ async function saveALook(page: Page): Promise<void> {
   await create.getByRole('button', { name: 'Add a piece' }).click();
   await create.getByRole('menuitem', { name: /From your wardrobe/ }).click();
   const picker = page.getByTestId('piece-picker');
-  await picker.getByRole('button', { name: 'Include Navy blazer' }).click();
+  await picker.getByRole('button', { name: `Include ${label}` }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
-  await expect(create.getByTestId('box-piece')).toContainText('Navy blazer');
+  await expect(create.getByTestId('box-piece')).toContainText(label);
   await create.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByTestId(/^deck-card-/)).toBeVisible({ timeout: 30_000 });
   await page.getByTestId(/^deck-card-/).click();
@@ -145,7 +145,7 @@ test.describe('product events', () => {
     const { hits, events } = await watchEvents(page);
     await signIn(page);
     // Not yet answered: the whole flow sends nothing.
-    await saveALook(page);
+    await saveALook(page, 'Navy blazer');
     await page.waitForLoadState('networkidle');
     expect(hits, 'PostHog was contacted before consent').toEqual([]);
 
@@ -154,7 +154,8 @@ test.describe('product events', () => {
     });
     expect(res.ok()).toBe(true);
     await page.reload();
-    await saveALook(page);
+    // A second piece, so the picker never shows two of the same name.
+    await saveALook(page, 'Camel coat');
     const sent = (name: string) => events.filter((e) => e.event === name).map((e) => e.properties);
     await expect.poll(() => sent('look_created').length, { timeout: 20_000 }).toBe(1);
     expect(sent('look_created')[0]).toMatchObject({
@@ -175,6 +176,6 @@ test.describe('product events', () => {
     const ours = events
       .filter((e) => !e.event.startsWith('$'))
       .map((e) => Object.entries(e.properties).filter(([k]) => !k.startsWith('$')));
-    expect(JSON.stringify(ours)).not.toMatch(/navy blazer/i);
+    expect(JSON.stringify(ours)).not.toMatch(/navy blazer|camel coat/i);
   });
 });
