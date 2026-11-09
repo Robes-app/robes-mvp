@@ -41,6 +41,13 @@ export interface ToastApi {
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
+// A bar fixed at the screen's foot (a look's Schedule/Update bar) lifts the toast above it while
+// it stands, so an Undo never covers the button under it. Web twin: useToastLift in @robes/ui.
+type LiftToasts = (pt: number) => () => void;
+const ToastLiftContext = createContext<LiftToasts | null>(null);
+// The toast's place at rest, and its gap above a bar that lifts it.
+const TOAST_BOTTOM = 40;
+const TOAST_GAP = 12;
 
 export function useToast(): ToastApi {
   const api = useContext(ToastContext);
@@ -135,18 +142,43 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo(() => ({ show, dismiss }), [show, dismiss]);
 
+  const [lifts, setLifts] = useState<ReadonlyMap<number, number>>(new Map());
+  const nextLift = useRef(0);
+  const liftToasts = useCallback<LiftToasts>((pt) => {
+    nextLift.current += 1;
+    const id = nextLift.current;
+    setLifts((all) => new Map(all).set(id, pt));
+    return () =>
+      setLifts((all) => {
+        const next = new Map(all);
+        next.delete(id);
+        return next;
+      });
+  }, []);
+  const lift = Math.max(0, ...lifts.values());
+
   return (
     <ToastContext.Provider value={api}>
-      {children}
+      <ToastLiftContext.Provider value={liftToasts}>{children}</ToastLiftContext.Provider>
       {toast ? (
         <Animated.View
           pointerEvents="box-none"
-          className="absolute inset-x-4 bottom-10"
-          style={{ opacity }}
+          className="absolute inset-x-4"
+          style={{ opacity, bottom: lift > 0 ? lift + TOAST_GAP : TOAST_BOTTOM }}
+          testID="toast-frame"
         >
           <Toast key={toast.id} message={toast.message} action={toast.action} onDismiss={dismiss} />
         </Animated.View>
       ) : null}
     </ToastContext.Provider>
   );
+}
+
+// Holds the toast `pt` above the screen's foot while the caller is mounted (0 lets go).
+export function useToastLift(pt: number): void {
+  const liftToasts = useContext(ToastLiftContext);
+  useEffect(() => {
+    if (!liftToasts || pt <= 0) return;
+    return liftToasts(pt);
+  }, [liftToasts, pt]);
 }

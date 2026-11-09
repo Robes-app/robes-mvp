@@ -36,6 +36,7 @@ import {
   Skeleton,
   Tabs,
   useToast,
+  useToastLiftOver,
 } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -362,14 +363,7 @@ function SavedShell({
     >
       {h1 ? <h1 className="sr-only">{h1}</h1> : null}
       {children}
-      {footer ? (
-        <div
-          className="fixed inset-x-0 bottom-0 z-30 border-hairline border-t-[0.5px] bg-bg pb-[max(1.375rem,env(safe-area-inset-bottom))]"
-          data-testid="look-bar"
-        >
-          <div className="mx-auto flex w-full max-w-md items-center px-5 pt-3">{footer}</div>
-        </div>
-      ) : null}
+      {footer ? <LookBar>{footer}</LookBar> : null}
       {/* The floating sheets ride the screen, not the page: 8px above everything, the look's bar
           included (redline 7 Nov). The layer lets taps through except where a sheet is. */}
       {over ? (
@@ -378,6 +372,21 @@ function SavedShell({
         </div>
       ) : null}
     </article>
+  );
+}
+
+// The saved look's bar at the foot; toasts rise above it, so an Undo never covers Update look.
+function LookBar({ children }: { children: ReactNode }) {
+  const bar = useRef<HTMLDivElement>(null);
+  useToastLiftOver(bar);
+  return (
+    <div
+      ref={bar}
+      className="fixed inset-x-0 bottom-0 z-30 border-hairline border-t-[0.5px] bg-bg pb-[max(1.375rem,env(safe-area-inset-bottom))]"
+      data-testid="look-bar"
+    >
+      <div className="mx-auto flex w-full max-w-md items-center px-5 pt-3">{children}</div>
+    </div>
   );
 }
 

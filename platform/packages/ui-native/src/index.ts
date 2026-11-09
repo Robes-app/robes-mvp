@@ -63,5 +63,6 @@ export {
   type ToastProps,
   ToastProvider,
   useToast,
+  useToastLift,
 } from './Toast';
 export { WarmGround } from './WarmGround';

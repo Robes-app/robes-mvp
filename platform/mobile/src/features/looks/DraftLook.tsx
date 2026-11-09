@@ -38,6 +38,7 @@ import {
   Text,
   useColor,
   useToast,
+  useToastLift,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
@@ -399,6 +400,9 @@ function SavedShell({
   children: ReactNode;
 }) {
   useBareScreen();
+  // The toast rises above the bar while it stands, so an Undo never covers Update look.
+  const [bar, setBar] = useState(0);
+  useToastLift(bar);
   return (
     <View className="flex-1 bg-bg">
       <ScrollView
@@ -414,6 +418,7 @@ function SavedShell({
         <View
           className="absolute inset-x-0 bottom-0 flex-row items-center border-hairline bg-bg px-5 pt-3"
           style={{ borderTopWidth: FINE_EDGE, paddingBottom: 22 }}
+          onLayout={(e) => setBar(e.nativeEvent.layout.height)}
           testID="look-bar"
         >
           <PrimaryScope>{footer}</PrimaryScope>

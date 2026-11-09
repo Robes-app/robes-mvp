@@ -2,10 +2,11 @@
 
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { Icon } from '@robes/icons/web';
-import type { ReactNode } from 'react';
+import { type ReactNode, useRef } from 'react';
 import { PrimaryScope } from './button';
 import { cn, focusRing } from './cn';
 import { CloseDisc } from './icon-button';
+import { useToastLiftOver } from './toast';
 
 export interface DrawerDone {
   label: string;
@@ -133,14 +134,24 @@ export function Drawer({
               <div className="h-full overflow-y-auto overscroll-contain pb-8">{children}</div>
               {over}
             </div>
-            {footer ? (
-              <div className="shrink-0 border-hairline border-t-[0.5px] bg-bg px-5 pt-3 pb-[max(1.375rem,env(safe-area-inset-bottom))]">
-                {footer}
-              </div>
-            ) : null}
+            {footer ? <DrawerFooter>{footer}</DrawerFooter> : null}
           </PrimaryScope>
         </RadixDialog.Content>
       </RadixDialog.Portal>
     </RadixDialog.Root>
+  );
+}
+
+// The drawer's foot; toasts rise above it while it stands, so an Undo never covers its button.
+function DrawerFooter({ children }: { children: ReactNode }) {
+  const bar = useRef<HTMLDivElement>(null);
+  useToastLiftOver(bar);
+  return (
+    <div
+      ref={bar}
+      className="shrink-0 border-hairline border-t-[0.5px] bg-bg px-5 pt-3 pb-[max(1.375rem,env(safe-area-inset-bottom))]"
+    >
+      {children}
+    </div>
   );
 }
