@@ -54,6 +54,8 @@ export function LookView({ id }: { id: string }) {
           id={query.data.id}
           presentation="saved"
           schedule={schedule}
+          // `?images=add`: Home's image stack opens the look on its Add a photo card (PRD §6.1).
+          {...(search.get('images') === 'add' ? { images: 'add' as const } : {})}
           onClose={() => router.back()}
         />
       )}

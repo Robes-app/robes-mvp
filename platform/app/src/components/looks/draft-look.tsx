@@ -78,7 +78,8 @@ const TABS = [lookbook.savedLook.tabs.pieces, lookbook.savedLook.tabs.details] a
 type Tab = (typeof TABS)[number];
 
 // `drawer` over the screen that opened it; `page` on a deep link; `saved` is a saved look's own
-// page (Felix 3e: the back disc on the photo, Schedule look at the foot; D17).
+// page (Felix 3e: the back disc on the photo, Schedule look at the foot — Update look in its place
+// while a change waits, PRD §6.1; D17).
 export type DraftPresentation = 'drawer' | 'page' | 'saved';
 export type DraftSheet = 'adjust' | 'describe';
 
@@ -344,7 +345,8 @@ function Shell({
 }
 
 // A saved look's own page (3e): no header, the back disc rides the photo; the body runs to the
-// look's one bar, held at the foot (Schedule look) above the tab bar on a phone.
+// look's one bar, held at the foot (Schedule look, or Update look while a change waits) above the
+// tab bar on a phone.
 function SavedShell({
   h1,
   over,
@@ -877,8 +879,15 @@ function DraftBody({
         testId: 'draft-done',
       }}
       footer={
-        presentation === 'saved' ? (
-          <Button variant="primary" block onClick={() => setDiary(true)}>
+        // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
+        // change waits — never both. Native twin: DraftLook.tsx's footer.
+        presentation === 'saved' && !pending ? (
+          <Button
+            variant="primary"
+            block
+            onClick={() => setDiary(true)}
+            data-testid="schedule-look"
+          >
             {lookbook.savedLook.schedule}
           </Button>
         ) : mode === 'edit' ? (
@@ -1033,19 +1042,6 @@ function DraftBody({
                 : {})}
               busy={busy}
             />
-            {mode === 'edit' && presentation === 'saved' && pending ? (
-              // 3e: the small ink pill under the card, once there is something to apply.
-              <Button
-                variant="chip"
-                onClick={apply}
-                aria-disabled={busy}
-                className={`self-center bg-ink px-4 text-bg ${busy ? 'opacity-40' : ''}`}
-                data-testid="update-look"
-              >
-                {copy.update}
-                <Icon name="undo" size={11} className="-scale-x-100" />
-              </Button>
-            ) : null}
           </div>
         ) : (
           <div className="flex flex-col gap-3">

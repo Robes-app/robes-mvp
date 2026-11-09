@@ -85,7 +85,8 @@ const TABS = [lookbook.savedLook.tabs.pieces, lookbook.savedLook.tabs.details] a
 type Tab = (typeof TABS)[number];
 
 // `sheet` over the screen that opened it; `page` on a deep link; `saved` is a saved look's own
-// page (Felix 3e: the back disc on the photo, Schedule look at the foot; D17).
+// page (Felix 3e: the back disc on the photo, Schedule look at the foot — Update look in its place
+// while a change waits, PRD §6.1; D17).
 export type DraftPresentation = 'sheet' | 'page' | 'saved';
 export type DraftSheet = 'adjust' | 'describe';
 
@@ -861,13 +862,21 @@ function DraftBody({
         disabled: !canDone,
       }}
       footer={
-        presentation === 'saved' ? (
+        // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
+        // change waits — never both.
+        presentation === 'saved' && !pending ? (
           <Button onPress={() => setDiary(true)} className="flex-1" testID="schedule-look">
             {lookbook.savedLook.schedule}
           </Button>
         ) : mode === 'edit' ? (
           // The Edit look sheet's one accept (3k): she stays to see it land.
-          <Button onPress={apply} disabled={!pending || busy} icon="refresh" testID="update-look">
+          <Button
+            onPress={apply}
+            disabled={!pending || busy}
+            icon="refresh"
+            {...(presentation === 'saved' ? { className: 'flex-1' } : {})}
+            testID="update-look"
+          >
             {copy.update}
           </Button>
         ) : generateFoot ? (
@@ -1005,10 +1014,6 @@ function DraftBody({
                 : {})}
               busy={busy}
             />
-            {mode === 'edit' && presentation === 'saved' && pending ? (
-              // 3e: the small ink pill under the card, once there is something to apply.
-              <UpdatePill onPress={apply} busy={busy} />
-            ) : null}
           </View>
         ) : (
           <View className="gap-3">
@@ -1091,35 +1096,6 @@ function DraftBody({
         testID="draft-confirm"
       />
     </Shell>
-  );
-}
-
-// 3e's Update look ↻: the chip's size in ink, under the prompt card once a change waits (D17).
-// The page's one filled button stays Schedule look; this is the chip-sized accept.
-function UpdatePill({ onPress, busy }: { onPress: () => void; busy: boolean }) {
-  const onInk = useColor('bg');
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={copy.update}
-      accessibilityState={{ disabled: busy }}
-      disabled={busy}
-      onPress={onPress}
-      hitSlop={(MIN_TOUCH - 28) / 2}
-      testID="update-look"
-      className="min-h-7 flex-row items-center justify-center gap-1.5 self-center rounded-pill bg-ink px-4"
-      style={{ opacity: busy ? 0.4 : 1 }}
-    >
-      <Text
-        weight="medium"
-        maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-        className="uppercase text-bg"
-        style={{ fontSize: 9, letterSpacing: 1.44 }}
-      >
-        {copy.update}
-      </Text>
-      <Icon name="refresh" size={11} color={onInk} />
-    </Pressable>
   );
 }
 

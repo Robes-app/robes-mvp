@@ -354,9 +354,12 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
   const ask = page.getByRole('alertdialog', { name: 'Discard your changes?' });
   await ask.getByRole('button', { name: 'Keep editing' }).click();
   await expect(look3e.getByTestId(`rack-row-${navy}`)).toBeVisible();
-  // The pill under the prompt card applies it, and she stays on the look.
+  // Update look holds the foot in Schedule look's place while the change waits (PRD §6.1); it
+  // applies the change, she stays on the look, and Schedule look comes back.
+  await expect(look3e.getByRole('button', { name: 'Schedule look' })).toHaveCount(0);
   await look3e.getByTestId('update-look').click();
   await expect(page.getByText('Updated', { exact: true })).toBeVisible();
+  await expect(look3e.getByRole('button', { name: 'Schedule look' })).toBeVisible();
   await expect
     .poll(async () =>
       (await (await page.request.get(`/api/v1/looks/${look.id}`)).json()).pieces.map(

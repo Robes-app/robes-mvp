@@ -97,12 +97,11 @@ export function DaySlot({
                       ✓ {lookbook.draft.badgeSaved}
                     </span>
                   ) : null}
-                  {/* Felix 3k: the image stack opens the Edit look drawer on Add a photo (D19). */}
+                  {/* The image stack opens the look's detail on its Add a photo card (PRD §6.1,
+                      Annie 9 Nov), the page a tap on the photograph opens. */}
                   <ImageStack
                     look={entry.look}
-                    onOpen={() =>
-                      router.push(`/looks/draft/${entry.look.id}?day=${day.date}&images=add`)
-                    }
+                    onOpen={() => router.push(`/look/${entry.look.id}?day=${day.date}&images=add`)}
                   />
                 </>
               }
