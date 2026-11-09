@@ -19,7 +19,7 @@ import { useColor } from './color';
 import { cx } from './cx';
 import { DrawerHeader, type DrawerHeaderDone } from './DrawerHeader';
 import { useReducedMotion } from './motion';
-import { FINE_EDGE, MIN_TOUCH } from './scale';
+import { FINE_EDGE, fonts, MIN_TOUCH } from './scale';
 import { Eyebrow, Heading, Text } from './Text';
 
 export interface SheetProps {
@@ -56,6 +56,24 @@ export interface SheetProps {
   // question and the × (Felix NotificationsSheet); a swipe down on it still closes. `null` keeps
   // the × with a spacer.
   done?: DrawerHeaderDone | null;
+  // The Front Door's glass sheet (PRD rev 3 §2.4, §2.5): floating 8pt from the edges on the dock
+  // radius, cream glass over the dimmed screen, with its own header — the × disc at the left, a
+  // sans title centred, a text action at the right (Clear). The question, eyebrow and × above
+  // are not drawn. Twin of web ui dialog.tsx `glass`.
+  glass?: GlassHeader;
+}
+
+export interface GlassAction {
+  label: string;
+  onPress: () => void;
+  // Faint and inert while there is nothing to act on (Clear with no filter picked).
+  disabled?: boolean;
+  testID?: string;
+}
+
+export interface GlassHeader {
+  title: string;
+  action?: GlassAction;
 }
 
 export interface SheetRow {
@@ -118,8 +136,10 @@ export function Sheet({
   eyebrowTone = 'warm',
   rows,
   done,
+  glass,
 }: SheetProps) {
   const reduced = useReducedMotion();
+  const floats = floating || glass !== undefined;
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardShown();
   const [visible, setVisible] = useState(open);
@@ -184,7 +204,7 @@ export function Sheet({
   }, [open, visible, reduced, translateY, backdrop]);
 
   const eyebrowClass = eyebrowTone === 'warm' ? 'text-accent-warm' : undefined;
-  const close = floating ? null : closeLabel ? (
+  const close = floats ? null : closeLabel ? (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={closeLabel}
@@ -239,7 +259,11 @@ export function Sheet({
         <Animated.View
           accessibilityViewIsModal
           className={cx(
-            floating ? 'rounded-sheet border-rule-mid bg-bg px-5' : 'rounded-t-sheet bg-bg px-5',
+            glass
+              ? 'rounded-dock border-rule-mid bg-veil px-5'
+              : floating
+                ? 'rounded-sheet border-rule-mid bg-bg px-5'
+                : 'rounded-t-sheet bg-bg px-5',
             className,
           )}
           // A tall drawer stops short of the status bar and Dynamic Island; its content scrolls.
@@ -247,10 +271,10 @@ export function Sheet({
           style={[
             {
               maxHeight: SHEET_MAX,
-              paddingBottom: floating ? SHEET_PAD : SHEET_PAD + (keyboard ? 0 : insets.bottom),
+              paddingBottom: floats ? SHEET_PAD : SHEET_PAD + (keyboard ? 0 : insets.bottom),
               transform: [{ translateY }],
             },
-            floating
+            floats
               ? {
                   borderWidth: FINE_EDGE,
                   marginHorizontal: FLOAT_INSET,
@@ -260,7 +284,11 @@ export function Sheet({
               : null,
           ]}
         >
-          {done !== undefined ? (
+          {glass ? (
+            <View {...drag.panHandlers} className="mb-5 pt-3">
+              <GlassHead glass={glass} onClose={onClose} />
+            </View>
+          ) : done !== undefined ? (
             <View {...drag.panHandlers} className="mb-6 pt-3">
               <DrawerHeader
                 inSheet
@@ -285,7 +313,7 @@ export function Sheet({
               </Pressable>
             </View>
           )}
-          {done !== undefined ? null : media ? (
+          {glass || done !== undefined ? null : media ? (
             <View className="mb-4 flex-row items-start gap-4">
               <View>{media}</View>
               <View className="min-w-0 flex-1">
@@ -361,4 +389,68 @@ function Rows({ rows }: { rows: readonly SheetRow[] }) {
       ))}
     </View>
   );
+}
+
+// The glass sheet's header: the 36pt × disc, the title in the medium sans at 15 (the one bold
+// line on a glass sheet), and the text action at the right, ink while it can act, faint while
+// it can't. A spacer keeps the title centred when there is no action.
+function GlassHead({ glass, onClose }: { glass: GlassHeader; onClose: () => void }) {
+  const { title, action } = glass;
+  return (
+    <View className="h-10 flex-row items-center justify-between gap-3">
+      <CloseDisc label={ui.close} onPress={onClose} />
+      <Text
+        accessibilityRole="header"
+        numberOfLines={1}
+        className="flex-1 text-center text-ink"
+        style={{ fontFamily: fonts.sansMedium, fontSize: 15 }}
+      >
+        {title}
+      </Text>
+      {action ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={action.label}
+          accessibilityState={{ disabled: action.disabled === true }}
+          disabled={action.disabled}
+          onPress={action.onPress}
+          testID={action.testID}
+          style={{ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH }}
+          className="-mr-2 items-end justify-center px-2"
+        >
+          <Text
+            size="small"
+            tone={action.disabled ? 'faint' : 'ink'}
+            style={{ fontFamily: fonts.sansRegular }}
+          >
+            {action.label}
+          </Text>
+        </Pressable>
+      ) : (
+        <View style={{ width: 36 }} />
+      )}
+    </View>
+  );
+}
+
+export type GlassSheetProps = Omit<
+  SheetProps,
+  | 'glass'
+  | 'title'
+  | 'eyebrow'
+  | 'media'
+  | 'leading'
+  | 'closeButton'
+  | 'closeLabel'
+  | 'rows'
+  | 'done'
+> & {
+  title: string;
+  action?: GlassAction;
+};
+
+// The Front Door's glass sheet by name: New Look, Add Pieces, Add your pieces, the Filter sheet
+// and Receipts all stand on it. Twin of web ui GlassSheet.
+export function GlassSheet({ title, action, ...rest }: GlassSheetProps) {
+  return <Sheet {...rest} glass={action ? { title, action } : { title }} />;
 }

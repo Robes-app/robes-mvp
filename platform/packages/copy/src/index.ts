@@ -696,6 +696,9 @@ export const ui = {
   },
   back: 'Back',
   retry: 'Try again',
+  // The shared filter pattern (Front Door PRD rev 3 §2.5): the row's button and the sheet's header.
+  filter: 'Filter',
+  clear: 'Clear',
 } as const;
 
 // App shell (IA §3.2): nav, Create sheet, command bar, placeholder routes.

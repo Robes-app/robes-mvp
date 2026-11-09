@@ -81,6 +81,13 @@ export const ICONS = {
   alert: ['M12 3 2.5 20h19L12 3z', 'M12 10v4M12 17h.01'],
   star: ['M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.85L12 16.9l-5.25 2.75 1-5.85L3.5 9.7l5.9-.9z'],
   filter: ['M4 7h16M7 12h10M10 17h4'],
+  // The Front Door's Filter button (PRD rev 3 §2.5): two sliders with their knobs.
+  sliders: [
+    'M4 8h9M17 8h3',
+    'M13 5.5a2.5 2.5 0 1 0 4 0a2.5 2.5 0 1 0 -4 0',
+    'M4 16h3M11 16h9',
+    'M7 13.5a2.5 2.5 0 1 0 4 0a2.5 2.5 0 1 0 -4 0',
+  ],
   sort: ['M7 4v16', 'M3 8l4-4 4 4', 'M17 20V4', 'M21 16l-4 4-4-4'],
   grid: ['M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'],
   list: ['M4 6h16M4 12h16M4 18h16'],

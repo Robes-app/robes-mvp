@@ -43,3 +43,28 @@ test('a selected pill carries the check, as on the web', async () => {
   await rerender(<Pill onPress={() => {}}>Knitwear</Pill>);
   expect(icons()).toHaveLength(0);
 });
+
+test('an active quick chip reads deep rose with a cream label and its count, no check', async () => {
+  await render(
+    <>
+      <Pill selected tone="rose" count={2} onPress={() => {}}>
+        Everyday
+      </Pill>
+      <Pill count={0} disabled onPress={() => {}}>
+        Active
+      </Pill>
+    </>,
+  );
+  const active = screen.getByRole('button', { name: 'Everyday 2' });
+  const face = active.children[0] as unknown as { props: { className: string } };
+  expect(face.props.className).toContain('bg-accent-warm');
+  expect(face.props.className).not.toContain('bg-selected');
+  expect(
+    screen.container.queryAll((node) => node.props.accessibilityElementsHidden === true),
+  ).toHaveLength(0);
+  const off = screen.getByRole('button', { name: 'Active 0' });
+  expect(off.props.accessibilityState).toEqual({ selected: false, disabled: true });
+  expect((off.children[0] as unknown as { props: { style: unknown } }).props.style).toMatchObject({
+    opacity: 0.45,
+  });
+});
