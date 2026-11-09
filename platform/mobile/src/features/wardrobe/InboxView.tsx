@@ -1,22 +1,35 @@
-import type { InboxEntry } from '@robes/contracts';
-import { wardrobe as copy } from '@robes/copy';
-import { receivedDay, toggleKept } from '@robes/core/inbox';
+import { useApi } from '@robes/api-client/react';
+import type { InboxEntry, InboxItemState } from '@robes/contracts';
+import { wardrobe as copy, you } from '@robes/copy';
+import { receivedDay, splitAddress } from '@robes/core/inbox';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
   EmptyState,
   ErrorText,
-  Eyebrow,
-  Heading,
+  fonts,
   MIN_TOUCH,
+  Skeleton,
+  Tabs,
   Text,
   useColor,
+  useToast,
 } from '@robes/ui-native';
+import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { useDecideInbox, useInbox } from './inbox';
+
+const rc = copy.receipts;
+const TABS = [rc.tabs.inbox, rc.tabs.added, rc.tabs.discarded] as const;
+type Tab = (typeof TABS)[number];
+const STATE_OF: Record<Tab, InboxItemState> = {
+  [rc.tabs.inbox]: 'inbox',
+  [rc.tabs.added]: 'added',
+  [rc.tabs.discarded]: 'discarded',
+};
 
 function money(price: number | null, currency: string | null): string | null {
   if (price === null) return null;
@@ -30,159 +43,279 @@ function money(price: number | null, currency: string | null): string | null {
   }
 }
 
-function receiptEyebrow(entry: InboxEntry): string {
-  const day = receivedDay(entry.receivedAt);
-  const when = day.kind === 'date' ? day.label : copy.inbox[day.kind];
-  return entry.retailer ? `${copy.inbox.from(entry.retailer)} · ${when}` : when;
+function dayOf(iso: string): string {
+  const day = receivedDay(iso);
+  return day.kind === 'date' ? day.label : copy.inbox[day.kind];
 }
 
-// One piece read from the receipt: white on a hairline at rest, the warm line and a ✓ when ticked.
-function ItemRow({
-  item,
-  on,
-  onToggle,
-}: {
-  item: InboxEntry['items'][number];
-  on: boolean;
-  onToggle: () => void;
-}) {
-  const ink = useColor('ink');
-  const meta = [item.brand, money(item.price, item.currency)].filter(Boolean).join(' · ');
+// FORWARD RECEIPTS TO (PRD rev 3 §7.5): her address, Copy, and what happens next. The address
+// itself is minted and managed under You › Receipts; this card only reads it.
+function ForwardCard() {
+  const toast = useToast();
+  const address = useApi('me.inboxAddress.get');
+  const [copied, setCopied] = useState(false);
+  const value = address.data?.address ?? null;
+  const copyAddress = async (text: string) => {
+    try {
+      await Clipboard.setStringAsync(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.show({ message: you.receipts.copyFailed(text) });
+    }
+  };
+  if (!value) return null;
+  const parts = splitAddress(value);
   return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: on }}
-      accessibilityLabel={item.label}
-      onPress={onToggle}
-      style={{ minHeight: MIN_TOUCH + 12 }}
-      className={`flex-row items-center gap-3 rounded-soft border px-4 py-3 ${on ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised'}`}
+    <View
+      className="gap-2 rounded-soft border border-hairline bg-surface-raised px-4 py-3.5"
+      testID="receipts-forward"
     >
-      <View className="flex-1">
-        <Text>{item.label}</Text>
-        {meta ? (
-          <Text size="small" tone="muted">
-            {meta}
+      <Text
+        className="text-[9px] text-accent-warm uppercase"
+        style={{ fontFamily: fonts.sansMedium, letterSpacing: 2.16 }}
+      >
+        {rc.forwardTo}
+      </Text>
+      <View className="flex-row flex-wrap items-center justify-between gap-2">
+        <View className="min-w-0 flex-1">
+          <Text numberOfLines={1} style={{ fontFamily: fonts.sans }}>
+            {parts.local}
           </Text>
-        ) : null}
-      </View>
-      <View
-        className={`size-6 items-center justify-center rounded-pill border ${on ? 'border-selected-line' : 'border-border-control'}`}
-      >
-        {on ? <Icon name="check" size={14} color={ink} /> : null}
-      </View>
-    </Pressable>
-  );
-}
-
-// One receipt (beta's receipt review, Add Piece redline 05c): every piece ticked until she unticks
-// what went back. The one ink pill, pinned to the foot, files the ticked pieces and counts them.
-// Web twin: app/src/components/wardrobe/inbox.tsx.
-function Receipt({
-  entry,
-  more,
-  refreshing,
-  onRefresh,
-}: {
-  entry: InboxEntry;
-  more: number;
-  refreshing: boolean;
-  onRefresh: () => void;
-}) {
-  const decide = useDecideInbox();
-  const [keep, setKeep] = useState(entry.items.map((i) => i.index));
-  const file = (action: 'wardrobe' | 'wishlist' | 'dismiss') =>
-    decide.mutate({ params: { id: entry.id }, input: { action, itemIndexes: keep } });
-  return (
-    <View className="flex-1" testID={`inbox-${entry.id}`}>
-      <ScrollView
-        contentContainerClassName="gap-5 px-6 pb-6"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        <View className="gap-2">
-          <Eyebrow>{receiptEyebrow(entry)}</Eyebrow>
-          <Heading style={{ fontSize: 28 }}>{copy.inbox.read(entry.items.length)}</Heading>
-          <Text size="small" tone="muted">
-            {copy.inbox.untick}
+          <Text size="small" tone="muted" numberOfLines={1}>
+            {parts.domain}
           </Text>
         </View>
-        <View className="gap-2">
-          {entry.items.map((item) => (
-            <ItemRow
-              key={item.index}
-              item={item}
-              on={keep.includes(item.index)}
-              onToggle={() => setKeep((k) => toggleKept(k, item.index))}
-            />
-          ))}
-        </View>
-        {more > 0 ? (
-          <Text size="small" tone="muted">
-            {copy.inbox.more(more)}
-          </Text>
-        ) : null}
-      </ScrollView>
-      <View className="gap-2 border-hairline border-t bg-bg px-6 pt-3 pb-2">
-        {decide.isError ? <ErrorText>{errorMessage(decide.error)}</ErrorText> : null}
-        <Button
-          disabled={decide.isPending || keep.length === 0}
-          onPress={() => file('wardrobe')}
-          testID="inbox-file"
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copied ? you.receipts.copied : you.receipts.copy}
+          onPress={() => void copyAddress(value)}
+          hitSlop={(MIN_TOUCH - 36) / 2}
+          className="h-9 flex-row items-center rounded-pill border border-rule-mid bg-surface-raised px-4"
+          testID="receipts-copy"
         >
-          {copy.inbox.file(keep.length)}
-        </Button>
-        <View className="flex-row items-center justify-between gap-3">
-          <Button
-            variant="outline"
-            disabled={decide.isPending || keep.length === 0}
-            onPress={() => file('wishlist')}
-          >
-            {copy.inbox.toWishlist}
-          </Button>
-          <Button variant="quiet" disabled={decide.isPending} onPress={() => file('dismiss')}>
-            {copy.inbox.skip}
-          </Button>
-        </View>
+          <Text size="caption">{copied ? you.receipts.copied : you.receipts.copy}</Text>
+        </Pressable>
       </View>
+      <Text size="caption" tone="muted">
+        {rc.extracted}
+      </Text>
     </View>
   );
 }
 
-// Wardrobe › Inbox: forwarded receipts, one at a time (a pasted link goes straight to Review and
-// never lands here). Reached from the receipt notice on Wardrobe and from the receipt mail.
+// One piece read from a receipt (§7.5): a thumb, the serif name, its meta, and in the Inbox the
+// circular × (discard) and the ink ✓ (add to the wardrobe).
+function ItemRow({
+  item,
+  decidable,
+  busy,
+  onAdd,
+  onDiscard,
+}: {
+  item: InboxEntry['items'][number];
+  decidable: boolean;
+  busy: boolean;
+  onAdd: () => void;
+  onDiscard: () => void;
+}) {
+  const ink = useColor('ink');
+  const onInk = useColor('bg');
+  const muted = useColor('ink-muted');
+  const meta = [item.brand, money(item.price, item.currency)].filter(Boolean).join(' · ');
+  return (
+    <View
+      className="flex-row items-center gap-3 border-hairline border-t px-3 py-2.5"
+      testID={`receipt-item-${item.index}`}
+    >
+      <View className="size-11 items-center justify-center rounded-crisp bg-surface-sunk">
+        <Icon name="wardrobe" size={14} color={muted} />
+      </View>
+      <View className="min-w-0 flex-1 gap-0.5">
+        <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: 17 }}>
+          {item.label}
+        </Text>
+        {meta ? (
+          <Text size="caption" tone="muted" numberOfLines={1}>
+            {meta}
+          </Text>
+        ) : null}
+      </View>
+      {decidable ? (
+        <View className="flex-row items-center gap-1.5">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={rc.discard(item.label)}
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={onDiscard}
+            hitSlop={6}
+            className="size-8 items-center justify-center rounded-pill border border-rule-mid bg-surface-raised"
+          >
+            <Icon name="close" size={13} color={ink} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={rc.add(item.label)}
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={onAdd}
+            hitSlop={6}
+            className="size-8 items-center justify-center rounded-pill bg-ink"
+          >
+            <Icon name="check" size={13} color={onInk} />
+          </Pressable>
+        </View>
+      ) : (
+        <Icon name={item.state === 'added' ? 'check' : 'close'} size={14} color={muted} />
+      )}
+    </View>
+  );
+}
+
+// One receipt as a group (§7.5): the retailer and its count in the serif, the pieces, then the
+// footer — order, sender, dates — with the group's own × and ✓ acting on every piece waiting.
+function Group({ entry, decidable }: { entry: InboxEntry; decidable: boolean }) {
+  const decide = useDecideInbox();
+  const ink = useColor('ink');
+  const onInk = useColor('bg');
+  const act = (action: 'wardrobe' | 'dismiss', itemIndexes?: number[]) =>
+    decide.mutate({
+      params: { id: entry.id },
+      input: { action, ...(itemIndexes ? { itemIndexes } : {}) },
+    });
+  const footer = [
+    entry.orderRef ? rc.order(entry.orderRef) : null,
+    entry.fromEmail ? rc.sender(entry.fromEmail) : null,
+    rc.received(dayOf(entry.receivedAt)),
+    entry.decidedAt && !decidable ? rc.decided(dayOf(entry.decidedAt)) : null,
+  ].filter((x): x is string => x !== null);
+  return (
+    <View
+      className="overflow-hidden rounded-soft border border-hairline bg-surface-raised"
+      testID={`receipt-${entry.id}`}
+    >
+      <View className="px-3 pt-3 pb-2">
+        <Text style={{ fontFamily: fonts.display, fontSize: 19 }}>
+          {rc.group(entry.retailer ?? rc.unknownRetailer, entry.items.length)}
+        </Text>
+      </View>
+      {entry.items.map((item) => (
+        <ItemRow
+          key={item.index}
+          item={item}
+          decidable={decidable}
+          busy={decide.isPending}
+          onAdd={() => act('wardrobe', [item.index])}
+          onDiscard={() => act('dismiss', [item.index])}
+        />
+      ))}
+      <View className="flex-row items-center gap-3 border-hairline border-t px-3 py-2.5">
+        <View className="min-w-0 flex-1">
+          {footer.map((line) => (
+            <Text key={line} size="caption" tone="faint" numberOfLines={1}>
+              {line}
+            </Text>
+          ))}
+        </View>
+        {decidable ? (
+          <View className="flex-row items-center gap-1.5">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={rc.discardAll}
+              accessibilityState={{ disabled: decide.isPending }}
+              disabled={decide.isPending}
+              onPress={() => act('dismiss')}
+              hitSlop={6}
+              className="size-8 items-center justify-center rounded-pill border border-rule-mid bg-surface-raised"
+              testID={`receipt-${entry.id}-discard`}
+            >
+              <Icon name="close" size={13} color={ink} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={rc.addAll}
+              accessibilityState={{ disabled: decide.isPending }}
+              disabled={decide.isPending}
+              onPress={() => act('wardrobe')}
+              hitSlop={6}
+              className="size-8 items-center justify-center rounded-pill bg-ink"
+              testID={`receipt-${entry.id}-add`}
+            >
+              <Icon name="check" size={13} color={onInk} />
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
+      {decide.isError ? (
+        <View className="px-3 pb-3">
+          <ErrorText>{errorMessage(decide.error)}</ErrorText>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+// Receipts (Front Door PRD rev 3 §7.5; Wardrobe › Inbox): INBOX · ADDED · DISCARDED with their
+// counts, the forwarding card, then the receipts as groups by retailer. Each piece is decided on
+// its own; a pasted link never lands here. Web twin: app/src/components/wardrobe/inbox.tsx.
 export function InboxView() {
   const router = useRouter();
-  const query = useInbox();
-  if (query.isError) {
-    return <ErrorText>{errorMessage(query.error)}</ErrorText>;
-  }
-  if (!query.data) return null;
-  const [first, ...rest] = query.data.items;
-  if (!first) {
-    return (
-      <ScrollView
-        contentContainerClassName="px-6 pb-8"
-        refreshControl={
-          <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
-        }
-      >
-        <EmptyState
-          title={copy.inboxEmpty.title}
-          body={copy.inboxEmpty.body}
-          action={{
-            label: copy.add.doors.receipt,
-            onPress: () => router.push('/wardrobe/receipt'),
-          }}
-        />
-      </ScrollView>
-    );
-  }
+  const [tab, setTab] = useState<Tab>(TABS[0]);
+  const state = STATE_OF[tab];
+  const query = useInbox(state);
+  const counts = query.data?.counts;
+  if (query.isError) return <ErrorText>{errorMessage(query.error)}</ErrorText>;
+  const entries = query.data?.items ?? [];
   return (
-    <Receipt
-      key={first.id}
-      entry={first}
-      more={rest.length}
-      refreshing={query.isRefetching}
-      onRefresh={() => void query.refetch()}
-    />
+    <ScrollView
+      contentContainerClassName="gap-4 px-5 pb-10"
+      refreshControl={
+        <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
+      }
+      testID="receipts"
+    >
+      <Tabs
+        items={TABS}
+        value={tab}
+        onChange={setTab}
+        {...(counts
+          ? {
+              counts: {
+                [rc.tabs.inbox]: counts.inbox,
+                [rc.tabs.added]: counts.added,
+                [rc.tabs.discarded]: counts.discarded,
+              },
+            }
+          : {})}
+        testID="receipts-tabs"
+      />
+      <ForwardCard />
+      {!query.data ? (
+        <Skeleton width="100%" height={120} />
+      ) : entries.length === 0 ? (
+        state === 'inbox' ? (
+          <EmptyState
+            title={copy.inboxEmpty.title}
+            body={copy.inboxEmpty.body}
+            action={{
+              label: copy.add.doors.receipt,
+              onPress: () => router.push('/wardrobe/receipt'),
+            }}
+          />
+        ) : (
+          <Text tone="muted" className="py-6 text-center">
+            {state === 'added' ? rc.addedEmpty : rc.discardedEmpty}
+          </Text>
+        )
+      ) : (
+        entries.map((entry) => <Group key={entry.id} entry={entry} decidable={state === 'inbox'} />)
+      )}
+      {state === 'inbox' && entries.length > 0 ? (
+        <Button variant="quiet" onPress={() => router.push('/wardrobe/receipt')}>
+          {copy.add.doors.receipt}
+        </Button>
+      ) : null}
+    </ScrollView>
   );
 }

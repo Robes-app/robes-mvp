@@ -111,6 +111,47 @@ describe('inbox repo', () => {
     expect((await inbox.decide(niall, id, 'wardrobe', []))?.filedIds).toEqual([]);
   });
 
+  // The Receipts' tabs (Front Door PRD rev 3 §7.5): each piece decided on its own.
+  it('decides a receipt piece by piece: the rest keep waiting, the tabs count each state', async () => {
+    const dana = await createTestUser(db);
+    try {
+      const { id } = await receipt(dana, ['Camel coat', 'Silk scarf', 'Loafers']);
+      expect(await inbox.counts(dana)).toEqual({ inbox: 3, added: 0, discarded: 0 });
+      // ✓ on the coat alone: it is added; the scarf and loafers still wait; the row is held.
+      const first = await inbox.decide(dana, id, 'wardrobe', [0]);
+      expect(first).toMatchObject({ status: 'held', filedTo: 'wardrobe' });
+      expect(first?.filedIds).toHaveLength(1);
+      const items = (first?.items ?? []) as { state?: string; filedId?: string }[];
+      expect(items.map((i) => i.state ?? 'inbox')).toEqual(['added', 'inbox', 'inbox']);
+      expect(items[0]?.filedId).toBe((first?.filedIds ?? [])[0]);
+      expect(await inbox.counts(dana)).toEqual({ inbox: 2, added: 1, discarded: 0 });
+      expect((await inbox.list(dana, 'inbox')).map((r) => r.id)).toEqual([id]);
+      expect((await inbox.list(dana, 'added')).map((r) => r.id)).toEqual([id]);
+      expect(await inbox.list(dana, 'discarded')).toEqual([]);
+      // × on the scarf: discarded; the same coat asked again files nothing twice.
+      const second = await inbox.decide(dana, id, 'dismiss', [0, 1]);
+      expect(second?.filedIds).toHaveLength(1);
+      expect((second?.items as { state?: string }[]).map((i) => i.state ?? 'inbox')).toEqual([
+        'added',
+        'discarded',
+        'inbox',
+      ]);
+      expect(await inbox.counts(dana)).toEqual({ inbox: 1, added: 1, discarded: 1 });
+      // The group's ✓ takes every piece still waiting; nothing waits, so the row is filed.
+      const last = await inbox.decide(dana, id, 'wardrobe');
+      expect(last).toMatchObject({ status: 'filed' });
+      expect(last?.filedIds).toHaveLength(2);
+      expect(last?.decidedAt).not.toBeNull();
+      expect(await inbox.counts(dana)).toEqual({ inbox: 0, added: 2, discarded: 1 });
+      expect(await inbox.piecesWaiting(dana)).toBe(0);
+      expect(await inbox.list(dana, 'inbox')).toEqual([]);
+      // Nobody else sees the tabs' counts.
+      expect(await inbox.counts(bea)).toEqual({ inbox: 0, added: 0, discarded: 0 });
+    } finally {
+      await deleteTestUsers(db, dana);
+    }
+  });
+
   it('dedupes a retried import by its job', async () => {
     const jobId = randomUUID();
     const a = await inboxIntake.fromLink(niall, {

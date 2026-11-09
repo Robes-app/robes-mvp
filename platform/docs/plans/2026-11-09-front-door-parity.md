@@ -205,6 +205,8 @@ Each PR: native first, the web twin in the same PR, a comment naming the twin, t
 
 **Acceptance (§10 11).**
 
+**As built (9 Nov).** The Add pieces sheet (PR 4's three tiles) now opens from the Wardrobe's + and its empty states on both tabs (the Wishlist's carries `to=wishlist`): Paste URL retitles it Add from Link with the field inline and ✓ hands the link to the link reader, which reads it at once; Photo opens the camera (over the draft it still files straight onto the look); From receipt carries the pieces waiting as its badge and opens Receipts; "Add without a photo" is the quiet line under the tiles. The `/wardrobe/add` page stays as the deep link's and Create's door. Receipts is the Inbox page rebuilt (not a glass sheet: it keeps its route and its deep link): INBOX · ADDED · DISCARDED with counts, the FORWARD RECEIPTS TO card (the address is minted and managed under You › Receipts), the receipts as groups by retailer with the order, sender and dates in the footer, and × / ✓ per piece and per group. Each piece is decided on its own: `items` jsonb carries `state` and `filedId` (no new table or migration), `GET /inbox?state=` lists a tab, `counts` carries all three, and the row settles once no piece waits. A receipt's piece files to the wardrobe only; the Inbox's "Add to wishlist" went with the tick-list.
+
 ### PR 8 · Shell and motion
 
 - Top bar: wordmark centred on Home; serif titles "Lookbook" and "Your wardrobe" centred on their tabs; bell only when notifications exist.

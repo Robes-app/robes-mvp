@@ -567,12 +567,39 @@ export const wardrobe = {
 
   // Add a piece, end to end (design "Add Piece — Handoff", 2026-10-26): one sheet, every way in,
   // one Review before anything files. Where the pieces go is chosen once and carried through.
-  // The Add your pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles over the screen.
+  // The Add pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles over the screen; Paste
+  // URL turns it into Add from Link with the field inline. Over the draft it reads Add your pieces.
   addSheet: {
-    title: 'Add your pieces',
+    title: 'Add pieces',
+    draftTitle: 'Add your pieces',
     pasteUrl: 'Paste URL',
     photo: 'Photo',
     fromReceipt: 'From receipt',
+    linkTitle: 'Add from Link',
+    linkField: 'Paste a link',
+    linkGo: 'Read the page',
+    manual: 'Add without a photo',
+  },
+  // Receipts (PRD rev 3 §7.5): the Inbox as tabs, her forwarding address, the pieces by retailer.
+  receipts: {
+    title: 'Receipts',
+    tabs: { inbox: 'Inbox', added: 'Added', discarded: 'Discarded' },
+    forwardTo: 'Forward receipts to',
+    extracted: 'Pieces will be extracted for your review.',
+    group: (retailer: string, n: number): string => `${retailer} (${n})`,
+    unknownRetailer: 'A receipt',
+    add: (label: string): string => `Add ${label} to your wardrobe`,
+    discard: (label: string): string => `Discard ${label}`,
+    addAll: 'Add every piece',
+    discardAll: 'Discard every piece',
+    order: (ref: string): string => `Order ${ref}`,
+    sender: (email: string): string => `From ${email}`,
+    received: (day: string): string => `Received ${day}`,
+    decided: (day: string): string => `Decided ${day}`,
+    addedEmpty: 'Nothing added from a receipt yet.',
+    discardedEmpty: 'Nothing discarded.',
+    added: 'Added to your wardrobe.',
+    discarded: 'Discarded.',
   },
   add: {
     title: 'Add pieces',

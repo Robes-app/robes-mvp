@@ -1,26 +1,36 @@
 'use client';
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import type { InboxEntry } from '@robes/contracts';
-import { wardrobe } from '@robes/copy';
-import { receivedDay, toggleKept } from '@robes/core/inbox';
+import type { InboxEntry, InboxItemState } from '@robes/contracts';
+import { wardrobe, you } from '@robes/copy';
+import { receivedDay, splitAddress } from '@robes/core/inbox';
 import { Icon } from '@robes/icons/web';
 import {
-  Button,
+  buttonClasses,
   CardSkeleton,
   EmptyState,
   ErrorText,
-  Eyebrow,
-  Heading,
+  Tabs,
   Text,
   useToast,
 } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 
 const copy = wardrobe.inbox;
+const rc = wardrobe.receipts;
+const TABS = [rc.tabs.inbox, rc.tabs.added, rc.tabs.discarded] as const;
+type Tab = (typeof TABS)[number];
+const STATE_OF: Record<Tab, InboxItemState> = {
+  [rc.tabs.inbox]: 'inbox',
+  [rc.tabs.added]: 'added',
+  [rc.tabs.discarded]: 'discarded',
+};
+const focus =
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+const discBase = `flex size-8 items-center justify-center rounded-pill disabled:opacity-40 ${focus}`;
 
 function money(price: number | null, currency: string | null): string | null {
   if (price === null) return null;
@@ -34,130 +44,253 @@ function money(price: number | null, currency: string | null): string | null {
   }
 }
 
-function receiptEyebrow(entry: InboxEntry, now?: Date): string {
-  const day = receivedDay(entry.receivedAt, now);
-  const when = day.kind === 'date' ? day.label : copy[day.kind];
-  return entry.retailer ? `${copy.from(entry.retailer)} · ${when}` : when;
+function dayOf(iso: string): string {
+  const day = receivedDay(iso);
+  return day.kind === 'date' ? day.label : copy[day.kind];
 }
 
-// One receipt (beta's receipt review, Add Piece redline 05c): every piece read from it, all
-// ticked, and she unticks what went back. A resting row is white on a hairline; a ticked one
-// takes the warm line and a ✓. The one ink pill, pinned above the tab bar, files the ticked
-// pieces and counts them as she goes. Native twin: features/wardrobe/InboxView.tsx.
-function Receipt({ entry, more }: { entry: InboxEntry; more: number }) {
-  const queryClient = useQueryClient();
+// FORWARD RECEIPTS TO (PRD rev 3 §7.5): her address, Copy, and what happens next. The address
+// itself is minted and managed under You › Receipts; this card only reads it.
+function ForwardCard() {
   const toast = useToast();
-  const headingId = useId();
-  const [keep, setKeep] = useState<number[]>(entry.items.map((i) => i.index));
-  const decide = useApiMutation('inbox.decide', {
-    onSuccess: (result) => {
-      toast({ message: result.status === 'dismissed' ? copy.skipped : copy.filed });
-      void Promise.all(
-        (['inbox.list', 'today.get', 'wardrobe.list', 'wishlist.list'] as const).map((key) =>
-          queryClient.invalidateQueries({ queryKey: queryKeys.route(key) }),
-        ),
-      );
-    },
-  });
-  const file = (action: 'wardrobe' | 'wishlist' | 'dismiss') =>
-    decide.mutate({ params: { id: entry.id }, input: { action, itemIndexes: keep } });
-
+  const address = useApi('me.inboxAddress.get');
+  const [copied, setCopied] = useState(false);
+  const value = address.data?.address ?? null;
+  if (!value) return null;
+  const parts = splitAddress(value);
+  const copyAddress = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ message: you.receipts.copyFailed(value) });
+    }
+  };
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-5">
-      <header className="flex flex-col gap-2">
-        <Eyebrow>{receiptEyebrow(entry)}</Eyebrow>
-        <Heading level={2} size="lg" id={headingId}>
-          {copy.read(entry.items.length)}
-        </Heading>
-        <Text size="small" tone="muted">
-          {copy.untick}
-        </Text>
-      </header>
-      <ul className="flex flex-col gap-2">
-        {entry.items.map((item) => {
-          const on = keep.includes(item.index);
-          const meta = [item.brand, money(item.price, item.currency)].filter(Boolean).join(' · ');
-          return (
-            <li key={item.index}>
-              <button
-                type="button"
-                aria-pressed={on}
-                onClick={() => setKeep((k) => toggleKept(k, item.index))}
-                className={`flex min-h-14 w-full items-center gap-3 rounded-soft border px-4 py-3 text-left focus-visible:outline-[1.5px] focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${on ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised hover:border-border-control'}`}
-              >
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <Text>{item.label}</Text>
-                  {meta ? (
-                    <Text size="small" tone="muted">
-                      {meta}
-                    </Text>
-                  ) : null}
-                </span>
-                <span
-                  aria-hidden
-                  className={`flex size-6 shrink-0 items-center justify-center rounded-pill border ${on ? 'border-selected-line text-ink' : 'border-border-control'}`}
-                >
-                  {on ? <Icon name="check" size={14} /> : null}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {more > 0 ? (
-        <Text size="small" tone="muted">
-          {copy.more(more)}
-        </Text>
-      ) : null}
-      {/* Pinned above the phone's tab bar so the action is always in view, however long the list. */}
-      <div className="sticky bottom-[calc(max(env(safe-area-inset-bottom),12px)+76px)] z-30 -mx-5 flex flex-col gap-2 border-hairline border-t bg-bg px-5 pt-3 pb-3 md:bottom-0 md:mx-0 md:px-0">
-        {decide.isError ? <ErrorText>{errorCopy(decide.error)}</ErrorText> : null}
-        <Button
-          variant="primary"
-          block
-          disabled={decide.isPending || keep.length === 0}
-          onClick={() => file('wardrobe')}
+    <section
+      aria-label={rc.forwardTo}
+      className="flex flex-col gap-2 rounded-soft border border-hairline bg-surface-raised px-4 py-3.5"
+      data-testid="receipts-forward"
+    >
+      <span className="font-sans text-[9px] text-accent-warm uppercase tracking-[0.24em]">
+        {rc.forwardTo}
+      </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex min-w-0 flex-1 flex-col font-sans text-ink text-sm">
+          <span className="truncate">{parts.local}</span>
+          <span className="truncate text-ink-muted">{parts.domain}</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => void copyAddress()}
+          className={`relative inline-flex h-9 items-center gap-1.5 rounded-pill border border-rule-mid bg-surface-raised px-4 font-sans text-ink text-xs after:absolute after:inset-x-0 after:-inset-y-1 hover:border-border-control ${focus}`}
+          data-testid="receipts-copy"
         >
-          {copy.file(keep.length)}
-        </Button>
-        <div className="flex items-center justify-between gap-3">
-          <Button
-            variant="outline"
-            disabled={decide.isPending || keep.length === 0}
-            onClick={() => file('wishlist')}
-          >
-            {copy.toWishlist}
-          </Button>
-          <Button variant="quiet" disabled={decide.isPending} onClick={() => file('dismiss')}>
-            {copy.skip}
-          </Button>
-        </div>
+          <Icon name={copied ? 'check' : 'link'} size={14} />
+          <span aria-live="polite">{copied ? you.receipts.copied : you.receipts.copy}</span>
+        </button>
       </div>
+      <Text size="caption" tone="muted">
+        {rc.extracted}
+      </Text>
     </section>
   );
 }
 
-// Wardrobe › Inbox: forwarded receipts, one at a time (a pasted link goes straight to Review and
-// never lands here).
+// One receipt as a group (§7.5): the retailer and its count in the serif, the pieces with their
+// × (discard) and ink ✓ (add) in the Inbox, then the footer — order, sender, dates — with the
+// group's own × and ✓ acting on every piece waiting.
+function Group({ entry, decidable }: { entry: InboxEntry; decidable: boolean }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const decide = useApiMutation('inbox.decide', {
+    onSuccess: (_result, args) => {
+      toast({ message: args.input.action === 'dismiss' ? rc.discarded : rc.added });
+      void Promise.all(
+        (
+          ['inbox.list', 'today.get', 'wardrobe.list', 'wardrobe.summary', 'wishlist.list'] as const
+        ).map((key) => queryClient.invalidateQueries({ queryKey: queryKeys.route(key) })),
+      );
+    },
+  });
+  const act = (action: 'wardrobe' | 'dismiss', itemIndexes?: number[]) =>
+    decide.mutate({
+      params: { id: entry.id },
+      input: { action, ...(itemIndexes ? { itemIndexes } : {}) },
+    });
+  const footer = [
+    entry.orderRef ? rc.order(entry.orderRef) : null,
+    entry.fromEmail ? rc.sender(entry.fromEmail) : null,
+    rc.received(dayOf(entry.receivedAt)),
+    entry.decidedAt && !decidable ? rc.decided(dayOf(entry.decidedAt)) : null,
+  ].filter((x): x is string => x !== null);
+  const title = rc.group(entry.retailer ?? rc.unknownRetailer, entry.items.length);
+  return (
+    <section
+      aria-label={title}
+      className="overflow-hidden rounded-soft border border-hairline bg-surface-raised"
+      data-testid={`receipt-${entry.id}`}
+    >
+      <h2 className="px-3 pt-3 pb-2 font-display text-[19px] text-ink">{title}</h2>
+      <ul>
+        {entry.items.map((item) => {
+          const meta = [item.brand, money(item.price, item.currency)].filter(Boolean).join(' · ');
+          return (
+            <li
+              key={item.index}
+              className="flex items-center gap-3 border-hairline border-t px-3 py-2.5"
+              data-testid={`receipt-item-${item.index}`}
+            >
+              <span
+                aria-hidden
+                className="flex size-11 shrink-0 items-center justify-center rounded-crisp bg-surface-sunk text-ink-muted"
+              >
+                <Icon name="wardrobe" size={14} />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate font-display text-[17px] text-ink">{item.label}</span>
+                {meta ? (
+                  <Text size="caption" tone="muted" className="truncate">
+                    {meta}
+                  </Text>
+                ) : null}
+              </span>
+              {decidable ? (
+                <span className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    aria-label={rc.discard(item.label)}
+                    title={rc.discard(item.label)}
+                    disabled={decide.isPending}
+                    onClick={() => act('dismiss', [item.index])}
+                    className={`${discBase} border border-rule-mid bg-surface-raised text-ink hover:border-border-control`}
+                  >
+                    <Icon name="close" size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={rc.add(item.label)}
+                    title={rc.add(item.label)}
+                    disabled={decide.isPending}
+                    onClick={() => act('wardrobe', [item.index])}
+                    className={`${discBase} bg-ink text-bg`}
+                  >
+                    <Icon name="check" size={13} />
+                  </button>
+                </span>
+              ) : (
+                <Icon
+                  name={item.state === 'added' ? 'check' : 'close'}
+                  size={14}
+                  className="shrink-0 text-ink-muted"
+                />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="flex items-center gap-3 border-hairline border-t px-3 py-2.5">
+        <span className="flex min-w-0 flex-1 flex-col">
+          {footer.map((line) => (
+            <Text key={line} size="caption" tone="faint" className="truncate">
+              {line}
+            </Text>
+          ))}
+        </span>
+        {decidable ? (
+          <span className="flex items-center gap-1.5">
+            <button
+              type="button"
+              aria-label={rc.discardAll}
+              title={rc.discardAll}
+              disabled={decide.isPending}
+              onClick={() => act('dismiss')}
+              className={`${discBase} border border-rule-mid bg-surface-raised text-ink hover:border-border-control`}
+              data-testid={`receipt-${entry.id}-discard`}
+            >
+              <Icon name="close" size={13} />
+            </button>
+            <button
+              type="button"
+              aria-label={rc.addAll}
+              title={rc.addAll}
+              disabled={decide.isPending}
+              onClick={() => act('wardrobe')}
+              className={`${discBase} bg-ink text-bg`}
+              data-testid={`receipt-${entry.id}-add`}
+            >
+              <Icon name="check" size={13} />
+            </button>
+          </span>
+        ) : null}
+      </div>
+      {decide.isError ? (
+        <div className="px-3 pb-3">
+          <ErrorText>{errorCopy(decide.error)}</ErrorText>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+// Receipts (Front Door PRD rev 3 §7.5; Wardrobe › Inbox): INBOX · ADDED · DISCARDED with their
+// counts, the forwarding card, then the receipts as groups by retailer. Each piece is decided on
+// its own; a pasted link never lands here. Native twin: mobile/src/features/wardrobe/InboxView.tsx.
 export function Inbox() {
-  const query = useApi('inbox.list');
-  if (query.isError) {
-    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
-  }
-  if (!query.data) return <CardSkeleton />;
-  const [first, ...rest] = query.data.items;
-  if (!first) {
-    return (
-      <EmptyState
-        title={wardrobe.inboxEmpty.title}
-        body={wardrobe.inboxEmpty.body}
-        action={
-          <Link href="/wardrobe/receipt" className="underline underline-offset-4">
-            {wardrobe.add.doors.receipt}
-          </Link>
-        }
+  const [tab, setTab] = useState<Tab>(TABS[0]);
+  const state = STATE_OF[tab];
+  const query = useApi('inbox.list', { input: { state } }, { placeholderData: (prev) => prev });
+  const counts = query.data?.counts;
+  if (query.isError) return <ErrorText>{errorCopy(query.error)}</ErrorText>;
+  const entries = query.data?.items ?? [];
+  return (
+    <div className="flex flex-col gap-4" data-testid="receipts">
+      <Tabs
+        items={TABS}
+        value={tab}
+        onChange={setTab}
+        label={rc.title}
+        {...(counts
+          ? {
+              counts: {
+                [rc.tabs.inbox]: counts.inbox,
+                [rc.tabs.added]: counts.added,
+                [rc.tabs.discarded]: counts.discarded,
+              },
+            }
+          : {})}
       />
-    );
-  }
-  return <Receipt key={first.id} entry={first} more={rest.length} />;
+      <ForwardCard />
+      {!query.data ? (
+        <CardSkeleton />
+      ) : entries.length === 0 ? (
+        state === 'inbox' ? (
+          <EmptyState
+            title={wardrobe.inboxEmpty.title}
+            body={wardrobe.inboxEmpty.body}
+            action={
+              <Link href="/wardrobe/receipt" className="underline underline-offset-4">
+                {wardrobe.add.doors.receipt}
+              </Link>
+            }
+          />
+        ) : (
+          <Text tone="muted" className="py-6 text-center">
+            {state === 'added' ? rc.addedEmpty : rc.discardedEmpty}
+          </Text>
+        )
+      ) : (
+        entries.map((entry) => <Group key={entry.id} entry={entry} decidable={state === 'inbox'} />)
+      )}
+      {state === 'inbox' && entries.length > 0 ? (
+        <Link
+          href="/wardrobe/receipt"
+          className={`${buttonClasses({ variant: 'quiet' })} self-center`}
+        >
+          {wardrobe.add.doors.receipt}
+        </Link>
+      ) : null}
+    </div>
+  );
 }

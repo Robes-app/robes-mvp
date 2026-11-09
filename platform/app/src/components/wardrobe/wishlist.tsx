@@ -12,22 +12,14 @@ import { wardrobe } from '@robes/copy';
 import { shade } from '@robes/core/colour';
 import { countByCategory, formatPrice, rankCategories } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
-import {
-  Button,
-  buttonClasses,
-  CardSkeleton,
-  EmptyState,
-  ErrorText,
-  Text,
-  useToast,
-} from '@robes/ui';
+import { Button, CardSkeleton, EmptyState, ErrorText, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { FilterRow } from '@/components/filters/filter-row';
 import { useWardrobeFilters } from '@/components/filters/use-wardrobe-filters';
 import { errorCopy } from '@/lib/error-copy';
 import { withoutId } from '@/lib/wardrobe';
+import { AddPiecesSheet } from './add/add-pieces-sheet';
 import { BoughtButton, CardRow, type CardStatus, CardTile, HeartButton } from './piece-card';
 import { WardrobeFilterSheet, wearChoicesOf } from './piece-grid';
 import { PieceImage } from './piece-image';
@@ -70,6 +62,8 @@ export function Wishlist() {
   const [layout, setLayout] = useWardrobeLayout();
   const filters = useWardrobeFilters();
   const [sheet, setSheet] = useState(false);
+  // The + files a wish: the Add pieces sheet (PRD rev 3 §7.4) opens on the wishlist.
+  const [adding, setAdding] = useState(false);
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') }),
@@ -130,7 +124,13 @@ export function Wishlist() {
     <div className="flex flex-col gap-5">
       <WardrobeHeader
         current="/wardrobe/wishlist"
-        add={<AddCircle href="/wardrobe/add?to=wishlist" label={wardrobe.header.savePiece} />}
+        add={
+          <AddCircle
+            onClick={() => setAdding(true)}
+            expanded={adding}
+            label={wardrobe.header.savePiece}
+          />
+        }
       >
         {items.length > 0 ? (
           <FilterRow
@@ -172,12 +172,9 @@ export function Wishlist() {
           title={wardrobe.wishlistEmpty.title}
           body={wardrobe.wishlistEmpty.body}
           action={
-            <Link
-              href="/wardrobe/add?to=wishlist"
-              className={buttonClasses({ variant: 'primary' })}
-            >
+            <Button variant="primary" onClick={() => setAdding(true)}>
               {wardrobe.header.savePiece}
-            </Link>
+            </Button>
           }
         />
       ) : visible.length === 0 ? (
@@ -247,6 +244,7 @@ export function Wishlist() {
         wearChoices={wearChoicesOf([])}
         count={visible.length}
       />
+      <AddPiecesSheet open={adding} onClose={() => setAdding(false)} to="wishlist" />
     </div>
   );
 }

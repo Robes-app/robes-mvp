@@ -29,11 +29,28 @@ test('the grid lists pieces, pages with the cursor and opens a piece', async () 
   expect(mockRouter.push).toHaveBeenCalledWith(`/piece/${PIECE_ID}`);
 });
 
-test('an empty wardrobe invites her to add pieces', async () => {
-  mockFetch({ 'GET /me': ME, 'GET /wardrobe/items': { items: [], nextCursor: null } });
+test('an empty wardrobe invites her to add pieces: the Add pieces sheet, its three tiles', async () => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+    'GET /inbox': { items: [], count: 2, counts: { inbox: 2, added: 0, discarded: 0 } },
+  });
   await renderWithApi(<WardrobeView />);
   expect(await screen.findByText(wardrobe.empty.title)).toBeTruthy();
-  expect(screen.getByRole('button', { name: `+ ${wardrobe.empty.action}` })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: `+ ${wardrobe.empty.action}` }));
+  expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
+  // From receipt carries the count waiting; Paste URL turns the sheet into Add from Link.
+  expect(
+    await screen.findByRole('button', { name: `${wardrobe.addSheet.fromReceipt}, 2` }),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('add-sheet-link'));
+  expect(await screen.findByText(wardrobe.addSheet.linkTitle)).toBeTruthy();
+  await fireEvent.changeText(screen.getByTestId('add-sheet-url'), 'https://shop.test/coat');
+  await fireEvent.press(screen.getByTestId('add-sheet-read'));
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    pathname: '/wardrobe/link',
+    params: { to: 'wardrobe', url: 'https://shop.test/coat' },
+  });
 });
 
 test('a reading piece says so and offers no styling yet', async () => {
