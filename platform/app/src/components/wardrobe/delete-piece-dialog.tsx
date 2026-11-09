@@ -8,10 +8,13 @@ import { AlertDialog } from '@robes/ui';
 // Native twin: mobile/src/features/wardrobe/DeletePieceDialog.tsx.
 export function DeletePieceDialog({
   open,
+  message = wardrobe.piece.deleteBody,
   onDelete,
   onCancel,
 }: {
   open: boolean;
+  // A wish leaves the wishlist only, so it says so.
+  message?: string;
   onDelete: () => void;
   onCancel: () => void;
 }) {
@@ -19,7 +22,7 @@ export function DeletePieceDialog({
     <AlertDialog
       open={open}
       title={wardrobe.piece.deleteTitle}
-      message={wardrobe.piece.deleteBody}
+      message={message}
       actions={[
         { label: wardrobe.piece.deleteConfirm, variant: 'danger', onClick: onDelete },
         { label: wardrobe.piece.cancel, variant: 'quiet', onClick: onCancel },

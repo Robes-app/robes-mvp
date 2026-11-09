@@ -61,9 +61,11 @@ async function saveALook(page: Page): Promise<void> {
   const piece = await (
     await page.request.post('/api/v1/wardrobe/items', { data: { label: 'Navy blazer' } })
   ).json();
-  await page.goto(`/piece/${piece.id}`);
-  await page.getByRole('button', { name: 'Style this piece' }).click();
-  await page.getByRole('button', { name: 'Send' }).click();
+  // Create › Style a piece (the piece page carries no styling buttons since canvas 3b).
+  expect(piece.id).toBeTruthy();
+  await page.goto('/looks/style');
+  await page.getByRole('button', { name: 'Navy blazer' }).click();
+  await page.getByRole('button', { name: 'Style it' }).click();
   await expect(page.getByTestId(/^deck-card-/)).toBeVisible({ timeout: 30_000 });
   await page.getByTestId(/^deck-card-/).click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);

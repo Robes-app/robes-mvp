@@ -7,20 +7,20 @@ import { Icon } from '@robes/icons/native';
 import { Eyebrow, fonts, maxFontSizeMultiplier, Text, useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { PrintSwatch, ShadeSwatch } from './ColourField';
 import type { PieceField } from './PieceFieldSheet';
 
 const copy = wardrobe.piece;
 const fields = wardrobe.fields;
 
-// One piece anatomy (legacy Piece_Sheet 01): every fact is a row under a named section, and a
-// tap opens that one field's drawer. Nothing on the record is a form. Resting rows sit on white with
-// a hairline; the warm edge means selected, and no row is selected. Web twin: piece-rows.tsx.
+// One piece anatomy (legacy Piece_Sheet 01; drawn as the Front Door canvas 3b, PRD §7.3): every
+// fact is a row in one white card, a small-caps label at the left and the value at the right
+// ("Add" while nothing is filed), then › for a row that opens a picker or ✎ for one she types.
+// Nothing on the record is a form. Web twin: piece-rows.tsx.
 export function PieceSection({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <View className="gap-2">
       {title ? <Eyebrow>{title}</Eyebrow> : null}
-      <View className="overflow-hidden rounded-crisp border border-hairline bg-surface-raised">
+      <View className="overflow-hidden rounded-[12px] border border-rule-mid bg-surface-raised">
         {children}
       </View>
     </View>
@@ -30,36 +30,39 @@ export function PieceSection({ title, children }: { title?: string; children: Re
 export function PieceRow({
   label,
   value,
-  hint,
   spoken,
-  swatch,
   check,
   onPress,
+  edit = false,
   note,
   first = false,
 }: {
   label: string;
-  // What is filed, in ink.
+  // What is filed; an empty row that opens reads "Add".
   value?: string | null;
-  // What an empty row offers instead, in the faint ink ("e.g. Toteme", "Choose", "Optional").
-  hint?: string;
   // What a reader hears for the value when the row shows something else (a note's "Edit").
   spoken?: string | null;
-  swatch?: ReactNode;
   // Robes' read here is a guess she should look at: the rose "Check" mark, with its reason.
   check?: string | undefined;
   // No handler means the row is a fact, not a door: no chevron, nothing to press.
   onPress?: () => void;
+  // A field she types (Name, Price, Notes): ✎ in place of ›.
+  edit?: boolean;
   note?: string | null;
   first?: boolean;
 }) {
   const faint = useColor('ink-faint');
+  const empty = !value;
   const body = (
-    <View className={`gap-1 px-4 py-3 ${first ? '' : 'border-hairline border-t'}`}>
-      {/* The label never gives way (it wrapped a letter a line beside a long category): the
-          value yields its width and ends in an ellipsis. */}
-      <View className="min-h-6 flex-row items-center gap-3">
-        <Text size="small" numberOfLines={1} style={{ flexShrink: 0 }}>
+    <View className={`gap-1 px-4 ${first ? '' : 'border-hairline border-t'}`}>
+      {/* The label never gives way: the value yields its width and ends in an ellipsis. */}
+      <View className="min-h-12 flex-row items-center gap-3">
+        <Text
+          numberOfLines={1}
+          maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+          className="text-ink-faint uppercase"
+          style={{ flexShrink: 0, fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 2 }}
+        >
           {label}
         </Text>
         {check ? (
@@ -67,23 +70,18 @@ export function PieceRow({
             {copy.check}
           </Text>
         ) : null}
-        <View className="min-w-0 flex-1 flex-row items-center justify-end gap-2">
-          {swatch}
-          <Text
-            size="small"
-            tone={value ? 'ink' : 'faint'}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            className="text-right"
-            style={{ flexShrink: 1, minWidth: 0 }}
-          >
-            {value || (onPress ? (hint ?? fields.hints.optional) : '')}
-          </Text>
-        </View>
-        {onPress ? <Icon name="forward" size={15} color={faint} /> : null}
+        <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          className={`min-w-0 flex-1 text-right ${empty ? 'text-ink-muted' : 'text-ink-faint'}`}
+          style={{ fontFamily: empty ? fonts.sansMedium : fonts.sans, fontSize: 14 }}
+        >
+          {value || (onPress ? copy.add : '')}
+        </Text>
+        {onPress ? <Icon name={edit ? 'pencil' : 'forward'} size={14} color={faint} /> : null}
       </View>
       {note ? (
-        <Text size="caption" tone="muted" italic>
+        <Text size="caption" tone="muted" italic className="pb-3">
           {note}
         </Text>
       ) : null}
@@ -148,7 +146,7 @@ export type RecordValues = PieceValues & {
   category?: string | null;
   // The four seasons (D12) where the record carries them; none filed reads Year round.
   seasons?: readonly Season[];
-  // A wish's retailer (PRD rev 3 §7.3), where an owned piece has its brand.
+  // A wish's retailer (PRD rev 3 §7.3), beside its brand.
   sourceLabel?: string | null;
   colourCheck?: boolean;
   materialCheck?: boolean;
@@ -193,14 +191,12 @@ export function RecordRows({
   // One tab's rows alone, in one box without an eyebrow (the piece page's PIECE · COLOUR ·
   // WEARING, PRD rev 3 §7.3): the Name row leads PIECE, Size · Price · Notes close it.
   only?: RecordTab;
-  // A wish (§7.3): Shop (the retailer) where an owned piece has its brand.
+  // A wish (§7.3): Brand and Shop (the retailer); its Seasons and Wear it for wait for their data.
   wish?: boolean;
   // The WEARING tab's own rows (Worn, In looks), ahead of Seasons and Wear it for.
   wearing?: ReactNode;
 }) {
   const mainShade = shade(values.colourShade);
-  // Each additional colour shows its own dot, and the print its own square, beside the names
-  // (beta's rows): a colour is read at a glance, never only spelled out.
   const extraShades = values.colourExtra.flatMap((x) => {
     const found = shade(x);
     return found ? [found] : [];
@@ -210,17 +206,15 @@ export function RecordRows({
   const v = (value: string | null | undefined) => (reading ? wardrobe.add.review.reading : value);
   const open = (field: PieceField) => (reading ? undefined : () => onField(field));
   const brandRow = wish ? (
-    <PieceRow
-      label={copy.rows.shop}
-      value={v(values.sourceLabel)}
-      hint={fields.hints.brand}
-      onPress={open('shop')}
-    />
+    // A wish keeps its brand and adds the shop it's from (Annie, 9 Nov; canvas 3b draws Shop).
+    <>
+      <PieceRow label={copy.brand} value={v(values.brand)} onPress={open('brand')} />
+      <PieceRow label={copy.rows.shop} value={v(values.sourceLabel)} onPress={open('shop')} />
+    </>
   ) : (
     <PieceRow
       label={copy.brand}
       value={v(values.brand)}
-      hint={fields.hints.brand}
       check={values.brandCheck && !reading ? copy.brandCheck : undefined}
       onPress={open('brand')}
     />
@@ -231,6 +225,7 @@ export function RecordRows({
       label={copy.rows.price}
       value={v(money(values.price, values.currency))}
       onPress={open('price')}
+      edit
     />
   );
   // A filled note prints beneath, and the row's own value says the door is to change it.
@@ -241,38 +236,21 @@ export function RecordRows({
       spoken={reading ? null : values.notes}
       note={reading ? null : values.notes}
       onPress={open('notes')}
+      edit
     />
   );
+  // The canvas's COLOUR tab (3b): four rows of words, each a door to its picker.
   const colourRows = (
     <>
       <PieceRow
         first
         label={copy.rows.colour}
         value={v(mainShade?.name ?? null)}
-        swatch={mainShade && !reading ? <ShadeSwatch shade={mainShade} size={18} /> : undefined}
         check={values.colourCheck && !reading ? wardrobe.colour.check : undefined}
         onPress={open('colour')}
       />
-      <PieceRow
-        label={copy.rows.extra}
-        value={v(extras)}
-        swatch={
-          extraShades.length && !reading ? (
-            <View className="flex-row items-center gap-1">
-              {extraShades.map((x) => (
-                <ShadeSwatch key={x.id} shade={x} size={18} />
-              ))}
-            </View>
-          ) : undefined
-        }
-        onPress={open('extra')}
-      />
-      <PieceRow
-        label={copy.rows.print}
-        value={v(print?.name ?? wardrobe.colour.plain)}
-        swatch={print && !reading ? <PrintSwatch id={print.id} size={18} /> : undefined}
-        onPress={open('print')}
-      />
+      <PieceRow label={copy.rows.extra} value={v(extras)} onPress={open('extra')} />
+      <PieceRow label={copy.rows.print} value={v(print?.name ?? null)} onPress={open('print')} />
       <PieceRow
         label={copy.rows.material}
         value={v(material(values.material)?.name ?? null)}
@@ -281,29 +259,31 @@ export function RecordRows({
       />
     </>
   );
+  // A wish's Seasons and Wear it for stand in the design but wait for their data (Annie, 9 Nov:
+  // the fields are drawn, not yet filed), so on a wish they are facts, not doors.
+  const wearOpen = (field: PieceField) => (wish ? undefined : open(field));
   const wearingRows = (
     <>
       <PieceRow
         first={!wearing}
         label={copy.rows.season}
         value={v(seasonsLine(values))}
-        onPress={open('season')}
+        onPress={wearOpen('season')}
       />
       <PieceRow
         label={copy.rows.wearFor}
-        value={v(values.wearFor.join(' · '))}
-        onPress={open('wearFor')}
+        value={v(values.wearFor.join(' · ') || (wish ? copy.none : null))}
+        onPress={wearOpen('wearFor')}
       />
     </>
   );
   if (only === 'piece') {
     return (
       <PieceSection>
-        <PieceRow first label={copy.label} value={v(values.label)} onPress={open('label')} />
+        <PieceRow first label={copy.label} value={v(values.label)} onPress={open('label')} edit />
         <PieceRow
           label={copy.rows.category}
           value={v(categoryLeaf(values))}
-          hint={fields.hints.category}
           onPress={open('category')}
         />
         {brandRow}
@@ -337,13 +317,12 @@ export function RecordRows({
             onChange={onName}
           />
         ) : withName ? (
-          <PieceRow first label={copy.label} value={v(values.label)} onPress={open('label')} />
+          <PieceRow first label={copy.label} value={v(values.label)} onPress={open('label')} edit />
         ) : null}
         <PieceRow
           first={!withName}
           label={copy.rows.category}
           value={v(categoryLeaf(values))}
-          hint={fields.hints.category}
           onPress={open('category')}
         />
         {brandRow}

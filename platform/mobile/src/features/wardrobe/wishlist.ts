@@ -1,13 +1,8 @@
-import {
-  queryKeys,
-  useApiClient,
-  useApiMutation,
-  useUndoableMutation,
-} from '@robes/api-client/react';
+import { queryKeys, useApiClient, useUndoableMutation } from '@robes/api-client/react';
 import type { WishPage } from '@robes/contracts';
 import { wardrobe as copy, errors } from '@robes/copy';
 import { useToast } from '@robes/ui-native';
-import { type InfiniteData, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { type InfiniteData, useInfiniteQuery } from '@tanstack/react-query';
 
 const PAGE = 60;
 export const wishesKey = [...queryKeys.route('wishlist.list'), 'infinite'] as const;
@@ -34,22 +29,6 @@ function withoutWish(old: unknown, id: string): unknown {
     ...data,
     pages: data.pages.map((p) => ({ ...p, items: p.items.filter((i) => i.id !== id) })),
   };
-}
-
-// "I bought this": the wish becomes a piece in her wardrobe.
-export function usePromoteWish() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  return useApiMutation('wishlist.promote', {
-    onSuccess: async (piece) => {
-      toast.show({ message: copy.wishlist.boughtToast(piece.label) });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') }),
-      ]);
-    },
-    onError: () => toast.show({ message: errors.internal }),
-  });
 }
 
 export function useRemoveWish() {

@@ -53,14 +53,16 @@ test('an empty wardrobe invites her to add pieces: the Add pieces sheet, its thr
   });
 });
 
-test('a reading piece says so and offers no styling yet', async () => {
+// The canvas's piece page (3b): the bar names it ("New piece" while Robes reads), ‹ at the left, the
+// Hero Rack star at the right; no styling buttons above the tabs (Annie, 9 Nov).
+test('a reading piece says so in its bar, under ‹ and beside the star', async () => {
   mockFetch({ [`GET /wardrobe/items/${PIECE_ID}`]: piece({ status: 'reading', image: null }) });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
   expect(await screen.findByText(wardrobe.reading)).toBeTruthy();
-  expect(
-    screen.getByRole('button', { name: wardrobe.piece.stylePiece }).props.accessibilityState
-      .disabled,
-  ).toBe(true);
+  expect(screen.getByRole('header', { name: wardrobe.newPiece })).toBeTruthy();
+  expect(screen.getByTestId('piece-back')).toBeTruthy();
+  expect(screen.getByRole('button', { name: wardrobe.card.star('Camel wool coat') })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: wardrobe.piece.stylePiece })).toBeNull();
 });
 
 test('each fact is its own drawer: a brand saves and the PIECE row shows it at once', async () => {
@@ -300,7 +302,7 @@ test('an unfiled material reads as the door, and its sheet opens on Natural', as
   expect(screen.queryByRole('button', { name: wardrobe.material.notSure })).toBeNull();
 });
 
-test('an empty row offers a hint, not "Add"; a long category keeps its label whole', async () => {
+test('an empty row reads Add (canvas 3b); a long category keeps its label whole', async () => {
   mockFetch({
     [`GET /wardrobe/items/${PIECE_ID}`]: piece({
       brand: null,
@@ -318,9 +320,9 @@ test('an empty row offers a hint, not "Add"; a long category keeps its label who
       name: `${wardrobe.piece.rows.category}: Crew neck jumper`,
     }),
   ).toBeTruthy();
-  expect(screen.getByText(wardrobe.fields.hints.brand)).toBeTruthy();
-  expect(screen.getAllByText(wardrobe.fields.hints.optional).length).toBeGreaterThan(0);
-  expect(screen.queryByText(wardrobe.piece.add)).toBeNull();
+  expect(
+    screen.getByRole('button', { name: `${wardrobe.piece.brand}: ${wardrobe.piece.add}` }),
+  ).toBeTruthy();
   // A filled note prints beneath; the row says Edit, and a reader hears the note.
   expect(screen.getByText(wardrobe.fields.edit)).toBeTruthy();
   expect(
@@ -328,7 +330,9 @@ test('an empty row offers a hint, not "Add"; a long category keeps its label who
   ).toBeTruthy();
   const label = screen.getByText(wardrobe.piece.rows.category);
   expect(label.props.numberOfLines).toBe(1);
-  expect(label.props.style).toEqual(expect.arrayContaining([{ flexShrink: 0 }]));
+  expect(label.props.style).toEqual(
+    expect.arrayContaining([expect.objectContaining({ flexShrink: 0 })]),
+  );
 });
 
 test('a typed field waits for a change: Save is off until the brand has words', async () => {
@@ -406,6 +410,7 @@ test('a size steps along the category’s scale, with the conversion beside it',
 });
 
 test('a print is a list with its own drawn square; a pick saves', async () => {
+  // The row reads Add until a print is filed (canvas 3b); the list still names Plain.
   const calls = mockFetch({
     [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
     [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
@@ -416,7 +421,7 @@ test('a print is a list with its own drawn square; a pick saves', async () => {
   await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.colour }));
   await fireEvent.press(
     screen.getByRole('button', {
-      name: `${wardrobe.piece.rows.print}: ${wardrobe.colour.plain}`,
+      name: `${wardrobe.piece.rows.print}: ${wardrobe.piece.add}`,
     }),
   );
   expect(
@@ -480,7 +485,7 @@ test('removing a piece goes back and offers Undo, which restores it', async () =
 
 const SCARF_ID = '77777777-7777-4777-8777-777777777777';
 
-test('the list is the rack card: eyebrow, status line, the star, and the count row', async () => {
+test('the list is the shared piece row: its wears or New, the brand beneath, and the count row', async () => {
   const calls = mockFetch({
     'GET /me': ME,
     'GET /wardrobe/summary': {
@@ -521,30 +526,44 @@ test('the list is the rack card: eyebrow, status line, the star, and the count r
   });
   await renderWithApi(<WardrobeView />);
   expect(await screen.findByText('2 pieces')).toBeTruthy();
-  expect(screen.getByText('Worn 6×')).toBeTruthy();
-  expect(screen.getByText(wardrobe.card.neverWorn)).toBeTruthy();
-  // Category · Brand is one quiet line; rose is kept for "Never worn".
-  expect(screen.getByText(/ · Toteme$/)).toBeTruthy();
-
-  await fireEvent.press(
-    screen.getByRole('button', { name: wardrobe.card.star('Camel wool coat') }),
-  );
-  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
-  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ hero: true });
-  expect(await screen.findByText(wardrobe.card.starred)).toBeTruthy();
+  // The wears behind the calendar at the right, "New" before the first (canvas 3b, §7.2).
+  expect(screen.getByLabelText(wardrobe.card.worn(6))).toBeTruthy();
+  expect(screen.getByText('6')).toBeTruthy();
+  expect(screen.getByLabelText(wardrobe.card.neverWorn)).toBeTruthy();
+  expect(screen.getByText(wardrobe.card.new)).toBeTruthy();
+  // The brand is its own line under the name; the star lives on the piece's page now.
+  expect(screen.getByText('Toteme')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: wardrobe.card.star('Camel wool coat') })).toBeNull();
 
   await fireEvent.press(await screen.findByRole('button', { name: 'Accessories 1' }));
   expect(await screen.findByText('1 piece')).toBeTruthy();
   expect(calls.some((c) => c.url.includes('category=Accessories'))).toBe(true);
 });
 
+test('the star in the piece’s bar files it to the Hero Rack', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ heroPosition: 1 }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', { name: wardrobe.card.star('Camel wool coat') }),
+  );
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ hero: true });
+  expect(await screen.findByText(wardrobe.card.starred)).toBeTruthy();
+});
+
 test('a full Hero Rack says so', async () => {
   mockFetch({
-    'GET /me': ME,
-    'GET /wardrobe/items': { items: [piece()], nextCursor: null, total: 1 },
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
     [`PATCH /wardrobe/items/${PIECE_ID}`]: errorReply(409, 'conflict'),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
   });
-  await renderWithApi(<WardrobeView />);
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
   await fireEvent.press(
     await screen.findByRole('button', { name: wardrobe.card.star('Camel wool coat') }),
   );

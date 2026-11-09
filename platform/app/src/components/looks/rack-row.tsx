@@ -3,10 +3,9 @@
 import type { PieceImage as PieceImageData } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { nameNoBrand, type RackRow, type RowNote, theName } from '@robes/core/looks';
-import { pieceEyebrow } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
 import { IconButton, Image, Text } from '@robes/ui';
-import Link from 'next/link';
+import { CardRow, type RowMeta } from '@/components/wardrobe/piece-card';
 import { imageSources } from '@/lib/image';
 
 export type RowMark = RowNote | { kind: 'added' };
@@ -36,13 +35,12 @@ function Disc({
   );
 }
 
-// One piece on a look's rack, drawn as the Front Door canvas's row (PRD §6.1): its own lifted white
-// card, the photo flush left at 52 wide, then the category (and the piece's role) in small caps,
-// the serif name on one line and the brand under it; at the right the wears behind a calendar, or
-// a piece to find's price behind a bag, then ›. At rest the card opens the piece; in pencil mode
-// the hanger swaps it and × takes it off (plan R2), and ♡ saves a piece to find. A row the prompt
-// changed reads warm with an ink dot at its edge. The native twin is
-// mobile/src/features/looks/RackRow.tsx.
+// One piece on a look's rack: the shared piece row (CardRow, PRD §6.1) with the look's own say —
+// its role in the small caps, a find's retailer under the name, and at the right the wears behind a
+// calendar (a piece she owns), a wish's price behind a heart, or a piece to find's price behind a
+// bag. At rest the row opens the piece; in pencil mode the hanger swaps it and × takes it off
+// (plan R2), and ♡ saves a piece to find. A row the prompt changed reads warm with an ink dot at
+// its edge. The native twin is mobile/src/features/looks/RackRow.tsx.
 export function RackRowCard({
   row,
   image,
@@ -67,18 +65,6 @@ export function RackRowCard({
   const name = nameNoBrand(row.name, brand);
   const sources = image ? imageSources(image.renditions) : null;
   const proposal = row.proposal;
-  const eye = pieceEyebrow({
-    category: row.category,
-    categoryL2: row.categoryL2 ?? null,
-    brand: null,
-  });
-  const eyebrow = [eye.category, row.role ? copy.rack.roles[row.role] : '']
-    .filter(Boolean)
-    .join(' · ');
-  // A piece to find names where it's from when it has no brand.
-  const maker = brand || proposal?.retailerHint?.trim() || '';
-  const price = proposal?.pricePoint?.trim() || '';
-  const changed = mark !== null && mark !== undefined;
   const markText =
     mark?.kind === 'was'
       ? copy.rack.swappedIn(theName(mark.name))
@@ -88,98 +74,82 @@ export function RackRowCard({
           ? copy.rack.added
           : null;
   const resting = !onSwap && !onRemove;
-  const body = (
-    <>
-      <div
-        className={`flex w-[52px] shrink-0 flex-col justify-center self-stretch overflow-hidden bg-surface-sunk ${proposal ? 'border border-dashed border-selected-line' : ''}`}
-      >
-        {sources ? (
-          <Image src={sources.src} srcSet={sources.srcSet} sizes="52px" alt="" aspect="4:5" />
-        ) : (
-          <div aria-hidden className="flex aspect-[4/5] items-center justify-center">
-            <Text size="small" tone="muted">
-              {name.charAt(0)}
-            </Text>
-          </div>
-        )}
+  const actions =
+    (proposal && onWish) || onSwap || onRemove ? (
+      <div className="-mr-1.5 flex items-center gap-1">
+        {proposal && onWish ? (
+          <IconButton
+            icon="heart"
+            label={copy.rack.save(name)}
+            aria-pressed={proposal.wishlisted}
+            onClick={onWish}
+          />
+        ) : null}
+        {onSwap ? <Disc icon="wardrobe" label={copy.rack.swap(name)} onClick={onSwap} /> : null}
+        {onRemove ? <Disc icon="close" label={copy.rack.remove(name)} onClick={onRemove} /> : null}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col py-2.5">
-        <span className="truncate font-medium font-sans text-[9px] text-ink-faint uppercase tracking-[0.18em]">
-          {eyebrow}
-        </span>
-        <h3 className="mt-0.5 truncate font-display font-normal text-[16px] text-ink leading-[1.25]">
-          {name}
-        </h3>
-        {maker ? (
-          <span className="truncate font-sans text-[11px] text-ink-faint">{maker}</span>
-        ) : null}
-        {markText ? (
-          <span className="truncate font-sans text-[11px] text-ink-muted">{markText}</span>
-        ) : null}
-        {styled ? (
-          <span className="truncate font-sans text-[11px] text-ink-muted italic">{styled}</span>
-        ) : null}
-      </div>
-      {proposal ? (
-        <span className="flex shrink-0 items-center gap-1 font-sans text-[11px] text-ink-faint">
-          <Icon name="bag" size={12} />
-          {price ? <span aria-hidden>{price}</span> : null}
-          <span className="sr-only">
-            {[proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours, price]
-              .filter(Boolean)
-              .join(' · ')}
-          </span>
-        </span>
-      ) : wears !== undefined ? (
-        <span className="flex shrink-0 items-center gap-1 font-sans text-[11px] text-ink-faint">
-          <Icon name="calendar" size={12} />
-          <span aria-hidden>{wears}</span>
-          <span className="sr-only">{copy.meta.wears(wears)}</span>
-        </span>
-      ) : null}
-    </>
-  );
+    ) : null;
   return (
-    <li
-      data-testid={`rack-row-${row.key}`}
-      className={`relative rounded-[3px] shadow-row ${changed ? 'bg-selected' : 'bg-surface-raised'}`}
-    >
-      {changed ? (
-        <span
-          aria-hidden
-          className="absolute top-1/2 -left-1 z-10 size-2 -translate-y-1/2 rounded-pill bg-ink"
-        />
-      ) : null}
-      <div className="flex min-h-[65px] items-center gap-3 overflow-hidden rounded-[3px] pr-3">
-        {row.pieceId && resting ? (
-          <Link
-            href={`/piece/${row.pieceId}`}
-            aria-label={copy.rack.open(name)}
-            className="flex min-w-0 flex-1 items-center gap-3 self-stretch rounded-[3px] focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-          >
-            {body}
-            <Icon name="forward" size={14} className="shrink-0 text-ink-faint" />
-          </Link>
-        ) : (
-          <div className="flex min-w-0 flex-1 items-center gap-3 self-stretch">{body}</div>
-        )}
-        {(proposal && onWish) || onSwap || onRemove ? (
-          <div className="-mr-1.5 flex shrink-0 items-center gap-1">
-            {proposal && onWish ? (
-              <IconButton
-                icon="heart"
-                label={copy.rack.save(name)}
-                aria-pressed={proposal.wishlisted}
-                onClick={onWish}
-              />
-            ) : null}
-            {onSwap ? <Disc icon="wardrobe" label={copy.rack.swap(name)} onClick={onSwap} /> : null}
-            {onRemove ? (
-              <Disc icon="close" label={copy.rack.remove(name)} onClick={onRemove} />
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+    <li data-testid={`rack-row-${row.key}`}>
+      <CardRow
+        piece={{
+          label: name,
+          category: row.category,
+          categoryL2: row.categoryL2 ?? null,
+          brand: brand || null,
+        }}
+        thumb={
+          sources ? (
+            <Image src={sources.src} srcSet={sources.srcSet} sizes="52px" alt="" aspect="4:5" />
+          ) : (
+            <div aria-hidden className="flex aspect-[4/5] items-center justify-center">
+              <Text size="small" tone="muted">
+                {name.charAt(0)}
+              </Text>
+            </div>
+          )
+        }
+        {...(row.role ? { role: copy.rack.roles[row.role] } : {})}
+        maker={brand || proposal?.retailerHint?.trim() || ''}
+        dashed={!!proposal}
+        meta={rackMeta(row, wears)}
+        action={actions}
+        lines={
+          markText || styled ? (
+            <>
+              {markText ? (
+                <span className="truncate font-sans text-[11px] text-ink-muted">{markText}</span>
+              ) : null}
+              {styled ? (
+                <span className="truncate font-sans text-[11px] text-ink-muted italic">
+                  {styled}
+                </span>
+              ) : null}
+            </>
+          ) : null
+        }
+        {...(row.pieceId && resting ? { href: `/piece/${row.pieceId}` } : {})}
+        openLabel={copy.rack.open(name)}
+        highlight={mark !== null && mark !== undefined}
+      />
     </li>
   );
+}
+
+// The rack row's meta (PRD §6.1, Annie 9 Nov): a wish carries a heart and its price, a piece to
+// find a bag and its price, a piece she owns its wears.
+function rackMeta(row: RackRow, wears: number | undefined): RowMeta | null {
+  const proposal = row.proposal;
+  if (proposal) {
+    const price = proposal.pricePoint?.trim() || '';
+    const said = proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours;
+    return {
+      icon: proposal.wishlisted ? 'heart' : 'bag',
+      ...(price ? { text: price } : {}),
+      label: [said, price].filter(Boolean).join(' · '),
+    };
+  }
+  return wears === undefined
+    ? null
+    : { icon: 'calendar', text: String(wears), label: copy.meta.wears(wears) };
 }

@@ -3,6 +3,7 @@ import { Icon } from '@robes/icons/native';
 import { useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
+import { CardRows } from '@/features/wardrobe/PieceCard';
 
 // The garments in a look as the Front Door canvas draws them (PRD §6.1): each row its own lifted
 // card (RackRowCard), 3pt apart. On a saved look the small "+ hanger" chip under the list adds a
@@ -22,7 +23,7 @@ export function PieceList({
   const muted = useColor('ink-muted');
   return (
     <View testID={testID ?? 'piece-list'} className="gap-2.5">
-      <View style={{ gap: 3 }}>{children}</View>
+      <CardRows>{children}</CardRows>
       {empty}
       {onAdd ? (
         <Pressable

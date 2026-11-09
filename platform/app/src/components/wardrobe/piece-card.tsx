@@ -109,32 +109,6 @@ export function StarButton({
   );
 }
 
-export function BoughtButton({
-  label,
-  onBought,
-  busy,
-  tile = false,
-}: {
-  label: string;
-  onBought: () => void;
-  busy: boolean;
-  tile?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onBought}
-      disabled={busy}
-      aria-label={copy.boughtLabel(label)}
-      className={`relative z-10 inline-flex shrink-0 items-center rounded-pill border border-rule-mid bg-surface-raised font-sans text-ink-muted hover:border-border-control hover:text-ink disabled:text-ink-faint ${
-        tile ? 'h-8 px-3.5 text-xs after:absolute after:-inset-1.5' : 'h-10 px-4 text-[13px]'
-      } ${focus}`}
-    >
-      {copy.bought}
-    </button>
-  );
-}
-
 const OPEN_AT = 88;
 const ASK_AT = 160;
 
@@ -184,7 +158,7 @@ function SwipeRow({
   };
   const shown = dx !== 0 || focused;
   return (
-    <div className={`relative overflow-hidden rounded-soft ${shown ? 'bg-accent-warm' : ''}`}>
+    <div className={`relative overflow-hidden rounded-[3px] ${shown ? 'bg-accent-warm' : ''}`}>
       <button
         type="button"
         onClick={() => {
@@ -229,46 +203,120 @@ function SwipeRow({
   );
 }
 
-// The rack card as the wardrobe's row: 52 × 64 photo, eyebrow, serif name, status, action, ›.
+// What a row says at its right (Front Door canvas 3b and the Rack): an owned piece's wears behind
+// a calendar ("New" before the first), a wish's price, a piece to find's price behind a bag or —
+// on a look — a wish's price behind a heart. `label` is what a reader hears.
+export interface RowMeta {
+  icon?: 'calendar' | 'heart' | 'bag';
+  text?: string;
+  label: string;
+}
+
+// ONE piece row for every list of pieces (Front Door canvas 3b, PRD §6.1/§7.2): the Wardrobe's
+// Owned and Wishlist, a look's Rack, the Shop to come. Its own lifted white card (`shadow-row`),
+// the photo flush left at 52 wide, the category (and a look's role) in small caps, the serif name
+// on one line and the brand under it, then the meta, any action and ›. The whole card opens the
+// piece through a stretched link; the actions sit above it. `lines` carries a row's quiet extras.
+// The native twin is CardRow in mobile/src/features/wardrobe/PieceCard.tsx.
 export function CardRow({
   piece,
   thumb,
-  status,
-  href,
+  role,
+  maker,
+  dashed = false,
+  meta,
   action,
-  removeText,
-  removeLabel,
-  onRemove,
+  lines,
+  href,
+  openLabel,
+  highlight = false,
+  swipe,
 }: {
-  piece: CardPiece;
+  piece: Omit<CardPiece, 'id'>;
   thumb: ReactNode;
-  status: CardStatus;
+  // A look's role for the piece, after the category in the small caps.
+  role?: string;
+  // The line under the name; the brand unless the row says otherwise (a find's retailer).
+  maker?: string;
+  dashed?: boolean;
+  meta?: RowMeta | null;
+  action?: ReactNode;
+  lines?: ReactNode;
   href?: string;
-  action: ReactNode;
-  removeText?: string;
-  removeLabel: string;
-  onRemove: () => void;
+  openLabel?: string;
+  // A row the prompt changed: the warm fill and an ink dot at its edge.
+  highlight?: boolean;
+  swipe?: { text?: string; label: string; onRemove: () => void };
 }) {
-  const lines = cardLines({ piece, ...(href ? { href } : {}), status });
-  return (
-    <SwipeRow {...(removeText ? { removeText } : {})} removeLabel={removeLabel} onRemove={onRemove}>
-      <div className="relative grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-soft border border-hairline bg-surface-raised py-3.5 pr-2.5 pl-3 hover:border-border-control">
-        <div className="row-span-2 w-[52px] overflow-hidden rounded-[6px]">{thumb}</div>
-        <div className="min-w-0 self-end">
-          {lines.eyebrow}
-          <div className="mt-1">{lines.name}</div>
-        </div>
-        <div className="flex items-center gap-1.5 self-end">
-          {action}
-          {href ? (
-            <span aria-hidden className="w-5 text-center text-ink-muted">
-              <Icon name="forward" size={16} />
-            </span>
-          ) : null}
-        </div>
-        <div className="col-span-2 col-start-2 self-start">{lines.status}</div>
+  const name = nameWithoutBrand(piece.label, piece.brand);
+  const eye = pieceEyebrow({ ...piece, brand: null });
+  const eyebrow = [eye.category, role ?? ''].filter(Boolean).join(' · ');
+  const under = maker ?? piece.brand?.trim() ?? '';
+  const face = (
+    <div
+      className={`relative flex min-h-[65px] items-center gap-3 pr-3 ${highlight ? 'bg-selected' : 'bg-surface-raised'}`}
+    >
+      <div
+        className={`flex w-[52px] shrink-0 flex-col justify-center self-stretch overflow-hidden bg-surface-sunk ${dashed ? 'border border-dashed border-selected-line' : ''}`}
+      >
+        {thumb}
       </div>
-    </SwipeRow>
+      <div className="flex min-w-0 flex-1 flex-col py-2.5">
+        <span className="truncate font-medium font-sans text-[9px] text-ink-faint uppercase tracking-[0.18em]">
+          {eyebrow}
+        </span>
+        <h3 className="mt-0.5 truncate font-display font-normal text-[16px] text-ink leading-[1.25]">
+          {href ? (
+            <Link
+              href={href}
+              draggable={false}
+              aria-label={openLabel ?? piece.label}
+              className={`after:absolute after:inset-0 ${focus}`}
+            >
+              {name}
+            </Link>
+          ) : (
+            name
+          )}
+        </h3>
+        {under ? (
+          <span className="truncate font-sans text-[11px] text-ink-faint">{under}</span>
+        ) : null}
+        {lines}
+      </div>
+      {meta ? (
+        <span className="flex shrink-0 items-center gap-1 font-sans text-[11px] text-ink-faint">
+          {meta.icon ? <Icon name={meta.icon} size={12} filled={meta.icon === 'heart'} /> : null}
+          {meta.text ? <span aria-hidden>{meta.text}</span> : null}
+          <span className="sr-only">{meta.label}</span>
+        </span>
+      ) : null}
+      {action ? <div className="relative z-10 flex shrink-0 items-center">{action}</div> : null}
+      {href ? <Icon name="forward" size={14} className="shrink-0 text-ink-faint" /> : null}
+    </div>
+  );
+  return (
+    <div className="relative rounded-[3px] bg-surface-raised shadow-row">
+      {highlight ? (
+        <span
+          aria-hidden
+          className="absolute top-1/2 -left-1 z-10 size-2 -translate-y-1/2 rounded-pill bg-ink"
+        />
+      ) : null}
+      <div className="overflow-hidden rounded-[3px]">
+        {swipe ? (
+          <SwipeRow
+            {...(swipe.text ? { removeText: swipe.text } : {})}
+            removeLabel={swipe.label}
+            onRemove={swipe.onRemove}
+          >
+            {face}
+          </SwipeRow>
+        ) : (
+          face
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -330,15 +378,28 @@ export function CardTile({
   );
 }
 
-// The filled heart on a wish's photograph (PRD rev 3 §7.2): a click lets the wish go.
-export function HeartButton({ label, onClick }: { label: string; onClick: () => void }) {
+// The filled heart on a wish (PRD rev 3 §7.2): a click lets the wish go. On a photograph it sits on
+// its own white disc; on a row it stands bare in the rose, after the price (canvas 3b).
+export function HeartButton({
+  label,
+  onClick,
+  onRow = false,
+}: {
+  label: string;
+  onClick: () => void;
+  onRow?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`relative z-10 inline-flex size-7 items-center justify-center rounded-pill bg-surface-raised/90 text-ink after:absolute after:-inset-2 hover:bg-surface ${focus}`}
+      className={`relative z-10 inline-flex items-center justify-center rounded-pill after:absolute after:-inset-2 ${
+        onRow
+          ? 'size-6 text-accent-warm hover:text-ink'
+          : 'size-7 bg-surface-raised/90 text-ink hover:bg-surface'
+      } ${focus}`}
     >
       <Icon name="heart" size={14} filled />
     </button>

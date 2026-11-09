@@ -1,32 +1,32 @@
 'use client';
 
-import {
-  queryKeys,
-  useApi,
-  useApiClient,
-  useApiMutation,
-  useUndoableMutation,
-} from '@robes/api-client/react';
+import { queryKeys, useApi, useApiClient, useUndoableMutation } from '@robes/api-client/react';
 import type { Wish } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
 import { shade } from '@robes/core/colour';
 import { countByCategory, formatPrice, rankCategories } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
 import { Button, CardSkeleton, EmptyState, ErrorText, Text, useToast } from '@robes/ui';
-import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { FilterRow } from '@/components/filters/filter-row';
 import { useWardrobeFilters } from '@/components/filters/use-wardrobe-filters';
 import { errorCopy } from '@/lib/error-copy';
 import { withoutId } from '@/lib/wardrobe';
 import { AddPiecesSheet } from './add/add-pieces-sheet';
-import { BoughtButton, CardRow, type CardStatus, CardTile, HeartButton } from './piece-card';
+import { CardRow, type CardStatus, CardTile, HeartButton, type RowMeta } from './piece-card';
 import { WardrobeFilterSheet, wearChoicesOf } from './piece-grid';
 import { PieceImage } from './piece-image';
 import { useWardrobeLayout } from './use-layout';
 import { AddCircle, CountRow, WardrobeHeader } from './wardrobe-header';
 
 const copy = wardrobe.wishlist;
+
+// A wish's row says its price (or that it isn't hers yet) at the right. Native twin: wishMeta in
+// WishlistView.tsx.
+function wishMeta(wish: Wish): RowMeta {
+  const price = formatPrice(wish.price, wish.currency);
+  return price ? { text: price, label: price } : { label: wardrobe.card.notYours(null) };
+}
 
 function wishStatus(wish: Wish): CardStatus {
   return {
@@ -56,7 +56,6 @@ function wishMatches(
 // keeps Bought and the remove. Native twin: WishlistView.tsx.
 export function Wishlist() {
   const client = useApiClient();
-  const queryClient = useQueryClient();
   const toast = useToast();
   const list = useApi('wishlist.list', { input: { limit: 100 } });
   const [layout, setLayout] = useWardrobeLayout();
@@ -64,20 +63,7 @@ export function Wishlist() {
   const [sheet, setSheet] = useState(false);
   // The + files a wish: the Add pieces sheet (PRD rev 3 §7.4) opens on the wishlist.
   const [adding, setAdding] = useState(false);
-  const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.summary') }),
-    ]);
 
-  const promote = useApiMutation('wishlist.promote', {
-    onSuccess: (piece) => {
-      toast({ message: copy.boughtToast(piece.label) });
-      void refresh();
-    },
-    onError: (err) => toast({ message: errorCopy(err) }),
-  });
   const remove = useUndoableMutation('wishlist.delete', {
     optimistic: (args) => [
       { queryKey: queryKeys.route('wishlist.list'), update: withoutId(args.params.id) },
@@ -189,27 +175,31 @@ export function Wishlist() {
           aria-label={wardrobe.segments.wishlist}
           className={
             list_
-              ? 'grid grid-cols-1 gap-2 md:grid-cols-[repeat(auto-fill,minmax(360px,1fr))] md:gap-x-3.5'
+              ? 'grid grid-cols-1 gap-[3px] md:grid-cols-[repeat(auto-fill,minmax(360px,1fr))] md:gap-x-3.5'
               : 'grid grid-cols-3 gap-2 md:grid-cols-4 md:gap-3 lg:grid-cols-6'
           }
         >
           {visible.map((wish) => (
             <li key={wish.id}>
               {list_ ? (
+                // The shared piece row (canvas 3b): the price, then the rose heart that lets it go.
                 <CardRow
                   piece={wish}
                   href={`/wardrobe/wishlist/${wish.id}`}
-                  status={wishStatus(wish)}
                   thumb={<PieceImage piece={wish} sizes="52px" />}
+                  maker={wish.brand ?? wish.sourceLabel ?? ''}
+                  meta={wishMeta(wish)}
                   action={
-                    <BoughtButton
-                      label={wish.label}
-                      busy={promote.isPending && promote.variables?.params.id === wish.id}
-                      onBought={() => promote.mutate({ params: { id: wish.id } })}
+                    <HeartButton
+                      onRow
+                      label={copy.unwish(wish.label)}
+                      onClick={() => remove.mutate({ params: { id: wish.id } })}
                     />
                   }
-                  removeLabel={copy.remove(wish.label)}
-                  onRemove={() => remove.mutate({ params: { id: wish.id } })}
+                  swipe={{
+                    label: copy.remove(wish.label),
+                    onRemove: () => remove.mutate({ params: { id: wish.id } }),
+                  }}
                 />
               ) : (
                 <CardTile

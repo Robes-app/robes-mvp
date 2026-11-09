@@ -9,21 +9,24 @@ import {
 } from '@robes/api-client/react';
 import type { UpdateWishInput, Wish } from '@robes/contracts';
 import { wardrobe as copy } from '@robes/copy';
-import { Button, ErrorText, Heading, IconButton, Skeleton, Tabs, useToast } from '@robes/ui';
+import { Button, ErrorText, Skeleton, Tabs, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { withoutId } from '@/lib/wardrobe';
+import { DeletePieceDialog } from './delete-piece-dialog';
 import { type FieldInput, type PieceField, PieceFieldSheet } from './piece-field-sheet';
+import { PieceHeader } from './piece-header';
 import { PieceImage } from './piece-image';
-import { RecordRows, type RecordTab, type RecordValues } from './piece-rows';
+import { PieceRow, RecordRows, type RecordTab, type RecordValues } from './piece-rows';
 
-const TABS = [copy.piece.tabs.piece, copy.piece.tabs.colour] as const;
+const TABS = [copy.piece.tabs.piece, copy.piece.tabs.colour, copy.piece.tabs.wearing] as const;
 type TabLabel = (typeof TABS)[number];
 const TAB_OF: Record<TabLabel, RecordTab> = {
   [copy.piece.tabs.piece]: 'piece',
   [copy.piece.tabs.colour]: 'colour',
+  [copy.piece.tabs.wearing]: 'wearing',
 };
 const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
@@ -64,11 +67,11 @@ export function wishInput(input: FieldInput): UpdateWishInput {
   return { ...rest, ...(notes !== undefined ? { note: notes } : {}) };
 }
 
-// A wish's page (Front Door PRD rev 3 §7.3): the piece's anatomy — the photograph, her name for
-// it, PIECE · COLOUR over the record's rows with Shop (the retailer) where an owned piece has its
-// brand — and Bought where Delete piece sits; Remove from wishlist is the quiet way out. A wish
-// carries no wears or seasons yet, so there is no WEARING tab. Native twin:
-// mobile/src/features/wardrobe/WishDetail.tsx.
+// A wish's page (Front Door canvas 3b, PRD rev 3 §7.3): the piece's anatomy — the bar with her name
+// for it, the photograph edge to edge, PIECE · COLOUR · WEARING over the record's rows with Brand
+// and Shop (the retailer) — then Bought, and Delete piece asked first. A wish carries no wears yet
+// ("New"), and its In looks, Seasons and Wear it for are drawn but wait for their data (Annie,
+// 9 Nov). Native twin: mobile/src/features/wardrobe/WishDetail.tsx.
 export function WishDetail({ id }: { id: string }) {
   const router = useRouter();
   const client = useApiClient();
@@ -76,6 +79,7 @@ export function WishDetail({ id }: { id: string }) {
   const toast = useToast();
   const [field, setField] = useState<PieceField | null>(null);
   const [tab, setTab] = useState<TabLabel>(TABS[0]);
+  const [confirm, setConfirm] = useState(false);
   const query = useApi('wishlist.get', { params: { id } });
   const update = useApiMutation('wishlist.update', {
     onSuccess: async (saved) => {
@@ -122,30 +126,35 @@ export function WishDetail({ id }: { id: string }) {
   }
   const values = wishValues(wish);
   return (
-    <article
-      className="mx-auto grid w-full max-w-xl grid-cols-1 gap-8 lg:max-w-none lg:grid-cols-[clamp(360px,38%,560px)_minmax(0,1fr)] lg:items-start lg:gap-14"
-      data-testid="wish-detail"
-    >
-      <div className="flex min-w-0 flex-col gap-6">
-        <div className="relative overflow-hidden rounded-soft border border-hairline bg-surface-raised">
-          <PieceImage
-            piece={wish}
-            contain
-            sizes="(min-width: 1024px) 560px, (min-width: 768px) 576px, 100vw"
-            priority
-          />
-        </div>
-        <header className="flex flex-col gap-1.5">
-          <div className="flex items-start gap-2">
-            <Heading level={1} size="xl" className="min-w-0 flex-1">
-              {wish.label}
-            </Heading>
-            <IconButton
-              icon="pencil"
-              label={copy.piece.editName}
-              onClick={() => setField('label')}
+    <div className="mx-auto flex w-full max-w-xl flex-col lg:max-w-none">
+      <PieceHeader title={wish.label} back="/wardrobe/wishlist" />
+      <article
+        className="grid w-full grid-cols-1 gap-8 lg:grid-cols-[clamp(360px,38%,560px)_minmax(0,1fr)] lg:items-start lg:gap-14"
+        data-testid="wish-detail"
+      >
+        <div className="flex min-w-0 flex-col gap-6">
+          <div className="relative -mx-5 overflow-hidden bg-surface-raised md:mx-0 md:rounded-soft md:border md:border-hairline">
+            <PieceImage
+              piece={wish}
+              contain
+              sizes="(min-width: 1024px) 560px, (min-width: 768px) 576px, 100vw"
+              priority
             />
           </div>
+          <Tabs items={TABS} value={tab} onChange={setTab} label={copy.piece.sections.piece} />
+          <RecordRows
+            values={values}
+            onField={setField}
+            only={TAB_OF[tab]}
+            wish
+            wearing={
+              <>
+                <PieceRow label={copy.piece.rows.worn} value={copy.card.new} />
+                <PieceRow label={copy.piece.rows.inLooks} value={copy.piece.none} />
+              </>
+            }
+          />
+          {update.isError ? <ErrorText>{errorCopy(update.error)}</ErrorText> : null}
           {wish.sourceUrl ? (
             <a
               href={wish.sourceUrl}
@@ -156,40 +165,45 @@ export function WishDetail({ id }: { id: string }) {
               {wish.sourceLabel ?? copy.piece.openShop}
             </a>
           ) : null}
-        </header>
-        <Tabs items={TABS} value={tab} onChange={setTab} label={copy.piece.sections.piece} />
-        <RecordRows values={values} onField={setField} only={TAB_OF[tab]} wish />
-        {update.isError ? <ErrorText>{errorCopy(update.error)}</ErrorText> : null}
-      </div>
-      <div className="flex min-w-0 flex-col gap-3">
-        <Button
-          variant="primary"
-          block
-          loading={promote.isPending}
-          onClick={() => promote.mutate({ params: { id: wish.id } })}
-          data-testid="wish-bought"
-        >
-          {copy.wishlist.bought}
-        </Button>
-        <Button
-          variant="quiet"
-          className="self-center"
-          onClick={() => {
+        </div>
+        <div className="flex min-w-0 flex-col gap-3">
+          <Button
+            variant="primary"
+            block
+            loading={promote.isPending}
+            onClick={() => promote.mutate({ params: { id: wish.id } })}
+            data-testid="wish-bought"
+          >
+            {copy.wishlist.bought}
+          </Button>
+          {/* Delete piece (canvas 3b): outline, asked first; the Undo toast still follows. */}
+          <Button
+            variant="outline"
+            block
+            onClick={() => setConfirm(true)}
+            data-testid="delete-piece"
+          >
+            {copy.piece.delete}
+          </Button>
+        </div>
+        <DeletePieceDialog
+          open={confirm}
+          message={copy.piece.deleteWishBody}
+          onDelete={() => {
+            setConfirm(false);
             remove.mutate({ params: { id: wish.id } });
             router.push('/wardrobe/wishlist');
           }}
-          data-testid="wish-remove"
-        >
-          {copy.piece.removeWish}
-        </Button>
-      </div>
-      <PieceFieldSheet
-        piece={values}
-        field={field}
-        onClose={() => setField(null)}
-        onSave={(input) => update.mutate({ params: { id: wish.id }, input: wishInput(input) })}
-        saving={update.isPending}
-      />
-    </article>
+          onCancel={() => setConfirm(false)}
+        />
+        <PieceFieldSheet
+          piece={values}
+          field={field}
+          onClose={() => setField(null)}
+          onSave={(input) => update.mutate({ params: { id: wish.id }, input: wishInput(input) })}
+          saving={update.isPending}
+        />
+      </article>
+    </div>
   );
 }

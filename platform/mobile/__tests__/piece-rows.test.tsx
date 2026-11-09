@@ -12,26 +12,32 @@ const base = readDraft({
   color: null,
 });
 
-test('additional colours show a dot each, and the print its own square (beta’s rows)', async () => {
+// The canvas's COLOUR tab (3b, PRD §7.3): four rows of words, no swatches.
+test('colours, print and material read as words, each a door to its picker', async () => {
   await render(
     <RecordRows
       values={{ ...base, colourShade: 'navy', colourExtra: ['acid', 'saffron'], print: 'stripes' }}
       onField={() => {}}
     />,
   );
-  expect(screen.getByTestId('shade-swatch-acid')).toBeTruthy();
-  expect(screen.getByTestId('shade-swatch-saffron')).toBeTruthy();
-  expect(screen.getByTestId('print-swatch-stripes')).toBeTruthy();
   expect(screen.getByText('Acid · Saffron')).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.print}: Stripes` }),
+  ).toBeTruthy();
+  expect(screen.queryByTestId(/^shade-swatch-/)).toBeNull();
+  expect(screen.queryByTestId(/^print-swatch-/)).toBeNull();
 });
 
-test('a plain piece reads Plain with no square, and no extra colours draw no dots', async () => {
+test('an empty colour row reads Add', async () => {
   await render(
     <RecordRows values={{ ...base, colourExtra: [], print: null }} onField={() => {}} />,
   );
-  expect(screen.getByText(wardrobe.colour.plain)).toBeTruthy();
-  expect(screen.queryByTestId(/^print-swatch-/)).toBeNull();
-  expect(screen.queryByTestId(/^shade-swatch-/)).toBeNull();
+  expect(
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.print}: ${wardrobe.piece.add}` }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.extra}: ${wardrobe.piece.add}` }),
+  ).toBeTruthy();
 });
 
 test('while Robes reads, no swatch shows ahead of the words', async () => {

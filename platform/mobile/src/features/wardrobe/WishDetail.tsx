@@ -6,8 +6,6 @@ import {
   Button,
   EmptyState,
   ErrorText,
-  Heading,
-  IconButton,
   Image,
   PrimaryScope,
   Skeleton,
@@ -22,15 +20,18 @@ import { useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { DeletePieceDialog } from './DeletePieceDialog';
 import { type FieldInput, type PieceField, PieceFieldSheet } from './PieceFieldSheet';
-import { RecordRows, type RecordTab, type RecordValues } from './PieceRows';
+import { PieceHeader } from './PieceHeader';
+import { PieceRow, RecordRows, type RecordTab, type RecordValues } from './PieceRows';
 import { useRemoveWish } from './wishlist';
 
-const TABS = [copy.piece.tabs.piece, copy.piece.tabs.colour] as const;
+const TABS = [copy.piece.tabs.piece, copy.piece.tabs.colour, copy.piece.tabs.wearing] as const;
 type TabLabel = (typeof TABS)[number];
 const TAB_OF: Record<TabLabel, RecordTab> = {
   [copy.piece.tabs.piece]: 'piece',
   [copy.piece.tabs.colour]: 'colour',
+  [copy.piece.tabs.wearing]: 'wearing',
 };
 
 // A wish's record as the drawers read it: a wish has a note, no wears and no seasons yet.
@@ -69,11 +70,11 @@ export function wishInput(input: FieldInput): UpdateWishInput {
   return { ...rest, ...(notes !== undefined ? { note: notes } : {}) };
 }
 
-// A wish's page (Front Door PRD rev 3 §7.3): the piece's anatomy — the photograph, her name for
-// it, PIECE · COLOUR over the record's rows with Shop (the retailer) where an owned piece has its
-// brand — and Bought where Delete piece sits; Remove from wishlist is the quiet way out. A wish
-// carries no wears or seasons yet, so there is no WEARING tab. Web twin:
-// app/src/components/wardrobe/wish-detail.tsx.
+// A wish's page (Front Door canvas 3b, PRD rev 3 §7.3): the piece's anatomy — the bar with her name
+// for it, the photograph edge to edge, PIECE · COLOUR · WEARING over the record's rows with Brand
+// and Shop (the retailer) — then Bought, and Delete piece asked first. A wish carries no wears yet
+// ("New"), and its In looks, Seasons and Wear it for are drawn but wait for their data (Annie,
+// 9 Nov). Web twin: app/src/components/wardrobe/wish-detail.tsx.
 export function WishDetail({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -81,6 +82,7 @@ export function WishDetail({ id }: { id: string }) {
   const ink = useColor('ink');
   const [field, setField] = useState<PieceField | null>(null);
   const [tab, setTab] = useState<TabLabel>(TABS[0]);
+  const [confirm, setConfirm] = useState(false);
   const query = useApi('wishlist.get', { params: { id } });
   const update = useApiMutation('wishlist.update', {
     onSuccess: async (saved) => {
@@ -115,8 +117,9 @@ export function WishDetail({ id }: { id: string }) {
   const values = wishValues(wish);
   return (
     <View className="flex-1" testID="wish-detail">
-      <ScrollView contentContainerClassName="gap-5 px-6 pb-10">
-        <View className="rounded-crisp border border-hairline bg-surface-raised p-4">
+      <PieceHeader title={wish.label} />
+      <ScrollView contentContainerClassName="gap-5 pb-10">
+        <View className="bg-surface-raised">
           {uri ? (
             <Image
               source={uri}
@@ -134,49 +137,60 @@ export function WishDetail({ id }: { id: string }) {
             </View>
           )}
         </View>
-        <View className="flex-row items-start gap-2">
-          <Heading size="md" className="min-w-0 flex-1">
-            {wish.label}
-          </Heading>
-          <IconButton icon="pencil" label={copy.piece.editName} onPress={() => setField('label')} />
+        <View className="gap-5 px-5">
+          <Tabs items={TABS} value={tab} onChange={setTab} testID="wish-tabs" />
+          <RecordRows
+            values={values}
+            onField={setField}
+            only={TAB_OF[tab]}
+            wish
+            wearing={
+              <>
+                <PieceRow first label={copy.piece.rows.worn} value={copy.card.new} />
+                <PieceRow label={copy.piece.rows.inLooks} value={copy.piece.none} />
+              </>
+            }
+          />
+          {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
+          {wish.sourceUrl ? (
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={copy.piece.openShop}
+              onPress={() => void Linking.openURL(wish.sourceUrl ?? '')}
+              className="min-h-11 justify-center self-start"
+            >
+              <Text size="small" tone="muted" style={{ textDecorationLine: 'underline' }}>
+                {wish.sourceLabel ?? copy.piece.openShop}
+              </Text>
+            </Pressable>
+          ) : null}
+          <PrimaryScope>
+            <View className="gap-3">
+              <Button
+                loading={promote.isPending}
+                onPress={() => promote.mutate({ params: { id: wish.id } })}
+                testID="wish-bought"
+              >
+                {copy.wishlist.bought}
+              </Button>
+              {/* Delete piece (canvas 3b): outline, asked first; the Undo toast still follows. */}
+              <Button variant="outline" onPress={() => setConfirm(true)} testID="delete-piece">
+                {copy.piece.delete}
+              </Button>
+            </View>
+          </PrimaryScope>
         </View>
-        {wish.sourceUrl ? (
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={copy.piece.openShop}
-            onPress={() => void Linking.openURL(wish.sourceUrl ?? '')}
-            className="min-h-11 justify-center self-start"
-          >
-            <Text size="small" tone="muted" style={{ textDecorationLine: 'underline' }}>
-              {wish.sourceLabel ?? copy.piece.openShop}
-            </Text>
-          </Pressable>
-        ) : null}
-        <Tabs items={TABS} value={tab} onChange={setTab} testID="wish-tabs" />
-        <RecordRows values={values} onField={setField} only={TAB_OF[tab]} wish />
-        {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
-        <PrimaryScope>
-          <View className="gap-3">
-            <Button
-              loading={promote.isPending}
-              onPress={() => promote.mutate({ params: { id: wish.id } })}
-              testID="wish-bought"
-            >
-              {copy.wishlist.bought}
-            </Button>
-            <Button
-              variant="quiet"
-              onPress={() => {
-                remove.mutate({ params: { id: wish.id } });
-                router.back();
-              }}
-              testID="wish-remove"
-            >
-              {copy.piece.removeWish}
-            </Button>
-          </View>
-        </PrimaryScope>
       </ScrollView>
+      <DeletePieceDialog
+        open={confirm}
+        message={copy.piece.deleteWishBody}
+        onDelete={() => {
+          setConfirm(false);
+          remove.mutate({ params: { id: wish.id } });
+          router.back();
+        }}
+        onCancel={() => setConfirm(false)}
+      />
       <PieceFieldSheet
         piece={values}
         field={field}
