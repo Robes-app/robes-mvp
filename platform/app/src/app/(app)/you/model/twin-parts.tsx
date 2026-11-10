@@ -8,9 +8,11 @@ import {
   chosenTones,
   lineupOrder,
   stepTwinFact,
+  TWIN_STATUS_STEP_MS,
   type TwinAdj,
   type TwinStep,
   twinFigure,
+  twinStatusIndex,
 } from '@robes/core/avatar';
 import { euShoe, euSize, type FactStep, feetInches, stepFact } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/web';
@@ -23,6 +25,40 @@ import { useDnaMutations } from '@/lib/use-dna';
 const copy = you.model;
 const f = twin.facts;
 export type Pick = (input: UpdateModelInput) => void;
+
+const STATUS = twin.twinPage.status;
+// The status line a redraw with no selfie starts on: "Drawing your model".
+const DRAWING_FROM = 2;
+
+// The stage's status (designs 06–07): a line at a time while her selfie reads and her twin draws,
+// the last one holding until she lands. Null when nothing is happening. Native twin: useTwinStatus
+// in mobile/src/features/you/twin.tsx.
+export function useTwinStatus(reading: boolean, drawing: boolean): string | null {
+  const busy = reading || drawing;
+  const readingNow = useRef(reading);
+  readingNow.current = reading;
+  const [run, setRun] = useState<{ at: number; fromRead: boolean } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!busy) {
+      setRun(null);
+      return;
+    }
+    setRun({ at: Date.now(), fromRead: readingNow.current });
+    setNow(Date.now());
+    const tick = window.setInterval(() => setNow(Date.now()), TWIN_STATUS_STEP_MS / 4);
+    return () => window.clearInterval(tick);
+  }, [busy]);
+  if (!busy) return null;
+  const i = twinStatusIndex({
+    count: STATUS.length,
+    drawingFrom: DRAWING_FROM,
+    startedReading: run ? run.fromRead : reading,
+    reading,
+    elapsedMs: run ? now - run.at : 0,
+  });
+  return STATUS[i] ?? null;
+}
 
 // Polls while her twin or the catalog portrait is being drawn.
 export function useModel() {

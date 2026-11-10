@@ -33,8 +33,7 @@ export function ColouringView() {
   return (
     <div className="flex flex-col gap-5">
       <Section title={tw.season}>
-        <Seasons profile={style.data} onSelfie={selfie.start} busy={selfie.busy} />
-        {selfie.error ? <ErrorText>{selfie.error}</ErrorText> : null}
+        <Seasons profile={style.data} onSelfie={selfie.start} />
       </Section>
       <Section title={tw.skinAndHair}>
         <Text size="small" tone="muted">
@@ -42,20 +41,11 @@ export function ColouringView() {
         </Text>
         <SkinAndHair model={model} pick={pick} />
       </Section>
-      {selfie.field}
     </div>
   );
 }
 
-function Seasons({
-  profile,
-  onSelfie,
-  busy,
-}: {
-  profile: StyleProfile;
-  onSelfie: () => void;
-  busy: boolean;
-}) {
+function Seasons({ profile, onSelfie }: { profile: StyleProfile; onSelfie: () => void }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [more, setMore] = useState(false);
@@ -72,7 +62,7 @@ function Seasons({
         <Text size="small" tone="muted">
           {tw.addSeason}
         </Text>
-        <Button variant="quiet" className="self-start px-0" disabled={busy} onClick={onSelfie}>
+        <Button variant="quiet" className="self-start px-0" onClick={onSelfie}>
           {tw.addSelfie}
         </Button>
       </div>

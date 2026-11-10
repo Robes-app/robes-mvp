@@ -6,7 +6,6 @@ import { Icon } from '@robes/icons/native';
 import {
   Button,
   EmptyState,
-  ErrorText,
   MIN_TOUCH,
   Sheet,
   Skeleton,
@@ -41,8 +40,7 @@ export function Colouring() {
   return (
     <ScrollView contentContainerClassName="gap-5 px-6 pb-12" keyboardShouldPersistTaps="handled">
       <Section title={tw.season}>
-        <Seasons profile={profile} onSelfie={selfie.start} busy={selfie.busy} />
-        {selfie.error ? <ErrorText>{selfie.error}</ErrorText> : null}
+        <Seasons profile={profile} onSelfie={selfie.start} />
       </Section>
       <Section title={tw.skinAndHair}>
         <Text size="small" tone="muted">
@@ -50,20 +48,11 @@ export function Colouring() {
         </Text>
         <SkinAndHair model={model} pick={pick} />
       </Section>
-      {selfie.chooser}
     </ScrollView>
   );
 }
 
-function Seasons({
-  profile,
-  onSelfie,
-  busy,
-}: {
-  profile: StyleProfile;
-  onSelfie: () => void;
-  busy: boolean;
-}) {
+function Seasons({ profile, onSelfie }: { profile: StyleProfile; onSelfie: () => void }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const ink = useColor('ink');
@@ -82,7 +71,7 @@ function Seasons({
         <Text size="small" tone="muted">
           {tw.addSeason}
         </Text>
-        <Button variant="quiet" className="self-start" disabled={busy} onPress={onSelfie}>
+        <Button variant="quiet" className="self-start" onPress={onSelfie}>
           {tw.addSelfie}
         </Button>
       </View>

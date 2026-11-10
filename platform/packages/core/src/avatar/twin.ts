@@ -343,3 +343,20 @@ export function chosenTones(m: {
   const read = !!m.closeUpUrl;
   return { skin: read || m.skinSet ? m.skin : null, hair: read || m.hairSet ? m.hair : null };
 }
+
+// The stage's status while her twin is made (designs 06–07): one line every TWIN_STATUS_STEP_MS,
+// from the first line when a selfie is read, from the drawing's line (`drawingFrom`) when only a
+// redraw runs, and from there once the read is done. Never back a line; the last one holds.
+export const TWIN_STATUS_STEP_MS = 4_000;
+export function twinStatusIndex(o: {
+  count: number;
+  drawingFrom: number;
+  startedReading: boolean;
+  reading: boolean;
+  elapsedMs: number;
+}): number {
+  const from = o.startedReading ? 0 : o.drawingFrom;
+  const stepped = from + Math.floor(Math.max(0, o.elapsedMs) / TWIN_STATUS_STEP_MS);
+  const at = o.reading ? stepped : Math.max(stepped, o.drawingFrom);
+  return Math.min(at, o.count - 1);
+}

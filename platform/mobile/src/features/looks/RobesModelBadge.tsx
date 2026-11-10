@@ -68,7 +68,6 @@ export function RobesModelBadge({
             label={copy.deck.twin.capture}
             edge="dashed"
             testID="robes-model-capture"
-            disabled={selfie.busy}
             onPress={() => {
               selfie.startOnceClosed();
               setOpen(false);
@@ -87,7 +86,6 @@ export function RobesModelBadge({
           />
         </View>
       </Sheet>
-      {selfie.chooser}
     </>
   );
 }

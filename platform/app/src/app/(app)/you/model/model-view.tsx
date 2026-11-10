@@ -18,6 +18,7 @@ import {
   useDrawTwin,
   useModel,
   useModelPick,
+  useTwinStatus,
 } from './twin-parts';
 
 const copy = you.model;
@@ -48,7 +49,7 @@ export function ModelView() {
   const colour = style.data.colour;
   const line = lineSummary(dna.data.facts);
   const drewHer = twinRead(model, dna.data.facts);
-  const error = read.error ?? selfie.error;
+  const error = read.error;
   const doors = (
     <>
       <SettingsRow
@@ -75,7 +76,7 @@ export function ModelView() {
         model={model}
         facts={dna.data.facts}
         read={drewHer}
-        reading={read.reading || selfie.busy}
+        reading={read.reading}
         onRetake={onRobes ? undefined : selfie.start}
       />
       <div className="flex min-w-0 flex-col gap-5">
@@ -86,7 +87,6 @@ export function ModelView() {
             <button
               type="button"
               onClick={selfie.start}
-              disabled={selfie.busy}
               className={`flex min-h-[62px] w-full items-center gap-3.5 rounded-soft border border-warm-line border-dashed px-4 py-3 text-left ${focus}`}
               data-testid="twin-add-selfie"
             >
@@ -119,7 +119,6 @@ export function ModelView() {
           </>
         )}
       </div>
-      {selfie.field}
     </div>
   );
 }
@@ -163,7 +162,7 @@ function ModelStage({
   const failed =
     !onRobes &&
     (model.twin.status === 'failed' || (!model.twin.imageUrl && model.cell.status === 'failed'));
-  const chip = reading ? tw.reading : drawing ? tw.drawing : null;
+  const chip = useTwinStatus(reading, drawing);
   return (
     <div className="flex flex-col gap-2 lg:sticky lg:top-[68px]">
       <figure className="-mx-6 relative h-[520px] overflow-hidden bg-surface-sunk md:mx-0 md:rounded-soft">
@@ -212,11 +211,14 @@ function ModelStage({
           </figcaption>
         ) : null}
         {chip ? (
-          // The chip on the stage while she is drawn (legacy .mv-photo-busy).
+          // The status on the stage while she is read and drawn (designs 06–07): a dot and one
+          // line, level with the back disc.
           <p
             role="status"
-            className="absolute top-[calc(env(safe-area-inset-top)+14px)] right-3.5 flex h-7 items-center rounded-pill bg-veil px-3 backdrop-blur-[22px] motion-safe:animate-pulse"
+            className="absolute top-[calc(env(safe-area-inset-top)+20px)] right-3.5 flex h-8 items-center gap-2.5 rounded-pill bg-veil px-3.5 backdrop-blur-[22px]"
+            data-testid="twin-status"
           >
+            <span aria-hidden className="size-1.5 rounded-pill bg-accent-warm" />
             <span className="app-caps text-ink">{chip}</span>
           </p>
         ) : null}

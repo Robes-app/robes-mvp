@@ -79,7 +79,6 @@ export function RobesModelBadge({
               setOpen(false);
               selfie.start();
             }}
-            disabled={selfie.busy}
             className={`${row} border border-warm-line border-dashed`}
             data-testid="robes-model-capture"
           >
@@ -111,7 +110,6 @@ export function RobesModelBadge({
           </button>
         </div>
       </Sheet>
-      {selfie.field}
     </>
   );
 }

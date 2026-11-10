@@ -1,7 +1,6 @@
 import type { Look, LookSet } from '@robes/contracts';
 import { diary, filters, lookbook, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { Alert } from 'react-native';
 import { NewLookBox } from '../src/features/home/HomeBox';
 import { Deck, JobDeck } from '../src/features/looks/Deck';
@@ -17,13 +16,6 @@ import { mockParams, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
-jest.mock('expo-image-picker', () => ({
-  CameraType: { front: 'front', back: 'back' },
-  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
-  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
-  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: true })),
-  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
-}));
 
 beforeEach(() => jest.clearAllMocks());
 // Every call site reports through the consent-gated client (observability.test.ts proves the gate).
@@ -320,12 +312,10 @@ test('the Robes model tag follows the picture, opens its sheet; Adjust navigates
 
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.deck.robesModelLabel }));
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.deck.twin.capture }));
-  await fireEvent.press(await screen.findByTestId('selfie-camera'));
-  await waitFor(() =>
-    expect(ImagePicker.launchCameraAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ cameraType: 'front' }),
-    ),
-  );
+  // The selfie camera, once the sheet has gone.
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/you/selfie'), {
+    timeout: 4000,
+  });
 });
 
 test('a look drawn on her own twin wears no tag, whatever her account says', async () => {

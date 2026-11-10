@@ -15,6 +15,7 @@ import {
   twinKey,
   twinKeyMaterial,
   twinSpec,
+  twinStatusIndex,
 } from './index';
 
 const none: TwinFacts = {
@@ -74,6 +75,20 @@ describe('the twin', () => {
     expect(twinKeyMaterial(inputs({ adj: { ...NO_ADJ, hips: 1 } }))).not.toBe(a);
     expect(twinKeyMaterial(inputs({ closeUpAssetId: 'x' }))).not.toBe(a);
     expect(twinKeyMaterial(inputs({ facts: { ...none, waistCm: 70 } }))).not.toBe(a);
+  });
+
+  it('steps the stage’s status a line at a time, from the read or the drawing, holding the last', () => {
+    const at = (startedReading: boolean, reading: boolean, elapsedMs: number) =>
+      twinStatusIndex({ count: 4, drawingFrom: 2, startedReading, reading, elapsedMs });
+    expect(at(true, true, 0)).toBe(0);
+    expect(at(true, true, 4_000)).toBe(1);
+    // The read done early: straight to the drawing; never back.
+    expect(at(true, false, 1_000)).toBe(2);
+    expect(at(true, false, 12_000)).toBe(3);
+    expect(at(true, true, 60_000)).toBe(3);
+    // A redraw with no selfie starts at the drawing.
+    expect(at(false, false, 0)).toBe(2);
+    expect(at(false, false, 4_000)).toBe(3);
   });
 
   it('keys a twin drawn from her close-up apart from the colouring read from it', async () => {
