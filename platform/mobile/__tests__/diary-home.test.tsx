@@ -2,6 +2,7 @@ import type { DiaryDay, PlanEntry, Today } from '@robes/contracts';
 import { diary, filters, today as todayCopy, ui } from '@robes/copy';
 import { diaryWindow } from '@robes/core/calendar';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { DiaryHome } from '../src/features/home/DiaryHome';
 import { dayWordOf, drawerCta, drawerLine, whenWord } from '../src/features/home/diary';
 import { mockFetch, renderWithApi } from './support/api';
@@ -10,6 +11,12 @@ import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
+jest.mock('expo-image-picker', () => ({
+  CameraType: { front: 'front', back: 'back' },
+  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+}));
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -315,6 +322,27 @@ test('the model stack opens Your model; a pick is remembered', async () => {
   });
   await fireEvent.press(screen.getByRole('radio', { name: diary.dayOne.modelPick(3) }));
   await waitFor(() => expect(picks).toEqual([{ preset: 3 }]));
+});
+
+// Opened with Your model still closing, the selfie chooser left a see-through layer over the
+// whole app on iOS, taking every tap: it waits for the picker to be gone, and stands beside it.
+test('Use my likeness: the selfie chooser opens once Your model has gone, then the camera', async () => {
+  mockFetch(ROUTES);
+  await renderWithApi(<DiaryHome day={EMPTY} />);
+  await fireEvent.press(await screen.findByRole('button', { name: diary.model.choose }));
+  expect(await screen.findByTestId('model-picker')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: diary.model.own }));
+  expect(screen.queryByTestId('selfie-camera')).toBeNull();
+  expect(await screen.findByTestId('selfie-camera', {}, { timeout: 4000 })).toBeTruthy();
+  expect(screen.queryByTestId('model-picker')).toBeNull();
+  await fireEvent.press(screen.getByTestId('selfie-camera'));
+  await waitFor(
+    () =>
+      expect(ImagePicker.launchCameraAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ cameraType: 'front' }),
+      ),
+    { timeout: 4000 },
+  );
 });
 
 test('once her twin stands, the model stack is gone', async () => {

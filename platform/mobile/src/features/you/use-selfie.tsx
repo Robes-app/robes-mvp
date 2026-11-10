@@ -19,9 +19,14 @@ export const READ_PARAM = 'read';
 // offers the front camera or her photo library (the design's selfie screen offers both), the
 // photograph uploaded as her close-up and read for her colouring, then Your digital twin at once
 // with the read's job in the params so that screen can draw her when it lands. The caller renders
-// `chooser`. Web twin: app/src/lib/use-selfie.tsx.
+// `chooser` — beside any sheet of its own, never inside one. Web twin: app/src/lib/use-selfie.tsx.
 export function useSelfie(): {
   start: () => void;
+  // From a button in another sheet: `startOnceClosed()` as it closes that sheet, whose `onClosed`
+  // is `afterClose`. The chooser waits for that sheet to fully go: presented over a sheet still
+  // dismissing, iOS left a see-through layer over the whole app, taking every tap.
+  startOnceClosed: () => void;
+  afterClose: () => void;
   chooser: ReactNode;
   busy: boolean;
   error: string | null;
@@ -35,6 +40,7 @@ export function useSelfie(): {
   // The camera or library opens only once the chooser has fully gone (Sheet onClosed): iOS
   // refuses to present over a closing sheet.
   const picking = useRef<'camera' | 'library' | null>(null);
+  const queued = useRef(false);
   const pick = (from: 'camera' | 'library') => {
     picking.current = from;
     setChoosing(false);
@@ -95,7 +101,20 @@ export function useSelfie(): {
       </View>
     </Sheet>
   );
-  return { start: () => setChoosing(true), chooser, busy, error };
+  return {
+    start: () => setChoosing(true),
+    startOnceClosed: () => {
+      queued.current = true;
+    },
+    afterClose: () => {
+      if (!queued.current) return;
+      queued.current = false;
+      setChoosing(true);
+    },
+    chooser,
+    busy,
+    error,
+  };
 }
 
 // Your digital twin, landed on from the camera: follows the read named in the params and, when it
