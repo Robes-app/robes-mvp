@@ -50,8 +50,6 @@ export function DaySlot({
   justSaved = null,
   model,
   actions,
-  onAnother,
-  anotherBusy = false,
 }: {
   day: DiaryDay;
   today: string;
@@ -61,8 +59,6 @@ export function DaySlot({
   justSaved?: string | null;
   model: Model | undefined;
   actions: DayActions;
-  onAnother: (lookId: string) => void;
-  anotherBusy?: boolean;
 }) {
   const router = useRouter();
   const window = useWindowDimensions();
@@ -140,16 +136,7 @@ export function DaySlot({
             </Text>
           </View>
         ))}
-        {draft ? (
-          <DraftTile
-            draft={draft}
-            day={day}
-            today={today}
-            width={width}
-            onAnother={onAnother}
-            anotherBusy={anotherBusy}
-          />
-        ) : null}
+        {draft ? <DraftTile draft={draft} day={day} today={today} width={width} /> : null}
         <AddPage
           width={width}
           dayWord={dayWord}

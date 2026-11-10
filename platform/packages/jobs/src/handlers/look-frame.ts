@@ -4,6 +4,7 @@ import {
   buildImagePrompt,
   FEATURE,
   type FramePiece,
+  type FrameSetting,
   MAX_REFERENCES,
   type Mode,
 } from '@robes/ai/prompts/style-piece';
@@ -102,6 +103,8 @@ export async function drawSuggestedFrame(
     capability: 'image.hero' | 'image.secondary';
     // Her note on the picture (D21): how it is drawn, never what is worn.
     pictureNote?: string | null;
+    // Her draft stands in the studio on her model (design 1b); a suggestion in its scene.
+    setting?: FrameSetting;
   },
 ): Promise<string> {
   const references: InlineImage[] = [];
@@ -148,6 +151,7 @@ export async function drawSuggestedFrame(
           brief: opts.brief,
           way: opts.way,
           pieces,
+          ...(opts.setting ? { setting: opts.setting } : {}),
         }),
         opts.pictureNote,
       ),

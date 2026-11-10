@@ -4,49 +4,25 @@ import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { DiaryDay, PlanEntry, Today } from '@robes/contracts';
 import { diary as copy, home as homeCopy, today as todayCopy, wardrobe } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
-import { greetingName, trayKind, trayState } from '@robes/core/home';
-import { isTerminalJobStatus } from '@robes/core/jobs';
+import { greetingName } from '@robes/core/home';
 import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/web';
-import { Eyebrow, Text, useToast } from '@robes/ui';
+import { useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { LookPicker } from '@/app/(app)/plan/look-picker';
 import { dayWordOf, type PickerMode } from '@/lib/diary';
 import { errorCopy } from '@/lib/error-copy';
-import { useRestyle } from '@/lib/look-states';
 import { setPendingPhoto } from '@/lib/pending-photo';
 import { DaySlot } from './day-slot';
 import { DiaryStrip } from './diary-strip';
 import { ModelPicker } from './model-picker';
 
-// The tray's jobs, and the draft Robes is making for a day (plan 2026-11-03): read every 2 s.
+// The draft Robes is making for a day (plan 2026-11-03): read every 2 s. Home shows no tray of
+// jobs (design 1b).
 const isRunning = (t: Today | undefined) =>
-  (t?.tray.some((j) => !isTerminalJobStatus(j.status)) ?? false) ||
-  (t?.diary?.days.some((d) => d.draft?.jobId || d.draft?.look?.framePending) ?? false);
-
-type TrayJob = Today['tray'][number];
-function trayHref(job: TrayJob): string {
-  const kind = trayKind(job);
-  if (kind === 'styleColour') return '/you/style';
-  if (kind === 'trip') {
-    return job.output.tripId ? `/trip/${job.output.tripId}` : `/trip/job/${job.id}`;
-  }
-  if (kind === 'daily') {
-    return job.output.dailyLookId
-      ? `/today/looks/${job.output.dailyLookId}`
-      : `/today/style/${job.id}`;
-  }
-  return job.output.ideaId ? `/looks/ideas/${job.output.ideaId}` : `/looks/style/${job.id}`;
-}
-const TRAY_TITLE = {
-  styleColour: todayCopy.tray.styleColour,
-  trip: todayCopy.tray.trip,
-  daily: todayCopy.daily.trayTitle,
-  stylePiece: todayCopy.tray.stylePiece,
-} as const;
+  t?.diary?.days.some((d) => d.draft?.jobId || d.draft?.look?.framePending) ?? false;
 
 // Today's cache with one look taken off its day (optimistic; the server read follows).
 export function withoutDiaryEntry(id: string) {
@@ -102,8 +78,6 @@ export function DiaryHome({
   const [choosing, setChoosing] = useState(false);
   const router = useRouter();
   const [drawer, setDrawer] = useState<{ date: string; mode: PickerMode } | null>(null);
-  // ↻ on the draft tile: another take, same brief.
-  const another = useRestyle();
   const current: DiaryDay = diary?.days.find((d) => d.date === selected) ??
     diary?.days.find((d) => d.date === today) ?? {
       date: today,
@@ -205,30 +179,7 @@ export function DiaryHome({
           onRemove: remove,
           onModel: () => setChoosing(true),
         }}
-        onAnother={another.restyle}
-        anotherBusy={another.busyId !== null && another.busyId === current.draft?.look?.id}
       />
-
-      {data.tray.length > 0 ? (
-        <section aria-labelledby="tray" className="flex flex-col gap-3">
-          <Eyebrow id="tray">{todayCopy.tray.title}</Eyebrow>
-          <ul className="flex flex-col gap-2">
-            {data.tray.map((job) => (
-              <li key={job.id}>
-                <Link
-                  href={trayHref(job)}
-                  className="flex justify-between gap-4 underline-offset-4 hover:underline"
-                >
-                  <Text>{TRAY_TITLE[trayKind(job)]}</Text>
-                  <Text tone="muted" role="status">
-                    {todayCopy.tray[trayState(job.status)]}
-                  </Text>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
 
       <ModelPicker open={choosing} model={model.data} onClose={() => setChoosing(false)} />
       <LookPicker

@@ -360,7 +360,7 @@ test('the diary: the strip selects a day, the slot adds and changes its look, De
 test('Describe: her words become the day’s one draft, which dresses in the slot', async ({
   page,
 }) => {
-  // Two generations: more than the default budget.
+  // A generation and its picture: more than the default budget.
   test.setTimeout(150_000);
   const errors = watchErrors(page);
   await signIn(page);
@@ -383,10 +383,7 @@ test('Describe: her words become the day’s one draft, which dresses in the slo
   );
   expect(tile, tile).toContain('tile=ready');
   await expect(page.getByRole('heading', { level: 1, name: /, Niall\.$/ })).toBeVisible();
-  // ↻ on the tile: another take, same brief, drawn in place.
-  await page.getByRole('button', { name: 'Another take, same brief' }).click();
-  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'generating');
-  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'ready', {
-    timeout: 60_000,
-  });
+  // Nothing sits on the draft's picture, and Home lists no jobs under it (design 1b).
+  await expect(page.getByTestId('draft-tile').getByRole('button')).toHaveCount(0);
+  await expect(page.getByText('In the studio')).toHaveCount(0);
 });

@@ -132,12 +132,22 @@ describe('look_render: Robes’ frame of a look', () => {
   });
 
   it('draws a suggestion’s first frame from its set when it has none', async () => {
-    const { run, generateImage } = setup({ frameAssetId: null });
+    const { run, generateImage } = setup({ frameAssetId: null, status: 'suggested' });
     await run();
     const req = generateImage.mock.calls[0]?.[0];
     expect(req?.capability).toBe('image.secondary');
     expect(req?.prompt).toContain('Look: "Garden party" — Evening.');
     expect(req?.prompt).toContain('The scene: A long lunch in the sun.');
+  });
+
+  // Design 1b: her draft is dressed on her model in the studio, never set in a scene.
+  it('draws her draft’s first frame on her model in the studio', async () => {
+    const { run, generateImage } = setup({ frameAssetId: null });
+    await run();
+    const prompt = generateImage.mock.calls[0]?.[0].prompt ?? '';
+    expect(prompt).toContain('Look: "Garden party" — Evening.');
+    expect(prompt).toContain('clean warm-grey studio backdrop');
+    expect(prompt).not.toContain('A long lunch in the sun');
   });
 
   it('stands down when the rack moved on, and gives the claim back on failure', async () => {

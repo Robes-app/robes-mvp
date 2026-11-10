@@ -19,27 +19,22 @@ const d = lookbook.draft;
 
 // The draft tile in the day's slot (Front Door design 3b, plan 2026-11-03 §1.2): where Add look
 // stood. Dressing — the bare model under the scan line, the day's reading, the lines, the rack's
-// thumbs landing; then the draft, its bar opening the page; ↻ asks for another take, same brief.
-// The native twin is mobile/src/features/home/DraftTile.tsx.
+// thumbs landing; then the draft, its bar opening the page. Nothing sits on the picture (design
+// 1b). The native twin is mobile/src/features/home/DraftTile.tsx.
 export function DraftTile({
   draft,
   day,
   today,
-  onAnother,
-  anotherBusy,
 }: {
   draft: DiaryDraft;
   day: DiaryDay;
   today: string;
-  onAnother: (lookId: string) => void;
-  anotherBusy: boolean;
 }) {
   const look = draft.look;
   const model = useApi('me.model.get', undefined, { enabled: !look?.image });
   // Dressing until a picture lands; a job still running with nothing drawn is dressing too.
-  const generating =
-    anotherBusy || !look || look.framePending || (!look.image && draft.jobId !== null);
-  const line = useDressingLine(anotherBusy ? d.linesAgain : d.linesFirst, generating);
+  const generating = !look || look.framePending || (!look.image && draft.jobId !== null);
+  const line = useDressingLine(d.linesFirst, generating);
   const stand = model.data?.stand?.imageUrl ?? null;
   const read = [
     day.date === today ? diary.today : weekdayDay(day.date),
@@ -91,17 +86,6 @@ export function DraftTile({
               <p className="font-sans text-[10px] text-ink-faint">{d.usually}</p>
             </div>
           </>
-        ) : null}
-        {!generating && look?.setId ? (
-          <button
-            type="button"
-            onClick={() => onAnother(look.id)}
-            aria-label={d.tileRegen}
-            title={d.tileRegen}
-            className={`absolute bottom-3 left-3 z-10 flex size-9 items-center justify-center rounded-pill bg-bg/95 text-ink ${focus}`}
-          >
-            <Icon name="undo" size={15} className="-scale-x-100" />
-          </button>
         ) : null}
       </div>
       {generating && thumbs.length ? (

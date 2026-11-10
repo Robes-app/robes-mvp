@@ -134,15 +134,6 @@ export const today = {
   week: 'This week',
   weekDay: (label: string, looks: number): string =>
     looks === 0 ? `${label}, free` : `${label}, ${looks === 1 ? 'one look' : `${looks} looks`}`,
-  tray: {
-    title: 'In the studio',
-    running: 'Styling…',
-    ready: 'Ready',
-    failed: 'Didn’t finish',
-    stylePiece: 'Style a piece',
-    styleColour: 'Reading your colours',
-    trip: 'Packing a trip',
-  },
   ideas: 'Recent ideas',
   seeAll: 'See all',
   // Style it for today (legacy Dress today).
@@ -154,7 +145,6 @@ export const today = {
     promptPlaceholder: 'Client lunch, then drinks',
     start: 'Style it',
     starting: 'Starting…',
-    trayTitle: 'Style it for today',
     steps: {
       'The Anchor': 'The anchor',
       'The Canvas': 'The canvas',

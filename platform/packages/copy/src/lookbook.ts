@@ -408,7 +408,6 @@ export const lookbook = {
     badgeSaved: 'Saved to Lookbook',
     tileBar: 'Draft look',
     tileDressing: 'Dressing…',
-    tileRegen: 'Another take, same brief',
     open: 'Open the draft',
     // The bar.
     saving: 'Saving…',

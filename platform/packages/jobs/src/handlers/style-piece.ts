@@ -7,6 +7,7 @@ import {
   type DayPlace,
   FALLBACK_PIECE,
   FEATURE,
+  type FrameSetting,
   MAX_OUTPUT_TOKENS,
   type Mode,
   normalisePieces,
@@ -130,7 +131,18 @@ export const StoredSet = z.object({
     .array(z.object({ pieceId: z.uuid(), label: z.string() }))
     .optional()
     .catch(undefined),
+  // Made as her draft (Describe on Home): its picture stands on her model in the studio.
+  draft: z.boolean().optional().catch(undefined),
 });
+
+// Where a set's look is drawn (style-piece v8): her draft, or a look made as one, on her model in
+// the studio (design 1b); a suggestion in its scene.
+export function frameSetting(
+  status: string,
+  set: Pick<z.infer<typeof StoredSet>, 'draft'> | null,
+): FrameSetting {
+  return status === 'draft' || set?.draft === true ? 'studio' : 'scene';
+}
 
 // The sets Robes already made her, read back as titles and piece names (ALREADY SHOWN).
 const RecentRow = z.object({
@@ -452,6 +464,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       spec: SuggestedSpec;
       // Her note on the picture (D21): a re-dress keeps it.
       pictureNote?: string | null;
+      setting: FrameSetting;
     },
   ): Promise<boolean> {
     await deps.styling.trackImage({
@@ -635,6 +648,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           styleIcons: styleCtx.styleIcons,
           spec,
           pictureNote: found.look.pictureNote,
+          setting: frameSetting(found.look.status, set.data),
         });
         return { status: 'succeeded' };
       }
@@ -737,6 +751,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           balance: steer.balance,
           balanceNote: steer.balanceNote,
           ...(around.length ? { around } : {}),
+          ...(draft ? { draft: true } : {}),
           images: [],
           promptVersion: VERSION,
         },
@@ -778,6 +793,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         rack: rackOf(hero.pieces, styleCtx.closet),
         styleIcons: styleCtx.styleIcons,
         spec: heroSpec,
+        setting: draft ? 'studio' : 'scene',
       });
       return { status: landed ? 'succeeded' : 'partial', artifactId: setId };
     },

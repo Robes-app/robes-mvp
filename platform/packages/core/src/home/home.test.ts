@@ -9,8 +9,6 @@ import {
   ownLook,
   resolveHome,
   styleConfirmed,
-  trayKind,
-  trayState,
 } from './index';
 
 const NOW = new Date('2026-10-16T12:00:00Z');
@@ -147,20 +145,6 @@ describe('module helpers', () => {
     expect(isTripAsk('Packing for Rome')).toBe(true);
     expect(isTripAsk('Dinner on Friday')).toBe(false);
     expect(isTripAsk('Something for the weekend')).toBe(false);
-  });
-
-  it('names a tray row by what the job is, and says where it stands', () => {
-    expect(trayKind({ kind: 'stylenotes_analyse', output: {} })).toBe('styleColour');
-    expect(trayKind({ kind: 'travel', output: {} })).toBe('trip');
-    expect(trayKind({ kind: 'daily', output: {} })).toBe('daily');
-    expect(trayKind({ kind: 'key_piece', output: { dailyLookId: 'x' } })).toBe('daily');
-    expect(trayKind({ kind: 'key_piece', output: {} })).toBe('stylePiece');
-    expect(trayState('queued')).toBe('running');
-    expect(trayState('running')).toBe('running');
-    expect(trayState('succeeded')).toBe('ready');
-    expect(trayState('partial')).toBe('ready');
-    expect(trayState('failed')).toBe('failed');
-    expect(trayState('cancelled')).toBe('failed');
   });
 });
 

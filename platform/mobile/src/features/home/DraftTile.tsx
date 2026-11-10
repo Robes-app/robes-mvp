@@ -9,7 +9,6 @@ import { useRouter } from 'expo-router';
 import { Pressable, Text as RNText, View } from 'react-native';
 import { useDressingLine } from '@/features/looks/DraftLook';
 import { lookHero } from '@/features/looks/LookTile';
-import { OnPhoto } from '@/features/looks/LookTiles';
 import { ScanLine } from '@/features/looks/ScanLine';
 import { renditionUri } from '@/lib/images';
 
@@ -17,30 +16,25 @@ const d = lookbook.draft;
 
 // The draft tile in the day's slot (Front Door design 3b, plan 2026-11-03 §1.2): where Add look
 // stood. Dressing — the bare model under the scan line, the day's reading, the lines, the rack's
-// thumbs; then the draft, its bar opening the page; ↻ asks for another take, same brief. Web
+// thumbs; then the draft, its bar opening the page. Nothing sits on the picture (design 1b). Web
 // twin: components/home/draft-tile.tsx.
 export function DraftTile({
   draft,
   day,
   today,
   width,
-  onAnother,
-  anotherBusy,
 }: {
   draft: DiaryDraft;
   day: DiaryDay;
   today: string;
   width: number;
-  onAnother: (lookId: string) => void;
-  anotherBusy: boolean;
 }) {
   const router = useRouter();
   const look = draft.look;
   const model = useApi('me.model.get', undefined, { enabled: !look?.image });
   const rose = useColor('accent-inspire');
-  const generating =
-    anotherBusy || !look || look.framePending || (!look.image && draft.jobId !== null);
-  const line = useDressingLine(anotherBusy ? d.linesAgain : d.linesFirst, generating);
+  const generating = !look || look.framePending || (!look.image && draft.jobId !== null);
+  const line = useDressingLine(d.linesFirst, generating);
   const stand = model.data?.stand?.imageUrl ?? null;
   const uri = look ? renditionUri(lookHero(look), width) : null;
   const read = [
@@ -100,11 +94,6 @@ export function DraftTile({
               </Text>
             </View>
           </>
-        ) : null}
-        {!generating && look?.setId ? (
-          <View className="absolute bottom-3 left-3">
-            <OnPhoto icon="undo" label={d.tileRegen} size={36} onPress={() => onAnother(look.id)} />
-          </View>
         ) : null}
       </View>
       {generating && thumbs.length ? (

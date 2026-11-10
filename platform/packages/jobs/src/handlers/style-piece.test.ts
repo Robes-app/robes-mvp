@@ -162,7 +162,7 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       expect.objectContaining({
         title: 'Camel coat',
-        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 7 }),
+        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 8 }),
       }),
     );
     const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
@@ -187,6 +187,8 @@ describe('key_piece handler (suggested looks)', () => {
     // Only the first frame now; the anchor's photo rides it.
     expect(generateImage).toHaveBeenCalledTimes(1);
     expect(generateImage.mock.calls[0]?.[0].references).toHaveLength(1);
+    // A suggestion stands in its scene.
+    expect(generateImage.mock.calls[0]?.[0].prompt).toContain('The scene: ');
     // The hero's frame is claimed with the mint (before the set is exposed), then lands by key.
     const claim = suggested.mintSet.mock.calls[0]?.[3] as { frameKey: string } | undefined;
     expect(claim).toEqual({
@@ -387,7 +389,7 @@ describe('key_piece handler (suggested looks)', () => {
 
   // The prompt box (plan 2026-11-03): her words make one draft for the day, not three suggestions.
   it('mints one draft for the day from the prompt box, its frame claimed with it', async () => {
-    const { run, suggested, styling, writeStage } = setup();
+    const { run, suggested, styling, writeStage, generateImage } = setup();
     await expect(
       run({ mode: 'prompt', draft: true, prompt: 'the office, then drinks', date: '2026-10-17' }),
     ).resolves.toEqual({ status: 'succeeded', artifactId: SET });
@@ -397,13 +399,21 @@ describe('key_piece handler (suggested looks)', () => {
     expect(claim).toMatchObject({ setIndex: 0, jobId: JOB });
     expect(opts).toEqual({ status: 'draft' });
     expect((styling.createSet.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
-      data: { mode: 'prompt', ways: [expect.objectContaining({ title: expect.any(String) })] },
+      data: {
+        mode: 'prompt',
+        draft: true,
+        ways: [expect.objectContaining({ title: expect.any(String) })],
+      },
     });
     expect(writeStage).toHaveBeenCalledWith('text', expect.objectContaining({ lookIds: ['l0'] }));
+    // Design 1b: her draft is dressed on her model in the studio, never set in a scene.
+    const prompt = generateImage.mock.calls[0]?.[0].prompt ?? '';
+    expect(prompt).toContain('clean warm-grey studio backdrop');
+    expect(prompt).not.toContain('real setting');
   });
 
   it('dresses a draft again from the same brief, with what she said is not right', async () => {
-    const { run, generateJson, suggested } = setup();
+    const { run, generateJson, suggested, generateImage } = setup();
     suggested.look.mockResolvedValueOnce({
       look: {
         id: LOOK,
@@ -427,6 +437,7 @@ describe('key_piece handler (suggested looks)', () => {
     const user = generateJson.mock.calls[0]?.[0].user ?? '';
     expect(user).toContain('Too formal — softer shoes');
     expect(user).not.toContain('A different look entirely');
+    expect(generateImage.mock.calls[0]?.[0].prompt).toContain('clean warm-grey studio backdrop');
     expect(suggested.rewrite).toHaveBeenCalledWith(
       USER,
       LOOK,
