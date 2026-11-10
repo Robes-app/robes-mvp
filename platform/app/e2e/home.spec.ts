@@ -222,11 +222,8 @@ test('an empty day: her model with Capture · Describe · Pick; the model stack 
   const add = page.getByTestId('add-page');
   await expect(add.getByRole('button', { name: 'Describe a look for today' })).toBeVisible();
   await expect(add.getByRole('button', { name: 'Pick a look for today' })).toBeVisible();
-  // Capture is the camera itself: a hidden file input under the disc.
-  await expect(add.getByLabel('Photograph a look for today')).toHaveAttribute(
-    'capture',
-    'environment',
-  );
+  // Capture opens the camera over Home (Capture PRD 1c; capture-look.spec walks it).
+  await expect(add.getByRole('button', { name: 'Photograph a look for today' })).toBeVisible();
   expect(await seriousViolations(page), 'home, day one').toEqual([]);
 
   // Home holds no prompt box (3a, D22): Describe opens the Draft look drawer for the day, at
@@ -304,15 +301,18 @@ test('the diary: the strip selects a day, the slot adds and changes its look, De
   await drawer.getByRole('button', { name: 'Wear this look today' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Dinner');
   await expect(page.getByTestId('ootd-card')).not.toContainText('Office');
-  // Edit opens the Edit look drawer over the day (3k, D18): 3e inside, Update look at its foot,
-  // dimmed until something changes; the tick closes while nothing waits.
+  // Edit opens the Edit look drawer over the day (3k, D18): its photo strip on the Add a photo
+  // card, and Update look and the tick both dimmed until something changes (Capture PRD 3.1);
+  // × leaves.
   await page.getByRole('link', { name: 'Edit Dinner' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/);
-  await expect(page.getByTestId('draft-look')).toBeVisible();
+  const edit = page.getByTestId('draft-look');
+  await expect(edit).toBeVisible();
   await expect(page.getByText('Edit look')).toBeVisible();
+  await expect(edit.getByTestId('image-card-add')).toBeInViewport();
   await expect(page.getByTestId('update-look')).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.getByTestId('draft-done')).toHaveAttribute('aria-disabled', 'false');
-  await page.getByTestId('draft-done').click();
+  await expect(page.getByTestId('draft-done')).toHaveAttribute('aria-disabled', 'true');
+  await edit.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByTestId('draft-look')).toHaveCount(0);
 
   // Tomorrow: empty, Describe is there; yesterday: no Describe, the tile logs a wear.

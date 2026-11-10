@@ -227,6 +227,7 @@ export function CardRow({
   meta,
   action,
   lines,
+  below,
   href,
   openLabel,
   highlight = false,
@@ -242,6 +243,9 @@ export function CardRow({
   meta?: RowMeta | null;
   action?: ReactNode;
   lines?: ReactNode;
+  // A second line of the card under its face, from the text column on (a found piece's "Looks
+  // like your …", Capture PRD 1c.6).
+  below?: ReactNode;
   href?: string;
   openLabel?: string;
   // A row the prompt changed: the warm fill and an ink dot at its edge.
@@ -315,6 +319,9 @@ export function CardRow({
         ) : (
           face
         )}
+        {below ? (
+          <div className="mr-3 ml-16 border-hairline border-t-[0.5px] pt-[9px] pb-2.5">{below}</div>
+        ) : null}
       </div>
     </div>
   );

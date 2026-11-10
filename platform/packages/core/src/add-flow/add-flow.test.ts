@@ -1,60 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bulkGroups,
   fileEdits,
   isDestination,
-  nextPending,
-  type ReviewEntry,
   readDraft,
-  readyGroups,
-  reviewTally,
+  reviewScreen,
   rowChanges,
-  SCAN_READY_STEP,
-  SCAN_STEPS,
-  scanCover,
-  scanFrame,
-  scanTags,
-  TAG_SPOTS,
   wishChanges,
   withTagDefaults,
 } from '.';
-
-const entry = (
-  group: string,
-  index: number,
-  answer: ReviewEntry<{ label: string }>['answer'] = 'pending',
-  edits?: { label: string },
-): ReviewEntry<{ label: string }> => ({
-  key: `${group}:${index}`,
-  group,
-  index,
-  answer,
-  ...(edits ? { edits } : {}),
-});
 
 describe('add flow', () => {
   it('knows the two destinations', () => {
     expect(isDestination('wardrobe')).toBe(true);
     expect(isDestination('wishlist')).toBe(true);
     expect(isDestination('mine')).toBe(false);
-  });
-
-  it('sweeps the line over five steps, then reveals the rows', () => {
-    expect(scanFrame(0)).toEqual({ lineTop: 0, lineVisible: true, tagsShown: 0, ready: false });
-    expect(scanFrame(3).lineTop).toBe(60);
-    expect(scanFrame(5)).toMatchObject({ lineTop: 100, lineVisible: true, ready: false });
-    expect(scanFrame(SCAN_READY_STEP)).toMatchObject({ lineVisible: false, ready: true });
-    expect(scanFrame(SCAN_STEPS + 4).tagsShown).toBe(SCAN_STEPS);
-    expect(scanFrame(-2).tagsShown).toBe(0);
-  });
-
-  it('tags each fact once, never more than there are spots', () => {
-    expect(scanTags(['Outerwear', 'Coat', null, '', 'camel', 'Camel', 'Wool overcoat'])).toEqual([
-      'Outerwear',
-      'Coat',
-      'camel',
-      'Wool overcoat',
-    ]);
-    expect(scanTags(['a', 'b', 'c', 'd', 'e', 'f']).length).toBe(TAG_SPOTS.length);
   });
 
   it("drafts Review's rows from Robes' read, the colour word as a shade", () => {
@@ -112,39 +72,6 @@ describe('add flow', () => {
       categoryL2: null,
     });
   });
-
-  it('walks to the next piece waiting, then wraps, then stops', () => {
-    const q = [entry('a', 0, 'add'), entry('a', 1), entry('b', 0, 'skip'), entry('b', 1)];
-    expect(nextPending(q, 0)).toBe(1);
-    expect(nextPending(q, 1)).toBe(3);
-    expect(nextPending(q, 3)).toBe(1);
-    expect(nextPending([entry('a', 0, 'add')], 0)).toBeNull();
-    // The piece she is on is never its own next one.
-    expect(nextPending([entry('a', 0)], 0)).toBeNull();
-    expect(nextPending([entry('a', 0)], -1)).toBe(0);
-  });
-
-  it('files a group only once every piece in it is answered, and once', () => {
-    const q = [
-      entry('a', 0, 'add', { label: 'Coat' }),
-      entry('a', 1, 'skip'),
-      entry('b', 0, 'add'),
-      entry('b', 1),
-      entry('c', 0, 'skip'),
-    ];
-    expect(readyGroups(q, new Set())).toEqual([
-      {
-        group: 'a',
-        answers: [
-          { index: 0, state: 'add', edits: { label: 'Coat' } },
-          { index: 1, state: 'skip' },
-        ],
-      },
-      { group: 'c', answers: [{ index: 0, state: 'skip' }] },
-    ]);
-    expect(readyGroups(q, new Set(['a', 'c']))).toEqual([]);
-    expect(reviewTally(q)).toEqual({ kept: 2, skipped: 2, pending: 1 });
-  });
 });
 
 describe('Review edits', () => {
@@ -170,31 +97,63 @@ describe('Review edits', () => {
   });
 });
 
-describe('scanCover', () => {
-  const covers = (c: ReturnType<typeof scanCover>) => {
-    const eps = 1e-9;
-    expect(c.left).toBeLessThanOrEqual(eps);
-    expect(c.top).toBeLessThanOrEqual(eps);
-    expect(c.left + c.width).toBeGreaterThanOrEqual(1 - eps);
-    expect(c.top + c.height).toBeGreaterThanOrEqual(1 - eps);
-  };
-
-  it('fills the 4:5 frame with the piece, whatever the photo’s shape', () => {
-    const box = { x: 0.3, y: 0.2, w: 0.3, h: 0.4 };
-    covers(scanCover({ width: 1200, height: 1600, box }));
-    covers(scanCover({ width: 1600, height: 900, box }));
-    covers(scanCover({ width: 800, height: 3000, box }));
+describe('review as a list (Capture PRD 3c)', () => {
+  it('is the list with two or more, the piece itself with one, the camera with none', () => {
+    expect(reviewScreen({ keys: ['a', 'b'], reading: 0, open: null })).toEqual({
+      kind: 'list',
+      count: 2,
+    });
+    // Removing down to one switches to that piece's own page.
+    expect(reviewScreen({ keys: ['b'], reading: 0, open: null })).toEqual({
+      kind: 'single',
+      key: 'b',
+    });
+    // Removing the last returns to the camera.
+    expect(reviewScreen({ keys: [], reading: 0, open: null })).toEqual({ kind: 'camera' });
   });
 
-  it('centres the piece in the frame', () => {
-    const c = scanCover({ width: 1000, height: 1000, box: { x: 0.4, y: 0.4, w: 0.2, h: 0.2 } });
-    // The box's centre (0.5, 0.5) lands on the frame's centre.
-    expect(c.left + 0.5 * c.width).toBeCloseTo(0.5);
-    expect(c.top + 0.5 * c.height).toBeCloseTo(0.5);
+  it('counts photographs still being read, and holds the single page while one reads', () => {
+    expect(reviewScreen({ keys: ['a'], reading: 2, open: null })).toEqual({
+      kind: 'list',
+      count: 3,
+    });
+    expect(reviewScreen({ keys: [], reading: 1, open: null })).toEqual({
+      kind: 'single',
+      key: null,
+    });
   });
 
-  it('never divides by a zero-wide photo', () => {
-    const c = scanCover({ width: 0, height: 0, box: { x: 0, y: 0, w: 1, h: 1 } });
-    expect(Number.isFinite(c.width) && Number.isFinite(c.height)).toBe(true);
+  it('opens a piece from the list as "piece k of n", and falls back when it is removed', () => {
+    expect(reviewScreen({ keys: ['a', 'b', 'c'], reading: 0, open: 'b' })).toEqual({
+      kind: 'piece',
+      key: 'b',
+      at: 2,
+      of: 3,
+    });
+    expect(reviewScreen({ keys: ['a', 'c'], reading: 0, open: 'b' })).toEqual({
+      kind: 'list',
+      count: 2,
+    });
+  });
+
+  it('files every group once: kept pieces with her edits, removed ones skipped', () => {
+    const entries = [
+      { key: 'j1:0', group: 'j1', index: 0 },
+      { key: 'j1:1', group: 'j1', index: 1 },
+      { key: 'j2:0', group: 'j2', index: 0 },
+      { key: 'j3:0', group: 'j3', index: 0 },
+    ];
+    expect(bulkGroups(entries, new Set(['j1:1', 'j3:0']), { 'j2:0': { brand: 'Arket' } })).toEqual([
+      {
+        group: 'j1',
+        answers: [
+          { index: 0, state: 'add' },
+          { index: 1, state: 'skip' },
+        ],
+      },
+      { group: 'j2', answers: [{ index: 0, state: 'add', edits: { brand: 'Arket' } }] },
+      // Nothing kept from this photograph: it still files, so its crops are let go.
+      { group: 'j3', answers: [{ index: 0, state: 'skip' }] },
+    ]);
   });
 });

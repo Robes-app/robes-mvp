@@ -177,12 +177,9 @@ export function DiaryHome({
           justSaved={saved}
           model={model.data}
           actions={{
-            // The camera opens on arrival: one tap from the day to her photograph.
+            // Capture opens the camera for the day (Capture PRD 1c): Use photo makes its draft.
             onCapture: () =>
-              router.push({
-                pathname: '/looks/photo',
-                params: { day: current.date, start: 'camera' },
-              }),
+              router.push({ pathname: '/looks/photo', params: { day: current.date } }),
             // Describe opens the Draft look sheet for the day (Felix 3a, D22).
             onDescribe: past ? null : () => router.push(`/looks/draft/new?day=${current.date}`),
             onPick: () => setDrawer({ date: current.date, mode: 'add' }),

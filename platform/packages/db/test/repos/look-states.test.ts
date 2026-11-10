@@ -553,3 +553,42 @@ describe('looks ready (the notifier)', () => {
     await deleteTestUsers(db, owner);
   });
 });
+
+describe('a look from her photograph (Capture PRD 1c)', () => {
+  const found = {
+    key: 'p-bbbb2222',
+    name: 'Running trainers',
+    category: 'Shoes',
+    color: 'Ash',
+    brand: '',
+    retailerHint: '',
+    pricePoint: '',
+    role: null,
+    wishlisted: false,
+    capture: {
+      readId: '00000000-0000-4000-8000-0000000000aa',
+      index: 2,
+      cropAssetId: '00000000-0000-4000-8000-0000000000bb',
+      material: 'polyester',
+      suggestedPieceId: null,
+    },
+  };
+
+  it('saves with its unfiled pieces left on the look, never filed to her wishlist', async () => {
+    const draft = await looks.create(ann, {
+      name: 'Monday',
+      nameProvisional: true,
+      pieces: [{ pieceId: boots }],
+      proposals: [found],
+      status: 'draft',
+      source: 'capture',
+    });
+    expect(draft).toMatchObject({ status: 'draft', source: 'capture' });
+    const saved = await looks.save(ann, draft.id, {});
+    expect(saved).toMatchObject({ status: 'saved', proposals: [found] });
+    const wishes = (await wishlist.list(ann, { limit: 20 })).items;
+    expect(wishes.some((w) => w.label === 'Running trainers')).toBe(false);
+    // Nobody else can read or save it.
+    expect(await looks.get(bea, draft.id)).toBeUndefined();
+  });
+});

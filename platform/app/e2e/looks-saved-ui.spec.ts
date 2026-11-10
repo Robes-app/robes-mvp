@@ -230,7 +230,16 @@ test('the image stack (D19, D20): a photograph lands in focus, waits for Update 
   await expect(manager).toBeVisible();
   // One card: the last one left has no ×.
   await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(0);
-  await manager.locator('input[type="file"][aria-label="Add a photo"]').setInputFiles(PHOTO);
+  // Add a photo opens the camera that only adds an image (Capture PRD flow 3). The test browser
+  // has none, so her photos answer; a library photo reads Another, and ADD TO LOOK brings it back.
+  await manager.getByTestId('image-card-add').click();
+  const camera = page.getByTestId('capture-camera');
+  await expect(camera.getByText('Wearing this look? Step back · Head to toe')).toBeVisible();
+  await page.getByTestId('capture-photos-input').setInputFiles(PHOTO);
+  const review = page.getByTestId('capture-review');
+  await expect(review.getByRole('button', { name: 'Another' })).toBeVisible();
+  await review.getByRole('button', { name: 'Add to look' }).click();
+  await expect(review).toHaveCount(0, { timeout: 30_000 });
   // The photograph lands in the frame at once, and now each card has its × — Robes' picture too.
   await expect(manager.getByTestId('image-card-added')).toBeInViewport({ timeout: 30_000 });
   // ✓ straight away, while the strip may still be gliding to the new card: it still leads.
@@ -241,12 +250,15 @@ test('the image stack (D19, D20): a photograph lands in focus, waits for Update 
   await page.getByTestId('image-manager-done').click();
   await expect(manager).toBeHidden();
   await page.getByTestId('update-look').click();
+  await expect(page.getByText('Look updated.', { exact: true })).toBeVisible();
   await expect
     .poll(async () => {
       const now = await (await api.get(`/api/v1/looks/${look.id}`)).json();
       return [now.images.length, now.record];
     })
     .toEqual([1, 'photo']);
+  // Adding a photograph never reads its pieces: the rack is as it was, nothing proposed.
+  expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).proposals).toEqual([]);
   await expect(page.getByTestId('saved-look-stack')).toContainText('1');
   // Hiding Robes' picture leaves her photograph as the only card: it keeps no ×.
   await page.getByTestId('saved-look-stack').click();
@@ -361,7 +373,7 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
   // applies the change, she stays on the look, and Schedule look comes back.
   await expect(look3e.getByRole('button', { name: 'Schedule look' })).toHaveCount(0);
   await look3e.getByTestId('update-look').click();
-  await expect(page.getByText('Updated', { exact: true })).toBeVisible();
+  await expect(page.getByText('Look updated.', { exact: true })).toBeVisible();
   await expect(look3e.getByRole('button', { name: 'Schedule look' })).toBeVisible();
   await expect
     .poll(async () =>

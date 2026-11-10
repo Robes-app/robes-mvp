@@ -3,7 +3,14 @@ import { wardrobe as copy } from '@robes/copy';
 import { nameWithoutBrand, pieceEyebrow } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/native';
 import { shadowNative } from '@robes/tokens';
-import { fonts, Image, maxFontSizeMultiplier, Skeleton, useColor } from '@robes/ui-native';
+import {
+  FINE_EDGE,
+  fonts,
+  Image,
+  maxFontSizeMultiplier,
+  Skeleton,
+  useColor,
+} from '@robes/ui-native';
 import { type ReactNode, useMemo, useRef } from 'react';
 import { Animated, PanResponder, Pressable, Text, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
@@ -245,6 +252,7 @@ export function CardRow({
   meta,
   action,
   lines,
+  below,
   onOpen,
   openLabel,
   highlight = false,
@@ -260,6 +268,9 @@ export function CardRow({
   meta?: RowMeta | null;
   action?: ReactNode;
   lines?: ReactNode;
+  // A second line of the card under its face, from the text column on (a found piece's "Looks
+  // like your …", Capture PRD 1c.6).
+  below?: ReactNode;
   onOpen?: () => void;
   openLabel?: string;
   // A row the prompt changed: the warm fill and an ink dot at its edge.
@@ -362,6 +373,20 @@ export function CardRow({
         ) : (
           face
         )}
+        {below ? (
+          <View
+            className="border-hairline"
+            style={{
+              marginLeft: 64,
+              marginRight: 12,
+              paddingTop: 9,
+              paddingBottom: 10,
+              borderTopWidth: FINE_EDGE,
+            }}
+          >
+            {below}
+          </View>
+        ) : null}
       </View>
     </View>
   );

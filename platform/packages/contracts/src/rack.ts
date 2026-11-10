@@ -51,6 +51,7 @@ export function wishRow(
     role: null,
     wishlisted: true,
     wishlistItemId: wish.id,
+    capture: null,
   });
 }
 

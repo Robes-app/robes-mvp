@@ -4,6 +4,7 @@
 import { dayMonth, lookDateName, weekdayLong } from '../calendar';
 
 export * from './adjust';
+export * from './capture';
 export * from './draft';
 export * from './images';
 
@@ -108,6 +109,17 @@ export interface Proposal {
   wishlisted: boolean;
   // The wish it stands for, once it is on her wishlist (plan 2026-11-09 R1).
   wishlistItemId?: string | null;
+  // A piece found in her photograph, not filed yet (Capture PRD 1c.6); see `./capture`.
+  capture?: CaptureRead | null;
+}
+
+// Where a piece found in her photograph lives: its read, its crop, and her piece it looks like.
+export interface CaptureRead {
+  readId: string;
+  index: number;
+  cropAssetId: string;
+  material: string | null;
+  suggestedPieceId: string | null;
 }
 
 export interface RackRow {

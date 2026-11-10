@@ -1,6 +1,6 @@
 import { useApiClient } from '@robes/api-client/react';
 import { type Look, lookStack } from '@robes/contracts';
-import { errors, lookbook, wardrobe } from '@robes/copy';
+import { lookbook } from '@robes/copy';
 import {
   canRemoveCard,
   type ImageStage,
@@ -13,30 +13,41 @@ import {
   stageRemove,
 } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import { shadowNative } from '@robes/tokens';
-import { Image, Sheet, Text, useColor, useToast } from '@robes/ui-native';
-import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useRef, useState } from 'react';
+import { palette, shadowNative } from '@robes/tokens';
+import { Image, Text, useColor, useReducedMotion } from '@robes/ui-native';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
+  Modal,
   Pressable,
   ScrollView,
   type ScrollViewInstance,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { PICKER_OPTIONS, uploadPhoto } from '@/features/wardrobe/add-pieces';
+import { CaptureCamera } from '@/features/capture/CaptureCamera';
+import { type PickedPhoto, uploadPhoto } from '@/features/wardrobe/add-pieces';
 import { renditionUri } from '@/lib/images';
 import { LookPicture } from './LookPicture';
 import { localPhoto, rememberLocalPhoto, type StageUpdate } from './look-images';
 
 const copy = lookbook.savedLook.manager;
 
-// Felix's ImageManager (D19, D20): the look's pictures as a swipeable strip of cards in the
-// photo's frame, opened from the image stack. Robes' picture leads (unless she hid it), then her
-// photographs, then the Add a photo card. A photo she picks uploads at once and lands in the
-// frame, in focus; every card has its × but the last one left. ✓ leaves the card in view in
-// front. Nothing is written here: the owner holds the stage until Update look. Opened from Home's
-// stack, the Add a photo card is in focus. Web twin: app/src/components/looks/image-manager.tsx.
+// The strip's card (Capture PRD 3.1): 244 × 320 at a 4pt radius, 12pt apart.
+const CARD_W = 244;
+const CARD_H = 320;
+const GAP = 12;
+const STEP = CARD_W + GAP;
+
+// Felix's ImageManager (D19, D20) as the Edit look photo strip (Capture PRD flow 3; prototype
+// "Add a photo to a look"): the look's pictures as 244 × 320 cards on a warm band, the one in view
+// centred. Robes' picture leads with its sparkle (unless she hid it), then her photographs, then
+// the dashed Add a photo card, which opens the camera that only adds an image — it never reads the
+// pieces. Add to look uploads the photograph and it settles into the strip, in focus; every card
+// has its × but the last one left. ✓ leaves the card in view in front. Nothing is written here:
+// the owner holds the stage until Update look. Opened from the Edit look sheet or Home's stack,
+// the Add a photo card is in focus. Web twin: app/src/components/looks/image-manager.tsx.
 export function ImageManager({
   look,
   stage,
@@ -51,21 +62,22 @@ export function ImageManager({
   focusAdd?: boolean;
 }) {
   const api = useApiClient();
-  const toast = useToast();
   const { width } = useWindowDimensions();
   const ink = useColor('ink');
   const bg = useColor('bg');
   const muted = useColor('ink-muted');
   const strip = useRef<ScrollViewInstance>(null);
   const inView = useRef(0);
-  const [choosing, setChoosing] = useState(false);
+  const [camera, setCamera] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [failed, setFailed] = useState(false);
   const base = lookStack(look);
   const cards = stageCards(base, stage);
   const removable = canRemoveCard(base, stage);
-  // Cards are full width inside 40pt side padding, 10pt apart, snapping to centre.
-  const cardWidth = width - 80;
-  const step = cardWidth + 10;
+  const cardWidth = CARD_W;
+  const step = STEP;
+  // The card in view sits in the middle of the band.
+  const side = Math.max(0, (width - CARD_W) / 2);
   const show = (index: number, animated: boolean) => {
     strip.current?.scrollTo({ x: index * step, animated });
     inView.current = index;
@@ -91,36 +103,18 @@ export function ImageManager({
     if (card) onStage((s) => stageInFront(s, card));
     onDone();
   };
-  // The camera or library opens only once the chooser has fully gone (Sheet onClosed): from the
-  // Edit look sheet, iOS refused to present over a closing sheet and the screen froze.
-  const picking = useRef<'camera' | 'library' | null>(null);
-  const pick = (from: 'camera' | 'library') => {
-    picking.current = from;
-    setChoosing(false);
-  };
-  const chosen = () => {
-    const from = picking.current;
-    picking.current = null;
-    if (from) void take(from);
-  };
-  const take = async (from: 'camera' | 'library') => {
-    if (from === 'camera') {
-      const allowed = await ImagePicker.requestCameraPermissionsAsync();
-      if (!allowed.granted) return;
-    }
-    const picked =
-      from === 'camera'
-        ? await ImagePicker.launchCameraAsync(PICKER_OPTIONS)
-        : await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
-    const photo = picked.assets?.[0];
-    if (picked.canceled || !photo) return;
+  // Add to look: the photograph uploads, joins the stage, and the camera gives way to the strip.
+  const add = async (photo: PickedPhoto) => {
+    if (uploading) return;
     setUploading(true);
+    setFailed(false);
     try {
       const assetId = await uploadPhoto(api, photo, 'look_photo');
       rememberLocalPhoto(assetId, photo.uri);
       onStage((s) => stageAdd(s, assetId));
+      setCamera(false);
     } catch {
-      toast.show({ message: errors.internal });
+      setFailed(true);
     } finally {
       setUploading(false);
     }
@@ -131,7 +125,7 @@ export function ImageManager({
       accessibilityLabel={copy.title}
       testID="image-manager"
       className="relative overflow-hidden bg-surface-sunk"
-      style={{ aspectRatio: 4 / 5 }}
+      style={{ height: 360 }}
     >
       <ScrollView
         ref={strip}
@@ -144,20 +138,24 @@ export function ImageManager({
         onMomentumScrollEnd={(e) => {
           inView.current = Math.round(e.nativeEvent.contentOffset.x / step);
         }}
-        contentContainerStyle={{ paddingHorizontal: 40, gap: 10, alignItems: 'center' }}
+        contentContainerStyle={{ paddingHorizontal: side, gap: GAP, alignItems: 'center' }}
         className="flex-1"
       >
         {cards.map((card) => {
           const label = card.kind === 'robes' ? copy.robes : copy.photo(++photoNo);
           return (
-            <View
+            <Card
               key={card.kind === 'robes' ? 'robes' : card.kind === 'photo' ? card.id : card.assetId}
-              accessibilityLabel={label}
-              testID={`image-card-${card.kind}`}
-              className="overflow-hidden rounded-tile bg-surface-sunk"
-              style={[{ width: cardWidth }, shadowNative.float]}
+              label={label}
+              kind={card.kind}
             >
               <CardPicture look={look} card={card} alt={label} width={cardWidth} />
+              {card.kind === 'robes' ? (
+                // Robes drew this one: its sparkle, bottom-right (PRD 3.1).
+                <View pointerEvents="none" style={{ position: 'absolute', right: 10, bottom: 10 }}>
+                  <Icon name="describe" size={16} color={SPARKLE} />
+                </View>
+              ) : null}
               {removable ? (
                 <Pressable
                   accessibilityRole="button"
@@ -170,30 +168,30 @@ export function ImageManager({
                   <Icon name="close" size={12} color={muted} />
                 </Pressable>
               ) : null}
-            </View>
+            </Card>
           );
         })}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={copy.add}
-          disabled={uploading}
-          onPress={() => setChoosing(true)}
-          className="items-center justify-center gap-2.5 rounded-tile border-border-control bg-bg"
+          onPress={() => setCamera(true)}
+          testID="image-card-add"
+          className="items-center justify-center gap-3 border-border-control bg-bg"
           style={{
-            width: cardWidth,
-            aspectRatio: 4 / 5,
+            width: CARD_W,
+            height: CARD_H,
+            borderRadius: 4,
             borderWidth: 1,
             borderStyle: 'dashed',
-            opacity: uploading ? 0.6 : 1,
           }}
         >
           <View
-            className="items-center justify-center rounded-pill border-rule-mid bg-surface-raised"
-            style={[{ width: 56, height: 56, borderWidth: 0.5 }, shadowNative.float]}
+            className="items-center justify-center rounded-pill bg-surface-raised"
+            style={[{ width: 52, height: 52 }, shadowNative.float]}
           >
-            <Icon name="camera" size={22} color={ink} />
+            <Icon name="camera" size={19} color={ink} />
           </View>
-          <Text className="text-ink-muted" style={{ fontSize: 9, letterSpacing: 1.8 }}>
+          <Text className="text-ink-muted" style={{ fontSize: 9, letterSpacing: 1.44 }}>
             {copy.add.toUpperCase()}
           </Text>
         </Pressable>
@@ -208,30 +206,70 @@ export function ImageManager({
       >
         <Icon name="check" size={18} color={bg} />
       </Pressable>
-      {/* The 3k chooser (redline 7 Nov): eyebrow, question, Felix's icon rows, the close disc. */}
-      <Sheet
-        open={choosing}
-        onClose={() => setChoosing(false)}
-        onClosed={chosen}
-        eyebrow={copy.title}
-        title={copy.add}
-        closeButton
-        rows={[
-          {
-            icon: 'camera',
-            label: wardrobe.add.doors.photograph,
-            onPress: () => pick('camera'),
-            testID: 'add-photo-camera',
-          },
-          {
-            icon: 'image',
-            label: wardrobe.add.doors.cameraRoll,
-            onPress: () => pick('library'),
-            testID: 'add-photo-library',
-          },
-        ]}
-      />
+      {/* The camera that only adds an image (PRD 3.2): over the sheet, never a piece read. */}
+      <Modal
+        visible={camera}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setCamera(false)}
+      >
+        {camera ? (
+          <CaptureCamera
+            copy={copy.camera}
+            review="pills"
+            busy={uploading}
+            error={failed ? copy.camera.failed : null}
+            onUse={(photo) => void add(photo)}
+            onClose={() => {
+              setFailed(false);
+              setCamera(false);
+            }}
+          />
+        ) : null}
+      </Modal>
     </View>
+  );
+}
+
+const SPARKLE = `${palette.white}D9`;
+
+// One card of the strip. A photograph just added settles in: scale 0.94 → 1 as it fades up, over
+// 450ms (PRD 3.4); still, with reduce motion on.
+function Card({
+  label,
+  kind,
+  children,
+}: {
+  label: string;
+  kind: StageCard['kind'];
+  children: ReactNode;
+}) {
+  const reduced = useReducedMotion();
+  const pop = useRef(new Animated.Value(kind === 'added' && !reduced ? 0 : 1)).current;
+  useEffect(() => {
+    Animated.timing(pop, {
+      toValue: 1,
+      duration: 450,
+      easing: Easing.bezier(0.2, 0, 0.2, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [pop]);
+  return (
+    <Animated.View
+      accessibilityLabel={label}
+      testID={`image-card-${kind}`}
+      className="overflow-hidden bg-surface-sunk"
+      style={[
+        { width: CARD_W, height: CARD_H, borderRadius: 4 },
+        shadowNative.float,
+        {
+          opacity: pop,
+          transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) }],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
   );
 }
 

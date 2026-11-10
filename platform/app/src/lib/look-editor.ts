@@ -250,6 +250,13 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
           toast({ message: errors.internal });
         });
     },
+    // The rows of a look from her photograph (Capture PRD 1c.6): found rows land, one files as her
+    // piece, one leaves or comes back. The rack reducer in @robes/core/looks decides the rows.
+    setRows: (rows: RackRow[]) => {
+      const keys = new Set(rows.map((r) => r.key));
+      const edits = Object.fromEntries(Object.entries(rack.edits).filter(([k]) => keys.has(k)));
+      change({ ...rack, rows, edits });
+    },
     add: (piece: Piece) => {
       track('look_piece_added', { surface: look.status, cat: piece.category });
       change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] });
@@ -300,7 +307,7 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
           track('look_updated', { pieces: updated.pieces.length });
           setDirty(false);
           setEditing(false);
-          toast({ message: lookbook.updated });
+          toast({ message: lookbook.updated, duration: 2600 });
           return true;
         })
         .catch(() => false),

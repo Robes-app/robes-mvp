@@ -12,9 +12,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { LookPicker } from '@/app/(app)/plan/look-picker';
+import { LookCapture } from '@/components/capture/look-capture';
 import { dayWordOf, type PickerMode } from '@/lib/diary';
 import { errorCopy } from '@/lib/error-copy';
-import { setPendingPhoto } from '@/lib/pending-photo';
 import { DaySlot } from './day-slot';
 import { DiaryStrip } from './diary-strip';
 import { ModelPicker } from './model-picker';
@@ -76,6 +76,7 @@ export function DiaryHome({
   // The model her looks stand on: the photograph on the day's last page, and the picker's ticks.
   const model = useApi('me.model.get');
   const [choosing, setChoosing] = useState(false);
+  const [capturing, setCapturing] = useState(false);
   const router = useRouter();
   const [drawer, setDrawer] = useState<{ date: string; mode: PickerMode } | null>(null);
   const current: DiaryDay = diary?.days.find((d) => d.date === selected) ??
@@ -167,11 +168,8 @@ export function DiaryHome({
         justSaved={saved}
         model={model.data}
         actions={{
-          // Her photograph goes with her to the photo flow for that day.
-          onCapture: (file) => {
-            setPendingPhoto(file);
-            router.push(`/looks/new/photo?day=${current.date}`);
-          },
+          // Capture opens the camera over Home (Capture PRD 1c): Use photo makes the day's draft.
+          onCapture: () => setCapturing(true),
           // Describe opens the Draft look drawer for the day (Felix 3a, D22).
           onDescribe: past ? null : () => router.push(`/looks/draft/new?day=${current.date}`),
           onPick: () => setDrawer({ date: current.date, mode: 'add' }),
@@ -181,6 +179,7 @@ export function DiaryHome({
         }}
       />
 
+      <LookCapture open={capturing} day={current.date} onClose={() => setCapturing(false)} />
       <ModelPicker open={choosing} model={model.data} onClose={() => setChoosing(false)} />
       <LookPicker
         date={drawer?.date ?? null}

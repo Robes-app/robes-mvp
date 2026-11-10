@@ -112,6 +112,20 @@ export type LookStatus = z.infer<typeof LookStatus>;
 export const ProposalKey = z.string().regex(PROPOSAL_KEY_PATTERN);
 export const RackKey = z.union([z.uuid(), ProposalKey]);
 
+// A piece found in her photograph of the look and not filed yet (Capture PRD 1c.6): where its
+// read lives, so it can be matched or added later, and what the read saw. On the rack it is a
+// suggestion from her photo, never Robes' proposal: nothing files it to her wardrobe or wishlist
+// until she does.
+export const CaptureRead = z.object({
+  readId: z.uuid(),
+  index: z.number().int().min(0).max(7),
+  cropAssetId: z.uuid(),
+  material: z.string().max(60).nullable().default(null),
+  // Her piece it very likely is ("Looks like your …"), when the read saw one.
+  suggestedPieceId: z.uuid().nullable().default(null),
+});
+export type CaptureRead = z.infer<typeof CaptureRead>;
+
 // A piece Robes proposes for the look, not hers yet (♡ saves it to her wishlist).
 export const Proposal = z.object({
   key: ProposalKey,
@@ -126,6 +140,8 @@ export const Proposal = z.object({
   // The wish it stands for, when it came from her wishlist or Save filed it there (plan
   // 2026-11-09 R1); the wishlist's own row, never a second copy.
   wishlistItemId: z.uuid().nullable().default(null),
+  // Set on a piece found in her photograph (Capture PRD 1c): the row is hers to match or add.
+  capture: CaptureRead.nullable().default(null),
 });
 export type Proposal = z.infer<typeof Proposal>;
 
@@ -226,6 +242,9 @@ export const Look = z.object({
     z.object({ piece: Piece, slot: z.string().nullable(), role: LookRole.nullable() }),
   ),
   proposals: z.array(Proposal),
+  // The crop of each piece found in her photograph and not filed yet, by its row's key (Capture
+  // PRD 1c.6). Defaulted across version skew.
+  captureImages: z.record(z.string(), PieceImage).default({}),
   styling: z.record(z.string(), z.string()),
   edits: z.record(z.string(), RowEdit),
   anchor: LookAnchor.nullable(),
@@ -277,6 +296,9 @@ export const CreateLookInput = z.object({
   status: z.enum(['saved', 'draft']).optional(),
   letGoOldest: z.boolean().optional(),
   anchorPieceId: z.uuid().optional(),
+  // Home's Capture (Capture PRD 1c): her photograph, already uploaded, starts the draft as its
+  // picture. The asset is hers or there is nothing to make.
+  photoAssetId: z.uuid().optional(),
   ...z.object(rackFields).partial().shape,
 });
 export type CreateLookInput = z.infer<typeof CreateLookInput>;

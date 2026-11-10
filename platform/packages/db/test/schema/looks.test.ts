@@ -224,4 +224,15 @@ describe('looks and planning schema', () => {
         LOOK,
       ]);
     }));
+
+  it('takes a look from her photograph as its own source, and no source it does not know', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await q("update app.looks set source = 'capture' where id = $1", [LOOK]);
+      const [row] = await q('select source from app.looks where id = $1', [LOOK]);
+      expect(row).toEqual({ source: 'capture' });
+      await expectPgError(q, '23514', "update app.looks set source = 'camera' where id = $1", [
+        LOOK,
+      ]);
+    }));
 });

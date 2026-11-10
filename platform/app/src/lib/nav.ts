@@ -165,7 +165,7 @@ export function backFor(pathname: string, search: URLSearchParams): Back | null 
     if (from && ISO_DAY.test(from)) return { href: `/?day=${from}`, label: weekdayDayMonth(from) };
     return { href: '/looks', label: looks.title };
   }
-  if (pathname === '/looks/new' || pathname === '/looks/new/photo') {
+  if (pathname === '/looks/new') {
     return { href: '/looks', label: looks.title };
   }
   if (/^\/looks\/draft\/[^/]+$/.test(pathname)) {

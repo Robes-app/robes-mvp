@@ -17,10 +17,11 @@ import {
 import { Icon } from '@robes/icons/web';
 import { Image, useToast } from '@robes/ui';
 import { useEffect, useRef, useState } from 'react';
+import { CaptureCamera } from '@/components/capture/capture-camera';
 import { errorCopy } from '@/lib/error-copy';
 import { imageSources } from '@/lib/image';
 import { localPreview } from '@/lib/local-previews';
-import { PHOTO_ACCEPT, uploadPhoto } from '@/lib/upload';
+import { uploadPhoto } from '@/lib/upload';
 import { LookPicture } from './look-page';
 
 const copy = lookbook.savedLook.manager;
@@ -29,12 +30,14 @@ const focus =
 
 export type StageUpdate = (update: (stage: ImageStage) => ImageStage) => void;
 
-// Felix's ImageManager (D19, D20): the look's pictures as a swipeable strip of cards in the
-// photo's frame, opened from the image stack. Robes' picture leads (unless she hid it), then her
-// photographs, then the Add a photo card. A photo she picks uploads at once and lands in the
-// frame, in focus; every card has its × but the last one left. ✓ leaves the card in view in
-// front. Nothing is written here: the owner holds the stage until Update look. Opened from Home's
-// stack, the Add a photo card is in focus. Native twin: mobile/src/features/looks/ImageManager.tsx.
+// Felix's ImageManager (D19, D20) as the Edit look photo strip (Capture PRD flow 3; prototype
+// "Add a photo to a look"): the look's pictures as 244 × 320 cards on a warm band, the one in view
+// centred. Robes' picture leads with its sparkle (unless she hid it), then her photographs, then
+// the dashed Add a photo card, which opens the camera that only adds an image — it never reads the
+// pieces. Add to look uploads the photograph and it settles into the strip, in focus; every card
+// has its × but the last one left. ✓ leaves the card in view in front. Nothing is written here:
+// the owner holds the stage until Update look. Opened from the Edit look drawer or Home's stack,
+// the Add a photo card is in focus. Native twin: mobile/src/features/looks/ImageManager.tsx.
 export function ImageManager({
   look,
   stage,
@@ -56,6 +59,8 @@ export function ImageManager({
   // never read a card it passes on the way. Her own touch takes the strip back.
   const steering = useRef<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [camera, setCamera] = useState(false);
+  const [failed, setFailed] = useState(false);
   const base = lookStack(look);
   const cards = stageCards(base, stage);
   const removable = canRemoveCard(base, stage);
@@ -90,7 +95,7 @@ export function ImageManager({
     const el = strip.current;
     const first = el?.children[0] as HTMLElement | undefined;
     if (!el || !first) return;
-    const step = first.offsetWidth + 10;
+    const step = first.offsetWidth + 12;
     const at = Math.round(el.scrollLeft / Math.max(1, step));
     if (steering.current !== null) {
       if (at === steering.current) steering.current = null;
@@ -103,26 +108,29 @@ export function ImageManager({
     if (card) onStage((s) => stageInFront(s, card));
     onDone();
   };
-  const onPicked = async (picked: File | undefined) => {
-    if (!picked) return;
+  // Add to look: the photograph uploads, joins the stage, and the camera gives way to the strip.
+  const onPicked = async (picked: File) => {
     setUploading(true);
+    setFailed(false);
     try {
       const asset = await uploadPhoto(api, picked, 'look_photo');
       onStage((s) => stageAdd(s, asset.id));
+      setCamera(false);
     } catch (err) {
+      setFailed(true);
       toast({ message: errorCopy(err) });
     } finally {
       setUploading(false);
     }
   };
-  const cardClass =
-    'relative w-full shrink-0 snap-center overflow-hidden rounded-tile bg-surface-sunk shadow-[0_10px_24px_-14px_rgb(32_32_33/0.4)]';
+  const cardSize = 'h-[320px] w-[244px] shrink-0 snap-center rounded-[4px]';
+  const cardClass = `relative overflow-hidden bg-surface-sunk shadow-[0_10px_24px_-14px_rgb(32_32_33/0.4)] ${cardSize}`;
   let photoNo = 0;
   return (
     <section
       aria-label={copy.title}
       data-testid="image-manager"
-      className="relative aspect-[4/5] overflow-hidden bg-surface-sunk"
+      className="relative h-[360px] overflow-hidden bg-surface-sunk"
     >
       <div
         ref={strip}
@@ -130,7 +138,7 @@ export function ImageManager({
         onPointerDown={() => {
           steering.current = null;
         }}
-        className="absolute inset-0 flex snap-x snap-mandatory items-center gap-2.5 overflow-x-auto px-10 motion-safe:animate-[robes-zoom-in_260ms_cubic-bezier(.2,0,.2,1)] [scrollbar-width:none]"
+        className="absolute inset-0 flex snap-x snap-mandatory items-center gap-3 overflow-x-auto px-[calc(50%-122px)] motion-safe:animate-fade-in [scrollbar-width:none]"
       >
         {cards.map((card) => {
           const label = card.kind === 'robes' ? copy.robes : copy.photo(++photoNo);
@@ -139,9 +147,18 @@ export function ImageManager({
               key={card.kind === 'robes' ? 'robes' : card.kind === 'photo' ? card.id : card.assetId}
               aria-label={label}
               data-testid={`image-card-${card.kind}`}
-              className={cardClass}
+              className={`${cardClass} ${card.kind === 'added' ? 'motion-safe:animate-pop' : ''}`}
             >
               <CardPicture look={look} card={card} alt={label} />
+              {card.kind === 'robes' ? (
+                // Robes drew this one: its sparkle, bottom-right (PRD 3.1).
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute right-2.5 bottom-2.5 text-white/85 drop-shadow-[0_1px_2px_rgb(32_32_33/0.35)]"
+                >
+                  <Icon name="describe" size={16} />
+                </span>
+              ) : null}
               {removable ? (
                 <button
                   type="button"
@@ -155,27 +172,19 @@ export function ImageManager({
             </figure>
           );
         })}
-        <label
-          className={`flex w-full shrink-0 cursor-pointer snap-center flex-col items-center justify-center gap-2.5 rounded-tile border border-border-control border-dashed bg-bg [aspect-ratio:4/5] focus-within:outline-[1.5px] focus-within:outline-focus-ring ${uploading ? 'opacity-60' : ''}`}
+        <button
+          type="button"
+          onClick={() => setCamera(true)}
+          data-testid="image-card-add"
+          className={`flex flex-col items-center justify-center gap-3 border border-border-control border-dashed bg-bg ${cardSize} ${focus}`}
         >
-          <input
-            type="file"
-            accept={PHOTO_ACCEPT}
-            aria-label={copy.add}
-            disabled={uploading}
-            className="sr-only"
-            onChange={(e) => {
-              void onPicked(e.target.files?.[0]);
-              e.target.value = '';
-            }}
-          />
-          <span className="flex size-14 items-center justify-center rounded-pill border-[0.5px] border-rule-mid bg-surface-raised text-ink shadow-float">
-            <Icon name="camera" size={22} />
+          <span className="flex size-[52px] items-center justify-center rounded-pill bg-surface-raised text-ink shadow-float">
+            <Icon name="camera" size={19} />
           </span>
-          <span className="font-medium font-sans text-[9px] text-ink-muted uppercase tracking-[0.2em]">
+          <span className="font-medium font-sans text-[9px] text-ink-muted uppercase tracking-[0.16em]">
             {copy.add}
           </span>
-        </label>
+        </button>
       </div>
       <button
         type="button"
@@ -187,6 +196,19 @@ export function ImageManager({
       >
         <Icon name="check" size={18} />
       </button>
+      {camera ? (
+        <CaptureCamera
+          copy={copy.camera}
+          review="pills"
+          busy={uploading}
+          error={failed ? copy.camera.failed : null}
+          onUse={(file) => void onPicked(file)}
+          onClose={() => {
+            setFailed(false);
+            setCamera(false);
+          }}
+        />
+      ) : null}
     </section>
   );
 }

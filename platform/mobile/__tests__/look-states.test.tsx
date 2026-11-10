@@ -37,6 +37,7 @@ const mules = {
   role: 'exclamation' as const,
   wishlisted: false,
   wishlistItemId: null,
+  capture: null,
 };
 // No twin on file, so every frame stands on a generic model and carries its badge.
 const GENERIC_MODEL = {

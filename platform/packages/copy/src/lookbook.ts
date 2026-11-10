@@ -148,12 +148,31 @@ export const lookbook = {
       add: 'Add a photo',
       remove: 'Remove this image',
       done: 'Done',
+      // Add a photo to a look (Capture PRD flow 3): the camera that only adds an image. It never
+      // reads the pieces. A photo from her library reads Another where a shot reads Retake.
+      camera: {
+        title: 'Add a photo',
+        hint: 'Wearing this look? Step back · Head to toe',
+        close: 'Back to the look',
+        photos: 'Choose from photos',
+        shutter: 'Take photo',
+        review: 'Review your photo',
+        reviewNote: '',
+        back: 'Back to the look',
+        retake: 'Retake',
+        another: 'Another',
+        use: 'Add to look',
+        denied: 'Allow the camera in your settings to take a photo here.',
+        failed: 'That photo didn’t upload. Try it again.',
+      },
       // 409 look_needs_image (D19): the change would leave the look with no image.
       lastImage: 'A look keeps at least one image.',
       // 409 upload_in_use on uploads.discard: the photo is already on a look, so it stays.
       inUse: 'This photo is on a look, so it stays.',
     },
     details: {
+      // The look's images, counted (Capture PRD 3.1): Robes' picture and her photographs.
+      photos: 'Photos',
       tags: 'Tags',
       seasons: 'Seasons',
       worn: 'Worn',
@@ -239,6 +258,68 @@ export const lookbook = {
       add: 'Add your pieces',
       ways: 'Photo, link or receipt',
     },
+    // A look from her photograph (Capture PRD 1c, 10 Nov 2026): Home's Capture opens the camera,
+    // Use photo opens the draft with the photograph as its picture, and The Rack offers to find
+    // what she is wearing. Every string is the PRD's.
+    capture: {
+      camera: {
+        title: 'Capture a look',
+        hint: 'Step back from the mirror · Head to toe',
+        close: 'Close',
+        photos: 'Choose from your photos',
+        shutter: 'Take photo',
+        review: 'Review your photo',
+        reviewNote: 'Whole outfit in frame?',
+        back: 'Back',
+        retake: 'Retake',
+        use: 'Use photo',
+        // The camera refused: her photos still work (PRD 1c.1).
+        denied: 'Allow the camera in your settings to take a photo here.',
+        saving: 'Opening your look…',
+        failed: 'That photo didn’t upload. Try it again.',
+      },
+      card: {
+        eyebrow: 'From your photo',
+        title: 'Find the pieces',
+        sub: 'Match or add each piece',
+        // Once she has skipped, or the look is saved with only its photo (1c.4).
+        later: 'Optional · you can do this later',
+        skip: 'Skip, keep just the photo',
+      },
+      finding: 'Finding the pieces…',
+      failed: 'Couldn’t find the pieces',
+      nothing: 'No pieces found in this photo',
+      retry: 'Retry',
+      clear: 'The rack is clear. The look keeps its photo.',
+      row: {
+        match: 'Match to piece',
+        add: 'Add piece',
+        remove: 'Remove',
+        looksLike: 'Looks like your',
+        quick: 'Match',
+        noMatch: 'No close match in your wardrobe',
+      },
+      removed: (n: number): string => (n === 1 ? '1 piece removed' : `${n} pieces removed`),
+      undo: 'Undo',
+      match: {
+        title: 'Match to your wardrobe',
+        cta: 'Match piece',
+        from: (category: string): string => `From the photo · ${category}`,
+      },
+      // The new-piece review (1c.8): the found piece's details, hers to change before it files.
+      review: {
+        back: 'Back',
+        cta: 'Add to wardrobe',
+        adding: 'Adding…',
+        failed: 'That piece didn’t file. Try again.',
+        // The read is gone (a look saved long ago): the piece is added from the wardrobe instead.
+        gone: 'This photo’s read has expired. Add the piece from your wardrobe.',
+      },
+      discard: {
+        title: 'Discard this look?',
+        body: 'Pieces you added to your wardrobe stay there.',
+      },
+    },
     // Describe's day draft: the job behind Style it ended without a look (D22).
     styleFailed: 'Robes couldn’t style that one. Try again in a moment.',
     thread: 'Your words on this look',
@@ -304,7 +385,8 @@ export const lookbook = {
   // Beta's save and update toasts: a suggestion kept as it stands, a look she worked on by name.
   saved: 'Saved to your lookbook',
   savedAs: (name: string): string => `${name} saved to your Lookbook ✓`,
-  updated: 'Updated',
+  // Update look landed (Capture PRD 3.5).
+  updated: 'Look updated.',
   addedToDay: (day: string): string => `In your plan for ${day}.`,
   // Save opens the diary every time (legacy 0.2); closing it is "not yet" and writes nothing.
   // The diary sheet is beta's month (legacy _lkDiaryPaint): any day is one tap, a day gone by

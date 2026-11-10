@@ -40,10 +40,14 @@ export const EVENTS = {
 
   // Add pieces: the in-app camera opens.
   camera_opened: none,
+  // Capture a look (PRD 1c): Use photo made a draft from her photograph (`day` when Home's day
+  // opened the camera).
+  look_captured: z.object({ day: z.boolean() }).strict(),
+  // The Rack of a look from her photograph: she asked for its pieces, and what she did with one.
+  look_pieces_asked: none,
+  look_piece_filed: z.object({ how: z.enum(['match', 'suggested', 'add', 'remove']) }).strict(),
   // Add pieces: the camera hands its shots to Review.
   camera_filed: z.object({ n: count }).strict(),
-  // Review: she answers one piece Robes read (Add or Skip; `edited` when she changed a field).
-  piece_answered: z.object({ state: z.enum(['add', 'skip']), edited: z.boolean() }).strict(),
   // Review: a photo's (or a link's) answered pieces are filed.
   pieces_filed: z
     .object({
@@ -63,7 +67,7 @@ export const EVENTS = {
     .strict(),
 
   // The wardrobe sheet opens to swap a piece or add one.
-  swap_drawer_opened: z.object({ mode: z.enum(['swap', 'add']) }).strict(),
+  swap_drawer_opened: z.object({ mode: z.enum(['swap', 'add', 'match']) }).strict(),
   // The look editor: a piece is swapped in (`surface` is the look's state).
   piece_swapped: z.object({ surface: status, cat: category }).strict(),
   // The look editor: a piece is added to the rack.

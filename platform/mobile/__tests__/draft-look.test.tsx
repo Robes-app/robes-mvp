@@ -3,7 +3,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { DraftLook } from '../src/features/looks/DraftLook';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
-import { LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
+import { ASSET_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -14,7 +14,58 @@ jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
 }));
 
+const mockTakePicture = jest.fn(async () => ({
+  uri: 'file:///tmp/look.jpg',
+  width: 1200,
+  height: 1600,
+  format: 'jpg' as const,
+}));
+jest.mock('expo-camera', () => {
+  const { useEffect } = require('react');
+  const request = jest.fn(async () => ({ granted: true }));
+  return {
+    useCameraPermissions: () => [{ granted: true, canAskAgain: true }, request],
+    // The preview renders nothing here; it hands back the shutter's ref and reports itself ready.
+    CameraView: ({
+      ref,
+      onCameraReady,
+    }: {
+      ref?: { current: unknown };
+      onCameraReady?: () => void;
+    }) => {
+      useEffect(() => {
+        if (ref) ref.current = { takePictureAsync: mockTakePicture };
+        onCameraReady?.();
+      });
+      return null;
+    },
+  };
+});
+
 const copy = lookbook.draftLook;
+const cam = lookbook.savedLook.manager.camera;
+const UPLOAD = {
+  'POST /uploads': {
+    assetId: ASSET_ID,
+    upload: {
+      method: 'PUT',
+      url: 'http://minio.test/put',
+      headers: { 'content-type': 'image/jpeg' },
+      expiresAt: '2026-11-10T11:00:00.000Z',
+    },
+  },
+  'PUT /put': {},
+  [`POST /uploads/${ASSET_ID}/complete`]: {
+    id: ASSET_ID,
+    kind: 'look_photo',
+    status: 'pending',
+    width: null,
+    height: null,
+    blurhash: null,
+    master: null,
+    renditions: [],
+  },
+};
 const SCARF = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const MODEL = {
   filed: false,
@@ -282,7 +333,7 @@ test('closing asks: Discard lets the draft go, Keep for later only closes', asyn
 
 // Home's Edit opens a saved look as the Edit look sheet (3k, D18): Update look at its foot is the
 // one accept; the tick only closes, once nothing waits.
-test('the Edit look sheet: Update look waits for a change, the tick only closes, × asks first', async () => {
+test('the Edit look sheet: Update look and the tick wait for a change, × asks first', async () => {
   const jeans = piece({ id: SCARF, label: 'Straight jeans', category: 'Bottoms' });
   const saved = look({
     pieces: [
@@ -312,30 +363,32 @@ test('the Edit look sheet: Update look waits for a change, the tick only closes,
   const done = () => screen.getByTestId('draft-done');
   const update = () => screen.getByTestId('update-look');
   expect(done().props.accessibilityLabel).toBe(copy.doneEdit);
-  // Nothing waits: the tick is live, Update look sits dimmed, the card has no chip of its own.
-  expect(done().props.accessibilityState.disabled).toBe(false);
+  // Its picture is the photo strip, on the Add a photo card (Capture PRD 3.1).
+  expect(screen.getByTestId('image-manager')).toBeTruthy();
+  // Nothing waits: the tick and Update look both sit dimmed (PRD 3.1); × leaves.
+  expect(done().props.accessibilityState.disabled).toBe(true);
   expect(update().props.accessibilityLabel).toBe(copy.update);
   expect(update().props.accessibilityState.disabled).toBe(true);
   expect(screen.queryByTestId('draft-generate')).toBeNull();
-  // A change: Update look wakes, the tick dims, × asks Discard your changes?
+  // A change: Update look and the tick wake, × asks Discard your changes?
   await fireEvent.press(screen.getByTestId('rack-pencil'));
   await fireEvent.press(
     screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
   expect(update().props.accessibilityState.disabled).toBe(false);
-  expect(done().props.accessibilityState.disabled).toBe(true);
-  await fireEvent.press(done());
-  expect(onClose).not.toHaveBeenCalled();
+  expect(done().props.accessibilityState.disabled).toBe(false);
   await fireEvent.press(screen.getByTestId('draft-close'));
   expect(await screen.findByText(copy.discardEdit.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: copy.discard.keep }));
-  // Update look applies it and she stays in the sheet; then the tick closes.
-  await fireEvent.press(update());
+  // The tick is Update look by another name: it applies the change and she stays in the sheet,
+  // with both dimmed again; × then leaves without a question.
+  await fireEvent.press(done());
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(await screen.findByText(lookbook.updated)).toBeTruthy();
   expect(onClose).not.toHaveBeenCalled();
-  await waitFor(() => expect(done().props.accessibilityState.disabled).toBe(false));
-  await fireEvent.press(done());
+  await waitFor(() => expect(update().props.accessibilityState.disabled).toBe(true));
+  expect(done().props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(screen.getByTestId('draft-close'));
   expect(onClose).toHaveBeenCalledTimes(1);
 });
 
@@ -542,16 +595,65 @@ test('The Rack heading shows once a piece hangs, and the toggle turns the rows t
   expect(screen.getByText('Camel wool coat')).toBeTruthy();
 });
 
-// Home's + (3k): the Edit look sheet opens on Add a photo. The camera opens only once the chooser
-// has fully gone: presented over a closing sheet, iOS refused it and the screen froze.
-test('image mode from Home: the camera opens after the chooser has closed, not over it', async () => {
-  mockFetch({ ...BASE, [`GET /looks/${LOOK_ID}`]: look() });
-  await renderWithApi(
-    <DraftLook id={LOOK_ID} images="add" presentation="sheet" onClose={() => undefined} />,
-  );
+// Add a photo to a look (Capture PRD flow 3): the Add a photo card opens the camera that only
+// adds an image. A shot reads Retake, a library photo Another; Add to look stages the photograph,
+// the Photos count goes up, and Update look (or the tick) keeps it. Nothing reads its pieces.
+test('add a photo to a look: camera, Retake or Another, Add to look, then Update look', async () => {
+  const saved = look({ model: piece().image, onModel: 'ready' });
+  const withPhoto = {
+    ...saved,
+    images: [{ id: SCARF, image: { ...piece().image, assetId: ASSET_ID }, position: 0 }],
+    updatedAt: new Date().toISOString(),
+  };
+  const calls = mockFetch({
+    ...BASE,
+    ...UPLOAD,
+    [`GET /looks/${LOOK_ID}`]: saved,
+    [`POST /looks/${LOOK_ID}/images`]: withPhoto,
+    [`POST /looks/${LOOK_ID}/images/cover`]: withPhoto,
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   expect(await screen.findByTestId('image-manager')).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: lookbook.savedLook.manager.add }));
-  await fireEvent.press(await screen.findByText(wardrobe.add.doors.photograph));
-  expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled();
-  await waitFor(() => expect(ImagePicker.launchCameraAsync).toHaveBeenCalled());
+  const done = () => screen.getByTestId('draft-done');
+  const update = () => screen.getByTestId('update-look');
+  expect(update().props.accessibilityState.disabled).toBe(true);
+  expect(done().props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(screen.getByText(lookbook.savedLook.tabs.details));
+  expect(screen.getByTestId('details-photos')).toHaveTextContent(/1/);
+
+  await fireEvent.press(screen.getByTestId('image-card-add'));
+  expect(await screen.findByText(cam.hint)).toBeTruthy();
+  expect(cam.hint).toBe('Wearing this look? Step back · Head to toe');
+  // A shot reads Retake, which returns to the viewfinder.
+  await fireEvent.press(screen.getByRole('button', { name: cam.shutter }));
+  await fireEvent.press(await screen.findByRole('button', { name: cam.retake }));
+  expect(await screen.findByText(cam.hint)).toBeTruthy();
+  // A library photo reads Another, and reopens her photos.
+  (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
+    canceled: false,
+    assets: [{ uri: 'file:///tmp/library.jpg', mimeType: 'image/jpeg', width: 900, height: 1200 }],
+  });
+  await fireEvent.press(screen.getByRole('button', { name: cam.photos }));
+  await fireEvent.press(await screen.findByRole('button', { name: cam.another }));
+  await waitFor(() => expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledTimes(2));
+
+  // Add to look: the card joins the strip, the count goes up, Update look and the tick turn on.
+  await fireEvent.press(screen.getByRole('button', { name: cam.use }));
+  expect(await screen.findByTestId('image-card-added')).toBeTruthy();
+  expect(screen.queryByTestId('capture-review')).toBeNull();
+  expect(screen.getByTestId('details-photos')).toHaveTextContent(/2/);
+  expect(update().props.accessibilityState.disabled).toBe(false);
+  expect(done().props.accessibilityState.disabled).toBe(false);
+  // Nothing is written until Update look.
+  expect(calls.some((c) => c.path.endsWith(`/looks/${LOOK_ID}/images`))).toBe(false);
+  await fireEvent.press(update());
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith(`/looks/${LOOK_ID}/images`))?.body).toEqual({
+      assetId: ASSET_ID,
+    }),
+  );
+  expect(await screen.findByText(lookbook.updated)).toBeTruthy();
+  expect(lookbook.updated).toBe('Look updated.');
+  // Adding a photograph never reads its pieces.
+  expect(calls.some((c) => /photo-reads|pieces\/find/.test(c.path))).toBe(false);
 });

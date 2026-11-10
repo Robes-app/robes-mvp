@@ -289,7 +289,9 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
   // draft keeps it only as it is saved.
   await page.getByTestId('saved-look-stack').click();
   await expect(page.getByTestId('image-manager')).toBeVisible();
-  await page.locator('input[type="file"][aria-label="Add a photo"]').setInputFiles(PHOTO);
+  await page.getByTestId('image-card-add').click();
+  await page.getByTestId('capture-photos-input').setInputFiles(PHOTO);
+  await page.getByTestId('capture-review').getByRole('button', { name: 'Add to look' }).click();
   await expect(page.getByTestId('image-card-added')).toBeInViewport({ timeout: 30_000 });
   await page.getByTestId('image-manager-done').click();
   await expect(page.getByText('Draft look')).toBeVisible();

@@ -10,7 +10,6 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { LookTile } from '@/components/looks/look-tile';
 import { ImageStack } from '@/components/looks/saved-look';
-import { PHOTO_ACCEPT } from '@/lib/upload';
 import { DraftTile } from './draft-tile';
 import { ModelStack } from './model-stack';
 
@@ -19,7 +18,7 @@ const focus =
 
 export interface DayActions {
   // Into a look (the last page): her photograph, her words (today and ahead only), her lookbook.
-  onCapture: (file: File) => void;
+  onCapture: () => void;
   onDescribe: (() => void) | null;
   onPick: () => void;
   // Onto a look: Swap from the lookbook, Edit on its page (a link), × off the day.
@@ -199,9 +198,7 @@ function AddPage({
           icon="capture"
           label={copy.discs.capture}
           ariaLabel={copy.discs.captureLabel(dayWord)}
-          onFile={actions.onCapture}
-          accept={PHOTO_ACCEPT}
-          capture="environment"
+          onClick={actions.onCapture}
           testId="disc-capture"
         />
         {actions.onDescribe ? (

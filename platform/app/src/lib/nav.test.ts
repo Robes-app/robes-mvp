@@ -98,7 +98,6 @@ describe('backFor', () => {
     const id = '0b9f4c1e-0000-4000-8000-000000000000';
     expect(backFor(`/look/${id}`, q())).toEqual({ href: '/looks', label: 'Lookbook' });
     expect(backFor('/looks/new', q())?.href).toBe('/looks');
-    expect(backFor('/looks/new/photo', q())?.href).toBe('/looks');
     expect(backFor(`/looks/ideas/${id}`, q())?.href).toBe('/looks/ideas');
     expect(backFor(`/piece/${id}`, q())).toEqual({ href: '/wardrobe', label: 'Wardrobe' });
     expect(backFor('/wardrobe/inbox', q())?.href).toBe('/wardrobe');

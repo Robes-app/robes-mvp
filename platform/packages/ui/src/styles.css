@@ -16,10 +16,18 @@
   --animate-scan-down: robes-scan-down 1.6s var(--ease-robes) infinite;
   /* A row still to come: breathes between faint and full. */
   --animate-breathe: robes-breathe 1.2s ease-in-out infinite alternate;
+  /* A photograph just added to a look's strip settles into place (Capture PRD 3.4). */
+  --animate-pop: robes-pop 450ms cubic-bezier(0.2, 0, 0.2, 1);
 
   @keyframes robes-fade-in {
     from {
       opacity: 0;
+    }
+  }
+  @keyframes robes-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
     }
   }
   @keyframes robes-rise {

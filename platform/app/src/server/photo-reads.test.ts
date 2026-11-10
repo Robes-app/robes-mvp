@@ -21,6 +21,8 @@ const repos = {
     create: vi.fn(async () => ({ id: 'look-1' })),
     wear: vi.fn(async () => ({})),
     byPhoto: vi.fn(async (): Promise<{ id: string } | undefined> => undefined),
+    get: vi.fn(),
+    imagesFor: vi.fn(async (): Promise<Array<{ assetId: string }>> => []),
   },
 };
 const startJob = vi.fn(async () => ({ jobId: 'job', status: 'queued' }));
@@ -34,7 +36,9 @@ vi.mock('./looks-entity', () => ({
   withOwnedPieces: (write: () => Promise<unknown>) => write(),
 }));
 
-const { fileRead, lookFromRead, startPhotoRead } = await import('./photo-reads');
+const { fileRead, filePiece, findLookPieces, lookFromRead, startPhotoRead } = await import(
+  './photo-reads'
+);
 
 const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const JOB = '22222222-2222-4222-8222-222222222222';
@@ -356,5 +360,52 @@ describe('photo reads', () => {
     expect(repos.looks.create).not.toHaveBeenCalled();
     expect(repos.wardrobe.createFromRead).not.toHaveBeenCalled();
     expect(repos.looks.wear).toHaveBeenCalledWith(USER, 'look-1', '2026-10-15');
+  });
+
+  it('files one piece of a read with her edits and leaves the others alone (Add piece)', async () => {
+    const piece = await filePiece(USER, JOB, {
+      index: 1,
+      edits: { label: 'Gym leggings', material: 'elastane', wearFor: ['Active'] },
+    });
+    expect(piece).toMatchObject({ id: 'piece-1', label: 'Gym leggings' });
+    expect(repos.wardrobe.createFromRead).toHaveBeenCalledWith(USER, PHOTO, [
+      expect.objectContaining({
+        sourceIndex: 1,
+        label: 'Gym leggings',
+        material: 'elastane',
+        imageAssetId: crop(1),
+        itemDna: expect.objectContaining({ source: { kind: 'look_photo', of: 3 } }),
+      }),
+    ]);
+    expect(repos.wardrobe.setWearTags).toHaveBeenCalledWith(USER, 'piece-1', ['Active']);
+    // The other pieces' crops stay: they are still on the rack to match, add or leave.
+    expect(repos.assets.discardCrops).not.toHaveBeenCalled();
+  });
+
+  it('refuses a piece the read never found, and a read that is not hers', async () => {
+    await expect(filePiece(USER, JOB, { index: 5 })).rejects.toMatchObject({ code: 'not_found' });
+    repos.jobs.getForUser.mockResolvedValueOnce(undefined);
+    await expect(filePiece(USER, JOB, { index: 0 })).rejects.toMatchObject({ code: 'not_found' });
+    expect(repos.wardrobe.createFromRead).not.toHaveBeenCalled();
+  });
+
+  it('finds the pieces of a look from the photograph in front', async () => {
+    const req = new Request('http://x');
+    const FRONT = '66666666-6666-4666-8666-666666666666';
+    repos.looks.get.mockResolvedValueOnce(undefined);
+    await expect(findLookPieces(USER, req, 'look-1')).rejects.toMatchObject({ code: 'not_found' });
+    // No photograph of hers: nothing to read.
+    repos.looks.get.mockResolvedValueOnce({ id: 'look-1', photoAssetId: null });
+    await expect(findLookPieces(USER, req, 'look-1')).rejects.toMatchObject({ code: 'conflict' });
+    repos.looks.get.mockResolvedValueOnce({ id: 'look-1', photoAssetId: PHOTO });
+    repos.looks.imagesFor.mockResolvedValueOnce([{ assetId: FRONT }, { assetId: PHOTO }]);
+    repos.assets.getForUser.mockResolvedValueOnce({ kind: 'look_photo', status: 'ready' });
+    await findLookPieces(USER, req, 'look-1');
+    expect(repos.assets.getForUser).toHaveBeenCalledWith(USER, FRONT);
+    expect(startJob).toHaveBeenCalledWith(USER, req, {
+      kind: 'wardrobe_pieces',
+      input: { assetId: FRONT },
+      quota: { metric: 'analyse.photo', cost: 1 },
+    });
   });
 });

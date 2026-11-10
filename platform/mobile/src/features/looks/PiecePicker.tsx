@@ -4,7 +4,7 @@ import { theName } from '@robes/core/looks';
 import { formatPrice } from '@robes/core/wardrobe';
 import { Button, IconButton, PrimaryScope, Subview, Tabs, Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { usePieces } from '@/features/wardrobe/pieces';
 import { WardrobeGrid } from '@/features/wardrobe/WardrobeGrid';
@@ -12,11 +12,17 @@ import { useWishes } from '@/features/wardrobe/wishlist';
 import { nativeAnalytics } from '@/lib/analytics';
 
 const copy = lookbook.draftLook.picker;
+const match = lookbook.draftLook.capture.match;
 const TABS = [wardrobe.segments.owned, wardrobe.segments.wishlist, wardrobe.segments.shop] as const;
 type Tab = (typeof TABS)[number];
 
 // What the picker is open for: pieces to add (any number), or the one to swap a row for.
-export type PickerMode = { add: true } | { swap: { key: string; name: string; category: string } };
+// `match` (Capture PRD 1c.7) names her piece a found row is: one piece, its category leading and
+// the piece Robes suggested already ticked.
+export type PickerMode =
+  | { add: true }
+  | { swap: { key: string; name: string; category: string } }
+  | { match: { key: string; name: string; category: string; suggestedId: string | null } };
 
 type WishItem = Wish & { meta: string | null };
 
@@ -25,7 +31,9 @@ type WishItem = Wish & { meta: string | null };
 // plan R10) and the framed + for a new piece at the rail's end; under them the WardrobeGrid —
 // category chips with counts, the 3-up grid with a tick on every piece — and the ink ADD PIECES
 // at the foot. A wish joins the rack as a piece to find. A swap picks one of her pieces and
-// confirms with "Swap it in". Closing changes nothing. Web twin:
+// confirms with "Swap it in"; a match (a piece found in her photograph, Capture PRD 1c.7) picks
+// the piece of hers it is, under "Match to your wardrobe" and MATCH PIECE, and its + adds the
+// found piece as a new one instead. Closing changes nothing. Web twin:
 // app/src/components/looks/piece-picker.tsx.
 export function PiecePicker({
   mode,
@@ -33,6 +41,7 @@ export function PiecePicker({
   onClose,
   onPick,
   onSnap,
+  onAddNew,
 }: {
   mode: PickerMode | null;
   // The pieces and wishes already on the rack, by id.
@@ -41,10 +50,14 @@ export function PiecePicker({
   onPick: (pieces: Piece[], wishes: Wish[]) => void;
   // "Photograph one": the camera, and the photograph files straight in and onto the look.
   onSnap?: () => void;
+  // A match's +: the found piece is new, so its review opens instead of the wardrobe's add flow.
+  onAddNew?: () => void;
 }) {
   const router = useRouter();
   const open = mode !== null;
-  const swapping = mode && 'swap' in mode ? mode.swap : null;
+  const matching = mode && 'match' in mode ? mode.match : null;
+  // One piece of hers, led by the row's category: a swap, or a match.
+  const swapping = mode && 'swap' in mode ? mode.swap : matching;
   const { pieces, isPending } = usePieces();
   const wishlist = useWishes();
   const ready = pieces.filter((p) => p.status === 'ready' && !onRack.includes(p.id));
@@ -60,13 +73,28 @@ export function PiecePicker({
   // biome-ignore lint/correctness/useExhaustiveDependencies: once per opening, not per prop.
   useEffect(() => {
     if (!open) return;
-    nativeAnalytics.track('swap_drawer_opened', { mode: swapping ? 'swap' : 'add' });
+    nativeAnalytics.track('swap_drawer_opened', {
+      mode: matching ? 'match' : swapping ? 'swap' : 'add',
+    });
     setPicked([]);
     setPickedWishes([]);
     setQuery('');
     setTab(TABS[0]);
     setCategory(swapping?.category ?? null);
   }, [open]);
+  // A match opens with the piece Robes suggested ticked (Annie, 10 Nov), once her wardrobe is in.
+  const suggestedId = matching?.suggestedId ?? null;
+  const preselected = useRef<string | null>(null);
+  const suggested = suggestedId ? ready.find((p) => p.id === suggestedId) : undefined;
+  useEffect(() => {
+    if (!open) {
+      preselected.current = null;
+      return;
+    }
+    if (!suggested || preselected.current === suggested.id) return;
+    preselected.current = suggested.id;
+    setPicked([suggested]);
+  }, [open, suggested]);
   const toggle = (piece: Piece) =>
     setPicked((p) =>
       p.some((x) => x.id === piece.id)
@@ -97,13 +125,19 @@ export function PiecePicker({
   return (
     <Subview
       open={open}
-      title={swapping ? copy.swapTitle(theName(swapping.name).replace(/^the /, '')) : copy.title}
+      title={
+        matching
+          ? match.title
+          : swapping
+            ? copy.swapTitle(theName(swapping.name).replace(/^the /, ''))
+            : copy.title
+      }
       onBack={onClose}
       testID="piece-picker"
       footer={
         <PrimaryScope>
           <Button disabled={count === 0} onPress={confirm} testID="picker-confirm">
-            {swapping ? copy.swapCta : copy.cta(count)}
+            {matching ? match.cta : swapping ? copy.swapCta : copy.cta(count)}
           </Button>
         </PrimaryScope>
       }
@@ -129,7 +163,8 @@ export function PiecePicker({
               framed
               onPress={() => {
                 onClose();
-                router.push('/wardrobe/add');
+                if (matching && onAddNew) onAddNew();
+                else router.push('/wardrobe/add');
               }}
               testID="picker-add-new"
             />
@@ -158,7 +193,7 @@ export function PiecePicker({
             onQuery={setQuery}
             category={category}
             onCategory={setCategory}
-            {...(onSnap
+            {...(onSnap && !matching
               ? {
                   onSnap: () => {
                     onClose();

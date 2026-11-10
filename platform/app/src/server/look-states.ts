@@ -70,7 +70,13 @@ export function isUnnamedHandBuilt(look: {
   source: string;
   setId: string | null;
 }): boolean {
-  return look.status === 'draft' && look.nameProvisional && look.source === 'manual' && !look.setId;
+  return (
+    look.status === 'draft' &&
+    look.nameProvisional &&
+    // Built by hand, or started from her photograph (Capture PRD 1c): both save as today's date.
+    (look.source === 'manual' || look.source === 'capture') &&
+    !look.setId
+  );
 }
 
 // Her words for a day → three suggested looks on the deck (legacy __rbPromptLook, 2026-10-09), or,

@@ -93,6 +93,7 @@ import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession
 import { DismissNotificationInput, Notifications } from './notifications';
 import { JoinWaitlistInput, Ok, OneClickUnsubInput, UnsubParams } from './notify';
 import {
+  FilePieceInput,
   FileReadInput,
   FileReadOutput,
   LookFromPhotoInput,
@@ -548,6 +549,15 @@ export const routes = {
     input: FileReadInput,
     output: FileReadOutput,
   },
+  // Naturally idempotent: a piece of a read files once.
+  'photoReads.piece': {
+    method: 'POST',
+    path: '/wardrobe/photo-reads/:id/pieces',
+    auth: 'user',
+    params: PhotoReadParams,
+    input: FilePieceInput,
+    output: Piece,
+  },
   'photoReads.look': {
     method: 'POST',
     path: '/wardrobe/photo-reads/:id/look',
@@ -684,6 +694,17 @@ export const routes = {
     params: LookParams,
     input: LookPhotoInput,
     output: Look,
+  },
+  // Find the pieces (Capture PRD 1c.5): the look's own photograph read for what she is wearing.
+  // The read is a job; its pieces land on the rack as rows she matches, adds or removes.
+  'looks.findPieces': {
+    method: 'POST',
+    path: '/looks/:id/pieces/find',
+    auth: 'user',
+    params: LookParams,
+    input: EmptyInput,
+    output: StartJobOutput,
+    idempotent: true,
   },
   // The image stack (D13): any number of her photographs, the one in front leading the look.
   'looks.images.add': {

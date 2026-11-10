@@ -4,8 +4,6 @@
 export const CAPTURE_MAX = 1600;
 export const CAPTURE_QUALITY = 0.9;
 export const CAPTURE_TYPE = 'image/jpeg';
-// The white flash over the viewfinder, in milliseconds.
-export const FLASH_MS = 60;
 
 // Never upscale a small frame; round so the canvas never takes a fractional size.
 export function captureSize(

@@ -100,7 +100,9 @@ const json = (v: unknown) => (v == null ? null : JSON.stringify(v));
 
 // The proposals a save files to her wishlist: each one not yet hers becomes a wish (its name,
 // brand, colour, retailer and price), and the row carries the wish's id. Returns the proposals
-// as they now stand, or null when nothing changed. Legacy rows (no `name`) are left as they are.
+// as they now stand, or null when nothing changed. Legacy rows (no `name`) are left as they are,
+// and so is a piece found in her own photograph (`capture`, Capture PRD 1c): it stays on the look
+// as a suggestion and reaches her wardrobe or wishlist only when she files it.
 async function fileProposals(
   trx: Transaction<DB>,
   userId: UserId,
@@ -113,7 +115,8 @@ async function fileProposals(
     if (!item || typeof item !== 'object') continue;
     const p = item as Record<string, unknown>;
     const name = typeof p.name === 'string' ? p.name.trim() : '';
-    if (!name || p.wishlisted === true) {
+    const found = typeof p.capture === 'object' && p.capture !== null;
+    if (!name || p.wishlisted === true || found) {
       out.push(p);
       continue;
     }
@@ -649,7 +652,7 @@ export function looksRepo(db: Db) {
         name: string;
         nameProvisional: boolean;
         pieces: readonly LookPieceInput[];
-        source?: 'manual' | 'variant' | 'generated' | 'today';
+        source?: 'manual' | 'variant' | 'generated' | 'today' | 'capture';
         originLookId?: string | null;
         renderAssetId?: string | null;
         // A draft is hers, unsaved; at most MAX_DRAFTS wait (letGoOldest makes room).

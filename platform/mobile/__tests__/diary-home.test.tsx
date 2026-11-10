@@ -238,13 +238,13 @@ test('an empty day: her model with Capture · Describe · Pick; Pick opens the d
   expect(screen.getByRole('button', { name: diary.drawer.schedule(1) })).toBeTruthy();
 });
 
-test('Capture leaves for the photo flow with the day and the camera opening', async () => {
+test('Capture opens the camera for the day', async () => {
   mockFetch(ROUTES);
   await renderWithApi(<DiaryHome day={EMPTY} />);
   await fireEvent.press(await screen.findByTestId('disc-capture'));
   expect(mockRouter.push).toHaveBeenCalledWith({
     pathname: '/looks/photo',
-    params: { day: EMPTY, start: 'camera' },
+    params: { day: EMPTY },
   });
 });
 

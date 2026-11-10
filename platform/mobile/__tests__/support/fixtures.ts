@@ -111,6 +111,7 @@ export function look(overrides: Partial<Look> = {}): Look {
     onRobesModel: false,
     pieces: [{ piece: piece(), slot: null, role: null }],
     proposals: [],
+    captureImages: {},
     styling: {},
     edits: {},
     anchor: null,
