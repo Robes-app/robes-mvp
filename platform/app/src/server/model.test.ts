@@ -63,7 +63,10 @@ const repos = {
     setRenderJob: vi.fn(async () => {}),
     releaseRender: vi.fn(async () => {}),
   },
-  jobs: { getForUser: vi.fn(async () => undefined) },
+  jobs: {
+    getForUser: vi.fn(async () => undefined),
+    latest: vi.fn(async (): Promise<unknown> => undefined),
+  },
 };
 const LOOK = '55555555-5555-4555-8555-555555555555';
 let look: Record<string, unknown> = { status: 'draft', frameAssetId: null, styling: {} };
@@ -83,9 +86,8 @@ vi.mock('./asset-urls', () => ({
   })),
 }));
 
-const { drawTwin, ensureRobesModels, loadModel, renderOnModel, updateModel } = await import(
-  './model'
-);
+const { drawTwin, drawTwinFromSelfie, ensureRobesModels, loadModel, renderOnModel, updateModel } =
+  await import('./model');
 const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const req = new Request('https://robes.test/api/v1/me/model/twin', { method: 'POST' });
 
@@ -97,6 +99,7 @@ beforeEach(() => {
   repos.model.savePicks.mockImplementation(async () => {});
   repos.avatarCells.get.mockImplementation(async () => undefined);
   repos.avatarCells.claim.mockImplementation(async () => false);
+  repos.jobs.latest.mockImplementation(async () => undefined);
 });
 
 describe('her twin', () => {
@@ -169,6 +172,82 @@ describe('her twin', () => {
     repos.model.claimTwin.mockResolvedValueOnce(false);
     await drawTwin(USER, req);
     expect(repos.model.savePreset).not.toHaveBeenCalled();
+  });
+});
+
+describe('her selfie’s twin, drawn while its colouring is read', () => {
+  const NEW = '66666666-6666-4666-8666-666666666666';
+  const READ = '77777777-7777-4777-8777-777777777777';
+  const selfie = { closeUpAssetId: NEW, readJobId: READ };
+  const keyed = () => twinKey({ ...twinInputsOf(row), closeUpAssetId: NEW });
+
+  it('starts from the new close-up on a job of its own, never the read’s Idempotency-Key', async () => {
+    const ask = new Request('https://robes.test/api/v1/me/style/analyse', {
+      method: 'POST',
+      headers: { 'idempotency-key': '88888888-8888-4888-8888-888888888888' },
+    });
+    const key = await keyed();
+    await drawTwinFromSelfie(USER, ask, selfie);
+    expect(repos.model.claimTwin).toHaveBeenCalledWith(USER, key);
+    expect(createAndEnqueueJob).toHaveBeenCalledWith(
+      USER,
+      {
+        kind: 'avatar_cell',
+        input: { target: 'twin', twinKey: key, early: selfie },
+        quota: { metric: 'generation.image', cost: 1 },
+      },
+      undefined,
+    );
+    expect(startJob).not.toHaveBeenCalled();
+  });
+
+  it('starts nothing for the twin she already has, or a draw already claimed', async () => {
+    row = { ...base, twinAssetId: TWIN, twinKey: await keyed() };
+    await drawTwinFromSelfie(USER, req, selfie);
+    expect(repos.model.claimTwin).not.toHaveBeenCalled();
+    row = { ...base };
+    repos.model.claimTwin.mockResolvedValueOnce(false);
+    await drawTwinFromSelfie(USER, req, selfie);
+    expect(createAndEnqueueJob).not.toHaveBeenCalled();
+  });
+
+  it('draws nothing while her colour read runs: the selfie’s twin is on its way', async () => {
+    const reading = (over: Record<string, unknown> = {}) => ({
+      status: 'running',
+      input: { kind: 'colour', assetId: NEW },
+      createdAt: new Date(),
+      ...over,
+    });
+    repos.jobs.latest.mockResolvedValueOnce(reading());
+    await drawTwin(USER, req);
+    expect(repos.model.claimTwin).not.toHaveBeenCalled();
+    // A read lost long ago, or a silhouette read, holds nothing up.
+    for (const over of [
+      { createdAt: new Date(Date.now() - 6 * 60_000) },
+      { input: { kind: 'silhouette', assetId: NEW } },
+      { status: 'succeeded' },
+    ]) {
+      repos.jobs.latest.mockResolvedValueOnce(reading(over));
+      await drawTwin(USER, req);
+    }
+    expect(repos.model.claimTwin).toHaveBeenCalledTimes(3);
+  });
+
+  it('once the read lands, the ask finds it drawing: nothing new starts, and the selfie wins', async () => {
+    const key = await twinKey(twinInputsOf({ ...base, headshotAssetId: NEW }));
+    row = {
+      ...base,
+      headshotAssetId: NEW,
+      modelPreset: 3,
+      twinDrawKey: key,
+      twinDrawStatus: 'pending',
+      twinDrawAt: new Date(),
+    };
+    repos.model.claimTwin.mockResolvedValueOnce(false);
+    const m = await drawTwin(USER, req);
+    expect(startJob).not.toHaveBeenCalled();
+    expect(repos.model.savePreset).toHaveBeenCalledWith(USER, null);
+    expect(m.twin.status).toBe('pending');
   });
 });
 

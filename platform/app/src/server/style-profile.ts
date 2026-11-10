@@ -12,6 +12,8 @@ import type { UserId } from '@robes/db';
 import { z } from 'zod';
 import { repos } from './db';
 import { startJob } from './jobs';
+import { logger } from './logger';
+import { drawTwinFromSelfie } from './model';
 
 type Row = Awaited<ReturnType<typeof repos.styleProfile.get>>;
 
@@ -50,9 +52,22 @@ export async function analyseStyle(
   if (!asset || asset.kind !== PHOTO_KIND[input.kind] || asset.status === 'failed') {
     throw new ApiError('not_found');
   }
-  return startJob(userId, req, {
+  const read = await startJob(userId, req, {
     kind: 'stylenotes_analyse',
     input,
     quota: { metric: 'analyse.photo', cost: 1 },
   });
+  // Her selfie's twin draws while its colouring is read (10 Nov 2026); it never fails the read.
+  if (input.kind === 'colour') {
+    await drawTwinFromSelfie(userId, req, {
+      closeUpAssetId: input.assetId,
+      readJobId: read.jobId,
+    }).catch((err: unknown) =>
+      logger.warn(
+        { reason: err instanceof ApiError ? err.code : 'error' },
+        'avatar_twin_early_failed',
+      ),
+    );
+  }
+  return read;
 }

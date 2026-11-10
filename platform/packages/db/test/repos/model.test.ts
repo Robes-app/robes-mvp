@@ -124,6 +124,53 @@ describe('her twin', () => {
   });
 });
 
+describe('a twin drawn while her colouring is read', () => {
+  it('finds her own close-up only, and how her colour read of it ended', async () => {
+    const photo = async (userId: UserId, kind: string) =>
+      (
+        await db
+          .insertInto('assets')
+          .values({ userId, kind, contentType: 'image/jpeg', provider: 's3' })
+          .returning('id')
+          .executeTakeFirstOrThrow()
+      ).id;
+    const hers = await photo(niall, 'headshot');
+    expect(await system.modelRender.closeUp(niall, hers)).toEqual({ status: 'pending' });
+    // Not another person's photo, and not a photo of anything but her face.
+    expect(await system.modelRender.closeUp(bea, hers)).toBeUndefined();
+    expect(await system.modelRender.closeUp(niall, await photo(niall, 'wardrobe'))).toBeUndefined();
+
+    const read = async (userId: UserId, status: string, output = {}, kind = 'stylenotes_analyse') =>
+      (
+        await db
+          .insertInto('generationJobs')
+          .values({ userId, kind, status, output: JSON.stringify(output) })
+          .returning('id')
+          .executeTakeFirstOrThrow()
+      ).id;
+    expect(await system.modelRender.colourRead(niall, await read(niall, 'running'))).toBe(
+      'reading',
+    );
+    const done = await read(niall, 'succeeded', { styleKind: 'colour' });
+    expect(await system.modelRender.colourRead(niall, done)).toBe('read');
+    // No face is a partial read; another person's read, or another kind of job, is never hers.
+    const noFace = await read(niall, 'partial', { styleKind: 'colour', noSubject: true });
+    expect(await system.modelRender.colourRead(niall, noFace)).toBe('refused');
+    expect(await system.modelRender.colourRead(niall, await read(niall, 'failed'))).toBe('refused');
+    expect(await system.modelRender.colourRead(bea, done)).toBe('refused');
+    const other = await read(niall, 'succeeded', {}, 'daily');
+    expect(await system.modelRender.colourRead(niall, other)).toBe('refused');
+  });
+
+  it('stands her on her twin once it lands, and no one else', async () => {
+    await repos.model.savePreset(niall, 3);
+    await repos.model.savePreset(bea, 2);
+    await system.modelRender.standOnTwin(niall);
+    expect((await repos.model.get(niall))?.modelPreset).toBeNull();
+    expect((await repos.model.get(bea))?.modelPreset).toBe(2);
+  });
+});
+
 describe('cell catalog', () => {
   it('is claimed once; ready cells stay; failed or abandoned ones can be claimed again', async () => {
     const k = key();

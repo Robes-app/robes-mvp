@@ -189,15 +189,27 @@ export interface TwinInputs {
 }
 
 // What the twin is drawn from, as one string the server hashes: same inputs, same key, no redraw.
+// Drawn from her close-up, the photograph carries her skin and hair (the prompt names them only
+// where she picked one by hand), so the colouring read from that photo is not part of the key:
+// her twin starts drawing while the colouring is still being read, and the read never redraws it.
 export function twinKeyMaterial(i: TwinInputs): string {
+  const fromPhoto = i.closeUpAssetId !== null;
+  return materialOf(
+    i,
+    fromPhoto && !i.skinSet ? null : i.skin,
+    fromPhoto && !i.hairSet ? null : i.hair,
+  );
+}
+
+function materialOf(i: TwinInputs, skin: number | null, hair: number | null): string {
   const f = i.facts;
   return JSON.stringify([
     TWIN_STYLE,
     i.gender,
     [f.heightCm, f.sizeUk, f.bustBand, f.bustCup, f.bustCm, f.waistCm, f.ageBand],
     [i.adj.shoulders, i.adj.bust, i.adj.hips],
-    i.skin,
-    i.hair,
+    skin,
+    hair,
     i.skinSet,
     i.hairSet,
     i.closeUpAssetId,
@@ -296,10 +308,22 @@ export const hasTwinInputs = (i: TwinInputs): boolean =>
   i.hairSet;
 
 // The twin's cache key: a short hash of everything it is drawn from (Web Crypto, server-side).
-export async function twinKey(i: TwinInputs): Promise<string> {
+export function twinKey(i: TwinInputs): Promise<string> {
+  return hashKey(twinKeyMaterial(i));
+}
+
+// Whether the twin on file was drawn from these inputs. Keys made before 10 Nov 2026 also hashed
+// the colouring read from her close-up; a twin stored under one still stands, so the change to
+// the key never redraws anyone.
+export async function isTwinCurrent(stored: string | null, i: TwinInputs): Promise<boolean> {
+  if (stored === null) return false;
+  return stored === (await twinKey(i)) || stored === (await hashKey(materialOf(i, i.skin, i.hair)));
+}
+
+async function hashKey(material: string): Promise<string> {
   const bytes = await globalThis.crypto.subtle.digest(
     'SHA-256',
-    new TextEncoder().encode(twinKeyMaterial(i)),
+    new TextEncoder().encode(material),
   );
   return [...new Uint8Array(bytes)]
     .slice(0, 12)
