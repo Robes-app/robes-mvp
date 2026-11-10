@@ -580,6 +580,7 @@ export const wardrobe = {
     forwardTo: 'Forward receipts to',
     extracted: 'Pieces will be extracted for your review.',
     group: (retailer: string, n: number): string => `${retailer} (${n})`,
+    size: (size: string): string => `Size ${size}`,
     unknownRetailer: 'A receipt',
     add: (label: string): string => `Add ${label} to your wardrobe`,
     discard: (label: string): string => `Discard ${label}`,

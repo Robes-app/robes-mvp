@@ -45,7 +45,10 @@ test('a forwarded receipt lands in her Inbox and files into the wardrobe', async
   });
   expect(decided.ok()).toBe(true);
   const pieces = await (await api.get('/api/v1/wardrobe/items')).json();
-  expect(pieces.items.map((p: { label: string }) => p.label)).toContain('Camel wool coat');
+  const coat = pieces.items.find((p: { label: string }) => p.label === 'Camel wool coat');
+  // The size the receipt printed reads on the line and is filed with the piece.
+  expect(receipt.items[0]).toMatchObject({ size: 'M' });
+  expect(coat).toMatchObject({ size: 'M', categoryL2: 'Coats' });
 });
 
 test('a regenerated or turned-off address stops accepting mail', async ({ page }) => {

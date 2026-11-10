@@ -36,6 +36,24 @@ function money(price: number | null, currency: string | null): string | null {
   }
 }
 
+// A receipt line's meta (beta's review row): the brand when it isn't the shop the group already
+// names, then the price and the size as printed. Twin: InboxView.tsx / inbox.tsx.
+function lineMeta(
+  item: {
+    brand: string | null;
+    price: number | null;
+    currency: string | null;
+    size: string | null;
+  },
+  retailer: string | null,
+): string {
+  const brand =
+    item.brand && item.brand.toLowerCase() !== retailer?.toLowerCase() ? item.brand : null;
+  return [brand, money(item.price, item.currency), item.size ? rc.size(item.size) : null]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function dayOf(iso: string): string {
   const day = receivedDay(iso);
   return day.kind === 'date' ? day.label : copy[day.kind];
@@ -127,7 +145,7 @@ function Group({ entry, decidable }: { entry: InboxEntry; decidable: boolean }) 
       <h2 className="px-3 pt-3 pb-2 font-display text-[19px] text-ink">{title}</h2>
       <ul>
         {entry.items.map((item) => {
-          const meta = [item.brand, money(item.price, item.currency)].filter(Boolean).join(' · ');
+          const meta = lineMeta(item, entry.retailer);
           return (
             <li
               key={item.index}
@@ -141,7 +159,9 @@ function Group({ entry, decidable }: { entry: InboxEntry; decidable: boolean }) 
                 <Icon name="wardrobe" size={14} />
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate font-display text-[17px] text-ink">{item.label}</span>
+                <span className="line-clamp-2 font-display text-[17px] text-ink leading-snug">
+                  {item.label}
+                </span>
                 {meta ? (
                   <Text size="caption" tone="muted" className="truncate">
                     {meta}

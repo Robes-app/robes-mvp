@@ -1,3 +1,4 @@
+import { shadeByName } from '@robes/core/colour';
 import { sql } from 'kysely';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
@@ -16,6 +17,12 @@ export interface InboxItem {
   // Product image as the shop published it; metadata only, never fetched or hotlinked.
   imageUrl?: string | null;
   sourceUrl?: string | null;
+  // What the receipt printed for the piece. Rows carried over from beta keep beta's snake_case
+  // keys, so read them through lineFields.
+  size?: string | null;
+  categoryL2?: string | null;
+  categoryL3?: string | null;
+  color?: string | null;
   // Decided on its own (Front Door PRD rev 3 §7.5): added as a piece or wish (`filedId`), or
   // discarded. Unset is waiting in the Inbox.
   state?: InboxItemState;
@@ -23,6 +30,26 @@ export interface InboxItem {
 }
 
 export const itemState = (item: InboxItem): InboxItemState => item.state ?? 'inbox';
+
+const text = (v: unknown, max: number): string | null =>
+  typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
+
+// The size, category and colour a receipt line holds, whichever app wrote it (the platform's
+// camelCase or beta's snake_case), trimmed to what a piece stores.
+export function lineFields(item: InboxItem): {
+  size: string | null;
+  categoryL2: string | null;
+  categoryL3: string | null;
+  color: string | null;
+} {
+  const raw = item as InboxItem & Record<string, unknown>;
+  return {
+    size: text(raw.size, 40),
+    categoryL2: text(raw.categoryL2 ?? raw.category_l2, 80),
+    categoryL3: text(raw.categoryL3 ?? raw.category_l3, 80),
+    color: text(raw.color, 40),
+  };
+}
 
 // Rows written by older code or a receipt parser may hold odd entries; only labelled ones file.
 export function heldItems(value: unknown): InboxItem[] {
@@ -145,10 +172,20 @@ export function inboxRepo(db: Db) {
             continue;
           }
           const label = item.label.slice(0, 120);
+          // What the receipt printed travels onto the piece: its size, its category and colour.
+          const { size, categoryL2, categoryL3, color } = lineFields(item);
+          const read = {
+            size,
+            categoryL2,
+            categoryL3,
+            color,
+            colourShade: shadeByName(color)?.id ?? null,
+          };
           let filedId: string;
           if (action === 'wardrobe') {
             const piece = await wardrobeRepo(trx).create(userId, {
               label,
+              ...read,
               brand: item.brand?.slice(0, 80) ?? null,
               price: item.price ?? null,
               currency: item.currency ?? null,
@@ -158,6 +195,7 @@ export function inboxRepo(db: Db) {
           } else {
             const wish = await wishlistRepo(trx).create(userId, {
               label,
+              ...read,
               brand: item.brand?.slice(0, 80) ?? null,
               price: item.price ?? null,
               currency: item.currency ?? null,

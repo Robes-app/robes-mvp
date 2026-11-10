@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { UserId } from '../../src/ids';
-import { createRepositories, createSystemRepositories } from '../../src/repos';
+import { createRepositories, createSystemRepositories, lineFields } from '../../src/repos';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 const db = createTestDb();
@@ -103,6 +103,59 @@ describe('inbox repo', () => {
     expect(await inbox.decide(niall, other, 'dismiss')).toMatchObject({
       status: 'dismissed',
       filedIds: [],
+    });
+  });
+
+  // A Zara receipt prints the size (beta's review row): it shows in the Inbox and travels onto
+  // the piece she accepts, with the category and colour the read found.
+  it('files a receipt line with its size, category and colour', async () => {
+    const { id } = await inboxIntake.fromReceipt(niall, {
+      providerId: `ses:${randomUUID()}`,
+      retailer: 'Zara',
+      orderRef: null,
+      subject: 'Your order',
+      fromEmail: 'orders@zara.test',
+      items: [
+        {
+          ...item('Black flare leggings'),
+          size: '6/7 years (122 cm)',
+          categoryL2: 'Trousers',
+          categoryL3: 'Leggings',
+          color: 'Black',
+        },
+        { ...item('Bordeaux active leggings'), size: '6/7 years (122 cm)' },
+      ],
+    });
+    const added = await inbox.decide(niall, id, 'wardrobe', [0]);
+    const piece = await wardrobe.get(niall, added?.filedIds[0] ?? '');
+    expect(piece).toMatchObject({
+      label: 'Black flare leggings',
+      size: '6/7 years (122 cm)',
+      category: 'Bottoms',
+      categoryL2: 'Trousers',
+      categoryL3: 'Leggings',
+      acquiredVia: 'receipt',
+    });
+    expect(piece?.colourShade).not.toBeNull();
+    const wished = await inbox.decide(niall, id, 'wishlist', [1]);
+    const wish = await wishlist.get(niall, wished?.filedIds.at(-1) ?? '');
+    expect(wish).toMatchObject({ label: 'Bordeaux active leggings', size: '6/7 years (122 cm)' });
+  });
+
+  it("reads a line's fields whichever app wrote them", () => {
+    // Rows carried over from beta keep its snake_case keys.
+    const beta = { label: 'Pink bustier top', size: ' L ', category_l2: 'Tops', color: 'Pink' };
+    expect(lineFields(beta)).toEqual({
+      size: 'L',
+      categoryL2: 'Tops',
+      categoryL3: null,
+      color: 'Pink',
+    });
+    expect(lineFields({ label: 'No size' })).toEqual({
+      size: null,
+      categoryL2: null,
+      categoryL3: null,
+      color: null,
     });
   });
 

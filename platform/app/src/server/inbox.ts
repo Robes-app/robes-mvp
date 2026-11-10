@@ -1,7 +1,7 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
 import { InboxDecision, InboxEntry, type InboxItemState, type InboxList } from '@robes/contracts';
-import { heldItems, itemState, type UserId } from '@robes/db';
+import { heldItems, itemState, lineFields, type UserId } from '@robes/db';
 import { repos } from './db';
 
 type Row = NonNullable<Awaited<ReturnType<typeof repos.inbox.get>>>;
@@ -23,6 +23,7 @@ function toEntry(row: Row, state?: InboxItemState): InboxEntry {
         brand: item.brand ?? null,
         price: item.price ?? null,
         currency: item.currency ?? null,
+        size: lineFields(item).size,
         sourceUrl: item.sourceUrl ?? null,
         state: itemState(item),
         filedId: item.filedId ?? null,
