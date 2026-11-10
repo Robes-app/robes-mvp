@@ -6,6 +6,7 @@ import { twin, you } from '@robes/copy';
 import { chosenTones, readAdj } from '@robes/core/avatar';
 import { Icon } from '@robes/icons/web';
 import { ErrorText, Skeleton, Text } from '@robes/ui';
+import { ScanLine } from '@/components/looks/scan-line';
 import { SettingsGroup, SettingsRow } from '@/components/settings/settings-chrome';
 import { errorCopy } from '@/lib/error-copy';
 import { useSelfie, useSelfieRead } from '@/lib/use-selfie';
@@ -16,6 +17,7 @@ import {
   type TwinRead,
   twinRead,
   useDrawTwin,
+  useHeldWhile,
   useModel,
   useModelPick,
   useTwinStatus,
@@ -31,6 +33,9 @@ const focus =
 // as the one commitment, then one card holding the lineup and the two doors (closed: Colouring
 // and Body shape are the twin's). On her own twin (3d): the twin with its redraw control, the
 // doors, and the lineup with her first. Native twin: mobile/src/features/you/Model.tsx.
+// Her picture while she waits for her twin: dimmed and drained of colour under the scan.
+const DIMMED = 'opacity-45 grayscale';
+
 export function ModelView() {
   const query = useModel();
   const style = useApi('me.style.get');
@@ -163,11 +168,15 @@ function ModelStage({
     !onRobes &&
     (model.twin.status === 'failed' || (!model.twin.imageUrl && model.cell.status === 'failed'));
   const chip = useTwinStatus(reading, drawing);
+  // One wait from Use photo to her twin (Annie, 10 Nov): the picture she had stays, dimmed under
+  // the scan, until her twin lands; the caption goes quiet while the status speaks.
+  const busy = reading || drawing;
+  const shown = useHeldWhile({ image, onRobes }, busy);
   return (
     <div className="flex flex-col gap-2 lg:sticky lg:top-[68px]">
       <figure className="-mx-6 relative h-[520px] overflow-hidden bg-surface-sunk md:mx-0 md:rounded-soft">
         {/* Her shape under the photograph: the ghost until anything is on file. */}
-        {onRobes ? null : (
+        {shown.onRobes ? null : (
           <div className={`absolute inset-0 ${empty ? 'opacity-[0.22]' : ''}`}>
             <Figure
               facts={facts}
@@ -179,37 +188,58 @@ function ModelStage({
             />
           </div>
         )}
-        {image ? (
+        {shown.image && shown.onRobes ? (
           // Signed per viewer; one fixed frame, no renditions.
           // biome-ignore lint/performance/noImgElement: signed URL, fixed hero frame
           <img
-            src={image}
-            alt={onRobes ? tw.robesModel : copy.imageAlt}
-            className={`absolute inset-0 size-full object-cover ${onRobes ? 'object-[50%_30%]' : 'object-center'} ${drawing && !onRobes && !model.twin.current ? 'opacity-60' : ''}`}
+            src={shown.image}
+            alt={tw.robesModel}
+            className={`absolute inset-0 size-full object-cover object-[50%_30%] motion-safe:transition-[opacity,filter] motion-safe:duration-300 ${busy ? DIMMED : ''}`}
           />
-        ) : onRobes ? (
+        ) : shown.image ? (
+          // Her picture starts below the status bar, its own studio blurred behind it, so her head
+          // never sits against the top of the screen.
+          <div
+            className={`absolute inset-0 motion-safe:transition-[opacity,filter] motion-safe:duration-300 ${busy ? DIMMED : ''}`}
+          >
+            {/* biome-ignore lint/performance/noImgElement: signed URL, fixed hero frame */}
+            <img
+              src={shown.image}
+              alt=""
+              aria-hidden
+              className="absolute inset-0 size-full scale-110 object-cover blur-2xl"
+            />
+            {/* biome-ignore lint/performance/noImgElement: signed URL, fixed hero frame */}
+            <img
+              src={shown.image}
+              alt={copy.imageAlt}
+              className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+16px)] bottom-0 h-[calc(100%-env(safe-area-inset-top)-16px)] w-full object-cover object-top"
+            />
+          </div>
+        ) : shown.onRobes ? (
           <span className="absolute inset-0 flex items-center justify-center text-ink-faint">
             <Icon name="user" size={36} />
           </span>
         ) : null}
-        {onRobes ? (
+        {shown.onRobes ? (
           // R8: the tag, bottom-left, on glass.
           <p className="absolute bottom-4 left-4 flex h-7 items-center gap-2 rounded-pill bg-veil px-3 backdrop-blur-[22px]">
             <span aria-hidden className="size-1.5 rounded-pill bg-ink-faint" />
             <span className="app-caps text-ink">{tw.robesModel}</span>
           </p>
         ) : null}
-        {empty && !reading ? (
+        {empty && !busy ? (
           // Nothing on file: the invitation sits in the stage, over the ghost figure.
           <p className="absolute inset-0 flex items-center justify-center px-[34px] text-center font-display text-[15px] text-ink-faint italic leading-[1.6]">
             {tw.stageEmpty}
           </p>
-        ) : caption ? (
+        ) : caption && !busy ? (
           // R16: Cormorant italic 300 at 20, 18px from the left and the bottom.
           <figcaption className="absolute bottom-[18px] left-[18px] right-16 font-display font-light text-ink text-xl italic leading-[1.35]">
             {caption}
           </figcaption>
         ) : null}
+        {busy ? <ScanLine /> : null}
         {chip ? (
           // The status on the stage while she is read and drawn (designs 06–07): a dot and one
           // line, level with the back disc.

@@ -21,6 +21,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import { Pressable, Text as RNText, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScanLine } from '@/features/looks/ScanLine';
 import { errorMessage } from '@/lib/errors';
 import { SettingsGroup, SettingsRow } from './Settings';
 import {
@@ -30,6 +31,7 @@ import {
   type TwinRead,
   twinRead,
   useDrawTwin,
+  useHeldWhile,
   useModel,
   useModelPick,
   useTwinStatus,
@@ -39,6 +41,9 @@ import { useSelfie, useSelfieRead } from './use-selfie';
 const copy = you.model;
 const tw = twin.twinPage;
 const HERO = 520;
+// Her picture while she waits for her twin, and the space above her head under the status bar.
+const DIMMED = 0.45;
+const HEADROOM = 16;
 
 // You › Your digital twin (legacy 2026-10-20 redline 3a; plan 2026-11-05 §1.4–1.5; redlines
 // R1–R11, R15–R18 of 2026-11-05). On a Robes model (3c): its portrait as the hero, Add a selfie
@@ -196,6 +201,10 @@ function Stage({
     (model.twin.status === 'failed' || (!model.twin.imageUrl && model.cell.status === 'failed'));
   const chip = useTwinStatus(reading, drawing);
   const insets = useSafeAreaInsets();
+  // One wait from Use photo to her twin (Annie, 10 Nov): the picture she had stays, dimmed under
+  // the scan, until her twin lands; the caption goes quiet while the status speaks.
+  const busy = reading || drawing;
+  const shown = useHeldWhile({ image, onRobes }, busy);
   const caps = (text: string) => (
     <RNText
       maxFontSizeMultiplier={maxFontSizeMultiplier.label}
@@ -209,7 +218,7 @@ function Stage({
     <View className="gap-2">
       <View className="overflow-hidden bg-surface-sunk" style={{ height: HERO }}>
         {/* Her shape under the photograph: the ghost until anything is on file. */}
-        {onRobes ? null : (
+        {shown.onRobes ? null : (
           <View className="absolute inset-0" style={{ opacity: empty ? 0.22 : 1 }}>
             <Figure
               facts={facts}
@@ -221,27 +230,52 @@ function Stage({
             />
           </View>
         )}
-        {image ? (
+        {shown.image && shown.onRobes ? (
           <ExpoImage
-            source={{ uri: image }}
+            source={{ uri: shown.image }}
             contentFit="cover"
-            contentPosition={onRobes ? { top: '30%', left: '50%' } : 'center'}
-            accessibilityLabel={onRobes ? tw.robesModel : copy.imageAlt}
+            contentPosition={{ top: '30%', left: '50%' }}
+            accessibilityLabel={tw.robesModel}
             style={{
               position: 'absolute',
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              opacity: drawing && !onRobes && !model.twin.current ? 0.6 : 1,
+              opacity: busy ? DIMMED : 1,
             }}
           />
-        ) : onRobes ? (
+        ) : shown.image ? (
+          <View className="absolute inset-0" style={{ opacity: busy ? DIMMED : 1 }}>
+            {/* Her picture starts under the status bar, its own studio blurred behind it, so her
+                head never sits against the top of the screen. */}
+            <ExpoImage
+              source={{ uri: shown.image }}
+              contentFit="cover"
+              blurRadius={24}
+              accessible={false}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            />
+            <ExpoImage
+              source={{ uri: shown.image }}
+              contentFit="cover"
+              contentPosition="top"
+              accessibilityLabel={copy.imageAlt}
+              style={{
+                position: 'absolute',
+                top: insets.top + HEADROOM,
+                left: 0,
+                right: 0,
+                bottom: 0,
+              }}
+            />
+          </View>
+        ) : shown.onRobes ? (
           <View className="absolute inset-0 items-center justify-center">
             <Icon name="user" size={36} color={faint} />
           </View>
         ) : null}
-        {onRobes ? (
+        {shown.onRobes ? (
           // R8: the tag, bottom-left, on glass.
           <View
             className="absolute bottom-4 left-4 h-7 flex-row items-center gap-2 rounded-pill bg-veil px-3"
@@ -251,6 +285,7 @@ function Stage({
             {caps(tw.robesModel)}
           </View>
         ) : null}
+        {busy ? <ScanLine /> : null}
         {chip ? (
           // The status on the stage while she is read and drawn (designs 06–07): a dot and one
           // line, level with the back disc.
@@ -264,14 +299,14 @@ function Stage({
             {caps(chip)}
           </View>
         ) : null}
-        {empty && !reading ? (
+        {empty && !busy ? (
           // Nothing on file: the invitation sits in the stage, over the ghost figure.
           <View className="absolute inset-0 items-center justify-center px-[34px]">
             <Text italic size="caption" tone="faint" className="text-center">
               {tw.stageEmpty}
             </Text>
           </View>
-        ) : caption ? (
+        ) : caption && !busy ? (
           // R16: Cormorant italic 300 at 20, 18pt from the left and the bottom.
           <RNText
             maxFontSizeMultiplier={maxFontSizeMultiplier.body}

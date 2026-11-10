@@ -65,22 +65,30 @@ export function useSelfieRead(): { reading: boolean; error: string | null } {
   const draw = useApiMutation('me.model.twin', {
     onSuccess: (data) => queryClient.setQueryData(queryKeys.call('me.model.get'), data),
   });
-  const mutate = useRef(draw.mutate);
-  mutate.current = draw.mutate;
+  const drawTwin = useRef(draw.mutateAsync);
+  drawTwin.current = draw.mutateAsync;
   const { job, connection } = useJob(jobId);
   const [error, setError] = useState<string | null>(null);
+  const settled = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!jobId) return;
+    if (!jobId || settled.current === jobId) return;
     const lost = connection === 'unavailable';
     if (!lost && (!job || !isTerminalJobStatus(job.status))) return;
+    settled.current = jobId;
     const read = !lost && job?.status === 'succeeded' && !job.output.noSubject;
     if (lost || job?.status !== 'succeeded') setError(copy.failed);
     else if (job.output.noSubject) setError(copy.noFace);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.style.get') });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') });
-    if (read) mutate.current();
-    router.replace(pathname);
+    // Still reading until her model has caught up with the read (her twin drawing, or drawn):
+    // in between, the colouring it read would stand a catalog model in her place.
+    void (async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('me.style.get') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') }),
+      ]).catch(() => {});
+      if (read) await drawTwin.current().catch(() => {});
+      router.replace(pathname);
+    })();
   }, [jobId, job, connection, queryClient, router, pathname]);
 
   return { reading: jobId !== null, error };
