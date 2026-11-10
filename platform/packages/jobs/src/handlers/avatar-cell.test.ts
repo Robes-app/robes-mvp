@@ -85,6 +85,8 @@ describe('avatar_cell', () => {
 
 const CLOSE_UP = '22222222-2222-4222-8222-222222222222';
 const TWIN_ASSET = '33333333-3333-4333-8333-333333333333';
+const NEW_CLOSE_UP = '44444444-4444-4444-8444-444444444444';
+const READ_JOB = '55555555-5555-4555-8555-555555555555';
 const her = {
   genderIdentity: 'woman',
   avatarPrefs: { adj: { ...NO_ADJ, hips: 1 } },
@@ -97,25 +99,42 @@ const her = {
   ageBand: '35_44',
   bodyType: null,
   headshotAssetId: CLOSE_UP,
-  skinHex: null,
-  hairHex: null,
+  skinHex: null as string | null,
+  hairHex: null as string | null,
 };
 
 function twinSetup(
   row: typeof her | undefined = her,
   face: Uint8Array | null = new Uint8Array([1]),
+  early: {
+    // Her row as each load finds it (the read lands between them); the close-up's render; the read.
+    rows?: (typeof her)[];
+    photo?: { status: string } | undefined;
+    reads?: ('reading' | 'read' | 'refused')[];
+    // Generous, so a busy machine never times a wait out; short only where a wait must run out.
+    readMs?: number;
+  } = {},
 ) {
   const ai = createFakeProvider();
   const generateImage = vi.spyOn(ai, 'generateImage');
+  const rows = [...(early.rows ?? [])];
+  const reads = [...(early.reads ?? [])];
   const model = {
-    model: vi.fn(async () => (row ? { ...row } : undefined)),
+    model: vi.fn(async () => {
+      const next = rows.length > 1 ? rows.shift() : rows[0];
+      return next ? { ...next } : row ? { ...row } : undefined;
+    }),
     setTwin: vi.fn(async () => true),
     failTwin: vi.fn(async () => {}),
+    standOnTwin: vi.fn(async () => {}),
+    closeUp: vi.fn(async () => ('photo' in early ? early.photo : { status: 'ready' })),
+    colourRead: vi.fn(async () => (reads.length > 1 ? reads.shift() : reads[0]) ?? 'read'),
   };
   const storage = {
+    head: vi.fn(async () => null),
     getObject: vi.fn(async (key: string) => {
       if (!face) throw new Error('missing');
-      expect(key).toBe(`media/${USER}/${CLOSE_UP}/master.jpg`);
+      expect(key).toMatch(new RegExp(`^media/${USER}/(${CLOSE_UP}|${NEW_CLOSE_UP})/master\\.jpg$`));
       return face;
     }),
     putObject: vi.fn(async (_key: string) => {}),
@@ -129,13 +148,14 @@ function twinSetup(
       storage,
       model: model as never,
       styling: { createGeneratedAsset: vi.fn(async () => TWIN_ASSET) },
+      waits: { photoMs: 5_000, readMs: early.readMs ?? 5_000, pollMs: 1 },
     },
   });
-  const run = (key: string) =>
+  const run = (key: string, input: Record<string, unknown> = {}) =>
     handler.run({
       jobId: '66666666-6666-4666-8666-666666666666',
       userId: USER,
-      input: { target: 'twin', twinKey: key },
+      input: { target: 'twin', twinKey: key, ...input },
       signal: new AbortController().signal,
       writeStage: vi.fn(async () => {}),
       isCancelled: async () => false,
@@ -157,6 +177,8 @@ describe('avatar_cell · her twin', () => {
     expect(req?.imageSize).toBe('2K');
     expect(storage.putObject.mock.calls[0]?.[0]).toBe(`uploads/${USER}/${TWIN_ASSET}/original`);
     expect(model.setTwin).toHaveBeenCalledWith(USER, key, TWIN_ASSET);
+    // Asked for by the app, the draw already stood her on it (drawTwin).
+    expect(model.standOnTwin).not.toHaveBeenCalled();
   });
 
   it('draws in words alone when the close-up cannot be read', async () => {
@@ -177,5 +199,68 @@ describe('avatar_cell · her twin', () => {
     await expect(failing.run(key)).rejects.toBeInstanceOf(JobError);
     expect(failing.model.failTwin).toHaveBeenCalledWith(USER, key);
     await expect(twinSetup().run('not-a-key')).rejects.toEqual(new JobError('invalid_input'));
+  });
+
+  // Started with her colour read (10 Nov 2026): the new close-up isn't on her profile yet.
+  const before = { ...her, headshotAssetId: CLOSE_UP, skinHex: '#8d5524' };
+  const after = { ...before, headshotAssetId: NEW_CLOSE_UP, skinHex: '#e0ac69' };
+  const early = { early: { closeUpAssetId: NEW_CLOSE_UP, readJobId: READ_JOB } };
+  const earlyKey = () => twinKey({ ...twinInputsOf(before), closeUpAssetId: NEW_CLOSE_UP });
+
+  it('draws from a close-up uploaded a moment ago and keeps it once the read takes the photo', async () => {
+    const key = await earlyKey();
+    // The read's colouring changes nothing the twin was drawn from.
+    expect(await twinKey(twinInputsOf(after))).toBe(key);
+    const { run, generateImage, model, storage } = twinSetup(her, new Uint8Array([1]), {
+      rows: [before, after],
+      photo: { status: 'pending' },
+      reads: ['reading', 'reading', 'read'],
+    });
+    // Its master is stored before the renditions: the draw starts then.
+    storage.head.mockResolvedValueOnce(null).mockResolvedValue({} as never);
+    await expect(run(key, early)).resolves.toEqual({ status: 'succeeded' });
+    expect(storage.getObject).toHaveBeenCalledWith(`media/${USER}/${NEW_CLOSE_UP}/master.jpg`);
+    expect(generateImage.mock.calls[0]?.[0].references).toHaveLength(1);
+    expect(model.colourRead).toHaveBeenCalledWith(USER, READ_JOB);
+    expect(model.colourRead).toHaveBeenCalledTimes(3);
+    expect(model.setTwin).toHaveBeenCalledWith(USER, key, TWIN_ASSET);
+    // Her selfie wins over a Robes model she chose, even if the app's next ask comes late.
+    expect(model.standOnTwin).toHaveBeenCalledWith(USER);
+  });
+
+  it('throws an early twin away when the read finds no face, or she changed something since', async () => {
+    const key = await earlyKey();
+    const noFace = twinSetup(her, new Uint8Array([1]), { rows: [before], reads: ['refused'] });
+    await expect(noFace.run(key, early)).rejects.toEqual(new JobError('superseded'));
+    expect(noFace.generateImage).toHaveBeenCalled();
+    expect(noFace.storage.putObject).not.toHaveBeenCalled();
+    expect(noFace.model.setTwin).not.toHaveBeenCalled();
+    expect(noFace.model.standOnTwin).not.toHaveBeenCalled();
+    expect(noFace.model.failTwin).toHaveBeenCalledWith(USER, key);
+    // A read that never ends counts as no.
+    const lost = twinSetup(her, new Uint8Array([1]), {
+      rows: [before],
+      reads: ['reading'],
+      readMs: 20,
+    });
+    await expect(lost.run(key, early)).rejects.toEqual(new JobError('superseded'));
+    // The read took it, but a slider moved meanwhile: the newer ask draws that.
+    const moved = { ...after, avatarPrefs: { adj: { ...NO_ADJ, hips: 2 } } };
+    const changed = twinSetup(her, new Uint8Array([1]), { rows: [before, moved] });
+    await expect(changed.run(key, early)).rejects.toEqual(new JobError('superseded'));
+    expect(changed.model.setTwin).not.toHaveBeenCalled();
+  });
+
+  it('never draws an early twin without its face: not hers, not rendered, or unreadable', async () => {
+    const key = await earlyKey();
+    for (const photo of [undefined, { status: 'failed' }]) {
+      const t = twinSetup(her, new Uint8Array([1]), { rows: [before], photo });
+      await expect(t.run(key, early)).rejects.toEqual(new JobError('unreadable_photo'));
+      expect(t.generateImage).not.toHaveBeenCalled();
+      expect(t.model.failTwin).toHaveBeenCalledWith(USER, key);
+    }
+    const faceless = twinSetup(her, null, { rows: [before] });
+    await expect(faceless.run(key, early)).rejects.toEqual(new JobError('asset_missing'));
+    expect(faceless.generateImage).not.toHaveBeenCalled();
   });
 });
