@@ -37,6 +37,16 @@ const f = twin.facts;
 export type Pick = (input: UpdateModelInput) => void;
 
 const STATUS = twin.twinPage.status;
+
+// What the stage showed when she started waiting, kept until the wait is over: her read and her
+// twin land in steps, and each would otherwise put another picture (a catalog model her new
+// colouring picks, say) in front of her before her twin arrives.
+export function useHeldWhile<T>(value: T, hold: boolean): T {
+  const held = useRef(value);
+  if (!hold) held.current = value;
+  return hold ? held.current : value;
+}
+
 // The status line a redraw with no selfie starts on: "Drawing your model".
 const DRAWING_FROM = 2;
 

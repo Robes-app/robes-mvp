@@ -79,8 +79,8 @@ export function useSelfieRead(): { reading: boolean; error: string | null } {
   const draw = useApiMutation('me.model.twin', {
     onSuccess: (data) => queryClient.setQueryData(queryKeys.call('me.model.get'), data),
   });
-  const mutate = useRef(draw.mutate);
-  mutate.current = draw.mutate;
+  const drawTwin = useRef(draw.mutateAsync);
+  drawTwin.current = draw.mutateAsync;
   const job = useApi(
     'jobs.get',
     { params: { id: jobId ?? '' } },
@@ -91,18 +91,26 @@ export function useSelfieRead(): { reading: boolean; error: string | null } {
   );
   const [error, setError] = useState<string | null>(null);
   const finished = jobId !== null && (job.isError || isTerminal(job.data));
+  const settled = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!finished) return;
+    if (!finished || settled.current === jobId) return;
+    settled.current = jobId;
     const data = job.data;
     const read = data?.status === 'succeeded' && !data.output.noSubject;
     if (data?.status !== 'succeeded') setError(copy.failed);
     else if (data.output.noSubject) setError(copy.noFace);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.style.get') });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') });
-    if (read) mutate.current();
-    router.setParams({ [READ_PARAM]: undefined });
-  }, [finished, job.data, queryClient, router]);
+    // Still reading until her model has caught up with the read (her twin drawing, or drawn):
+    // in between, the colouring it read would stand a catalog model in her place.
+    void (async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('me.style.get') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') }),
+      ]).catch(() => {});
+      if (read) await drawTwin.current().catch(() => {});
+      router.setParams({ [READ_PARAM]: undefined });
+    })();
+  }, [finished, jobId, job.data, queryClient, router]);
 
   return { reading: jobId !== null, error };
 }

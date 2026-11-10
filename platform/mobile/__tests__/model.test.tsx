@@ -1,4 +1,4 @@
-import { diary, twin } from '@robes/copy';
+import { diary, twin, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { BodyShape } from '../src/features/you/BodyShape';
 import { Colouring } from '../src/features/you/Colouring';
@@ -137,6 +137,72 @@ test('landed from the camera: the read is followed, then the twin asked for, the
   expect(mockRouter.setParams).toHaveBeenCalledWith({ read: undefined });
 });
 
+// One wait from Use photo to her twin (Annie, 10 Nov): the read changes her colouring, which picks
+// another catalog model, before her twin lands — the picture she had holds until it does.
+test('landed from the camera: the picture she had holds, dimmed, until her twin lands', async () => {
+  const JOB = '77777777-7777-4777-8777-777777777777';
+  const BEFORE = 'https://media.test/catalog/porcelain.png';
+  const OTHER = 'https://media.test/catalog/peach.png';
+  const TWIN_URL = 'https://media.test/media/twin-new.jpg';
+  mockParams.read = JOB;
+  mockRouter.setParams.mockImplementation(() => {
+    delete mockParams.read;
+  });
+  let phase: 'reading' | 'drawing' | 'drawn' = 'reading';
+  const mine = { closeUpUrl: CLOSE_UP, stand: ownStand, filed: true };
+  const job = (status: string) => ({
+    id: JOB,
+    kind: 'stylenotes_analyse',
+    status,
+    stage: 'text',
+    output: {},
+    error: null,
+    cancelRequested: false,
+    createdAt: '2026-11-05T10:00:00.000Z',
+    updatedAt: '2026-11-05T10:00:00.000Z',
+    finishedAt: status === 'succeeded' ? '2026-11-05T10:00:01.000Z' : null,
+  });
+  const now = () =>
+    phase === 'reading'
+      ? model({ ...mine, cell: { status: 'ready', imageUrl: BEFORE } })
+      : phase === 'drawing'
+        ? model({
+            ...mine,
+            cell: { status: 'ready', imageUrl: OTHER },
+            twin: { status: 'pending', current: false, imageUrl: null },
+          })
+        : model({
+            ...mine,
+            cell: { status: 'ready', imageUrl: OTHER },
+            twin: { status: 'ready', current: true, imageUrl: TWIN_URL },
+          });
+  let polls = 0;
+  mockFetch({
+    ...TWIN,
+    'GET /me/model': () => now(),
+    'POST /me/model/twin': () => now(),
+    [`GET /jobs/${JOB}`]: () => {
+      polls += 1;
+      if (polls < 2) return job('running');
+      phase = 'drawing';
+      return job('succeeded');
+    },
+    'GET /today': {},
+  });
+  await renderWithApi(<Model />);
+  const shown = () => screen.getByLabelText(you.model.imageAlt).props.source?.[0]?.uri;
+  await waitFor(() => expect(shown()).toBe(BEFORE));
+  // The read lands and her new colouring would pick another model: hers holds while she is drawn.
+  await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ read: undefined }), {
+    timeout: 6000,
+  });
+  expect(shown()).toBe(BEFORE);
+  expect(screen.getByTestId('twin-status')).toBeTruthy();
+  phase = 'drawn';
+  await waitFor(() => expect(shown()).toBe(TWIN_URL), { timeout: 8000 });
+  expect(screen.queryByTestId('twin-status')).toBeNull();
+});
+
 const facts = (over: object = {}) => ({ ...styleDna().facts, ...over });
 
 // What drew her, read from her model and facts (the footer line it once fed went, redlines R17).
@@ -164,7 +230,9 @@ test('says so while her twin is being drawn, and shows the twin over the catalog
   // A redraw with no selfie starts the stage's status at the drawing (designs 06–07).
   expect(await screen.findByText(tw.status[2])).toBeTruthy();
   expect(screen.getByTestId('twin-status')).toBeTruthy();
-  expect(screen.getByText(tw.caption('Tan', 'Espresso'))).toBeTruthy();
+  // One wait (Annie, 10 Nov): the picture she had, dimmed under the scan; the caption is quiet.
+  expect(screen.getByTestId('scan-line')).toBeTruthy();
+  expect(screen.queryByText(tw.caption('Tan', 'Espresso'))).toBeNull();
 });
 
 test('a skin or hair she never chose is never named under her model', async () => {
