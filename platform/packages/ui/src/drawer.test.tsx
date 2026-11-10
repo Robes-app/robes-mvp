@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Drawer } from './drawer';
 
@@ -40,5 +40,38 @@ describe('Drawer', () => {
     expect(screen.queryByRole('button', { name: /look$/ })).toBeNull();
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Safari on a phone draws the keyboard over the page: the drawer's foot (Style it, Update look)
+  // stands on it, never under it (Annie, 10 Nov).
+  it('lifts its foot above the on-screen keyboard, and lets it down when the keyboard goes', () => {
+    const vv = Object.assign(new EventTarget(), { height: 844, offsetTop: 0 });
+    vi.stubGlobal('visualViewport', vv);
+    vi.stubGlobal('innerHeight', 844);
+    render(
+      <Drawer
+        open
+        title="Draft look"
+        onClose={() => {}}
+        closeLabel="Close"
+        done={null}
+        footer={<button type="button">Style it</button>}
+      >
+        <p>Body</p>
+      </Drawer>,
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.style.bottom).toBe('');
+    act(() => {
+      vv.height = 508;
+      vv.dispatchEvent(new Event('resize'));
+    });
+    expect(dialog.style.bottom).toBe('336px');
+    act(() => {
+      vv.height = 844;
+      vv.dispatchEvent(new Event('resize'));
+    });
+    expect(dialog.style.bottom).toBe('');
+    vi.unstubAllGlobals();
   });
 });

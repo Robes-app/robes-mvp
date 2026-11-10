@@ -42,7 +42,7 @@ import {
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import { type HostInstance, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBareScreen } from '@/components/StackScreen';
 import { pickOne, usePhotoFiling } from '@/features/home/file-photo';
@@ -50,6 +50,7 @@ import { AddPiecesSheet } from '@/features/wardrobe/add/AddPiecesSheet';
 import { LayoutToggle } from '@/features/wardrobe/WardrobeHeader';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { useKeyboardOverlap } from '@/lib/keyboard';
 import { ThreadLines } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
 import { DayContext } from './DayContext';
@@ -345,6 +346,9 @@ function Shell({
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  // Style it and Update look ride above the keyboard, never under it.
+  const root = useRef<HostInstance>(null);
+  const keyboard = useKeyboardOverlap(root);
   if (presentation === 'saved') {
     return (
       <SavedShell over={over} footer={footer}>
@@ -353,7 +357,11 @@ function Shell({
     );
   }
   return (
-    <View className="flex-1 bg-bg" style={{ paddingTop: presentation === 'page' ? insets.top : 0 }}>
+    <View
+      ref={root}
+      className="flex-1 bg-bg"
+      style={{ paddingTop: presentation === 'page' ? insets.top : 0, paddingBottom: keyboard }}
+    >
       {presentation === 'page' ? <Bare /> : null}
       <DrawerHeader
         title={title}
@@ -378,7 +386,10 @@ function Shell({
       {footer ? (
         <View
           className="border-hairline bg-bg px-5 pt-3"
-          style={{ borderTopWidth: FINE_EDGE, paddingBottom: Math.max(22, insets.bottom) }}
+          style={{
+            borderTopWidth: FINE_EDGE,
+            paddingBottom: keyboard ? 12 : Math.max(22, insets.bottom),
+          }}
         >
           <PrimaryScope>{footer}</PrimaryScope>
         </View>
