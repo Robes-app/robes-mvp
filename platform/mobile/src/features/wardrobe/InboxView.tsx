@@ -42,6 +42,24 @@ function money(price: number | null, currency: string | null): string | null {
   }
 }
 
+// A receipt line's meta (beta's review row): the brand when it isn't the shop the group already
+// names, then the price and the size as printed. Twin: InboxView.tsx / inbox.tsx.
+function lineMeta(
+  item: {
+    brand: string | null;
+    price: number | null;
+    currency: string | null;
+    size: string | null;
+  },
+  retailer: string | null,
+): string {
+  const brand =
+    item.brand && item.brand.toLowerCase() !== retailer?.toLowerCase() ? item.brand : null;
+  return [brand, money(item.price, item.currency), item.size ? rc.size(item.size) : null]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function dayOf(iso: string): string {
   const day = receivedDay(iso);
   return day.kind === 'date' ? day.label : copy.inbox[day.kind];
@@ -107,12 +125,14 @@ function ForwardCard() {
 // circular × (discard) and the ink ✓ (add to the wardrobe).
 function ItemRow({
   item,
+  retailer,
   decidable,
   busy,
   onAdd,
   onDiscard,
 }: {
   item: InboxEntry['items'][number];
+  retailer: string | null;
   decidable: boolean;
   busy: boolean;
   onAdd: () => void;
@@ -121,7 +141,7 @@ function ItemRow({
   const ink = useColor('ink');
   const onInk = useColor('bg');
   const muted = useColor('ink-muted');
-  const meta = [item.brand, money(item.price, item.currency)].filter(Boolean).join(' · ');
+  const meta = lineMeta(item, retailer);
   return (
     <View
       className="flex-row items-center gap-3 border-hairline border-t px-3 py-2.5"
@@ -131,7 +151,7 @@ function ItemRow({
         <Icon name="wardrobe" size={14} color={muted} />
       </View>
       <View className="min-w-0 flex-1 gap-0.5">
-        <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: 17 }}>
+        <Text numberOfLines={2} style={{ fontFamily: fonts.display, fontSize: 17 }}>
           {item.label}
         </Text>
         {meta ? (
@@ -203,6 +223,7 @@ function Group({ entry, decidable }: { entry: InboxEntry; decidable: boolean }) 
         <ItemRow
           key={item.index}
           item={item}
+          retailer={entry.retailer}
           decidable={decidable}
           busy={decide.isPending}
           onAdd={() => act('wardrobe', [item.index])}

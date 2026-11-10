@@ -13,6 +13,8 @@ export const InboxItem = z.object({
   brand: z.string().nullable(),
   price: z.number().nullable(),
   currency: z.string().nullable(),
+  // The size the receipt printed ("6/7 years (122 cm)"), shown on the row and filed with the piece.
+  size: z.string().nullable().default(null),
   sourceUrl: z.string().nullable(),
   state: InboxItemState.default('inbox'),
   // The piece or wish it became, once added.

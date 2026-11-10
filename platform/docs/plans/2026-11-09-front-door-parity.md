@@ -323,3 +323,5 @@ Where the build parted from the PRD or the canvas, and her answer.
 
 
 **No "Help shape Robes." banner (Annie, 9 Nov — legacy).** The web's consent banner is gone (`ConsentBanner` deleted, its four strings with it). Nothing on a page asks: web analytics stay off until she turns Usage counts on in You › Privacy, as SEC-84 requires, and off again stops them. Native never had the banner.
+
+**A receipt line reads its size (Annie, 10 Nov).** A forwarded receipt's line now shows what beta's review row shows of it: the name, then the price and "Size …" as the receipt printed it (the brand only where it isn't the shop the group names), the name on up to two lines. Accepting a line files its size, category and colour onto the piece or wish (they were read and stored but dropped). Lines carried over from beta keep beta's snake_case keys and are read through `lineFields`. Still to come (next PR): the photograph and a real name for a Zara line, which beta gets by reading each line's photo; the platform keeps the photo's address only (SEC-40), so it shows the hanger and Zara's reference code.

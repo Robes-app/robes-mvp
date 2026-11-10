@@ -132,6 +132,7 @@ export {
   type InboxItem,
   type InboxItemState,
   itemState,
+  lineFields,
 } from './inbox';
 export type { CreateJobInput, QuotaCost } from './jobs';
 export type { CallRecord } from './ledger';

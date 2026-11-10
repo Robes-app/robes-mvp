@@ -111,6 +111,31 @@ test('the Inbox tab lists the receipt by retailer; ✓ adds one piece, × discar
   );
 });
 
+// A Zara receipt prints no name but the price and size (beta's review row): the size reads on the
+// line, and the brand is left out where it is the shop the group already names.
+test('a line reads its price and the size the receipt printed', async () => {
+  mockFetch({
+    'GET /inbox': (_init: RequestInit, url: string) =>
+      url.includes('state=added') || url.includes('state=discarded')
+        ? receipts([])
+        : receipts([
+            {
+              index: 0,
+              label: 'Pink zip-up hoodie and wide-leg trousers set',
+              brand: 'Zara',
+              price: 27.95,
+              currency: 'EUR',
+              size: '11/12 years (148 cm)',
+              sourceUrl: null,
+            },
+          ] as unknown as typeof entry.items),
+    'GET /me/inbox-address': errorReply(404, 'not_found'),
+  });
+  await renderWithApi(<InboxView />);
+  expect(await screen.findByText('€27.95 · Size 11/12 years (148 cm)')).toBeTruthy();
+  expect(screen.getByText('Pink zip-up hoodie and wide-leg trousers set')).toBeTruthy();
+});
+
 test('ADDED and DISCARDED list what was decided, without the × and ✓', async () => {
   mockFetch({
     'GET /inbox': (_init: RequestInit, url: string) =>
