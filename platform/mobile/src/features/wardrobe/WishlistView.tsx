@@ -9,6 +9,7 @@ import { FlatList, RefreshControl, View } from 'react-native';
 import { FilterRow } from '@/features/filters/FilterRow';
 import { useWardrobeFilters } from '@/features/filters/use-wardrobe-filters';
 import { errorMessage } from '@/lib/errors';
+import { usePullRefresh } from '@/lib/pull-refresh';
 import { AddPiecesSheet } from './add/AddPiecesSheet';
 import { useWardrobeLayout } from './layout';
 import { CardRow, type CardStatus, CardTile, HeartButton, type RowMeta } from './PieceCard';
@@ -49,8 +50,8 @@ export function WishlistView() {
   const router = useRouter();
   // The empty wishlist's door: the Add pieces sheet (PRD rev 3 §7.4) on the wishlist.
   const [adding, setAdding] = useState(false);
-  const { wishes, isPending, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage } =
-    useWishes();
+  const { wishes, isPending, isError, error, refetch, fetchNextPage, hasNextPage } = useWishes();
+  const pull = usePullRefresh(refetch);
   const remove = useRemoveWish();
   const [layout, setLayout] = useWardrobeLayout();
   const filters = useWardrobeFilters();
@@ -121,9 +122,7 @@ export function WishlistView() {
         keyboardShouldPersistTaps="handled"
         onEndReachedThreshold={0.5}
         onEndReached={() => (hasNextPage ? void fetchNextPage() : undefined)}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
-        }
+        refreshControl={<RefreshControl {...pull} />}
         renderItem={({ item }) =>
           grid ? (
             <CardTile

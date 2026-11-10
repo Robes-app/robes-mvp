@@ -12,6 +12,7 @@ import { RefreshControl, ScrollView, View } from 'react-native';
 import { useTabScroll } from '@/components/TabScreen';
 import { LookPicker } from '@/features/plan/LookPicker';
 import { errorMessage } from '@/lib/errors';
+import { usePullRefresh } from '@/lib/pull-refresh';
 import { DaySlot } from './DaySlot';
 import { DiaryStrip } from './DiaryStrip';
 import { dayWordOf, type PickerMode } from './diary';
@@ -59,6 +60,7 @@ export function DiaryHome({
     refetchInterval: (q) => (isRunning(q.state.data) ? 2_000 : false),
   });
   // The day's forecast changes slowly: no refetch on every focus or mount.
+  const pull = usePullRefresh(query.refetch);
   const weather = useApi('today.weather', undefined, {
     staleTime: WEATHER_STALE_MS,
     refetchOnWindowFocus: false,
@@ -143,9 +145,7 @@ export function DiaryHome({
       contentContainerClassName="gap-6 px-5 pt-[22px] pb-[120px]"
       keyboardShouldPersistTaps="handled"
       testID="diary-home"
-      refreshControl={
-        <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
-      }
+      refreshControl={<RefreshControl {...pull} />}
     >
       <PrimaryScope>
         {/* The greeting stands in the bar (TabScreen's HomeMark); the page opens on today. */}

@@ -20,6 +20,7 @@ import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { TabScreen, useTabScroll } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { readPref, writePref } from '@/lib/prefs';
+import { usePullRefresh } from '@/lib/pull-refresh';
 import { localDate } from '../looks/saved-looks';
 import { LookPicker } from './LookPicker';
 import { LookThumb } from './LookThumb';
@@ -236,7 +237,8 @@ function DayRow({
 // The rolling 30 days as summary rows grouped by week (legacy ff87e89): every row opens its day.
 export function PlanList() {
   const tabScroll = useTabScroll();
-  const { data, isPending, isError, error, refetch, isRefetching } = usePlan();
+  const { data, isPending, isError, error, refetch } = usePlan();
+  const pull = usePullRefresh(refetch);
   if (isPending) {
     return (
       <View className="gap-3 px-5" accessibilityState={{ busy: true }}>
@@ -259,7 +261,7 @@ export function PlanList() {
       {...tabScroll}
       testID="plan-list"
       contentContainerClassName="gap-3 px-5 pb-12"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
+      refreshControl={<RefreshControl {...pull} />}
     >
       {planned ? null : (
         <EmptyState title={copy.empty.title} titleEm={copy.empty.titleEm} body={copy.empty.body} />

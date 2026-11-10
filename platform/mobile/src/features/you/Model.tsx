@@ -44,6 +44,8 @@ const HERO = 520;
 // Her picture while she waits for her twin, and the space above her head under the status bar.
 const DIMMED = 0.45;
 const HEADROOM = 16;
+// Her studio behind the headroom: the picture at four times the stage, from its top-left corner.
+const BACKDROP = '400%';
 
 // You › Your digital twin (legacy 2026-10-20 redline 3a; plan 2026-11-05 §1.4–1.5; redlines
 // R1–R11, R15–R18 of 2026-11-05). On a Robes model (3c): its portrait as the hero, Add a selfie
@@ -247,14 +249,18 @@ function Stage({
           />
         ) : shown.image ? (
           <View className="absolute inset-0" style={{ opacity: busy ? DIMMED : 1 }}>
-            {/* Her picture starts under the status bar, its own studio blurred behind it, so her
-                head never sits against the top of the screen. */}
+            {/* Her picture starts under the status bar, its own studio behind it, so her head
+                never sits against the top of the screen. The studio is the picture's top-left
+                corner, blown up and blurred: wall only, never a second blurred head (Annie,
+                10 Nov). */}
             <ExpoImage
               source={{ uri: shown.image }}
               contentFit="cover"
+              contentPosition="top left"
               blurRadius={24}
               accessible={false}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+              testID="twin-backdrop"
+              style={{ position: 'absolute', top: 0, left: 0, width: BACKDROP, height: BACKDROP }}
             />
             <ExpoImage
               source={{ uri: shown.image }}

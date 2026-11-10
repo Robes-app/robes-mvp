@@ -30,6 +30,7 @@ import { FilterSheet } from '@/features/filters/FilterSheet';
 import { useLookFilters } from '@/features/filters/use-look-filters';
 import { NewLookBox } from '@/features/home/HomeBox';
 import { errorMessage } from '@/lib/errors';
+import { usePullRefresh } from '@/lib/pull-refresh';
 import { DiarySheet } from './DiarySheet';
 import { DraftTile, SavedTile, SuggestedTile } from './LookTiles';
 import { useLetGo, useLooksByStatus, useRestyle, useSaveLook } from './look-states';
@@ -71,6 +72,7 @@ export function LooksView() {
   const faint = useColor('ink-faint');
 
   const current = tab === 'saved' ? saved : suggested;
+  const pull = usePullRefresh(() => Promise.all([current.refetch(), drafts.refetch()]));
   const all = useMemo(() => (current.data?.items ?? []).map(lookFacets), [current.data]);
   // One filter state for both tabs: switching Saved ↔ Suggested keeps it; the counts follow.
   const filters = useLookFilters(all);
@@ -196,12 +198,7 @@ export function LooksView() {
                   )}
                 </View>
               )}
-              refreshControl={
-                <RefreshControl
-                  refreshing={current.isRefetching}
-                  onRefresh={() => void Promise.all([current.refetch(), drafts.refetch()])}
-                />
-              }
+              refreshControl={<RefreshControl {...pull} />}
               ListEmptyComponent={
                 filters.active ? (
                   // A filter that matches nothing names it (PRD §5.1): the italic serif line.

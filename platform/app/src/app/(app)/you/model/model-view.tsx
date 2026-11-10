@@ -197,8 +197,9 @@ function ModelStage({
             className={`absolute inset-0 size-full object-cover object-[50%_30%] motion-safe:transition-[opacity,filter] motion-safe:duration-300 ${busy ? DIMMED : ''}`}
           />
         ) : shown.image ? (
-          // Her picture starts below the status bar, its own studio blurred behind it, so her head
-          // never sits against the top of the screen.
+          // Her picture starts below the status bar, its own studio behind it, so her head never
+          // sits against the top of the screen. The studio is the picture's top-left corner, blown
+          // up and blurred: wall only, never a second blurred head (Annie, 10 Nov).
           <div
             className={`absolute inset-0 motion-safe:transition-[opacity,filter] motion-safe:duration-300 ${busy ? DIMMED : ''}`}
           >
@@ -207,7 +208,7 @@ function ModelStage({
               src={shown.image}
               alt=""
               aria-hidden
-              className="absolute inset-0 size-full scale-110 object-cover blur-2xl"
+              className="absolute top-0 left-0 size-[400%] max-w-none object-cover object-left-top blur-2xl"
             />
             {/* biome-ignore lint/performance/noImgElement: signed URL, fixed hero frame */}
             <img

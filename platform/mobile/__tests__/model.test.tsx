@@ -90,6 +90,11 @@ test('on her own twin (3d): the retake, the doors open, herself first in the lin
   expect(await screen.findByTestId('twin-retake', {}, { timeout: 4000 })).toBeTruthy();
   expect(screen.queryByText(tw.robesModel)).toBeNull();
   expect(screen.queryByTestId('twin-add-selfie')).toBeNull();
+  // The studio behind her headroom is the picture's top-left corner blown up: wall only, never a
+  // second, blurred head over hers (Annie, 10 Nov).
+  const backdrop = screen.getByTestId('twin-backdrop');
+  expect(backdrop.props.contentPosition).toEqual({ top: 0, left: 0 });
+  expect(backdrop.props.style).toMatchObject({ top: 0, left: 0, width: '400%', height: '400%' });
   // R17: no footer line under the doors; R18: the facts eyebrow.
   expect(screen.getByText(tw.readFrom)).toBeTruthy();
   await fireEvent.press(

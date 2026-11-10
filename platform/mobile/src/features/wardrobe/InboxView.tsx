@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { usePullRefresh } from '@/lib/pull-refresh';
 import { useDecideInbox, useInbox } from './inbox';
 
 const rc = copy.receipts;
@@ -303,15 +304,14 @@ export function InboxView() {
   const [tab, setTab] = useState<Tab>(TABS[0]);
   const state = STATE_OF[tab];
   const query = useInbox(state);
+  const pull = usePullRefresh(query.refetch);
   const counts = query.data?.counts;
   if (query.isError) return <ErrorText>{errorMessage(query.error)}</ErrorText>;
   const entries = query.data?.items ?? [];
   return (
     <ScrollView
       contentContainerClassName="gap-4 px-5 pb-10"
-      refreshControl={
-        <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
-      }
+      refreshControl={<RefreshControl {...pull} />}
       testID="receipts"
     >
       <Tabs

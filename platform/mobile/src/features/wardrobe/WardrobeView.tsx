@@ -14,6 +14,7 @@ import { FilterSheet } from '@/features/filters/FilterSheet';
 import { SwatchGrid } from '@/features/filters/SwatchGrid';
 import { useWardrobeFilters, type WardrobeFilters } from '@/features/filters/use-wardrobe-filters';
 import { errorMessage } from '@/lib/errors';
+import { usePullRefresh } from '@/lib/pull-refresh';
 import { AddPiecesSheet } from './add/AddPiecesSheet';
 import { DeletePieceDialog } from './DeletePieceDialog';
 import { useWardrobeLayout } from './layout';
@@ -133,17 +134,9 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
     { input: filters.sheetInput },
     { placeholderData: (prev) => prev },
   );
-  const {
-    pieces,
-    total,
-    isPending,
-    isError,
-    error,
-    refetch,
-    isRefetching,
-    fetchNextPage,
-    hasNextPage,
-  } = usePieces(filters.input);
+  const { pieces, total, isPending, isError, error, refetch, fetchNextPage, hasNextPage } =
+    usePieces(filters.input);
+  const pull = usePullRefresh(refetch);
   const remove = useDeletePiece();
   // The row's swipe asks first, as the piece page does (R14).
   const [asking, setAsking] = useState<string | null>(null);
@@ -253,9 +246,7 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
         }}
         onEndReachedThreshold={0.5}
         onEndReached={() => (hasNextPage ? void fetchNextPage() : undefined)}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
-        }
+        refreshControl={<RefreshControl {...pull} />}
         ListFooterComponent={
           !grid && !hasNextPage && pieces.length > 0 ? (
             <View className="pt-2">
