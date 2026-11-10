@@ -55,6 +55,7 @@ export function RobesModelBadge({
       <Sheet
         open={open}
         onClose={() => setOpen(false)}
+        onClosed={selfie.afterClose}
         floating
         eyebrow={copy.deck.twin.eyebrow}
         eyebrowTone="warm"
@@ -69,8 +70,8 @@ export function RobesModelBadge({
             testID="robes-model-capture"
             disabled={selfie.busy}
             onPress={() => {
+              selfie.startOnceClosed();
               setOpen(false);
-              selfie.start();
             }}
           />
           <Row
