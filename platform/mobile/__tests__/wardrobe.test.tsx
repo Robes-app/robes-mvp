@@ -202,7 +202,7 @@ test('wear it for is hers to set, and each tap is the answer', async () => {
   });
 });
 
-test('a colour answers on the tap, from the family tiles and their shades', async () => {
+test('a colour answers on the tap, from the family list and its shades', async () => {
   const calls = mockFetch({
     [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
     [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
@@ -222,6 +222,38 @@ test('a colour answers on the tap, from the family tiles and their shades', asyn
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
     colourShade: 'navy',
     colourExtra: [],
+  });
+});
+
+test('additional colours: the main colour sits dimmed, a pick saves and the list stays', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ colourExtra: ['sand'] }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.colour }));
+  await fireEvent.press(
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.extra}: ${wardrobe.piece.add}` }),
+  );
+  // Nothing extra yet, so the list opens on the first family.
+  expect(screen.getByRole('button', { name: 'Blacks' }).props.accessibilityState).toMatchObject({
+    expanded: true,
+  });
+  await fireEvent.press(screen.getByRole('button', { name: 'Neutrals' }));
+  // Camel is the main colour: dimmed and not offered again.
+  expect(screen.getByRole('button', { name: 'Camel' }).props.accessibilityState).toMatchObject({
+    disabled: true,
+  });
+  await fireEvent.press(screen.getByRole('button', { name: 'Sand' }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
+    colourShade: 'camel',
+    colourExtra: ['sand'],
+  });
+  expect(screen.getByRole('button', { name: 'Sand' }).props.accessibilityState).toMatchObject({
+    selected: true,
   });
 });
 
@@ -254,14 +286,19 @@ test('material is a row of Colour & material: the read marks Check, a pick answe
   });
   expect(screen.getByText(wardrobe.piece.check)).toBeTruthy();
   await fireEvent.press(row);
-  // The sheet opens on the family of what is filed, with that material checked.
+  // The list opens on the family of what is filed, with that material checked (canvas 3b).
   expect(screen.getByRole('radio', { name: 'Wool' }).props.accessibilityState).toMatchObject({
     checked: true,
   });
-  expect(screen.getByRole('button', { name: wardrobe.material.notSure })).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: wardrobe.material.notSure }).props.accessibilityState,
+  ).toMatchObject({ selected: false });
+  // One family is open at a time: Cloths opens, Natural folds and names what is picked in it.
   await fireEvent.press(screen.getByRole('button', { name: 'Cloths' }));
-  // Natural holds her material while she looks at Cloths, so it carries the dot.
-  expect(screen.getByTestId('material-home-natural')).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: 'Natural, Wool' }).props.accessibilityState,
+  ).toMatchObject({ expanded: false });
+  expect(screen.queryByRole('radio', { name: 'Wool' })).toBeNull();
   expect(screen.getByText('Sequins & glitter')).toBeTruthy();
   await fireEvent.press(screen.getByRole('radio', { name: 'Denim' }));
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
@@ -299,7 +336,10 @@ test('an unfiled material reads as the door, and its sheet opens on Natural', as
     }),
   );
   expect(screen.getByRole('radio', { name: 'Cotton' })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: wardrobe.material.notSure })).toBeNull();
+  // Nothing filed: "Not sure" is the warm one.
+  expect(
+    screen.getByRole('button', { name: wardrobe.material.notSure }).props.accessibilityState,
+  ).toMatchObject({ selected: true });
 });
 
 test('an empty row reads Add (canvas 3b); a long category keeps its label whole', async () => {

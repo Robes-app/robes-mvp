@@ -95,9 +95,19 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await page.getByRole('tab', { name: 'Colour' }).click();
   await expect(page.getByRole('button', { name: /^Material.*Wool/ })).toBeVisible();
   await page.getByRole('button', { name: /^Material/ }).click();
+  // The families fold (canvas 3b): the list opens on hers, one family open at a time, and a
+  // closed family names what is picked inside it.
   const fabric = page.getByRole('dialog', { name: 'Material' });
+  await expect(fabric.getByRole('button', { name: 'Natural', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
   await expect(fabric.getByRole('radio', { name: /Wool/ })).toHaveAttribute('aria-checked', 'true');
   await fabric.getByRole('button', { name: 'Cloths', exact: true }).click();
+  await expect(fabric.getByRole('button', { name: 'Natural, Wool' })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
   await fabric.getByRole('radio', { name: /Denim/ }).click();
   await expect(page.getByRole('button', { name: /^Material.*Denim/ })).toBeVisible();
   await page.getByRole('button', { name: /^Material/ }).click();
@@ -107,6 +117,13 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
     .click();
   // An empty row reads Add (canvas 3b).
   await expect(page.getByRole('button', { name: /^Material.*Add/ })).toBeVisible();
+
+  // A colour is a family list too: open a family, pick a shade, the row names it.
+  await page.getByRole('button', { name: /^Colour/ }).click();
+  const colour = page.getByRole('dialog', { name: 'Colour' });
+  await colour.getByRole('button', { name: 'Greens', exact: true }).click();
+  await colour.getByRole('button', { name: 'Sage', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Colour.*Sage/ })).toBeVisible();
 
   // The Name row (✎) edits her name for it; Save waits until the name has changed. The bar's
   // title is the page's h1.

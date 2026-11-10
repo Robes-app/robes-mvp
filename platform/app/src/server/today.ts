@@ -10,7 +10,7 @@ import { loadHome } from './home';
 import { toJobSnapshot } from './jobs';
 import { toIdeas } from './looks';
 import { toLooks } from './looks-entity';
-import { loadPlan, todayIn } from './plan';
+import { entriesOn, loadPlan, todayIn } from './plan';
 import { loadDiaryWeather } from './weather';
 
 // A key_piece job the prompt box started (plan 2026-11-03): it lives in the day's slot as the
@@ -112,7 +112,7 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
       draft: draftFor(d.date),
     })),
   };
-  const todayEntries = (plan.days[0]?.entries ?? []).map((entry) => ({
+  const todayEntries = entriesOn(whole.days, date).map((entry) => ({
     entry,
     worn: worn.includes(entry.look.id),
   }));

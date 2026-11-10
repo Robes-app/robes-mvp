@@ -11,16 +11,8 @@ import {
 } from '@robes/core/colour';
 import { Icon } from '@robes/icons/native';
 import { fonts, Text, useColor } from '@robes/ui-native';
-import { type ReactNode, useRef, useState } from 'react';
-import {
-  type AccessibilityRole,
-  type AccessibilityState,
-  type LayoutChangeEvent,
-  Pressable,
-  ScrollView,
-  type ScrollViewInstance,
-  View,
-} from 'react-native';
+import { type ReactNode, useState } from 'react';
+import { type AccessibilityRole, type AccessibilityState, Pressable, View } from 'react-native';
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, Path, Rect } from 'react-native-svg';
 
 const copy = wardrobe.colour;
@@ -195,14 +187,23 @@ function printArt(id: string): ReactNode {
 }
 
 // A print's own rounded square, to the family tile's shape; Plain (no id) is the white ground.
-export function PrintSwatch({ id, size = 24 }: { id: string | null; size?: number }) {
+export function PrintSwatch({
+  id,
+  size = 24,
+  round = false,
+}: {
+  id: string | null;
+  size?: number;
+  // A circle, as a shade's swatch beside it in a list (canvas 3b's print rows).
+  round?: boolean;
+}) {
   const plain = useColor('surface-raised');
   const art = id ? printArt(id) : null;
   return (
     <View
       testID={`print-swatch-${id ?? 'plain'}`}
       // A row-sized square keeps the small radius, or it reads as a dot.
-      className={`overflow-hidden border border-hairline ${size < 24 ? 'rounded-crisp' : 'rounded-soft'}`}
+      className={`overflow-hidden border border-hairline ${round ? 'rounded-full' : size < 24 ? 'rounded-crisp' : 'rounded-soft'}`}
       style={{ width: size, height: size, backgroundColor: art ? G0 : plain }}
     >
       {art ? (
@@ -220,7 +221,7 @@ export function PrintSwatch({ id, size = 24 }: { id: string | null; size?: numbe
 }
 
 // One answer in a drawer's list (beta's sheets): a 44pt row, the warm edge and a check when it is
-// hers, white otherwise. The print, material and category lists all use it. Web twin: OptionRow in
+// hers, white otherwise. The category drill and the seasons use it. Web twin: OptionRow in
 // components/wardrobe/colour-field.tsx.
 export function OptionRow({
   label,
@@ -276,23 +277,131 @@ export function OptionRow({
   );
 }
 
-// A row of chips she scrolls sideways opens with the chosen one in view, 24pt in from the edge
-// (redline 09/10), rather than wherever the list happens to start.
-export function useScrollToChosen() {
-  const ref = useRef<ScrollViewInstance>(null);
-  const done = useRef(false);
-  const onChosenLayout = (e: LayoutChangeEvent) => {
-    if (done.current) return;
-    done.current = true;
-    ref.current?.scrollTo({ x: Math.max(0, e.nativeEvent.layout.x - 24), animated: false });
-  };
-  return { ref, onChosenLayout };
+// One answer in a family list: the shade's swatch (or nothing, for a material), its name and hint,
+// the check when it is hers. A disabled answer is dimmed (the main colour among the additional).
+export interface FamilyItem {
+  id: string;
+  name: string;
+  hint?: string | null;
+  swatch?: ReactNode;
+  selected: boolean;
+  disabled?: boolean;
+  onPick: () => void;
 }
 
-// The family row, then its shades as named circles — the picker Settings' Your colours uses, so
-// a colour reads the same wherever she sets one. It opens on the family of what is filed, scrolled
-// into view and warm; a picked shade carries the warm ring and the check (redline 09). The web twin
-// is components/wardrobe/colour-field.
+export interface FamilyGroup {
+  id: string;
+  name: string;
+  // The family's quartered tile (colour); a material family has none.
+  tile?: ReactNode;
+  items: FamilyItem[];
+}
+
+// Canvas 3b's family list (Annie, 10 Nov): the families in one white card, one open at a time. A
+// family's header turns its chevron and lays its answers beneath; closed, it names what is picked
+// inside it. It opens on the family of what is filed. The colour, additional colour and material
+// drawers all use it. Web twin: FamilyList in components/wardrobe/colour-field.tsx.
+export function FamilyList({
+  groups,
+  initial,
+  itemRole,
+}: {
+  groups: readonly FamilyGroup[];
+  initial: string | null;
+  // radio: one answer (material); button: pressed answers (a colour, the additional colours).
+  itemRole: 'radio' | 'button';
+}) {
+  const [open, setOpen] = useState(initial);
+  const ink = useColor('ink');
+  const soft = useColor('ink-muted');
+  return (
+    <View className="overflow-hidden rounded-[12px] border border-rule-mid bg-surface-raised">
+      {groups.map((g, i) => {
+        const isOpen = g.id === open;
+        const picked = g.items
+          .filter((it) => it.selected)
+          .map((it) => it.name)
+          .join(', ');
+        return (
+          <View key={g.id} className={i ? 'border-hairline border-t' : ''}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={picked && !isOpen ? `${g.name}, ${picked}` : g.name}
+              accessibilityState={{ expanded: isOpen }}
+              onPress={() => setOpen(isOpen ? null : g.id)}
+              className="flex-row items-center px-4"
+              style={{ minHeight: g.tile ? 60 : 52, gap: 14 }}
+            >
+              {g.tile}
+              <View className="min-w-0 flex-1 flex-row items-center gap-1.5">
+                <Text style={{ fontFamily: fonts.sansMedium, fontSize: 15 }}>{g.name}</Text>
+                <View style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}>
+                  <Icon name="down" size={12} color={soft} />
+                </View>
+              </View>
+              {picked && !isOpen ? (
+                <Text
+                  tone="faint"
+                  numberOfLines={1}
+                  style={{ maxWidth: '45%', fontFamily: fonts.sans, fontSize: 13 }}
+                >
+                  {picked}
+                </Text>
+              ) : null}
+            </Pressable>
+            {isOpen ? (
+              <View
+                accessibilityRole={itemRole === 'radio' ? 'radiogroup' : undefined}
+                accessibilityLabel={g.name}
+                className="pb-2.5"
+              >
+                {g.items.map((it) => (
+                  <Pressable
+                    key={it.id}
+                    accessibilityRole={itemRole}
+                    accessibilityLabel={it.name}
+                    accessibilityState={
+                      itemRole === 'radio'
+                        ? { checked: it.selected, disabled: Boolean(it.disabled) }
+                        : { selected: it.selected, disabled: Boolean(it.disabled) }
+                    }
+                    disabled={it.disabled}
+                    onPress={it.onPick}
+                    className="flex-row items-center pr-4"
+                    style={{
+                      minHeight: it.hint ? 52 : 44,
+                      paddingLeft: it.swatch ? 66 : 32,
+                      gap: 14,
+                      opacity: it.disabled ? 0.35 : 1,
+                    }}
+                  >
+                    {it.swatch}
+                    <View className="min-w-0 flex-1" style={{ gap: 3 }}>
+                      <Text style={{ fontFamily: fonts.sans, fontSize: 14 }}>{it.name}</Text>
+                      {it.hint ? (
+                        <Text tone="faint" style={{ fontFamily: fonts.sans, fontSize: 12 }}>
+                          {it.hint}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View style={{ opacity: it.selected ? 1 : 0 }}>
+                      <Icon name="check" size={15} color={ink} />
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+// The colour families as a FamilyList (canvas 3b): each family's tile, its shades as named circles.
+// A pick of the main colour is the answer; the additional colours are pressed as many as there
+// are (up to three), and the main colour sits dimmed among them. The web twin is
+// components/wardrobe/colour-field.
 export function ColourPicker({
   value,
   onChange,
@@ -302,89 +411,36 @@ export function ColourPicker({
   onChange: (next: PieceColour) => void;
   slot: 'main' | 'extra';
 }) {
-  const bg = useColor('bg');
-  const ink = useColor('ink');
   const chosen = new Set(
     (slot === 'main' ? [value.colourShade] : value.colourExtra).filter(Boolean) as string[],
   );
-  const [family, setFamily] = useState(
-    () =>
-      shade(slot === 'main' ? value.colourShade : (value.colourExtra[0] ?? null))?.family ??
-      'blacks',
-  );
-  const { ref, onChosenLayout } = useScrollToChosen();
-  const fam = COLOUR_FAMILIES.find((f) => f.id === family);
+  const home =
+    shade(slot === 'main' ? value.colourShade : (value.colourExtra[0] ?? null))?.family ??
+    COLOUR_FAMILIES[0]?.id ??
+    null;
   return (
-    <View className="gap-4">
-      {/* The families scroll as one row, so the list never pushes the shades off the drawer. */}
-      <ScrollView
-        ref={ref}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        accessibilityLabel={copy.families}
-        contentContainerClassName="gap-2 pb-1"
-      >
-        {COLOUR_FAMILIES.map((f) => (
-          <Pressable
-            key={f.id}
-            accessibilityRole="button"
-            accessibilityLabel={f.name}
-            accessibilityState={{ selected: f.id === family }}
-            onPress={() => setFamily(f.id)}
-            {...(f.id === family ? { onLayout: onChosenLayout } : {})}
-            style={{ width: 72 }}
-            className={`items-center gap-1.5 rounded-crisp border px-1 py-1.5 ${
-              f.id === family ? 'border-selected-line bg-selected' : 'border-transparent'
-            }`}
-          >
-            <FamilyTile family={f} size={44} />
-            <Text
-              size="caption"
-              tone={f.id === family ? 'ink' : 'muted'}
-              weight={f.id === family ? 'medium' : 'regular'}
-              numberOfLines={1}
-            >
-              {f.name}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-      <View className="flex-row flex-wrap border-hairline border-t pt-4" style={{ rowGap: 16 }}>
-        {fam?.shades.map((s) => (
-          <Pressable
-            key={s.id}
-            accessibilityRole="button"
-            accessibilityLabel={s.name}
-            accessibilityState={{ selected: chosen.has(s.id) }}
-            onPress={() => onChange(pickShade(value, s.id, slot))}
-            className="w-1/3 items-center gap-1.5 px-1"
-          >
-            {/* The warm ring sits 3pt off the swatch; unpicked, its edge is clear so nothing moves. */}
-            <View
-              className={`rounded-full ${chosen.has(s.id) ? 'border-selected-line' : 'border-transparent'}`}
-              style={{ borderWidth: 2, padding: 3 }}
-            >
-              <View
-                className="size-14 items-center justify-center rounded-full border border-hairline"
-                style={{ backgroundColor: s.hex }}
-              >
-                {chosen.has(s.id) ? (
-                  <Icon name="check" size={20} color={s.light ? ink : bg} />
-                ) : null}
-              </View>
-            </View>
-            <Text size="caption" tone="muted" numberOfLines={2} className="text-center">
-              {s.name}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
+    <FamilyList
+      initial={home}
+      itemRole="button"
+      groups={COLOUR_FAMILIES.map((f) => ({
+        id: f.id,
+        name: f.name,
+        tile: <FamilyTile family={f} size={36} />,
+        items: f.shades.map((s) => ({
+          id: s.id,
+          name: s.name,
+          swatch: <ShadeSwatch shade={s} size={22} />,
+          selected: chosen.has(s.id),
+          disabled: slot === 'extra' && s.id === value.colourShade,
+          onPick: () => onChange(pickShade(value, s.id, slot)),
+        })),
+      }))}
+    />
   );
 }
 
-// Plain first, then the thirteen, as a list (beta): a 24pt square of the print beside its name,
-// the warm row and a check on hers. A pick is the answer.
+// Plain first, then the thirteen, as one white card of rows (canvas 3b): a round swatch of the
+// print, its name, the check on hers. A pick is the answer.
 export function PrintPicker({
   value,
   onChange,
@@ -392,23 +448,43 @@ export function PrintPicker({
   value: PieceColour;
   onChange: (next: PieceColour) => void;
 }) {
+  const ink = useColor('ink');
   const options: { id: string | null; name: string }[] = [
     { id: null, name: copy.plain },
     ...PATTERNS.map((p) => ({ id: p.id, name: p.name })),
   ];
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={copy.print}>
-      {options.map((o) => (
-        <OptionRow
-          key={o.id ?? 'plain'}
-          accessibilityRole="radio"
-          accessibilityState={{ checked: value.print === o.id }}
-          selected={value.print === o.id}
-          label={o.name}
-          icon={<PrintSwatch id={o.id} />}
-          onPress={() => onChange({ ...value, print: o.id })}
-        />
-      ))}
+    <View
+      accessibilityRole="radiogroup"
+      accessibilityLabel={copy.print}
+      className="overflow-hidden rounded-[12px] border border-rule-mid bg-surface-raised"
+    >
+      {options.map((o, i) => {
+        const on = value.print === o.id;
+        return (
+          <Pressable
+            key={o.id ?? 'plain'}
+            accessibilityRole="radio"
+            accessibilityLabel={o.name}
+            accessibilityState={{ checked: on }}
+            onPress={() => onChange({ ...value, print: o.id })}
+            className={`flex-row items-center px-4 ${i ? 'border-hairline border-t' : ''}`}
+            style={{ minHeight: 52, gap: 14 }}
+          >
+            <PrintSwatch id={o.id} size={26} round />
+            <Text
+              numberOfLines={1}
+              className="min-w-0 flex-1"
+              style={{ fontFamily: fonts.sans, fontSize: 14 }}
+            >
+              {o.name}
+            </Text>
+            <View style={{ opacity: on ? 1 : 0 }}>
+              <Icon name="check" size={15} color={ink} />
+            </View>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }

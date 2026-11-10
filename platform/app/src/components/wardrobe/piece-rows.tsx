@@ -8,6 +8,7 @@ import { suggestPieceName } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
 import { Eyebrow, Text } from '@robes/ui';
 import { type ReactNode, useId } from 'react';
+import { PatternSwatch, ShadeSwatch } from './colour-field';
 import type { PieceField } from './piece-field-sheet';
 
 const copy = wardrobe.piece;
@@ -34,11 +35,14 @@ export function PieceRow({
   check,
   onClick,
   edit = false,
+  swatch,
   children,
 }: {
   label: string;
   // What is filed; an empty row that opens reads "Add".
   value?: string | null;
+  // A 16px circle of what is filed, ahead of its name (the Colour and Print rows, canvas 3b).
+  swatch?: ReactNode;
   // Robes' read here is a guess she should look at: the rose "Check" mark, with its reason.
   check?: string | undefined;
   // No handler means the row is a fact, not a door: no chevron, nothing to press.
@@ -62,12 +66,15 @@ export function PieceRow({
             <span className="sr-only">{`: ${check}`}</span>
           </span>
         ) : null}
-        <span
-          className={`min-w-0 flex-1 truncate text-right font-sans text-[14px] ${
-            filled ? 'text-ink-faint' : 'font-medium text-ink-muted'
-          }`}
-        >
-          {value || (onClick ? copy.add : '')}
+        <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          {filled ? swatch : null}
+          <span
+            className={`min-w-0 truncate font-sans text-[14px] ${
+              filled ? 'text-ink-faint' : 'font-medium text-ink-muted'
+            }`}
+          >
+            {value || (onClick ? copy.add : '')}
+          </span>
         </span>
         {onClick ? (
           <Icon name={edit ? 'pencil' : 'forward'} size={14} className="shrink-0 text-ink-faint" />
@@ -229,17 +236,24 @@ export function RecordRows({
       ) : null}
     </PieceRow>
   );
-  // The canvas's COLOUR tab (3b): four rows of words, each a door to its picker.
+  // The canvas's COLOUR tab (3b): four rows, each a door to its picker; the main colour and the
+  // print show their swatch beside the name.
   const colourRows = (
     <>
       <PieceRow
         label={copy.rows.colour}
         value={v(mainShade?.name ?? null)}
+        swatch={mainShade && !reading ? <ShadeSwatch shade={mainShade} size={16} /> : null}
         check={values.colourCheck && !reading ? wardrobe.colour.check : undefined}
         onClick={open('colour')}
       />
       <PieceRow label={copy.rows.extra} value={v(extras)} onClick={open('extra')} />
-      <PieceRow label={copy.rows.print} value={v(print?.name ?? null)} onClick={open('print')} />
+      <PieceRow
+        label={copy.rows.print}
+        value={v(print?.name ?? null)}
+        swatch={print && !reading ? <PatternSwatch pattern={print} size={16} round /> : null}
+        onClick={open('print')}
+      />
       <PieceRow
         label={copy.rows.material}
         value={v(material(values.material)?.name ?? null)}
