@@ -13,6 +13,7 @@ import {
   genericCellIds,
   HAIR_SWATCHES,
   hasTwinInputs,
+  isTwinCurrent,
   type ModelPicks,
   NO_ADJ,
   presenceOf,
@@ -20,11 +21,12 @@ import {
   robesModelIds,
   SKIN_SWATCHES,
   standOf,
+  type TwinInputs,
   twinInputsOf,
   twinKey,
   wearerOf,
 } from '@robes/core/avatar';
-import type { UserId } from '@robes/db';
+import type { CreateJobInput, UserId } from '@robes/db';
 import { z } from 'zod';
 import { signedRenditions } from './asset-urls';
 import { repos } from './db';
@@ -36,6 +38,8 @@ import { writePictureNote } from './picture-note';
 import { rackHash } from './render-key';
 
 const DRAW_STALE_MS = 10 * 60_000;
+// Longer than any colour read runs (its budget is 90s): an older one still "running" was lost.
+const READ_STALE_MS = 5 * 60_000;
 
 // Stored picks are read defensively: anything malformed is ignored, never trusted.
 const StoredPicks = z.object({
@@ -75,9 +79,10 @@ async function signedAsset(userId: UserId, assetId: string | null) {
   };
 }
 
-async function twinState(userId: UserId, row: Row, key: string, now = Date.now()) {
+async function twinState(userId: UserId, row: Row, inputs: TwinInputs, now = Date.now()) {
+  const key = await twinKey(inputs);
   const { url: imageUrl, failed } = await signedAsset(userId, row.twinAssetId);
-  const current = row.twinKey === key && row.twinAssetId !== null;
+  const current = row.twinAssetId !== null && (await isTwinCurrent(row.twinKey, inputs));
   const drawing =
     row.twinDrawKey === key &&
     row.twinDrawStatus === 'pending' &&
@@ -103,7 +108,7 @@ export async function loadModel(userId: UserId): Promise<Model> {
   const inputs = twinInputsOf(row);
   const [cell, twin, closeUp] = await Promise.all([
     repos.avatarCells.get(cellKey(resolved.cellId)),
-    twinState(userId, row, await twinKey(inputs)),
+    twinState(userId, row, inputs),
     signedAsset(userId, row.headshotAssetId),
   ]);
   const imageUrl =
@@ -270,30 +275,79 @@ export async function drawTwin(userId: UserId, req: Request): Promise<Model> {
   const { row, resolved } = await current(userId);
   const inputs = twinInputsOf(row);
   if (!hasTwinInputs(inputs) || !(await isFlagEnabled('model.portraits'))) return loadModel(userId);
+  // While her colour read runs, her selfie's twin is already being drawn (drawTwinFromSelfie): a
+  // draw of what is on file now would take its place.
+  if (await colourReading(userId)) return loadModel(userId);
   if (row.filedCellId === null) {
     await repos.model.file(userId, resolved.cellId, { source: resolved.source });
   }
-  const key = await twinKey(inputs);
-  if (await repos.model.claimTwin(userId, key)) {
-    // A twin drawn anew is hers to stand on (a selfie after a Robes model: the selfie wins).
-    if (row.modelPreset !== null) await repos.model.savePreset(userId, null);
-    try {
-      if (await repos.capacity.isExhausted(['gemini-image'])) throw new ApiError('capacity');
-      await startJob(userId, req, {
-        kind: 'avatar_cell',
-        input: { target: 'twin', twinKey: key },
-        quota: { metric: 'generation.image', cost: 1 },
-      });
-    } catch (err) {
-      // The model she has stands; the next visit may draw again.
-      await repos.model.failTwin(userId, key);
-      logger.warn(
-        { reason: err instanceof ApiError ? err.code : 'start_failed' },
-        'avatar_twin_not_started',
-      );
-    }
+  if (!(await isTwinCurrent(row.twinKey, inputs))) {
+    const key = await twinKey(inputs);
+    const claimed = await repos.model.claimTwin(userId, key);
+    // A twin drawn anew is hers to stand on (a selfie after a Robes model: the selfie wins),
+    // whether this ask started it or her selfie did.
+    const drawing = claimed || (row.twinDrawKey === key && row.twinDrawStatus === 'pending');
+    if (drawing && row.modelPreset !== null) await repos.model.savePreset(userId, null);
+    if (claimed) await startTwin(userId, key, (job) => startJob(userId, req, job));
   }
   return loadModel(userId);
+}
+
+// Her selfie's twin, started with its colour read rather than after it (10 Nov 2026): the
+// photograph carries her face, skin and hair, so the read is not needed to draw it, only to say
+// the photo is hers. The worker keeps the twin once the read has taken the photo, and throws it
+// away on no face or a failed read. The ask after the read finds it drawing and starts nothing.
+export async function drawTwinFromSelfie(
+  userId: UserId,
+  req: Request,
+  selfie: { closeUpAssetId: string; readJobId: string },
+): Promise<void> {
+  if (!(await isFlagEnabled('model.portraits'))) return;
+  const { row } = await current(userId);
+  const inputs = { ...twinInputsOf(row), closeUpAssetId: selfie.closeUpAssetId };
+  if (await isTwinCurrent(row.twinKey, inputs)) return;
+  const key = await twinKey(inputs);
+  if (!(await repos.model.claimTwin(userId, key))) return;
+  // Its own job, never the read's Idempotency-Key: that would hand back the read.
+  await startTwin(
+    userId,
+    key,
+    (job) => createAndEnqueueJob(userId, job, req.headers.get('traceparent') ?? undefined),
+    selfie,
+  );
+}
+
+async function startTwin(
+  userId: UserId,
+  key: string,
+  start: (job: Omit<CreateJobInput, 'idempotencyKey' | 'traceId'>) => Promise<unknown>,
+  early?: { closeUpAssetId: string; readJobId: string },
+): Promise<void> {
+  try {
+    if (await repos.capacity.isExhausted(['gemini-image'])) throw new ApiError('capacity');
+    await start({
+      kind: 'avatar_cell',
+      input: { target: 'twin', twinKey: key, ...(early ? { early } : {}) },
+      quota: { metric: 'generation.image', cost: 1 },
+    });
+  } catch (err) {
+    // The model she has stands; the next visit may draw again.
+    await repos.model.failTwin(userId, key);
+    logger.warn(
+      { reason: err instanceof ApiError ? err.code : 'start_failed' },
+      'avatar_twin_not_started',
+    );
+  }
+}
+
+async function colourReading(userId: UserId, now = Date.now()): Promise<boolean> {
+  const read = await repos.jobs.latest(userId, 'stylenotes_analyse');
+  return (
+    read !== undefined &&
+    (read.status === 'queued' || read.status === 'running') &&
+    (read.input as { kind?: unknown } | null)?.kind === 'colour' &&
+    now - read.createdAt.getTime() < READ_STALE_MS
+  );
 }
 
 // "See it on me": one render per model and rack; asking again returns the same job.
