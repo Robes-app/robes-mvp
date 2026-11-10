@@ -274,7 +274,13 @@ export function PieceFieldSheet({
             })}
           </View>
         ) : field === 'material' ? (
-          <MaterialPicker value={piece.material} onChange={(material) => commit({ material })} />
+          <MaterialPicker
+            value={piece.material}
+            // "Not sure" while nothing is filed is already the answer: it only closes.
+            onChange={(material) =>
+              material === piece.material ? onClose() : commit({ material })
+            }
+          />
         ) : field === 'print' ? (
           <PrintPicker value={colour} onChange={(next) => commit({ print: next.print })} />
         ) : field === 'colour' || field === 'extra' ? (

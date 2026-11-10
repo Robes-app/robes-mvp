@@ -7,6 +7,7 @@ import { Icon } from '@robes/icons/native';
 import { Eyebrow, fonts, maxFontSizeMultiplier, Text, useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
+import { PrintSwatch, ShadeSwatch } from './ColourField';
 import type { PieceField } from './PieceFieldSheet';
 
 const copy = wardrobe.piece;
@@ -36,10 +37,13 @@ export function PieceRow({
   edit = false,
   note,
   first = false,
+  swatch,
 }: {
   label: string;
   // What is filed; an empty row that opens reads "Add".
   value?: string | null;
+  // A 16pt circle of what is filed, ahead of its name (the Colour and Print rows, canvas 3b).
+  swatch?: ReactNode;
   // What a reader hears for the value when the row shows something else (a note's "Edit").
   spoken?: string | null;
   // Robes' read here is a guess she should look at: the rose "Check" mark, with its reason.
@@ -70,14 +74,17 @@ export function PieceRow({
             {copy.check}
           </Text>
         ) : null}
-        <Text
-          numberOfLines={1}
-          ellipsizeMode="tail"
-          className={`min-w-0 flex-1 text-right ${empty ? 'text-ink-muted' : 'text-ink-faint'}`}
-          style={{ fontFamily: empty ? fonts.sansMedium : fonts.sans, fontSize: 14 }}
-        >
-          {value || (onPress ? copy.add : '')}
-        </Text>
+        <View className="min-w-0 flex-1 flex-row items-center justify-end gap-2">
+          {empty ? null : swatch}
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            className={`min-w-0 shrink text-right ${empty ? 'text-ink-muted' : 'text-ink-faint'}`}
+            style={{ fontFamily: empty ? fonts.sansMedium : fonts.sans, fontSize: 14 }}
+          >
+            {value || (onPress ? copy.add : '')}
+          </Text>
+        </View>
         {onPress ? <Icon name={edit ? 'pencil' : 'forward'} size={14} color={faint} /> : null}
       </View>
       {note ? (
@@ -239,18 +246,25 @@ export function RecordRows({
       edit
     />
   );
-  // The canvas's COLOUR tab (3b): four rows of words, each a door to its picker.
+  // The canvas's COLOUR tab (3b): four rows, each a door to its picker; the main colour and the
+  // print show their swatch beside the name.
   const colourRows = (
     <>
       <PieceRow
         first
         label={copy.rows.colour}
         value={v(mainShade?.name ?? null)}
+        swatch={mainShade && !reading ? <ShadeSwatch shade={mainShade} size={16} /> : null}
         check={values.colourCheck && !reading ? wardrobe.colour.check : undefined}
         onPress={open('colour')}
       />
       <PieceRow label={copy.rows.extra} value={v(extras)} onPress={open('extra')} />
-      <PieceRow label={copy.rows.print} value={v(print?.name ?? null)} onPress={open('print')} />
+      <PieceRow
+        label={copy.rows.print}
+        value={v(print?.name ?? null)}
+        swatch={print && !reading ? <PrintSwatch id={print.id} size={16} round /> : null}
+        onPress={open('print')}
+      />
       <PieceRow
         label={copy.rows.material}
         value={v(material(values.material)?.name ?? null)}
