@@ -384,6 +384,8 @@ export const workerEnv = z
     DATABASE_URL: z.url().optional(),
     DATABASE_URL_SECRET_ARN: z.string().startsWith('arn:').optional(),
     JOBS_INTERACTIVE_QUEUE_URL: z.url().optional(),
+    // inboundFn: the isolated fetcher's queue (SEC-40), which fetches receipt lines' photos.
+    FETCH_QUEUE_URL: z.url().optional(),
     // Gemini: a Secrets Manager ARN in AWS; a plain key (or none → offline fake) in dev.
     GEMINI_API_KEY: z.string().min(1).optional(),
     GEMINI_API_KEY_SECRET_ARN: z.string().startsWith('arn:').optional(),

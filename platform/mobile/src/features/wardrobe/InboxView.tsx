@@ -7,6 +7,7 @@ import {
   Button,
   ErrorText,
   fonts,
+  Image,
   MIN_TOUCH,
   Skeleton,
   Tabs,
@@ -19,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
+import { renditionUri } from '@/lib/images';
 import { useDecideInbox, useInbox } from './inbox';
 
 const rc = copy.receipts;
@@ -142,14 +144,31 @@ function ItemRow({
   const onInk = useColor('bg');
   const muted = useColor('ink-muted');
   const meta = lineMeta(item, retailer);
+  const thumb = renditionUri(item.image, 96);
   return (
     <View
       className="flex-row items-center gap-3 border-hairline border-t px-3 py-2.5"
       testID={`receipt-item-${item.index}`}
     >
-      <View className="size-11 items-center justify-center rounded-crisp bg-surface-sunk">
-        <Icon name="wardrobe" size={14} color={muted} />
-      </View>
+      {/* The line's photo once Robes has read it (her own copy, SEC-40); the hanger until then. */}
+      {thumb ? (
+        <View
+          testID={`receipt-photo-${item.index}`}
+          className="w-12 overflow-hidden rounded-crisp bg-surface-raised"
+        >
+          <Image
+            source={thumb}
+            alt=""
+            aspect="4:5"
+            contentFit="contain"
+            blurhash={item.image?.blurhash}
+          />
+        </View>
+      ) : (
+        <View className="size-11 items-center justify-center rounded-crisp bg-surface-sunk">
+          <Icon name="wardrobe" size={14} color={muted} />
+        </View>
+      )}
       <View className="min-w-0 flex-1 gap-0.5">
         <Text numberOfLines={2} style={{ fontFamily: fonts.display, fontSize: 17 }}>
           {item.label}

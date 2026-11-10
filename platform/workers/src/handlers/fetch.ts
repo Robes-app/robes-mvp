@@ -1,14 +1,26 @@
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
-import { fetchLink, type LinkFetchResult, parseFetchRequest } from '@robes/jobs';
+import {
+  fetchLink,
+  fetchPhoto,
+  type LinkFetchResult,
+  type PhotoFetchResult,
+  parseFetchRequest,
+} from '@robes/jobs';
 import { createLogger } from '@robes/logger';
 import { withErrorReporting } from '../errors';
 import { processBatch, type SqsBatchResponse, type SqsEvent } from '../sqs';
 
-// SEC-40 isolated fetcher: no DB, no secrets, no bucket. It fetches the URL with the SSRF guard,
-// parses product metadata and hands only that back through the jobs-interactive queue.
+// SEC-40 isolated fetcher: no DB, no secrets, no bucket. It fetches the URL with the SSRF guard
+// and hands back only parsed product metadata (a link) or a receipt photo's bytes, undecoded,
+// through the jobs-interactive queue.
+export type FetchReply =
+  | { jobId: string; linkResult: LinkFetchResult }
+  | { jobId: string; photoResult: PhotoFetchResult };
+
 export interface FetchDeps {
   fetchLink(url: string): Promise<LinkFetchResult>;
-  sendResult(message: { jobId: string; linkResult: LinkFetchResult }): Promise<void>;
+  fetchPhoto(url: string): Promise<PhotoFetchResult>;
+  sendResult(message: FetchReply): Promise<void>;
   logger: { warn(obj: Record<string, unknown>, msg: string): void };
 }
 
@@ -19,6 +31,10 @@ export function createFetchHandler(getDeps: () => FetchDeps) {
       const request = parseFetchRequest(record.body);
       if (!request)
         return deps.logger.warn({ messageId: record.messageId }, 'fetch_message_invalid');
+      if (request.kind === 'photo') {
+        const photoResult = await deps.fetchPhoto(request.url);
+        return deps.sendResult({ jobId: request.jobId, photoResult });
+      }
       const linkResult = await deps.fetchLink(request.url);
       await deps.sendResult({ jobId: request.jobId, linkResult });
     });
@@ -33,6 +49,7 @@ function lambdaDeps(): FetchDeps {
   const sqs = new SQSClient({});
   deps = {
     fetchLink: (url) => fetchLink(url),
+    fetchPhoto: (url) => fetchPhoto(url),
     async sendResult(message) {
       await sqs.send(
         new SendMessageCommand({ QueueUrl: queueUrl, MessageBody: JSON.stringify(message) }),

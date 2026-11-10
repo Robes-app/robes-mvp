@@ -10,6 +10,7 @@
     "./prompts/daily": "./src/prompts/daily/v4.ts",
     "./prompts/travel": "./src/prompts/travel/v3.ts",
     "./prompts/receipt-read": "./src/prompts/receipt-read/v2.ts",
+    "./prompts/receipt-photo": "./src/prompts/receipt-photo/v1.ts",
     "./prompts/avatar": "./src/prompts/avatar/v4.ts",
     "./prompts/style-brief": "./src/prompts/style-brief/v2.ts",
     "./prompts/wardrobe-pieces": "./src/prompts/wardrobe-pieces/v3.ts",

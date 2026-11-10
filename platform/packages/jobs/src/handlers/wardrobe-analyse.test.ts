@@ -15,6 +15,8 @@ function setup(
     master?: boolean | 'forbidden';
     output?: object;
     aiError?: AiError;
+    // The wait for renditions; short by default so the never-ready cases fail fast.
+    assetWaitMs?: number;
   } = {},
 ) {
   const statuses = [...(opts.assetStatus ?? ['ready'])];
@@ -54,7 +56,7 @@ function setup(
     storage,
     pieces: pieces as never,
     ledger,
-    assetWaitMs: 50,
+    assetWaitMs: opts.assetWaitMs ?? 50,
     pollMs: 5,
   });
   const writeStage = vi.fn(async () => {});
@@ -132,7 +134,12 @@ describe('wardrobe_analyse handler', () => {
   });
 
   it('waits for renditions that are still processing', async () => {
-    const { run, pieces } = setup({ assetStatus: ['pending', 'pending', 'ready'] });
+    // A wait long enough that a slow runner's polls still land inside it (CI, 10 Nov): the photo
+    // turns ready on the third load, so the test never sits through it.
+    const { run, pieces } = setup({
+      assetStatus: ['pending', 'pending', 'ready'],
+      assetWaitMs: 10_000,
+    });
     await expect(run()).resolves.toEqual({ status: 'succeeded' });
     expect(pieces.forAnalysis).toHaveBeenCalledTimes(3);
   });

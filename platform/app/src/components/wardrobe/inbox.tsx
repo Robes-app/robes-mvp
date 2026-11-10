@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
+import { PieceImage } from './piece-image';
 
 const copy = wardrobe.inbox;
 const rc = wardrobe.receipts;
@@ -152,12 +153,23 @@ function Group({ entry, decidable }: { entry: InboxEntry; decidable: boolean }) 
               className="flex items-center gap-3 border-hairline border-t px-3 py-2.5"
               data-testid={`receipt-item-${item.index}`}
             >
-              <span
-                aria-hidden
-                className="flex size-11 shrink-0 items-center justify-center rounded-crisp bg-surface-sunk text-ink-muted"
-              >
-                <Icon name="wardrobe" size={14} />
-              </span>
+              {/* The line's photo once Robes has read it (her own copy, SEC-40); the hanger until
+                  then. Native twin: ItemRow in features/wardrobe/InboxView.tsx. */}
+              {item.image ? (
+                <PieceImage
+                  piece={item}
+                  sizes="48px"
+                  contain
+                  className="w-12 shrink-0 rounded-crisp"
+                />
+              ) : (
+                <span
+                  aria-hidden
+                  className="flex size-11 shrink-0 items-center justify-center rounded-crisp bg-surface-sunk text-ink-muted"
+                >
+                  <Icon name="wardrobe" size={14} />
+                </span>
+              )}
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="line-clamp-2 font-display text-[17px] text-ink leading-snug">
                   {item.label}
