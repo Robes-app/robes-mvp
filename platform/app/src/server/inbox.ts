@@ -1,14 +1,39 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
-import { InboxDecision, InboxEntry, type InboxItemState, type InboxList } from '@robes/contracts';
+import {
+  InboxDecision,
+  InboxEntry,
+  type InboxItemState,
+  type InboxList,
+  type PieceImage,
+} from '@robes/contracts';
 import { heldItems, itemState, lineFields, type UserId } from '@robes/db';
+import { toImage } from './asset-urls';
 import { repos } from './db';
+import { mediaDelivery } from './media';
 
 type Row = NonNullable<Awaited<ReturnType<typeof repos.inbox.get>>>;
+type Images = ReadonlyMap<string, PieceImage>;
 
-// Rows never leave as-is (CLAUDE.md rule 8); product image URLs are dropped (no hotlinking).
+// The lines' photos the fetcher stored as her own assets (SEC-40), signed like any piece's; one
+// that is still rendering, failed or gone shows the hanger.
+async function imagesOf(userId: UserId, rows: readonly Row[]): Promise<Images> {
+  const ids = rows.flatMap((row) =>
+    heldItems(row.items).flatMap((item) => (item.imageAssetId ? [item.imageAssetId] : [])),
+  );
+  const assets = await repos.assets.getManyForUser(userId, ids);
+  return new Map(
+    await Promise.all(
+      assets
+        .filter((a) => a.status === 'ready')
+        .map(async (a) => [a.id, await toImage(mediaDelivery, userId, a)] as const),
+    ),
+  );
+}
+
+// Rows never leave as-is (CLAUDE.md rule 8); the shop's image URLs are dropped (no hotlinking).
 // `state` keeps only the pieces in that state (the Receipts' tab); every piece otherwise.
-function toEntry(row: Row, state?: InboxItemState): InboxEntry {
+function toEntry(row: Row, images: Images, state?: InboxItemState): InboxEntry {
   return InboxEntry.parse({
     id: row.id,
     source: row.source,
@@ -24,6 +49,7 @@ function toEntry(row: Row, state?: InboxItemState): InboxEntry {
         price: item.price ?? null,
         currency: item.currency ?? null,
         size: lineFields(item).size,
+        image: item.imageAssetId ? (images.get(item.imageAssetId) ?? null) : null,
         sourceUrl: item.sourceUrl ?? null,
         state: itemState(item),
         filedId: item.filedId ?? null,
@@ -44,14 +70,15 @@ export async function loadInbox(
     repos.inbox.list(userId, state),
     repos.inbox.counts(userId),
   ]);
-  return { items: rows.map((row) => toEntry(row, state)), count: counts.inbox, counts };
+  const images = await imagesOf(userId, rows);
+  return { items: rows.map((row) => toEntry(row, images, state)), count: counts.inbox, counts };
 }
 
 // One held entry of any source: Review opens a pasted link by the id its import returned.
 export async function loadInboxEntry(userId: UserId, id: string): Promise<InboxEntry> {
   const row = await repos.inbox.getHeld(userId, id);
   if (!row) throw new ApiError('not_found');
-  return toEntry(row);
+  return toEntry(row, await imagesOf(userId, [row]));
 }
 
 export async function decideInbox(

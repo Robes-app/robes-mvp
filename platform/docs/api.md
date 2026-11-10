@@ -118,7 +118,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `POST /wardrobe/import-link` Job (fetch worker) | `/api/wardrobe/read-url` |
 | `GET /wardrobe/taxonomy` | `/api/wardrobe/taxonomy` |
 | `GET/POST/PATCH/DELETE /wishlist/items[...]` · `POST /wishlist/items/:id/promote` | client REST `wishlist_items` |
-| `GET /inbox?state=inbox\|added\|discarded` (forwarded receipts only, with the pieces in that state — the Receipts' tabs, PRD rev 3 §7.5; `count` = the pieces waiting, `counts` per state) · `GET /inbox/:id` (one held entry of any source — Review opens a pasted link here; 404 once decided or for anyone else) · `POST /inbox/:id/decide` (each piece decided on its own: the chosen ones file or discard, the rest keep waiting, the row settles once none does) · `GET /me/inbox-address` | `wardrobe_inbox` + `/api/inbox/receipt` |
+| `GET /inbox?state=inbox\|added\|discarded` (forwarded receipts only, with the pieces in that state — the Receipts' tabs, PRD rev 3 §7.5; `count` = the pieces waiting, `counts` per state) · `GET /inbox/:id` (one held entry of any source — Review opens a pasted link here; 404 once decided or for anyone else) · `POST /inbox/:id/decide` (each piece decided on its own: the chosen ones file or discard, the rest keep waiting, the row settles once none does; a piece files with its size, category, colour and its read photo). Each line carries `size` and `image` (its product photo, signed like a piece's, once the isolated fetcher has stored and Robes has read it; never the shop's URL) · `GET /me/inbox-address` | `wardrobe_inbox` + `/api/inbox/receipt` |
 | `GET/POST/DELETE /tags[...]` | client REST `tags`, `tag_pieces` |
 
 ### Styling engines (all Jobs)

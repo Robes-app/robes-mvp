@@ -17,6 +17,10 @@ function setup(over: Partial<ReceiptDeps> & { output?: object; owner?: boolean }
     ),
     hasProvider: vi.fn(async () => false),
     fromReceipt: vi.fn(async () => ({ id: 'inbox-1', created: true })),
+    queuePhotoReads: vi.fn(async () => [
+      { jobId: 'job-1', url: 'https://static.shop.test/coat.jpg' },
+      { jobId: 'job-2', url: 'https://static.shop.test/scarf.jpg' },
+    ]),
   };
   const deps: ReceiptDeps = {
     ai: createFakeProvider({ [FEATURE]: () => ({ ...fakeOutput(), ...over.output }) }),
@@ -61,6 +65,29 @@ describe('ingestReceipt', () => {
     expect(deps.ledger.record).toHaveBeenCalledWith(
       expect.objectContaining({ userId: NIALL, status: 'ok' }),
     );
+  });
+
+  // Legacy's vision pass: each line's photo is a receipt_read job, fetched only by the isolated
+  // fetcher (SEC-40); this worker follows no link in the mail itself.
+  it('asks the fetcher for each line’s photo once the receipt is held', async () => {
+    const requestPhoto = vi.fn(async (_photo: { jobId: string; url: string }) => {});
+    const { deps, intake } = setup({ requestPhoto });
+    expect((await ingestReceipt(deps, notification())).status).toBe('held');
+    expect(intake.queuePhotoReads).toHaveBeenCalledWith(NIALL, 'inbox-1');
+    expect(requestPhoto.mock.calls.map((c) => c[0])).toEqual([
+      { jobId: 'job-1', url: 'https://static.shop.test/coat.jpg' },
+      { jobId: 'job-2', url: 'https://static.shop.test/scarf.jpg' },
+    ]);
+  });
+
+  it('keeps the receipt when its photos can’t be asked for, and asks nothing for a re-read', async () => {
+    const failing = setup({ requestPhoto: vi.fn(async () => Promise.reject(new Error('sqs'))) });
+    expect((await ingestReceipt(failing.deps, notification())).status).toBe('held');
+    expect(logger.warn).toHaveBeenCalledWith({ reason: 'sqs' }, 'receipt_photos_failed');
+    const again = setup({ requestPhoto: vi.fn(async () => {}) });
+    again.intake.fromReceipt.mockResolvedValue({ id: 'inbox-1', created: false });
+    await ingestReceipt(again.deps, notification());
+    expect(again.intake.queuePhotoReads).not.toHaveBeenCalled();
   });
 
   it('drops mail that is not for a live address, failed a check, or was already read', async () => {

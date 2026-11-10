@@ -194,6 +194,22 @@ export function jobRunnerRepo(db: Db) {
       return res.numUpdatedRows > 0n;
     },
 
+    // The isolated fetcher's word on a receipt line's photo (SEC-40): attached to its still-queued
+    // receipt_read job, which names the asset the bytes are stored into. Undefined when the job
+    // isn't a queued receipt read (dropped, never retried).
+    async attachPhoto(jobId: string, photo: { stored: boolean; reason?: string }) {
+      const row = await db
+        .updateTable('generationJobs')
+        .set({ input: sql`input || jsonb_build_object('photo', ${JSON.stringify(photo)}::jsonb)` })
+        .where('id', '=', jobId)
+        .where('kind', '=', 'receipt_read')
+        .where('status', '=', 'queued')
+        .returning(['userId', 'input'])
+        .executeTakeFirst();
+      const assetId = (row?.input as { assetId?: unknown } | undefined)?.assetId;
+      return row && typeof assetId === 'string' ? { userId: row.userId, assetId } : undefined;
+    },
+
     // Merges a stage's output into the job; the row is the durable truth clients resume from.
     async writeStage(
       jobId: string,

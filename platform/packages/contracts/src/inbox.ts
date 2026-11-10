@@ -1,7 +1,9 @@
 import { z } from 'zod';
+import { PieceImage } from './wardrobe';
 
 // Wardrobe › Inbox (M3 task 4): things Robes found for her, waiting for a yes or no.
-// Product images stay out of the API: they're third-party URLs, never hotlinked (SEC-40).
+// A shop's photo URL never leaves the API (SEC-40: never hotlinked). A line's photo reaches her
+// only once the isolated fetcher has stored it as her own asset, signed like any piece's.
 // Where a receipt's piece stands (Front Door PRD rev 3 §7.5): waiting in the Inbox, added to her
 // wardrobe, or discarded. Each piece is decided on its own; the row stays held until all are.
 export const InboxItemState = z.enum(['inbox', 'added', 'discarded']);
@@ -15,6 +17,8 @@ export const InboxItem = z.object({
   currency: z.string().nullable(),
   // The size the receipt printed ("6/7 years (122 cm)"), shown on the row and filed with the piece.
   size: z.string().nullable().default(null),
+  // The line's photo once it is read and rendered; null shows the hanger.
+  image: PieceImage.nullable().default(null),
   sourceUrl: z.string().nullable(),
   state: InboxItemState.default('inbox'),
   // The piece or wish it became, once added.

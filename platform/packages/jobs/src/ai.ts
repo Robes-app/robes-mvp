@@ -7,6 +7,7 @@ import {
 } from '@robes/ai';
 import * as daily from '@robes/ai/prompts/daily';
 import * as lookAsk from '@robes/ai/prompts/look-ask';
+import * as receiptPhoto from '@robes/ai/prompts/receipt-photo';
 import * as receiptRead from '@robes/ai/prompts/receipt-read';
 import * as styleAnalyse from '@robes/ai/prompts/style-analyse';
 import * as styleBrief from '@robes/ai/prompts/style-brief';
@@ -34,6 +35,7 @@ const FAKE_FIXTURES: Record<string, FakeFixture> = {
       (req.system.match(/^\d+: /gm) ?? []).length,
     ),
   [receiptRead.FEATURE]: () => receiptRead.fakeOutput(),
+  [receiptPhoto.FEATURE]: () => receiptPhoto.fakeOutput(),
   [styleAnalyse.COLOUR_FEATURE]: () => styleAnalyse.fakeColour(),
   [styleAnalyse.SILHOUETTE_FEATURE]: () => styleAnalyse.fakeSilhouette(),
   [styleBrief.FEATURE]: () => styleBrief.fakeOutput(),

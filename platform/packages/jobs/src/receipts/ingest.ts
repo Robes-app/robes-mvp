@@ -11,6 +11,7 @@ import { QuotaExceeded, type SystemRepositories, type UserId } from '@robes/db';
 import type { MediaStorage } from '@robes/media/storage';
 import type { JobLogger } from '../logger';
 import { localPartOf, parseMail, type SesNotification, verdictsPass } from './mail';
+import { askForPhotos, type RequestPhoto } from './photos';
 
 export interface HeldReceipt {
   userId: UserId;
@@ -29,6 +30,9 @@ export interface ReceiptDeps {
   logger: JobLogger;
   // The "Robes read your receipt" email; a failure here never undoes the held row.
   onHeld?(receipt: HeldReceipt): Promise<void>;
+  // Asks the isolated fetcher (SEC-40) for one line's product photo, for its receipt_read job.
+  // Unset, the lines keep what the receipt printed.
+  requestPhoto?: RequestPhoto;
 }
 
 export type IngestOutcome =
@@ -62,8 +66,9 @@ function inboxItem(item: ReceiptItem) {
   };
 }
 
-// A forwarded order mail → one held Inbox row (legacy inbox.js ingest, minus the image fetches:
-// nothing in an inbound mail is ever followed). Returns an outcome instead of throwing for every
+// A forwarded order mail → one held Inbox row (legacy inbox.js ingest). The mail's own links are
+// never followed here: each line's product photo is a receipt_read job whose fetch only the
+// isolated fetcher makes (SEC-40). Returns an outcome instead of throwing for every
 // "not for us" case, so SQS only retries genuinely transient failures (storage, the model).
 export async function ingestReceipt(deps: ReceiptDeps, n: SesNotification): Promise<IngestOutcome> {
   const drop = (reason: Extract<IngestOutcome, { status: 'dropped' }>['reason']) => {
@@ -129,6 +134,17 @@ export async function ingestReceipt(deps: ReceiptDeps, n: SesNotification): Prom
   } catch (err) {
     if (err instanceof QuotaExceeded) return drop('quota');
     throw err;
+  }
+  if (held.created && deps.requestPhoto) {
+    // A photo that isn't asked for (a queue error) stays a queued job; the line keeps its text.
+    try {
+      await askForPhotos({ intake: deps.intake, requestPhoto: deps.requestPhoto }, userId, held.id);
+    } catch (err) {
+      deps.logger.warn(
+        { reason: err instanceof Error ? err.message : 'unknown' },
+        'receipt_photos_failed',
+      );
+    }
   }
   if (held.created && deps.onHeld) {
     try {

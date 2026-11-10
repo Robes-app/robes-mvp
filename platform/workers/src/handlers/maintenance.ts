@@ -2,6 +2,7 @@ import {
   filePassedPins,
   processAccountDeletions,
   processDataExports,
+  queueReceiptPhotos,
   sweep,
   sweepStaleUploads,
 } from '@robes/jobs';
@@ -17,10 +18,11 @@ export const MAINTENANCE_TASKS = [
   'data-export',
   'pins-worn',
   'stale-uploads',
+  'receipt-photos',
 ] as const;
 export type MaintenanceTask = (typeof MAINTENANCE_TASKS)[number];
 
-type Context = Pick<WorkerContext, 'system' | 'storage' | 'logger' | 'transport'>;
+type Context = Pick<WorkerContext, 'system' | 'storage' | 'logger' | 'transport' | 'requestPhoto'>;
 
 export async function runMaintenance(
   ctx: Context,
@@ -32,6 +34,13 @@ export async function runMaintenance(
       await sweep({ jobs: ctx.system.jobs, transport: ctx.transport(), logger: ctx.logger });
     } else if (task === 'pins-worn') {
       await filePassedPins({ passedPins: ctx.system.passedPins, logger: ctx.logger });
+    } else if (task === 'receipt-photos') {
+      if (!ctx.requestPhoto) throw new Error('receipt-photos needs FETCH_QUEUE_URL');
+      await queueReceiptPhotos({
+        intake: ctx.system.inboxIntake,
+        requestPhoto: ctx.requestPhoto,
+        logger: ctx.logger,
+      });
     } else if (task === 'stale-uploads') {
       if (!ctx.storage) throw new Error('stale-uploads needs MEDIA_BUCKET');
       await sweepStaleUploads({

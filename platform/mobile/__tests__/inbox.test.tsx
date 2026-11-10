@@ -134,6 +134,46 @@ test('a line reads its price and the size the receipt printed', async () => {
   await renderWithApi(<InboxView />);
   expect(await screen.findByText('€27.95 · Size 11/12 years (148 cm)')).toBeTruthy();
   expect(screen.getByText('Pink zip-up hoodie and wide-leg trousers set')).toBeTruthy();
+  // No photo read yet: the hanger.
+  expect(screen.queryByTestId('receipt-photo-0')).toBeNull();
+});
+
+// Once Robes has read the line's photo (her own stored copy), it stands in for the hanger.
+test('a line shows its photo once it is read', async () => {
+  mockFetch({
+    'GET /inbox': (_init: RequestInit, url: string) =>
+      url.includes('state=added') || url.includes('state=discarded')
+        ? receipts([])
+        : receipts([
+            {
+              index: 0,
+              label: 'Black flare leggings',
+              brand: 'Zara',
+              price: 10.95,
+              currency: 'EUR',
+              size: '6/7 years (122 cm)',
+              sourceUrl: null,
+              image: {
+                assetId: '99999999-9999-4999-8999-999999999999',
+                status: 'ready',
+                width: 400,
+                height: 500,
+                blurhash: null,
+                renditions: [
+                  {
+                    width: 320,
+                    avif: 'https://media.robes.test/a.avif',
+                    webp: 'https://media.robes.test/a.webp',
+                  },
+                ],
+              },
+            },
+          ] as unknown as typeof entry.items),
+    'GET /me/inbox-address': errorReply(404, 'not_found'),
+  });
+  await renderWithApi(<InboxView />);
+  expect(await screen.findByTestId('receipt-photo-0')).toBeTruthy();
+  expect(screen.getByText('Black flare leggings')).toBeTruthy();
 });
 
 test('ADDED and DISCARDED list what was decided, without the × and ✓', async () => {

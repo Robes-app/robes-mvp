@@ -84,7 +84,8 @@ export class WorkersStack extends RobesStack {
       },
       maintenance: {
         secrets: db,
-        sendTo: ['jobs-interactive', 'jobs-batch', 'notify'],
+        // fetch: the hourly receipt-photos task asks the isolated fetcher (SEC-40) for photos.
+        sendTo: ['jobs-interactive', 'jobs-batch', 'notify', 'fetch'],
         s3: [
           {
             actions: ['s3:DeleteObject', 's3:DeleteObjectVersion'],
@@ -96,14 +97,15 @@ export class WorkersStack extends RobesStack {
         listBucket: true,
       },
       // Forwarded receipts: reads the raw mail SES stored, reads it with Gemini, files it to
-      // the Inbox and sends the "receipt read" email. No links in the mail are followed.
+      // the Inbox and sends the "receipt read" email. It follows no link in the mail: each
+      // line's product photo is a message to the isolated fetcher (SEC-40).
       inbound: {
         secrets: {
           ...db,
           GEMINI_API_KEY_SECRET_ARN: secrets.geminiApiKey,
           UNSUB_HMAC_KEY_SECRET_ARN: secrets.unsubHmacKey,
         },
-        sendTo: [],
+        sendTo: ['fetch'],
         s3: [{ actions: ['s3:GetObject'], prefixes: [INBOUND_PREFIX] }],
         sendEmail: true,
       },
