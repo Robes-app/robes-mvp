@@ -5,22 +5,28 @@ import { you } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
-import { PHOTO_ACCEPT, uploadPhoto } from '@/lib/upload';
+import { uploadPhoto } from '@/lib/upload';
 import { useJob } from '@/lib/use-job';
 
 const copy = you.style;
 // The read's job, carried in the address from the camera to Your digital twin.
 export const READ_PARAM = 'read';
+export const SELFIE_ROUTE = '/you/selfie';
 
-// The one door to her twin (plan 2026-11-05 §2.6), behind every selfie button: the front camera
-// on a phone (`capture="user"`), the file picker on a laptop; the photograph uploaded as her
-// close-up and read for her colouring; then Your digital twin at once, the read's job in the
-// address so that page can draw her when it lands. Native twin: mobile/src/features/you/use-selfie.ts.
-export function useSelfie(): {
-  start: () => void;
-  field: ReactNode;
+// The one door to her twin (plan 2026-11-05 §2.6), behind every selfie button: the selfie camera
+// (designs 03–05), her photos a tap away. Native twin: mobile/src/features/you/use-selfie.tsx.
+export function useSelfie(): { start: () => void } {
+  const router = useRouter();
+  return { start: () => router.push(SELFIE_ROUTE) };
+}
+
+// The photograph she keeps on the review (design 05): uploaded as her close-up and read for her
+// colouring, then Your digital twin with the read's job in the address so that page follows the
+// read (and her twin, which draws alongside it).
+export function useSelfieSend(): {
+  send: (photo: File) => Promise<void>;
   busy: boolean;
   error: string | null;
 } {
@@ -28,41 +34,23 @@ export function useSelfie(): {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const input = useRef<HTMLInputElement>(null);
-
-  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  async function send(photo: File) {
+    if (busy) return;
     setError(null);
     setBusy(true);
     try {
-      const asset = await uploadPhoto(api, file, 'headshot');
+      const asset = await uploadPhoto(api, photo, 'headshot');
       const started = await api.call('me.style.analyse', {
         input: { kind: 'colour', assetId: asset.id },
       });
-      router.push(`/you/model?${READ_PARAM}=${encodeURIComponent(started.jobId)}`);
+      router.replace(`/you/model?${READ_PARAM}=${encodeURIComponent(started.jobId)}`);
     } catch (err) {
       setError(errorCopy(err));
     } finally {
       setBusy(false);
     }
-  };
-
-  const field = (
-    <input
-      ref={input}
-      type="file"
-      accept={PHOTO_ACCEPT}
-      capture="user"
-      className="sr-only"
-      tabIndex={-1}
-      aria-hidden
-      data-testid="selfie-input"
-      onChange={(e) => void onFile(e)}
-    />
-  );
-  return { start: () => input.current?.click(), field, busy, error };
+  }
+  return { send, busy, error };
 }
 
 // Your digital twin, landed on from the camera: follows the read named in the address and, when

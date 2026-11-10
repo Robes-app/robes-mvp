@@ -20,6 +20,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import { Pressable, Text as RNText, ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { errorMessage } from '@/lib/errors';
 import { SettingsGroup, SettingsRow } from './Settings';
 import {
@@ -31,6 +32,7 @@ import {
   useDrawTwin,
   useModel,
   useModelPick,
+  useTwinStatus,
 } from './twin';
 import { useSelfie, useSelfieRead } from './use-selfie';
 
@@ -70,7 +72,7 @@ export function Model() {
   const colour = style.data.colour;
   const line = lineSummary(dna.data.facts);
   const drewHer = twinRead(model, dna.data.facts);
-  const error = read.error ?? selfie.error;
+  const error = read.error;
   const doors = (
     <>
       <SettingsRow
@@ -98,7 +100,7 @@ export function Model() {
         model={model}
         facts={dna.data.facts}
         read={drewHer}
-        reading={read.reading || selfie.busy}
+        reading={read.reading}
         onRetake={onRobes ? undefined : selfie.start}
       />
       <View className="gap-5 px-6 pt-3">
@@ -109,8 +111,6 @@ export function Model() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${tw.addSelfie}, ${tw.addSelfieSub}`}
-              accessibilityState={{ disabled: selfie.busy }}
-              disabled={selfie.busy}
               onPress={selfie.start}
               className="min-h-[62px] flex-row items-center gap-3.5 rounded-soft border border-warm-line px-4 py-3"
               style={{ borderStyle: 'dashed' }}
@@ -149,7 +149,6 @@ export function Model() {
           </>
         )}
       </View>
-      {selfie.chooser}
     </ScrollView>
   );
 }
@@ -195,7 +194,8 @@ function Stage({
   const failed =
     !onRobes &&
     (model.twin.status === 'failed' || (!model.twin.imageUrl && model.cell.status === 'failed'));
-  const chip = reading ? tw.reading : drawing ? tw.drawing : null;
+  const chip = useTwinStatus(reading, drawing);
+  const insets = useSafeAreaInsets();
   const caps = (text: string) => (
     <RNText
       maxFontSizeMultiplier={maxFontSizeMultiplier.label}
@@ -252,12 +252,15 @@ function Stage({
           </View>
         ) : null}
         {chip ? (
-          // The chip on the stage while she is drawn (legacy .mv-photo-busy).
+          // The status on the stage while she is read and drawn (designs 06–07): a dot and one
+          // line, level with the back disc.
           <View
-            className="absolute right-3.5 h-7 justify-center rounded-pill bg-veil px-3"
-            style={{ top: 14 + 44 }}
+            className="absolute right-3.5 h-8 flex-row items-center gap-2.5 rounded-pill bg-veil px-3.5"
+            style={{ top: insets.top + 20 }}
             accessibilityLiveRegion="polite"
+            testID="twin-status"
           >
+            <View className="size-1.5 rounded-pill bg-accent-warm" />
             {caps(chip)}
           </View>
         ) : null}

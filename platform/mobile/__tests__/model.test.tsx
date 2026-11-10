@@ -1,6 +1,5 @@
 import { diary, twin } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { BodyShape } from '../src/features/you/BodyShape';
 import { Colouring } from '../src/features/you/Colouring';
 import { Model } from '../src/features/you/Model';
@@ -11,13 +10,6 @@ import { mockParams, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
-jest.mock('expo-image-picker', () => ({
-  CameraType: { front: 'front', back: 'back' },
-  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
-  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
-  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: true })),
-  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
-}));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -55,14 +47,9 @@ test('on a Robes model (3c): its portrait, Add a selfie, the lineup, the doors c
   expect(await screen.findByText(tw.robesModel, {}, { timeout: 4000 })).toBeTruthy();
   expect(screen.queryByText(tw.stageEmpty)).toBeNull();
   await waitFor(() => expect(twinCalls(calls)).toHaveLength(1));
-  // The one commitment is the selfie: a choice of the front camera or her photos (redlines).
+  // The one commitment is the selfie: the selfie camera, her photos a tap away (designs 03–04).
   await fireEvent.press(screen.getByTestId('twin-add-selfie'));
-  await fireEvent.press(await screen.findByTestId('selfie-camera'));
-  await waitFor(() =>
-    expect(ImagePicker.launchCameraAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ cameraType: 'front' }),
-    ),
-  );
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/selfie');
   expect(screen.getByTestId('twin-robes-tag')).toBeTruthy();
   // Colouring and Body shape are the twin's: no door opens, nothing is said under them.
   expect(screen.queryByRole('button', { name: new RegExp(tw.bodyShape) })).toBeNull();
@@ -113,11 +100,9 @@ test('on her own twin (3d): the retake, the doors open, herself first in the lin
     checked: true,
   });
   expect(screen.getByTestId('lineup-1').props.accessibilityState).toMatchObject({ checked: false });
-  // R15: the redraw control opens the chooser; her photos are a way in too.
+  // R15: the redraw control opens the selfie camera.
   await fireEvent.press(screen.getByTestId('twin-retake'));
-  await fireEvent.press(await screen.findByTestId('selfie-library'));
-  await waitFor(() => expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled());
-  expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled();
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/selfie');
   // A Robes model chosen over her: her selfie and twin stay; the pick is all that changes, and
   // the page turns to the Robes model's (3c) — no retake there.
   await fireEvent.press(screen.getByRole('radio', { name: diary.dayOne.modelPick(2) }));
@@ -176,7 +161,9 @@ test('says so while her twin is being drawn, and shows the twin over the catalog
   });
   mockFetch({ ...TWIN, 'GET /me/model': drawing, 'POST /me/model/twin': drawing });
   await renderWithApi(<Model />);
-  expect(await screen.findByText(tw.drawing)).toBeTruthy();
+  // A redraw with no selfie starts the stage's status at the drawing (designs 06–07).
+  expect(await screen.findByText(tw.status[2])).toBeTruthy();
+  expect(screen.getByTestId('twin-status')).toBeTruthy();
   expect(screen.getByText(tw.caption('Tan', 'Espresso'))).toBeTruthy();
 });
 
@@ -291,6 +278,5 @@ test('colouring with no read yet: the camera is still the one way to a season', 
   expect(await screen.findByText(tw.addSeason)).toBeTruthy();
   expect(screen.getByText(tw.skinAndHairHand)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: tw.addSelfie }));
-  await fireEvent.press(await screen.findByTestId('selfie-camera'));
-  await waitFor(() => expect(ImagePicker.launchCameraAsync).toHaveBeenCalled());
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/selfie');
 });

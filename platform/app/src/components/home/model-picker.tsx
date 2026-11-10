@@ -5,7 +5,7 @@ import type { Model } from '@robes/contracts';
 import { diary } from '@robes/copy';
 import { lineupOrder } from '@robes/core/avatar';
 import { Icon } from '@robes/icons/web';
-import { ErrorText, Sheet, useToast } from '@robes/ui';
+import { Sheet, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { errorCopy } from '@/lib/error-copy';
 import { useSelfie } from '@/lib/use-selfie';
@@ -56,8 +56,11 @@ export function ModelPicker({
           <li>
             <button
               type="button"
-              onClick={selfie.start}
-              disabled={selfie.busy}
+              onClick={() => {
+                onClose();
+                selfie.start();
+              }}
+              data-testid="model-own"
               className={`flex h-[120px] w-24 shrink-0 flex-col items-center justify-center gap-2 rounded-thumb border border-cream400 border-dashed bg-surface px-2 ${focus}`}
             >
               <span className="flex size-12 items-center justify-center rounded-pill bg-surface-raised text-ink-muted">
@@ -104,8 +107,6 @@ export function ModelPicker({
             );
           })}
         </ul>
-        {selfie.error ? <ErrorText>{selfie.error}</ErrorText> : null}
-        {selfie.field}
       </div>
     </Sheet>
   );

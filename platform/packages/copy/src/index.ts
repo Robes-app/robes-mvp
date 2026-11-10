@@ -1729,19 +1729,34 @@ export const twin = {
     addSelfieSub: 'Create your digital twin.',
     // The one way to another selfie: the redraw control on her twin's hero (redlines R15).
     retake: 'Retake selfie to update your twin',
-    // Take one or choose one (the design's selfie screen offers the library too).
-    selfieCamera: 'Take a selfie',
-    selfieLibrary: 'Choose from your photos',
+    // The selfie camera, its photo picker and the review (designs 03–05, Annie 10 Nov).
+    selfie: {
+      title: 'Selfie',
+      hint: 'Hair back · No glasses · Chin level',
+      close: 'Close the camera',
+      shutter: 'Take the selfie',
+      photos: 'Choose from your photos',
+      flip: 'Switch camera',
+      review: 'Your selfie',
+      reviewNote: 'Only used to draw your twin',
+      retake: 'Retake',
+      use: 'Use photo',
+    },
     lineup: 'Choose a model',
     you: 'You',
-    // While her selfie reads and her twin draws (design 3d lands with the read).
-    reading: 'Reading your selfie…',
+    // The stage while her selfie reads and her twin draws (designs 06–07), one line at a time;
+    // the last holds until her twin lands. A redraw with no selfie starts at the drawing.
+    status: [
+      'Reading your selfie',
+      'Reading your colouring',
+      'Drawing your model',
+      'Finishing your twin',
+    ],
     fewerSeasons: 'Fewer seasons',
     // The caption under her model: colour words only, never a shape.
     // Only what she chose or a close-up read: an unchosen skin or hair has no name to show.
     caption: (skin: string, hair: string): string =>
       [skin, hair ? `${String(hair).toLowerCase()} hair` : ''].filter(Boolean).join(' · '),
-    drawing: 'Drawing your model…',
     twinFailed:
       'Robes couldn’t photograph your model just now. A close-up in daylight, facing the camera, helps.',
     season: 'Your season',
