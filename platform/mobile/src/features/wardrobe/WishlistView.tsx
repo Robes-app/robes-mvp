@@ -11,10 +11,16 @@ import { useWardrobeFilters } from '@/features/filters/use-wardrobe-filters';
 import { errorMessage } from '@/lib/errors';
 import { AddPiecesSheet } from './add/AddPiecesSheet';
 import { useWardrobeLayout } from './layout';
-import { BoughtButton, CardRow, type CardStatus, CardTile, HeartButton } from './PieceCard';
+import { CardRow, type CardStatus, CardTile, HeartButton, type RowMeta } from './PieceCard';
 import { CountRow } from './WardrobeHeader';
 import { WardrobeFilterSheet, wearChoicesOf } from './WardrobeView';
-import { usePromoteWish, useRemoveWish, useWishes } from './wishlist';
+import { useRemoveWish, useWishes } from './wishlist';
+
+// A wish's row says its price (or that it isn't hers yet) at the right.
+function wishMeta(wish: Wish): RowMeta {
+  const price = formatPrice(wish.price, wish.currency);
+  return price ? { text: price, label: price } : { label: copy.card.notYours(null) };
+}
 
 function wishStatus(wish: Wish): CardStatus {
   return { text: formatPrice(wish.price, wish.currency) ?? copy.card.notYours(null), warm: true };
@@ -45,7 +51,6 @@ export function WishlistView() {
   const [adding, setAdding] = useState(false);
   const { wishes, isPending, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage } =
     useWishes();
-  const promote = usePromoteWish();
   const remove = useRemoveWish();
   const [layout, setLayout] = useWardrobeLayout();
   const filters = useWardrobeFilters();
@@ -112,7 +117,7 @@ export function WishlistView() {
         keyExtractor={(w) => w.id}
         numColumns={grid ? 3 : 1}
         {...(grid ? { columnWrapperClassName: 'gap-2' } : {})}
-        contentContainerClassName={grid ? 'gap-2 px-5 pt-3 pb-8' : 'gap-2 px-5 pt-3 pb-8'}
+        contentContainerClassName={grid ? 'gap-2 px-5 pt-3 pb-8' : 'gap-[3px] px-5 pt-3 pb-8'}
         keyboardShouldPersistTaps="handled"
         onEndReachedThreshold={0.5}
         onEndReached={() => (hasNextPage ? void fetchNextPage() : undefined)}
@@ -134,19 +139,23 @@ export function WishlistView() {
               }
             />
           ) : (
+            // The shared piece row (canvas 3b): the price, then the rose heart that lets it go.
             <CardRow
               piece={item}
-              status={wishStatus(item)}
-              onOpen={() => router.push({ pathname: '/wish/[id]', params: { id: item.id } })}
+              maker={item.brand ?? item.sourceLabel ?? ''}
+              meta={wishMeta(item)}
               action={
-                <BoughtButton
-                  label={item.label}
-                  busy={promote.isPending && promote.variables?.params.id === item.id}
-                  onBought={() => promote.mutate({ params: { id: item.id } })}
+                <HeartButton
+                  onRow
+                  label={copy.wishlist.unwish(item.label)}
+                  onPress={() => remove.mutate({ params: { id: item.id } })}
                 />
               }
-              removeLabel={copy.wishlist.remove(item.label)}
-              onRemove={() => remove.mutate({ params: { id: item.id } })}
+              onOpen={() => router.push({ pathname: '/wish/[id]', params: { id: item.id } })}
+              swipe={{
+                label: copy.wishlist.remove(item.label),
+                onRemove: () => remove.mutate({ params: { id: item.id } }),
+              }}
             />
           )
         }

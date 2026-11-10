@@ -8,20 +8,20 @@ import { suggestPieceName } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
 import { Eyebrow, Text } from '@robes/ui';
 import { type ReactNode, useId } from 'react';
-import { PatternSwatch, ShadeSwatch } from './colour-field';
 import type { PieceField } from './piece-field-sheet';
 
 const copy = wardrobe.piece;
 const fields = wardrobe.fields;
 
-// One piece anatomy (legacy Piece_Sheet 01): every fact is a row under a named section, and a
-// tap opens that one field's drawer. Nothing on the record is a form. Resting rows sit on white with
-// a hairline; the warm edge means selected, and no row is selected.
+// One piece anatomy (legacy Piece_Sheet 01; drawn as the Front Door canvas 3b, PRD §7.3): every
+// fact is a row in one white card, a small-caps label at the left and the value at the right
+// ("Add" while nothing is filed), then › for a row that opens a picker or ✎ for one she types.
+// Nothing on the record is a form. Native twin: PieceRows.tsx.
 export function PieceSection({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
       {title ? <Eyebrow>{title}</Eyebrow> : null}
-      <div className="flex flex-col divide-y divide-hairline overflow-hidden rounded-crisp border border-hairline bg-surface-raised">
+      <div className="flex flex-col divide-y divide-hairline overflow-hidden rounded-[12px] border border-rule-mid bg-surface-raised">
         {children}
       </div>
     </section>
@@ -31,22 +31,20 @@ export function PieceSection({ title, children }: { title?: string; children: Re
 export function PieceRow({
   label,
   value,
-  hint,
-  swatch,
   check,
   onClick,
+  edit = false,
   children,
 }: {
   label: string;
-  // What is filed, in ink.
+  // What is filed; an empty row that opens reads "Add".
   value?: string | null;
-  // What an empty row offers instead, in the faint ink ("e.g. Toteme", "Choose", "Optional").
-  hint?: string;
-  swatch?: ReactNode;
   // Robes' read here is a guess she should look at: the rose "Check" mark, with its reason.
   check?: string | undefined;
   // No handler means the row is a fact, not a door: no chevron, nothing to press.
   onClick?: () => void;
+  // A field she types (Name, Price, Notes): ✎ in place of ›.
+  edit?: boolean;
   // A longer answer (a note) sits under the row's own line.
   children?: ReactNode;
 }) {
@@ -54,33 +52,31 @@ export function PieceRow({
   const body = (
     <>
       {/* The label never gives way: the value yields its width and ends in an ellipsis. */}
-      <span className="flex min-w-0 items-center gap-3">
-        <Text as="span" size="small" className="shrink-0 whitespace-nowrap">
+      <span className="flex min-h-12 min-w-0 items-center gap-3">
+        <span className="shrink-0 whitespace-nowrap font-medium font-sans text-[10px] text-ink-faint uppercase tracking-[0.2em]">
           {label}
-        </Text>
+        </span>
         {check ? (
           <span className="shrink-0 font-sans text-accent-warm text-xs" title={check}>
             {copy.check}
             <span className="sr-only">{`: ${check}`}</span>
           </span>
         ) : null}
-        <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
-          {swatch}
-          <Text
-            as="span"
-            size="small"
-            tone={filled ? 'default' : 'faint'}
-            className="min-w-0 truncate text-right"
-          >
-            {value || (onClick ? (hint ?? fields.hints.optional) : '')}
-          </Text>
+        <span
+          className={`min-w-0 flex-1 truncate text-right font-sans text-[14px] ${
+            filled ? 'text-ink-faint' : 'font-medium text-ink-muted'
+          }`}
+        >
+          {value || (onClick ? copy.add : '')}
         </span>
-        {onClick ? <Icon name="forward" size={15} className="shrink-0 text-ink-faint" /> : null}
+        {onClick ? (
+          <Icon name={edit ? 'pencil' : 'forward'} size={14} className="shrink-0 text-ink-faint" />
+        ) : null}
       </span>
       {children}
     </>
   );
-  const shell = 'flex min-h-12 flex-col gap-1 px-4 py-3 text-left';
+  const shell = 'flex flex-col px-4 text-left';
   if (!onClick) return <div className={shell}>{body}</div>;
   return (
     <button
@@ -181,14 +177,12 @@ export function RecordRows({
   // One tab's rows alone, in one box without an eyebrow (the piece page's PIECE · COLOUR ·
   // WEARING, PRD rev 3 §7.3): the Name row leads PIECE, Size · Price · Notes close it.
   only?: RecordTab;
-  // A wish (§7.3): Shop (the retailer) where an owned piece has its brand.
+  // A wish (§7.3): Brand and Shop (the retailer); its Seasons and Wear it for wait for their data.
   wish?: boolean;
   // The WEARING tab's own rows (Worn, In looks), ahead of Seasons and Wear it for.
   wearing?: ReactNode;
 }) {
   const mainShade = shade(values.colourShade);
-  // Each additional colour shows its own dot, and the print its own square, beside the names
-  // (beta's rows): a colour is read at a glance, never only spelled out.
   const extraShades = values.colourExtra.flatMap((x) => {
     const found = shade(x);
     return found ? [found] : [];
@@ -198,17 +192,15 @@ export function RecordRows({
   const v = (value: string | null | undefined) => (reading ? wardrobe.add.review.reading : value);
   const open = (field: PieceField) => (reading ? undefined : () => onField(field));
   const brandRow = wish ? (
-    <PieceRow
-      label={copy.rows.shop}
-      value={v(values.sourceLabel)}
-      hint={fields.hints.brand}
-      onClick={open('shop')}
-    />
+    // A wish keeps its brand and adds the shop it's from (Annie, 9 Nov; canvas 3b draws Shop).
+    <>
+      <PieceRow label={copy.brand} value={v(values.brand)} onClick={open('brand')} />
+      <PieceRow label={copy.rows.shop} value={v(values.sourceLabel)} onClick={open('shop')} />
+    </>
   ) : (
     <PieceRow
       label={copy.brand}
       value={v(values.brand)}
-      hint={fields.hints.brand}
       check={values.brandCheck && !reading ? copy.brandCheck : undefined}
       onClick={open('brand')}
     />
@@ -219,6 +211,7 @@ export function RecordRows({
       label={copy.rows.price}
       value={v(money(values.price, values.currency))}
       onClick={open('price')}
+      edit
     />
   );
   // A filled note prints beneath, and the row's own value says the door is to change it.
@@ -227,43 +220,26 @@ export function RecordRows({
       label={copy.rows.notes}
       value={v(values.notes ? fields.edit : null)}
       onClick={open('notes')}
+      edit
     >
       {values.notes && !reading ? (
-        <Text size="small" tone="muted" italic className="pr-6">
+        <Text size="small" tone="muted" italic className="pr-6 pb-3">
           {values.notes}
         </Text>
       ) : null}
     </PieceRow>
   );
+  // The canvas's COLOUR tab (3b): four rows of words, each a door to its picker.
   const colourRows = (
     <>
       <PieceRow
         label={copy.rows.colour}
         value={v(mainShade?.name ?? null)}
-        swatch={mainShade && !reading ? <ShadeSwatch shade={mainShade} size={18} /> : undefined}
         check={values.colourCheck && !reading ? wardrobe.colour.check : undefined}
         onClick={open('colour')}
       />
-      <PieceRow
-        label={copy.rows.extra}
-        value={v(extras)}
-        swatch={
-          extraShades.length && !reading ? (
-            <span className="flex shrink-0 items-center gap-1">
-              {extraShades.map((x) => (
-                <ShadeSwatch key={x.id} shade={x} size={18} />
-              ))}
-            </span>
-          ) : undefined
-        }
-        onClick={open('extra')}
-      />
-      <PieceRow
-        label={copy.rows.print}
-        value={v(print?.name ?? wardrobe.colour.plain)}
-        swatch={print && !reading ? <PatternSwatch pattern={print} size={18} /> : undefined}
-        onClick={open('print')}
-      />
+      <PieceRow label={copy.rows.extra} value={v(extras)} onClick={open('extra')} />
+      <PieceRow label={copy.rows.print} value={v(print?.name ?? null)} onClick={open('print')} />
       <PieceRow
         label={copy.rows.material}
         value={v(material(values.material)?.name ?? null)}
@@ -272,24 +248,30 @@ export function RecordRows({
       />
     </>
   );
+  // A wish's Seasons and Wear it for stand in the design but wait for their data (Annie, 9 Nov:
+  // the fields are drawn, not yet filed), so on a wish they are facts, not doors.
+  const wearOpen = (field: PieceField) => (wish ? undefined : open(field));
   const wearingRows = (
     <>
-      <PieceRow label={copy.rows.season} value={v(seasonsLine(values))} onClick={open('season')} />
+      <PieceRow
+        label={copy.rows.season}
+        value={v(seasonsLine(values))}
+        onClick={wearOpen('season')}
+      />
       <PieceRow
         label={copy.rows.wearFor}
-        value={v(values.wearFor.join(' · '))}
-        onClick={open('wearFor')}
+        value={v(values.wearFor.join(' · ') || (wish ? copy.none : null))}
+        onClick={wearOpen('wearFor')}
       />
     </>
   );
   if (only === 'piece') {
     return (
       <PieceSection>
-        <PieceRow label={copy.label} value={v(values.label)} onClick={open('label')} />
+        <PieceRow label={copy.label} value={v(values.label)} onClick={open('label')} edit />
         <PieceRow
           label={copy.rows.category}
           value={v(categoryLeaf(values))}
-          hint={fields.hints.category}
           onClick={open('category')}
         />
         {brandRow}
@@ -323,12 +305,11 @@ export function RecordRows({
             onChange={onName}
           />
         ) : withName ? (
-          <PieceRow label={copy.label} value={v(values.label)} onClick={open('label')} />
+          <PieceRow label={copy.label} value={v(values.label)} onClick={open('label')} edit />
         ) : null}
         <PieceRow
           label={copy.rows.category}
           value={v(categoryLeaf(values))}
-          hint={fields.hints.category}
           onClick={open('category')}
         />
         {brandRow}

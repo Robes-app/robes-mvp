@@ -357,7 +357,6 @@ export const wardrobe = {
     stylePiece: 'Style this piece',
     // The record door leads with the photograph (legacy bc56305): the name carries a pencil
     // and the brand is its own tappable line, empty or not.
-    editName: 'Edit the name',
     addBrand: 'Add the brand',
     // Robes named the house from the design, not a label it could read.
     brandCheck: 'Robes named this brand from the design. Check it.',
@@ -405,13 +404,15 @@ export const wardrobe = {
     delete: 'Delete piece',
     deleteTitle: 'Delete this piece?',
     deleteBody: 'It will be removed from your wardrobe and from any looks it’s in.',
+    deleteWishBody: 'It will be removed from your wishlist.',
     deleteConfirm: 'Delete',
     cancel: 'Cancel',
-    // A wish's page (§7.3): the same anatomy, Bought where Delete sits.
-    removeWish: 'Remove from wishlist',
+    // A wish's page (§7.3): the same anatomy, Bought and Delete piece at the foot.
     openShop: 'Open the shop page',
     // What a row says when there is nothing filed yet — a door, not a blank.
     add: 'Add',
+    // A row that is a fact with nothing to say yet (a wish's Wear it for, In looks).
+    none: '—',
     // Robes' read on this row is a guess she should look at (until she touches it).
     check: 'Check',
     saveField: 'Save',
@@ -453,7 +454,6 @@ export const wardrobe = {
   // The piece record's rows and their one-field drawers (redline audit "Add a piece", 26 Oct).
   fields: {
     // What an empty row offers, in the faint ink, instead of a column of "Add".
-    hints: { brand: 'e.g. Toteme', category: 'Choose', optional: 'Optional' },
     // A filled Notes row: the note prints beneath, the row is the door to change it.
     edit: 'Edit',
     name: { placeholder: 'What is it?' },
@@ -501,10 +501,12 @@ export const wardrobe = {
     grid: 'Grid',
     list: 'List',
   },
-  // The piece card (legacy b4b051a): eyebrow, serif name, status line, the star or Bought.
+  // The piece card and row (legacy b4b051a; Front Door canvas 3b).
   card: {
     worn: (n: number): string => `Worn ${n}×`,
     neverWorn: 'Never worn',
+    // A row's meta before the first wear (PRD rev 3 §7.2).
+    new: 'New',
     notYours: (price: string | null): string =>
       price ? `${price} · Not yours yet` : 'Not yours yet',
     star: (label: string): string => `Feature ${label} in your Hero Rack`,
@@ -512,8 +514,6 @@ export const wardrobe = {
     starred: 'Saved to your Hero Rack.',
     unstarred: 'Removed from your Hero Rack.',
     heroFull: 'The Hero Rack holds ten. Remove one first.',
-    bought: 'Bought',
-    boughtLabel: (label: string): string => `I bought ${label}`,
     swipeRemove: 'Remove',
     swipeDelete: 'Delete',
     addRow: 'Add a piece',
@@ -711,13 +711,8 @@ export const wardrobe = {
   },
 } as const;
 
-// SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.
+// SEC-84: answered in You › Privacy (the web's banner is gone, Annie 9 Nov).
 export const consent = {
-  bannerTitle: 'Help shape Robes.',
-  bannerBody:
-    'May Robes count which screens you open and what you tap? It never sees your photos, words or email.',
-  allow: 'Allow',
-  decline: 'Don’t allow',
   failed: 'Robes couldn’t save that. Try again in a moment.',
   privacyEyebrow: 'You',
   privacyTitle: 'Privacy.',

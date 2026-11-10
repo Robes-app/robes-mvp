@@ -21,16 +21,28 @@ import { errorCopy } from '@/lib/error-copy';
 import { anyReading } from '@/lib/wardrobe';
 import { AddPiecesSheet } from './add/add-pieces-sheet';
 import { DeletePieceDialog } from './delete-piece-dialog';
-import { AddCard, CardRow, type CardStatus, CardTile, StarButton } from './piece-card';
+import { AddCard, CardRow, type CardStatus, CardTile, cardLines, type RowMeta } from './piece-card';
 import { PieceImage } from './piece-image';
 import { useWardrobeLayout } from './use-layout';
 import { useRemovePiece } from './use-remove-piece';
-import { useStarPiece } from './use-star-piece';
 import { AddCircle, CountRow, WardrobeHeader } from './wardrobe-header';
 
 const PAGE_SIZE = 30;
 const READING_REFRESH_MS = 2000;
 const SKELETON_SLOTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
+
+// A piece's row says its wears behind the calendar, or "New" before the first (PRD rev 3 §7.2).
+// The native twin is pieceMeta in WardrobeView.tsx.
+function pieceMeta(piece: Piece): RowMeta | null {
+  if (piece.status !== 'ready') return null;
+  return piece.wearCount > 0
+    ? {
+        icon: 'calendar',
+        text: String(piece.wearCount),
+        label: wardrobe.card.worn(piece.wearCount),
+      }
+    : { text: wardrobe.card.new, label: wardrobe.card.neverWorn };
+}
 
 function pieceStatus(piece: Piece): CardStatus {
   if (piece.status === 'reading') return { text: wardrobe.reading, warm: false };
@@ -155,7 +167,6 @@ export function PieceGrid() {
     // Pieces fill in as their photos are read.
     refetchInterval: (q) => (anyReading(q.state.data?.pages) ? READING_REFRESH_MS : false),
   });
-  const { toggle: toggleStar } = useStarPiece();
   const sentinel = useRef<HTMLDivElement>(null);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
 
@@ -269,7 +280,7 @@ export function PieceGrid() {
           aria-label={wardrobe.segments.pieces}
           className={
             list
-              ? 'grid grid-cols-1 gap-2 md:grid-cols-[repeat(auto-fill,minmax(360px,1fr))] md:gap-x-3.5'
+              ? 'grid grid-cols-1 gap-[3px] md:grid-cols-[repeat(auto-fill,minmax(360px,1fr))] md:gap-x-3.5'
               : 'grid grid-cols-3 gap-2 md:grid-cols-4 md:gap-3 lg:grid-cols-6'
           }
         >
@@ -279,7 +290,6 @@ export function PieceGrid() {
                 piece={piece}
                 layout={list ? 'list' : 'grid'}
                 priority={i < 6}
-                onStar={() => toggleStar(piece)}
                 onRemove={() => setAsking(piece.id)}
               />
             </li>
@@ -318,30 +328,30 @@ function PieceCard({
   piece,
   layout,
   priority,
-  onStar,
   onRemove,
 }: {
   piece: Piece;
   layout: WardrobeLayout;
   priority: boolean;
-  onStar: () => void;
   onRemove: () => void;
 }) {
   const href = `/piece/${piece.id}`;
   const status = pieceStatus(piece);
   if (layout === 'list') {
     return (
+      // The shared piece row (canvas 3b): its wears at the right; the Hero Rack star lives on the
+      // piece's page now (Annie, 9 Nov).
       <CardRow
         piece={piece}
         href={href}
-        status={status}
         thumb={<PieceImage piece={piece} sizes="52px" priority={priority} />}
-        action={
-          <StarButton label={piece.label} on={piece.heroPosition !== null} onToggle={onStar} />
-        }
-        removeText={wardrobe.card.swipeDelete}
-        removeLabel={wardrobe.deletePiece(piece.label)}
-        onRemove={onRemove}
+        meta={pieceMeta(piece)}
+        lines={piece.status === 'ready' ? null : cardLines({ piece, status }).status}
+        swipe={{
+          text: wardrobe.card.swipeDelete,
+          label: wardrobe.deletePiece(piece.label),
+          onRemove,
+        }}
       />
     );
   }

@@ -65,12 +65,12 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
   const piece = await (
     await page.request.post('/api/v1/wardrobe/items', { data: { label: 'Navy blazer' } })
   ).json();
-  await page.goto(`/piece/${piece.id}`);
-  // The piece page's door opens the new-look box with the piece inside it; Send styles three
-  // looks around it (the balance question went with the Shop toggle, plan 2026-11-09 R1).
-  await page.getByRole('button', { name: 'Style this piece' }).click();
-  await expect(page.getByTestId('box-piece')).toContainText('Navy blazer');
-  await page.getByRole('button', { name: 'Send' }).click();
+  expect(piece.id).toBeTruthy();
+  // Create › Style a piece: the piece picked from her wardrobe, styled three ways around it (the
+  // piece page carries no styling buttons since canvas 3b, Annie 9 Nov).
+  await page.goto('/looks/style');
+  await page.getByRole('button', { name: 'Navy blazer' }).click();
+  await page.getByRole('button', { name: 'Style it' }).click();
   await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Around your navy blazer')).toBeVisible({ timeout: 30_000 });
   await deckLive(page);

@@ -7,10 +7,7 @@ import {
   Button,
   EmptyState,
   ErrorText,
-  Heading,
-  IconButton,
   Image,
-  PrimaryScope,
   Sheet,
   Skeleton,
   Tabs,
@@ -29,6 +26,7 @@ import { renditionUri } from '@/lib/images';
 import { DeletePieceDialog } from './DeletePieceDialog';
 import { StarButton } from './PieceCard';
 import { type PieceField, PieceFieldSheet } from './PieceFieldSheet';
+import { PieceHeader } from './PieceHeader';
 import { PieceRow, RecordRows, type RecordTab } from './PieceRows';
 import { READING_REFRESH_MS, useDeletePiece, usePiecePhoto, useStarPiece } from './pieces';
 
@@ -41,8 +39,9 @@ const TAB_OF: Record<TabLabel, RecordTab> = {
   [copy.piece.tabs.wearing]: 'wearing',
 };
 
-// The record (legacy Piece_Sheet 01; Front Door PRD rev 3 §7.3): the photograph, her name for it
-// with the pencil on it, then PIECE · COLOUR · WEARING over the record's rows. Every fact is a row
+// The record (legacy Piece_Sheet 01; Front Door canvas 3b, PRD rev 3 §7.3): the bar with her name
+// for it and the Hero Rack star, the photograph edge to edge, then PIECE · COLOUR · WEARING over the
+// record's rows. Every fact is a row
 // that opens its own drawer — there is no form, so what the title says and what a row says can
 // never disagree. Delete piece closes the page, asked first (plan R14). Web twin:
 // app/src/app/(app)/piece/[id]/piece-detail.tsx.
@@ -99,10 +98,23 @@ export function PieceDetail({ id }: { id: string }) {
   const save = (input: UpdatePieceInput) => update.mutate({ params: { id: piece.id }, input });
   return (
     <View className="flex-1">
-      <ScrollView contentContainerClassName="gap-5 px-6 pb-10">
-        {/* The whole cut-out, contained on white in a 4:5 frame: never cropped at the hem. The
+      {/* The canvas's bar (3b): ‹, the name in the serif, the Hero Rack star at the right. Her
+          name for it is edited from the PIECE tab's Name row (✎). */}
+      <PieceHeader
+        title={ready ? piece.label : reading ? copy.newPiece : piece.label}
+        faint={!ready}
+        trailing={
+          <StarButton
+            label={piece.label}
+            on={piece.heroPosition !== null}
+            onToggle={() => star(piece)}
+          />
+        }
+      />
+      <ScrollView contentContainerClassName="gap-5 pb-10">
+        {/* The whole cut-out, edge to edge on white in a 4:5 frame: never cropped at the hem. The
             frame stands without a photo too, so Change photo has a place to sit. */}
-        <View className="relative rounded-crisp border border-hairline bg-surface-raised p-4">
+        <View className="relative bg-surface-raised">
           {shown ? (
             <Image
               source={shown}
@@ -119,86 +131,37 @@ export function PieceDetail({ id }: { id: string }) {
             onPress={() => setChoosing(true)}
           />
         </View>
-        <View className="gap-1.5">
-          <View className="flex-row items-start gap-2">
-            {/* Until Robes has read it, "New piece" is a placeholder, not a fact. */}
-            {ready ? (
-              <Heading size="md" className="min-w-0 flex-1">
-                {piece.label}
-              </Heading>
-            ) : (
-              <Text tone="faint" italic accessibilityRole="header" className="flex-1">
-                {reading ? copy.newPiece : piece.label}
-              </Text>
-            )}
-            {/* The pencil edits the name where it is written, never a field further down. */}
-            <IconButton
-              icon="pencil"
-              label={copy.piece.editName}
-              onPress={() => setField('label')}
-            />
-            <StarButton
-              label={piece.label}
-              on={piece.heroPosition !== null}
-              onToggle={() => star(piece)}
-            />
-          </View>
+        <View className="gap-5 px-5">
           {reading ? <Text tone="muted">{copy.reading}</Text> : null}
           {piece.status === 'failed' ? <ErrorText>{copy.noPieceFound}</ErrorText> : null}
+
+          {/* PIECE · COLOUR · WEARING (PRD §7.3): one tab's rows at a time. */}
+          <Tabs items={TABS} value={tab} onChange={setTab} testID="piece-tabs" />
+          <RecordRows
+            values={piece}
+            onField={setField}
+            only={TAB_OF[tab]}
+            wearing={
+              <WearingRows
+                piece={piece}
+                onWorn={() => setOpen('wears')}
+                onLooks={() => setOpen('looks')}
+              />
+            }
+          />
+          <SuggestedRail pieceId={piece.id} />
+          {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
+
+          {/* Delete piece (§7.3, R14): outline, asked first; the Undo toast still follows. */}
+          <Button
+            variant="outline"
+            onPress={() => setConfirm(true)}
+            testID="delete-piece"
+            accessibilityHint={copy.piece.deleteBody}
+          >
+            {copy.piece.delete}
+          </Button>
         </View>
-
-        <PrimaryScope>
-          <View className="gap-3">
-            <Button
-              icon="looks"
-              disabled={reading}
-              onPress={() =>
-                router.push({ pathname: '/looks/style', params: { pieceId: piece.id } })
-              }
-            >
-              {copy.piece.stylePiece}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={reading}
-              onPress={() =>
-                router.push({
-                  pathname: '/looks/draft/[id]',
-                  params: { id: 'new', pieceId: piece.id },
-                })
-              }
-            >
-              {lookbook.startLook}
-            </Button>
-          </View>
-        </PrimaryScope>
-
-        {/* PIECE · COLOUR · WEARING (PRD §7.3): one tab's rows at a time. */}
-        <Tabs items={TABS} value={tab} onChange={setTab} testID="piece-tabs" />
-        <RecordRows
-          values={piece}
-          onField={setField}
-          only={TAB_OF[tab]}
-          wearing={
-            <WearingRows
-              piece={piece}
-              onWorn={() => setOpen('wears')}
-              onLooks={() => setOpen('looks')}
-            />
-          }
-        />
-        <SuggestedRail pieceId={piece.id} />
-        {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
-
-        {/* Delete piece (§7.3, R14): outline, asked first; the Undo toast still follows. */}
-        <Button
-          variant="outline"
-          onPress={() => setConfirm(true)}
-          testID="delete-piece"
-          accessibilityHint={copy.piece.deleteBody}
-        >
-          {copy.piece.delete}
-        </Button>
       </ScrollView>
       <DeletePieceDialog
         open={confirm}
@@ -303,12 +266,18 @@ function WearingRows({
   const wears = useApi('wardrobe.wears', { params: { id: piece.id } });
   const looks = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId: piece.id } });
   const last = wears.data?.items[0]?.wornOn;
+  // Never worn reads "New" and opens nothing (canvas 3b); worn, the count and the last day.
   const worn = piece.wearCount
     ? lookbook.savedLook.details.wornSummary(piece.wearCount, last ? dayMonth(last) : null)
-    : lookbook.savedLook.details.notWorn;
+    : copy.card.new;
   return (
     <>
-      <PieceRow first label={copy.piece.rows.worn} value={worn} onPress={onWorn} />
+      <PieceRow
+        first
+        label={copy.piece.rows.worn}
+        value={worn}
+        {...(piece.wearCount ? { onPress: onWorn } : {})}
+      />
       <PieceRow
         label={copy.piece.rows.inLooks}
         value={looks.data ? String(looks.data.items.length) : '—'}

@@ -56,14 +56,25 @@ async function watchEvents(page: Page): Promise<{ hits: string[]; events: Captur
   return { hits, events };
 }
 
-// A piece's door → the one question → the deck → the first look, saved and put in today's diary.
-async function saveALook(page: Page): Promise<void> {
+// Create's new-look box with a piece from her wardrobe → the deck → the first look, saved and put
+// in today's diary. (The piece page carries no styling door since canvas 3b; the Create sheet's box
+// is the same box it opened, so the prompt still reads surface create, intent piece.)
+async function saveALook(page: Page, label: string): Promise<void> {
   const piece = await (
-    await page.request.post('/api/v1/wardrobe/items', { data: { label: 'Navy blazer' } })
+    await page.request.post('/api/v1/wardrobe/items', { data: { label } })
   ).json();
-  await page.goto(`/piece/${piece.id}`);
-  await page.getByRole('button', { name: 'Style this piece' }).click();
-  await page.getByRole('button', { name: 'Send' }).click();
+  expect(piece.id).toBeTruthy();
+  // Load afresh so the picker counts the piece just filed behind the page's back.
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Create' }).first().click();
+  const create = page.getByRole('dialog', { name: 'Create' });
+  await create.getByRole('button', { name: 'Add a piece' }).click();
+  await create.getByRole('menuitem', { name: /From your wardrobe/ }).click();
+  const picker = page.getByTestId('piece-picker');
+  await picker.getByRole('button', { name: `Include ${label}` }).click();
+  await picker.getByRole('button', { name: 'Add 1 piece' }).click();
+  await expect(create.getByTestId('box-piece')).toContainText(label);
+  await create.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByTestId(/^deck-card-/)).toBeVisible({ timeout: 30_000 });
   await page.getByTestId(/^deck-card-/).click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
@@ -72,67 +83,34 @@ async function saveALook(page: Page): Promise<void> {
   await expect(page.getByText(/is in your diary for/).first()).toBeVisible();
 }
 
-const banner = (page: Page) => page.getByRole('region', { name: 'Help shape Robes.' });
-
-// The ask waits for her first real moment: a filed piece.
-async function signInWithPiece(page: Page): Promise<void> {
-  await signIn(page);
-  await photographedPiece(page, 'Cream long-sleeve t-shirt');
-  await page.goto('/');
-  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
-}
-
-test('the ask never meets her before a piece is filed', async ({ page }) => {
-  await signIn(page);
-  await page.waitForLoadState('networkidle');
-  await expect(banner(page)).toHaveCount(0);
-});
-
-test('declining hides the banner for good and nothing reaches PostHog', async ({ page }) => {
-  const hits = await watchPostHog(page);
-  await signInWithPiece(page);
-  await expect(banner(page)).toBeVisible();
-  await expect(banner(page).getByRole('button')).toHaveText(['Don’t allow', 'Allow']);
-
-  await banner(page).getByRole('button', { name: 'Don’t allow' }).focus();
-  await page.keyboard.press('Enter');
-  await expect(banner(page)).toBeHidden();
-
-  await page.reload();
-  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
-  await expect(banner(page)).toBeHidden();
-  await page.waitForLoadState('networkidle');
-  expect(hits).toEqual([]);
-  expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
-    analytics: false,
-  });
-});
-
-test('accepting starts PostHog only then, persists, and can be withdrawn', async ({ page }) => {
+// No page asks (the banner is gone, Annie 9 Nov): she answers in You › Privacy.
+test('nothing reaches PostHog until she turns usage counts on, and it stops when she turns them off', async ({
+  page,
+}) => {
   const hits = await watchPostHog(page);
   const violations = watchCsp(page);
-  await signInWithPiece(page);
+  await signIn(page);
+  await photographedPiece(page, 'Cream long-sleeve t-shirt');
   // A full load settles to network idle (a client-side navigation doesn't report it reliably).
-  await page.reload();
-  await expect(banner(page)).toBeVisible();
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
   await page.waitForLoadState('networkidle');
   expect(hits, 'PostHog was contacted before consent').toEqual([]);
+  expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
+    analytics: null,
+  });
 
-  await banner(page).getByRole('button', { name: 'Allow', exact: true }).click();
-  await expect(banner(page)).toBeHidden();
+  await page.goto('/you/privacy');
+  const usage = page.getByRole('switch', { name: /Usage counts/ });
+  await expect(usage).not.toBeChecked();
+  await usage.check();
+  await expect(page.getByRole('status')).toHaveText('Saved.');
   await expect.poll(() => hits.length).toBeGreaterThan(0);
-
-  await page.reload();
-  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
-  await expect(banner(page)).toBeHidden();
   expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
     analytics: true,
     replay: null,
   });
 
-  await page.goto('/you/privacy');
-  const usage = page.getByRole('switch', { name: /Usage counts/ });
-  await expect(usage).toBeChecked();
   await usage.uncheck();
   await expect(page.getByRole('status')).toHaveText('Saved.');
   await expect(page.getByRole('switch', { name: /Screen recordings/ })).toBeDisabled();
@@ -167,7 +145,7 @@ test.describe('product events', () => {
     const { hits, events } = await watchEvents(page);
     await signIn(page);
     // Not yet answered: the whole flow sends nothing.
-    await saveALook(page);
+    await saveALook(page, 'Navy blazer');
     await page.waitForLoadState('networkidle');
     expect(hits, 'PostHog was contacted before consent').toEqual([]);
 
@@ -176,7 +154,8 @@ test.describe('product events', () => {
     });
     expect(res.ok()).toBe(true);
     await page.reload();
-    await saveALook(page);
+    // A second piece, so the picker never shows two of the same name.
+    await saveALook(page, 'Camel coat');
     const sent = (name: string) => events.filter((e) => e.event === name).map((e) => e.properties);
     await expect.poll(() => sent('look_created').length, { timeout: 20_000 }).toBe(1);
     expect(sent('look_created')[0]).toMatchObject({
@@ -197,6 +176,6 @@ test.describe('product events', () => {
     const ours = events
       .filter((e) => !e.event.startsWith('$'))
       .map((e) => Object.entries(e.properties).filter(([k]) => !k.startsWith('$')));
-    expect(JSON.stringify(ours)).not.toMatch(/navy blazer/i);
+    expect(JSON.stringify(ours)).not.toMatch(/navy blazer|camel coat/i);
   });
 });

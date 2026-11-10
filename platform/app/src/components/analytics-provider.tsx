@@ -2,11 +2,9 @@
 
 import { type Analytics, noopAnalytics } from '@robes/analytics';
 import { type BrowserAnalyticsConfig, createBrowserAnalytics } from '@robes/analytics/browser';
-import { useApi } from '@robes/api-client/react';
 import type { Consents, UpdateConsentsInput } from '@robes/contracts';
 import { usePathname } from 'next/navigation';
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { ConsentBanner } from './consent-banner';
 
 type ConsentChange = UpdateConsentsInput['consents'];
 
@@ -29,7 +27,8 @@ export function useAnalytics(): AnalyticsContextValue {
   return useContext(AnalyticsContext);
 }
 
-// SEC-84: PostHog loads only after analytics consent and is torn down when it is withdrawn.
+// SEC-84: PostHog loads only once she turns usage counts on in You › Privacy, and is torn down
+// when she turns them off. Nothing asks for it on a page.
 export function AnalyticsProvider({
   config,
   userId,
@@ -103,21 +102,5 @@ export function AnalyticsProvider({
     [browser, consents],
   );
 
-  // Asked after her first real moment (a piece filed), so the ask has something to stand on;
-  // never during onboarding, nor on the page that already offers the same choice.
-  const unanswered = userId !== null && consents?.analytics === null;
-  const onboarding = pathname.startsWith('/onboarding');
-  const summary = useApi('wardrobe.summary', undefined, {
-    enabled: unanswered && !onboarding,
-    refetchOnMount: 'always',
-  });
-  const asking =
-    unanswered && (summary.data?.total ?? 0) > 0 && !onboarding && pathname !== '/you/privacy';
-
-  return (
-    <AnalyticsContext value={value}>
-      {children}
-      {asking ? <ConsentBanner /> : null}
-    </AnalyticsContext>
-  );
+  return <AnalyticsContext value={value}>{children}</AnalyticsContext>;
 }

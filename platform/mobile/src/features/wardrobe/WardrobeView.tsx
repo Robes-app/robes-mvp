@@ -17,12 +17,20 @@ import { errorMessage } from '@/lib/errors';
 import { AddPiecesSheet } from './add/AddPiecesSheet';
 import { DeletePieceDialog } from './DeletePieceDialog';
 import { useWardrobeLayout } from './layout';
-import { AddRow, CardRow, type CardStatus, CardTile, StarButton } from './PieceCard';
-import { useDeletePiece, usePieces, useStarPiece } from './pieces';
+import { AddRow, CardRow, type CardStatus, CardTile, type RowMeta, Status } from './PieceCard';
+import { useDeletePiece, usePieces } from './pieces';
 import { CountRow, HeaderRow, type Segment } from './WardrobeHeader';
 import { WishlistView } from './WishlistView';
 
 const SEGMENTS: readonly Segment[] = ['pieces', 'wishlist'];
+
+// A piece's row says its wears behind the calendar, or "New" before the first (PRD rev 3 §7.2).
+function pieceMeta(piece: Piece): RowMeta | null {
+  if (piece.status !== 'ready') return null;
+  return piece.wearCount > 0
+    ? { icon: 'calendar', text: String(piece.wearCount), label: copy.card.worn(piece.wearCount) }
+    : { text: copy.card.new, label: copy.card.neverWorn };
+}
 
 function pieceStatus(piece: Piece): CardStatus {
   if (piece.status === 'reading') return { text: copy.reading, warm: false };
@@ -136,7 +144,6 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
     fetchNextPage,
     hasNextPage,
   } = usePieces(filters.input);
-  const star = useStarPiece();
   const remove = useDeletePiece();
   // The row's swipe asks first, as the piece page does (R14).
   const [asking, setAsking] = useState<string | null>(null);
@@ -223,26 +230,24 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
         keyExtractor={(p) => p.id}
         numColumns={grid ? 3 : 1}
         {...(grid ? { columnWrapperClassName: 'gap-2' } : {})}
-        contentContainerClassName={grid ? 'gap-2 px-5 pb-8' : 'gap-2 px-5 pb-8'}
+        contentContainerClassName={grid ? 'gap-2 px-5 pb-8' : 'gap-[3px] px-5 pb-8'}
         renderItem={({ item }) => {
           const open = () => router.push(`/piece/${item.id}`);
           return grid ? (
             <CardTile piece={item} status={pieceStatus(item)} onOpen={open} compact />
           ) : (
+            // The shared piece row (canvas 3b): its wears at the right; the Hero Rack star lives on
+            // the piece's page now (Annie, 9 Nov).
             <CardRow
               piece={item}
-              status={pieceStatus(item)}
-              action={
-                <StarButton
-                  label={item.label}
-                  on={item.heroPosition !== null}
-                  onToggle={() => star(item)}
-                />
-              }
+              meta={pieceMeta(item)}
+              lines={item.status === 'ready' ? null : <Status status={pieceStatus(item)} />}
               onOpen={open}
-              removeText={copy.card.swipeDelete}
-              removeLabel={copy.deletePiece(item.label)}
-              onRemove={() => setAsking(item.id)}
+              swipe={{
+                text: copy.card.swipeDelete,
+                label: copy.deletePiece(item.label),
+                onRemove: () => setAsking(item.id),
+              }}
             />
           );
         }}
