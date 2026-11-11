@@ -1,523 +1,259 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- Primary Title and Meta Description -->
-<title>Robes — Your Personal Stylist & Wardrobe Intelligence App</title>
-<meta name="description" content="Robes is your personal stylist. Edit what you own, rotate underused pieces, and discover key wardrobe pieces to complete a look." />
-
-<!-- Open Graph / Social Media Sharing -->
-<meta property="og:title" content="Robes — Your Personal Stylist & Wardrobe App" />
-<meta property="og:description" content="A web-first wardrobe intelligence platform. Style the wardrobe you already own and curate personalized looks from a single prompt." />
-<meta property="og:type" content="website" />
-<meta property="og:url" content="https://byrobes.com/" />
-<meta property="og:image" content="https://byrobes.com/assets/og-moodboard-preview.jpg" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
-
-<!-- JSON-LD Structured Data for Software Application -->
+<title>Robes · Your personal stylist</title>
+<meta name="description" content="Robes is your personal stylist. Your wardrobe, the brands you love, and the looks that inspire you — one prompt pulls it all together.">
+<meta property="og:title" content="Robes · Your personal stylist">
+<meta property="og:description" content="One prompt. Dressed for anything. Coming soon to iPhone and Android.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.byrobes.com/">
+<meta property="og:image" content="https://www.byrobes.com/images/site/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#faf8f5">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "Robes",
-  "operatingSystem": "Web, iOS, Android",
+  "operatingSystem": "iOS, Android",
   "applicationCategory": "LifestyleApplication",
-  "offers": {
-    "@type": "Offer",
-    "price": "0.00",
-    "priceCurrency": "USD"
-  },
-  "description": "Robes is your personal stylist. Edit what you own, rotate underused pieces, and discover key wardrobe pieces to complete a look."
+  "description": "Robes is your personal stylist. Your wardrobe, the brands you love, and the looks that inspire you — one prompt pulls it all together."
 }
 </script>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/robes-mvp.css">
+<link rel="preload" href="/fonts/Cormorant-Roman-Latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/Inter-Latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/site.css">
 </head>
 <body>
 
-<!-- ══ NAV ══ -->
-<nav class="nav" id="nav">
-  <span class="wordmark" onclick="App.goHome()">Robes</span>
-</nav>
+<header class="nav">
+  <div class="shell nav-row">
+    <a class="wordmark" href="/" aria-label="Robes home">Robes</a>
+    <span class="stores stores-sm nav-stores">
+      <span class="store" role="img" aria-label="Coming soon to the App Store"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg><span class="store-txt"><span class="store-pre">Coming soon to</span><span class="store-name">App Store</span></span></span>
+      <span class="store" role="img" aria-label="Coming soon to Google Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a.8.8 0 0 0 1.2.7l12-7.5a.8.8 0 0 0 0-1.4l-12-7.5A.8.8 0 0 0 7 4.5z"/></svg><span class="store-txt"><span class="store-pre">Coming soon to</span><span class="store-name">Google Play</span></span></span>
+    </span>
+  </div>
+</header>
 
-<div class="flow">
+<main>
 
-  <!-- ════ SCREEN 1 · LANDING ════ -->
-  <section class="screen" id="s-landing" data-screen-label="Landing">
-
-    <!-- hero -->
-    <div class="land-hero">
-      <div class="radials"></div>
-      <div class="grain"></div>
-      <div class="land-hero-inner">
-        <div class="land-hero-copy">
-          <span class="eyebrow land-eyebrow rise d1"><span class="eb-rule"></span>Your personal stylist</span>
-          <h1 class="land-h1 rise d2">One prompt.<br><em>Dressed for anything.</em></h1>
-          <p class="land-sub rise d3">Your wardrobe, the brands you love, and the looks that inspire you — one prompt pulls it all together.</p>
-          <form class="land-form rise d4" id="land-form" onsubmit="return App.submitLandingEmail(event)">
-            <input class="land-input" id="land-email" type="email" placeholder="your@email.com" autocomplete="off">
-            <button class="land-submit" id="land-submit" type="submit">Join the waitlist</button>
-          </form>
-          <p class="land-hint rise d5">✦ Join today and style a key piece three ways — a small taste of Robes while you wait.</p>
-        </div>
-
-        <!-- floating prompt card -->
-        <div class="land-card rise d3" aria-hidden="true">
-          <div class="lc-head"><span class="lc-dot"></span>Robes</div>
-          <div class="lc-prompt"><span class="lc-spark">✦</span><span class="lc-typed" id="lc-typed">Style my Balmain waistcoat three ways</span><span class="lc-caret"></span></div>
-        </div>
+<!-- Hero -->
+<section class="hero">
+  <img class="hero-photo" src="/images/site/hero-real-cream-jumper.jpg" alt="Liberty in a mirror selfie, wearing a fringed white jumper" width="1280" height="1707" fetchpriority="high">
+  <div class="hero-copy">
+    <p class="eyebrow">Your personal stylist</p>
+    <h1 class="hero-h">One prompt.<br><i>Dressed for anything.</i></h1>
+    <p class="hero-sub">Your wardrobe, the brands you love, and the looks that inspire you — one prompt pulls it all together.</p>
+    <form class="waitlist" id="waitlist" novalidate>
+      <div class="wl-field">
+        <label for="waitlist-email" class="sr-only">Email address</label>
+        <input id="waitlist-email" type="email" autocomplete="email" placeholder="Your email address" required>
+        <button type="submit">Join the waitlist</button>
       </div>
-      <div class="land-scroll">
-        <span>How it works</span>
-        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
-      </div>
+      <p class="wl-note" role="status">Be the first to know when Robes launches.</p>
+    </form>
+    <span class="stores">
+      <span class="store" role="img" aria-label="Coming soon to the App Store"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg><span class="store-txt"><span class="store-pre">Coming soon to</span><span class="store-name">App Store</span></span></span>
+      <span class="store" role="img" aria-label="Coming soon to Google Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a.8.8 0 0 0 1.2.7l12-7.5a.8.8 0 0 0 0-1.4l-12-7.5A.8.8 0 0 0 7 4.5z"/></svg><span class="store-txt"><span class="store-pre">Coming soon to</span><span class="store-name">Google Play</span></span></span>
+    </span>
+  </div>
+  <div class="phone hero-phone"><img src="/images/site/phone-today.jpg" alt="The Robes home screen: today’s look on your Robes model" width="780" height="1688"></div>
+</section>
+
+<!-- How it works -->
+<section class="how" id="how" aria-labelledby="how-title">
+  <div class="shell how-inner">
+    <div class="sec-head">
+      <p class="eyebrow">How it works</p>
+      <h2 id="how-title" class="h2">Simple. <i>Intelligent.</i> Yours.</h2>
     </div>
-
-    <!-- how it works -->
-    <div class="land-how reveal">
-      <div class="land-how-inner">
-        <div class="how-left">
-          <span class="eyebrow"><span class="eb-rule"></span>How it works</span>
-          <h2 class="how-h">Simple.<br><em>Intelligent.</em><br>Yours.</h2>
-          <p class="how-sub">Define your style. Photograph your wardrobe. Tell Robes where you're going. The rest is done.</p>
-        </div>
-        <div class="how-rows">
-          <div class="how-row">
-            <span class="how-num">01</span>
-            <div class="how-row-body">
-              <div class="how-row-h">Define your style</div>
-              <p class="how-row-t">Your style has a signature. Robes finds it, saves it, and builds every outfit around it. Getting dressed always feels intentional.</p>
-            </div>
-          </div>
-          <div class="how-row">
-            <span class="how-num">02</span>
-            <div class="how-row-body">
-              <div class="how-row-h">Ask Robes</div>
-              <p class="how-row-t">One prompt. Tonight's dinner or next month's trip. Robes reads the occasion, checks the weather, and understands your style.</p>
-            </div>
-          </div>
-          <div class="how-row">
-            <span class="how-num">03</span>
-            <div class="how-row-body">
-              <div class="how-row-h">Get dressed</div>
-              <p class="how-row-t">A moodboard for your next trip. A week of outfits planned. A packing list. From your wardrobe, or curated pieces ready to shop.</p>
-            </div>
+    <ol class="steps">
+      <li class="step">
+        <div class="step-art">
+          <div class="grid-2x2">
+            <img src="/images/site/model-grey-suit.jpg" alt="" loading="lazy">
+            <img src="/images/site/model-black-dress.jpg" alt="" loading="lazy">
+            <img src="/images/site/model-slip-dress.jpg" alt="" loading="lazy">
+            <img src="/images/site/model-yellow-coat.jpg" alt="" loading="lazy">
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- what do you need today -->
-    <div class="land-uses reveal">
-      <div class="land-uses-inner">
-        <div class="uses-head">
-          <span class="uh-rule"></span>
-          <span class="eyebrow uses-eyebrow">What do you need today?</span>
-          <span class="uh-rule"></span>
-        </div>
-        <div class="uses-grid">
-          <button class="use-card active" onclick="App.pickNeed(this,'What should I wear today — smart but effortless.')">
-            <div class="use-head">
-              <span class="use-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg></span>
-              <span class="use-label">Daily</span>
-            </div>
-            <p class="use-quote">&ldquo;What should I wear today — smart but effortless.&rdquo;</p>
-            <span class="use-arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
-          </button>
-          <button class="use-card" onclick="App.pickNeed(this,'Plan my outfits for the whole week — three office days and a client dinner.')">
-            <div class="use-head">
-              <span class="use-ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="5"/><line x1="16" y1="2" x2="16" y2="5"/></svg></span>
-              <span class="use-label">This week</span>
-            </div>
-            <p class="use-quote">&ldquo;Plan my outfits for the whole week — three office days and a client dinner.&rdquo;</p>
-            <span class="use-arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
-          </button>
-          <button class="use-card" onclick="App.pickNeed(this,'Help me pack for a long weekend in Paris. One bag.')">
-            <div class="use-head">
-              <span class="use-ico"><svg viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5a2.12 2.12 0 0 0-3-3L13 8 4.8 6.2a.5.5 0 0 0-.5.8l3.2 4-2.5 2.5-2-.5a.5.5 0 0 0-.5.8L4 17l1.7 2.2a.5.5 0 0 0 .8 0l2.5-2.5 4 3.2a.5.5 0 0 0 .8-.5z"/></svg></span>
-              <span class="use-label">Travel</span>
-            </div>
-            <p class="use-quote">&ldquo;Help me pack for a long weekend in Paris. One bag.&rdquo;</p>
-            <span class="use-arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
-          </button>
-          <button class="use-card" onclick="App.pickNeed(this,'Build me a summer capsule from what I own, with shopping suggestions for what I\'m missing.')">
-            <div class="use-head">
-              <span class="use-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg></span>
-              <span class="use-label">Seasonal</span>
-            </div>
-            <p class="use-quote">&ldquo;Build me a summer capsule from what I own, with shopping suggestions for what I&rsquo;m missing.&rdquo;</p>
-            <span class="use-arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- quote -->
-    <div class="land-quote reveal">
-      <span class="lq-mark">&ldquo;</span>
-      <blockquote class="lq-text">Every day is a fashion show, and the world is your runway.</blockquote>
-      <span class="eyebrow lq-attr">— Coco Chanel</span>
-    </div>
-
-    <!-- footer -->
-    <footer class="land-footer reveal">
-      <div class="grain"></div>
-      <div class="lf-inner">
-        <div class="lf-brand">
-          <div class="lf-mark">Robes</div>
-          <div class="lf-tagline">The world is your runway</div>
-        </div>
-        <div class="lf-right">
-          <span class="lf-copy">© 2026 Robes. All rights reserved.</span>
-        </div>
-      </div>
-    </footer>
-
-  </section>
-
-  <!-- ════ SCREEN 2 · CONFIRMATION ════ -->
-  <section class="screen" id="s-confirm" data-screen-label="Confirmation">
-    <div class="grain"></div>
-    <div class="confirm-inner">
-      <div class="confirm-splash rise d1">
-        <span class="confirm-mark">Robes</span>
-        <span class="confirm-rule"></span>
-      </div>
-      <h2 class="confirm-h rise d2">You're on the list.</h2>
-      <p class="confirm-sub rise d3">Robes is almost ready, but while you wait, style a key piece and get a glimpse of what's to come.</p>
-      <button class="btn btn-light rise d4" onclick="App.openModal()">STYLE A KEY PIECE</button>
-    </div>
-  </section>
-
-  <!-- ════ SCREEN 3 · NAME (onboarding step) ════ -->
-  <section class="screen" id="s-name" data-screen-label="Name">
-    <div class="grain"></div>
-    <div class="ob-inner">
-      <button class="ob-back" onclick="App.back()">
-        <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back
-      </button>
-      <div class="ob-body">
-        <span class="eyebrow ob-eyebrow rise d1">First things first</span>
-        <h2 class="ob-h rise d2">What should<br><em>we call you?</em></h2>
-        <p class="ob-sub rise d3">A name for your style notes.</p>
-        <form class="ob-field rise d4" onsubmit="App.submitName(event); return false;">
-          <input class="ob-input" id="name-input" placeholder="Your name" autocomplete="given-name" maxlength="32">
-        </form>
-      </div>
-      <div class="ob-footer rise d4">
-        <button class="ob-continue" onclick="App.submitName()">Continue</button>
-        <button class="ob-skip" onclick="App.submitName()">Skip for now</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ════ SCREEN 4 · CAPTURE (key piece) ════ -->
-  <section class="screen" id="s-capture" data-screen-label="Capture">
-    <div class="radials"></div>
-    <div class="grain"></div>
-    <div class="cap-inner">
-      <div class="cap-cols">
-
-        <!-- LEFT · the prompt -->
-        <div class="cap-prompt-col">
-          <h2 class="cap-h rise d2" id="cap-h">Good afternoon.</h2>
-          <p class="cap-lead rise d3">One piece. A little context. Robes will style it three ways.</p>
-
-          <!-- prompt box -->
-          <div class="promptbox rise d3" id="promptbox">
-            <textarea class="pb-input" id="pb-input" rows="3" placeholder="Balmain waistcoat for office days, chic weekends and after dark." maxlength="240" oninput="App.syncPrompt()" onfocus="App.syncPrompt()"></textarea>
-
-            <!-- link field (revealed by the + menu) -->
-            <div class="pb-link" id="pb-link" hidden>
-              <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              <input class="pb-link-input" id="pb-link-input" type="url" placeholder="Paste a link to an item on sale…" oninput="App.syncPrompt()">
-              <button class="pb-link-x" onclick="App.removeLink()" aria-label="Remove link">×</button>
-            </div>
-
-            <div class="pb-bar">
-              <div class="pb-add-wrap">
-                <button class="pb-add" id="pb-add" onclick="App.toggleAddMenu(event)" aria-label="Add a piece" aria-haspopup="true">
-                  <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                </button>
-                <div class="pb-menu" id="pb-menu" hidden>
-                  <button onclick="App.menuUpload()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload</button>
-                  <button onclick="App.menuCamera()"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Take a picture</button>
-                  <button onclick="App.menuLink()"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Add a link</button>
-                </div>
-              </div>
-              <button class="pb-send" id="pb-send" onclick="App.submitPrompt()" aria-label="Style it three ways" disabled>
-                <span class="pb-send-label">Style it three ways</span>
-                <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-              </button>
-            </div>
+        <span class="step-num">01</span>
+        <h3 class="step-h">Define your style</h3>
+        <p class="step-t">Your style has a signature. Robes finds it, saves it, and builds every outfit around it.</p>
+        <p class="step-i">Getting dressed always feels intentional.</p>
+      </li>
+      <li class="step">
+        <div class="step-art">
+          <div class="ask-card">
+            <span class="ask-card-q">Tonight’s dinner — something sharp</span>
+            <span class="chips"><span class="chip">Dublin · 9° · clear</span><span class="chip">Friday, 8pm</span></span>
           </div>
+          <img class="step-fill" src="/images/site/model-slip-dress.jpg" alt="" loading="lazy">
         </div>
-
-        <!-- RIGHT · the photo -->
-        <div class="cap-upload-col rise d3">
-          <div class="dropzone" id="dropzone" onclick="document.getElementById('cap-file').click()">
-            <div class="dz-clear" onclick="App.clearPhoto(event)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
-            <div id="dz-empty" style="display:flex;flex-direction:column;align-items:center;gap:16px;">
-              <div class="dz-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-              <div class="dz-title">Drop your key piece here</div>
-              <div class="dz-actions">
-                <button class="dz-pill" onclick="event.stopPropagation();document.getElementById('cap-file').click()">
-                  <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload
-                </button>
-                <button class="dz-pill" onclick="event.stopPropagation();document.getElementById('cap-cam').click()">
-                  <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Take a photo
-                </button>
-                <button class="dz-pill" onclick="event.stopPropagation();App.menuLink()">
-                  <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Paste a link
-                </button>
-              </div>
-            </div>
-            <div id="dz-fill" style="display:none;position:absolute;inset:0;">
-              <img class="dz-preview" id="dz-preview" alt="Your key piece">
-            </div>
+        <span class="step-num">02</span>
+        <h3 class="step-h">Ask Robes</h3>
+        <p class="step-t">One prompt. Tonight’s dinner or next month’s trip.</p>
+        <p class="step-i">Robes reads the occasion, checks the weather, and understands your style.</p>
+      </li>
+      <li class="step">
+        <div class="step-art">
+          <div class="days">
+            <figure><img src="/images/site/model-grey-suit.jpg" alt="" loading="lazy"><figcaption>Mon</figcaption></figure>
+            <figure><img src="/images/site/model-tue.jpg" alt="" loading="lazy"><figcaption>Tue</figcaption></figure>
+            <figure><img src="/images/site/model-black-coat.jpg" alt="" loading="lazy"><figcaption>Wed</figcaption></figure>
+            <figure><img src="/images/site/model-thu.jpg" alt="" loading="lazy"><figcaption>Thu</figcaption></figure>
+            <figure><img src="/images/site/model-slip-dress.jpg" alt="" loading="lazy"><figcaption>Fri</figcaption></figure>
           </div>
-          <input type="file" id="cap-file" accept="image/*" hidden onchange="App.onFile(this)">
-          <input type="file" id="cap-cam" accept="image/*" capture="environment" hidden onchange="App.onFile(this)">
+          <img class="step-fill step-fill-top" src="/images/site/model-lace-top.jpg" alt="Robes model in a white lace top and black satin shorts" loading="lazy">
         </div>
+        <span class="step-num">03</span>
+        <h3 class="step-h">Get dressed</h3>
+        <p class="step-t">A moodboard for your next trip. A week of outfits planned. A packing list.</p>
+        <p class="step-i">From your wardrobe, or curated pieces ready to shop.</p>
+      </li>
+    </ol>
+  </div>
+</section>
 
-      </div>
-      <div class="cap-foot rise d5"></div>
-      <div class="cap-history" id="cap-history"></div>
+<!-- Style a key piece (coming soon) -->
+<section class="keypiece" aria-label="Style a key piece">
+  <div class="shell keypiece-row">
+    <div class="keypiece-copy">
+      <p class="eyebrow eyebrow-soft">Style a key piece</p>
+      <p class="keypiece-q">“Style my Celine sunglasses three ways”</p>
+      <p class="keypiece-t">Style a key piece three ways — coming soon.</p>
     </div>
-  </section>
-
-  <!-- ════ SCREEN 5 · GENERATING ════ -->
-  <section class="screen" id="s-gen" data-screen-label="Generating">
-    <div class="radials"></div>
-    <div class="grain"></div>
-    <div class="screen-inner">
-      <div class="gen-piece rise d1"><img id="gen-piece-img" alt=""><div class="gen-sheen"></div></div>
-      <h2 class="gen-h rise d2" id="gen-h">Styling<br><em>your key piece.</em></h2>
-      <p class="gen-sub rise d2">Three ways to wear it — from your wardrobe out.</p>
-      <div class="gen-steps rise d3" id="gen-steps">
-        <div class="gen-step" data-text="Reading colour, cut and fabric"></div>
-        <div class="gen-step" data-text="Pulling references it pairs with"></div>
-        <div class="gen-step" data-text="Building three distinct looks"></div>
-        <div class="gen-step" data-text="Composing your edit"></div>
-      </div>
-      <div class="gen-err-block" id="gen-err" hidden>
-        <p class="gen-err-msg" id="gen-err-msg">Something went wrong — please try again.</p>
-        <button class="gen-retry-btn" onclick="App.retryStyle()">Try again</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ════ SCREEN 6 · RESULT ════ -->
-  <section class="screen" id="s-result" data-screen-label="Result">
-    <div class="screen-inner">
-      <div class="res-head rise d1">
-        <span class="eyebrow">Your edit</span>
-        <h2 class="res-h" id="res-h">Your piece —<br><em>worn three ways.</em></h2>
-        <p class="res-intro" id="res-intro">A sharp piece does the most work in a wardrobe. Here it is three ways — none of them the obvious one.</p>
-        <div class="yourpiece">
-          <img class="yp-img" id="yp-img" alt="Your key piece">
-          <div class="yp-info">
-            <div class="yp-label">Your piece</div>
-            <div class="yp-name" id="yp-name">Your key piece</div>
-            <div class="yp-owned"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>The one you uploaded</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="ways rise d2" id="ways"></div>
-
-      <!-- Feedback band -->
-      <div class="fb-band rise d3" id="feedback-bar">
-        <div class="fb-prompt" id="fb-prompt">
-          <span class="fb-star" aria-hidden="true">★</span>
-          <h3 class="fb-q">How were these looks?</h3>
-          <p class="fb-nudge">Tell us — your taste shapes what comes next.</p>
-          <div class="fb-btns">
-            <button class="fb-btn" id="fb-up" onclick="App.feedbackRate(1)">
-              <svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-              Loved them
-            </button>
-            <button class="fb-btn" id="fb-dn" onclick="App.feedbackRate(0)">
-              <svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
-              Not quite
-            </button>
-          </div>
-        </div>
-        <div class="fb-expand" id="fb-expand" hidden>
-          <input class="fb-text" id="fb-text" type="text" placeholder="Tell us what we could do better..." maxlength="280">
-          <button class="fb-submit" onclick="App.feedbackSubmit()">Send</button>
-        </div>
-        <div class="fb-done" id="fb-done" hidden>
-          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>Thanks — that helps us improve.</span>
-        </div>
-      </div>
-
-      <!-- CTAs -->
-      <div class="res-actions rise d4">
-        <button class="btn btn-primary" onclick="App.openShare()">
-          <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-          Share my look
-        </button>
-        <button class="btn btn-ghost" onclick="App.styleAnother()">
-          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 5 19 12"/></svg>Style another
-        </button>
-      </div>
-
-      <div class="res-shape-wrap">
-        <a class="res-shape-link" href="https://forms.gle/bUqWkRJq7VXW986t9" target="_blank" rel="noopener">Shape what's next →</a>
-      </div>
-
-      <div class="res-foot rise d5">
-        <span class="eyebrow">BYROBES.COM</span>
-      </div>
-    </div>
-  </section>
-
-</div>
-
-<!-- ══ FLOW MODAL · Style → Name → Generating ══ -->
-<div class="fm" id="flow-modal" aria-hidden="true">
-  <div class="fm-bd" onclick="App.closeModal()"></div>
-  <div class="fm-dialog" id="fm-dialog" role="dialog" aria-modal="true" aria-label="Style a key piece">
-    <div class="grain"></div>
-
-    <div class="fm-rail">
-      <span class="fm-mark">Robes</span>
-      <div class="fm-dots" id="fm-dots"></div>
-      <button class="fm-x" onclick="App.closeModal()" aria-label="Close">×</button>
-    </div>
-
-    <div class="fm-stage">
-
-      <!-- STEP · STYLE -->
-      <section class="fm-step" id="fms-style">
-        <span class="fm-confirm">
-          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-          You're on the list
-        </span>
-        <h2 class="fm-h">Style a key piece,<br><em>three ways.</em></h2>
-        <p class="fm-sub">A little gift while you wait. Show me one piece you love — I'll show you three ways to wear it.</p>
-
-        <div class="fm-compose">
-          <button class="fm-tile" id="fm-tile" onclick="App.pickFile()" aria-label="Add your key piece">
-            <div class="fm-tile-x" onclick="App.clearPhoto(event)" aria-label="Remove photo">
-              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </div>
-            <div id="fm-tile-empty" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
-              <span class="fm-tile-ico"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.2"/></svg></span>
-              <span class="fm-tile-label">Snap or attach<br>your key piece</span>
-            </div>
-            <div id="fm-tile-fill" style="display:none;position:absolute;inset:0;">
-              <img class="fm-tile-img" id="fm-tile-img" alt="Your key piece">
-            </div>
-          </button>
-
-          <div class="fm-prompt-wrap">
-            <textarea id="fm-input" rows="4" placeholder="Balmain waistcoat for office days, chic weekends and after dark." maxlength="240" oninput="App.syncPrompt()"></textarea>
-            <div class="fm-prompt-hint">
-              <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
-              An image helps, but words alone work fine.
-            </div>
-          </div>
-        </div>
-
-        <button class="fm-cta" id="fm-style-cta" onclick="App.submitStyle()" disabled>
-          Style it three ways
-          <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </button>
-
-        <button class="fm-later" onclick="App.styleLater()">
-          <svg viewBox="0 0 24 24"><path d="M12 8v4l2.5 2.5"/><circle cx="12" cy="12" r="9"/></svg>
-          <span>No piece on hand? <em>Come back later</em> with this email.</span>
-        </button>
-
-        <div class="fm-recent" id="fm-recent" hidden></div>
-
-        <input type="file" id="fm-file" accept="image/*" hidden onchange="App.onFile(this)">
-        <input type="file" id="fm-cam" accept="image/*" capture="environment" hidden onchange="App.onFile(this)">
-      </section>
-
-      <!-- STEP · NAME -->
-      <section class="fm-step" id="fms-name">
-        <span class="eyebrow fm-eyebrow">One last thing</span>
-        <h2 class="fm-h">Who am I<br><em>styling?</em></h2>
-        <p class="fm-sub">So your edit feels like it was made for you.</p>
-        <form class="fm-namefield" onsubmit="App.submitNameModal(event); return false;">
-          <input class="fm-name-input" id="fm-name-input" placeholder="Your name" autocomplete="given-name" maxlength="32">
-        </form>
-        <button class="fm-cta" onclick="App.submitNameModal()">
-          See my edit
-          <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </button>
-        <button class="fm-skip" onclick="App.skipName()">Skip for now</button>
-      </section>
-
-      <!-- STEP · GENERATING -->
-      <section class="fm-step" id="fms-gen">
-        <div class="fm-gen-piece"><img id="fm-gen-img" alt=""><div class="gen-sheen"></div></div>
-        <h2 class="fm-h fm-gen-h" id="fm-gen-h">Styling<br><em>your key piece.</em></h2>
-        <div class="fm-gen-steps gen-steps" id="fm-gen-steps">
-          <div class="gen-step" data-text="Reading colour, cut and fabric"></div>
-          <div class="gen-step" data-text="Pulling references it pairs with"></div>
-          <div class="gen-step" data-text="Building three distinct looks"></div>
-          <div class="gen-step" data-text="Composing your edit"></div>
-        </div>
-        <div class="gen-err-block" id="fm-gen-err" hidden>
-          <p class="gen-err-msg" id="fm-gen-err-msg">Something went wrong — please try again.</p>
-          <button class="gen-retry-btn" onclick="App.retryStyle()">Try again</button>
-        </div>
-      </section>
-
+    <div class="keypiece-looks">
+      <img src="/images/site/model-slip-dress.jpg" alt="Robes model in a black slip dress with a yellow bag" loading="lazy">
+      <img src="/images/site/model-lace-top.jpg" alt="Robes model in a white lace top and black satin shorts with black sunglasses" loading="lazy">
+      <img src="/images/site/model-black-coat.jpg" alt="Robes model in a black coat, cream trousers, beanie and round sunglasses" loading="lazy">
+      <span class="pill">Coming soon</span>
     </div>
   </div>
-</div>
+</section>
 
-<!-- ══ SHARE MODAL · Instagram 1:1 carousel ══ -->
-<div class="modal" id="share-modal">
-  <div class="modal-bd" onclick="App.closeShare()"></div>
-  <div class="share">
-    <div class="share-left">
-      <div class="share-stage">
-        <div class="share-track"><div class="share-cards" id="share-cards"></div></div>
-        <div class="share-arrows">
-          <button class="sa-btn" id="sa-prev" onclick="App.sharePrev()"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
-          <button class="sa-btn" id="sa-next" onclick="App.shareNext()"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
-        </div>
+<!-- Ask Robes -->
+<section class="ask" aria-labelledby="ask-title">
+  <div class="shell ask-grid">
+    <div class="ask-left">
+      <p class="eyebrow eyebrow-mauve">Ask Robes</p>
+      <h2 id="ask-title" class="h2">One prompt.</h2>
+      <div class="ask-pieces" aria-hidden="true">
+        <div style="--r:-4deg"><img src="/images/site/piece-1.jpg" alt="" loading="lazy"></div>
+        <div style="--r:3deg"><img src="/images/site/piece-2.jpg" alt="" loading="lazy"></div>
+        <div style="--r:-2deg"><img src="/images/site/piece-3.jpg" alt="" loading="lazy"></div>
       </div>
-      <div class="share-dots" id="share-dots"></div>
     </div>
-    <div class="share-right">
-      <button class="share-close" onclick="App.closeShare()">×</button>
-      <h3 class="share-h">Can we share your look?</h3>
-      <p class="share-desc">Add your Instagram handle and we'll tag you when we showcase this week's best looks.</p>
-      <div class="share-handle">
-        <span class="share-at">@</span>
-        <input class="share-handle-input" id="share-handle-input" type="text" placeholder="yourhandle" autocomplete="off">
+    <div class="prompt-card" role="img" aria-label="Example prompts typed to Robes: What should I wear today — smart but effortless. Plan my outfits for the week — three office days and a client dinner. Help me pack for a long weekend in Paris. One bag. Build me a summer capsule from what I own, with shopping suggestions for what I’m missing.">
+      <div class="pc-head" aria-hidden="true"><span class="pc-dot"></span><span class="pc-mark">Robes</span></div>
+      <div class="pc-field" aria-hidden="true">
+        <span class="pc-spark">✦</span>
+        <p class="pc-text"><span id="pc-typed">What should I wear today — smart but effortless.</span><span class="caret"></span></p>
+        <span class="pc-send"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></span>
       </div>
-      <button class="share-cta" onclick="App.shareTo('Instagram')">SHARE MY LOOK</button>
-      <div class="share-copy" onclick="App.copyLink()">
-        <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        <span class="share-url" id="share-url">byrobes.com/look/your-key-piece</span>
-        <button class="share-copybtn">COPY</button>
+      <div class="pc-foot" aria-hidden="true">
+        <div class="chips" id="pc-chips"></div>
+        <div class="pc-dots" id="pc-dots"><span class="on"></span><span></span><span></span><span></span></div>
       </div>
     </div>
   </div>
-</div>
+</section>
 
-<!-- ══ TOAST ══ -->
-<div class="toast" id="toast"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span id="toast-msg"></span></div>
+<!-- Your wardrobe -->
+<section class="wardrobe" aria-labelledby="wardrobe-title">
+  <div class="wardrobe-inner">
+    <div class="wardrobe-copy">
+      <p class="eyebrow">Your wardrobe</p>
+      <h2 id="wardrobe-title" class="h2">The pieces<br><i>you forgot you loved.</i></h2>
+      <p class="body-soft">Everything you own, in one place — and back in rotation, in looks styled for you.</p>
+    </div>
+    <div class="wardrobe-stage" aria-hidden="true">
+      <div class="polaroid pol-1"><img src="/images/site/wardrobe-1.jpg" alt="" loading="lazy"></div>
+      <div class="polaroid pol-2"><img src="/images/site/wardrobe-2.jpg" alt="" loading="lazy"></div>
+      <div class="polaroid pol-3"><img src="/images/site/wardrobe-3.jpg" alt="" loading="lazy"></div>
+      <div class="polaroid pol-4"><img src="/images/site/wardrobe-4.jpg" alt="" loading="lazy"></div>
+      <div class="phone wardrobe-phone"><img src="/images/site/phone-wardrobe.jpg" alt="" width="780" height="1688" loading="lazy"></div>
+    </div>
+  </div>
+</section>
 
-<!-- ══ TWEAKS ══ -->
-<div class="tw-panel" id="tw-panel"></div>
+<!-- Robes model · real life -->
+<section class="reallife" aria-labelledby="reallife-title">
+  <div class="shell reallife-inner">
+    <div class="reallife-head">
+      <div class="sec-head">
+        <p class="eyebrow">Robes model · Real life</p>
+        <h2 id="reallife-title" class="h2">Styled on your model.<br><i>Worn in real life.</i></h2>
+      </div>
+      <p class="body-soft reallife-sub">See the look on your Robes model first — then wear it out the door.</p>
+    </div>
+    <div class="pairs">
+      <figure class="pair"><img src="/images/site/model-grey-suit.jpg" alt="Robes model in the grey suit" loading="lazy"><img src="/images/site/real-grey-suit.jpg" alt="The same grey suit look, worn in real life" loading="lazy"></figure>
+      <figure class="pair"><img src="/images/site/model-slip-dress.jpg" alt="Robes model in the slip dress" loading="lazy"><img src="/images/site/real-slip-dress.jpg" alt="The same slip dress look, worn in real life" loading="lazy"></figure>
+      <figure class="pair"><img src="/images/site/model-gold-jacket.jpg" alt="Robes model in the gold jacket" loading="lazy"><img src="/images/site/real-gold-jacket.jpg" alt="The same gold jacket look, worn in real life" loading="lazy"></figure>
+      <figure class="pair"><img src="/images/site/model-qipao.jpg" alt="Robes model in the qipao" loading="lazy"><img src="/images/site/real-qipao.jpg" alt="The same qipao look, worn in real life" loading="lazy"></figure>
+      <figure class="pair"><img src="/images/site/model-cream-jumper.jpg" alt="Robes model in the cream jumper" loading="lazy"><img src="/images/site/hero-real-cream-jumper.jpg" alt="The same cream jumper look, worn in real life" loading="lazy"></figure>
+      <figure class="pair"><img src="/images/site/model-bomber.jpg" alt="Robes model in the bomber" loading="lazy"><img src="/images/site/real-bomber.jpg" alt="The same bomber look, worn in real life" loading="lazy"></figure>
+    </div>
+  </div>
+  <figure class="quote">
+    <blockquote>“Every day is a fashion show, and the world is your runway.”</blockquote>
+    <figcaption>Coco Chanel</figcaption>
+  </figure>
+</section>
 
-<script src="/js/app.js"></script>
+<!-- Coming soon + closing waitlist -->
+<section class="closing" aria-labelledby="get-title">
+  <div class="closing-visual">
+    <img class="closing-photo" src="/images/site/model-lace-top.jpg" alt="" loading="lazy">
+    <div class="phone closing-phone"><img src="/images/site/phone-diary.jpg" alt="The Robes diary: a week of looks planned" width="780" height="1688" loading="lazy"></div>
+  </div>
+  <div class="closing-copy">
+    <span class="closing-mark" aria-hidden="true">Robes</span>
+    <h2 id="get-title" class="closing-h">Coming soon to iPhone and Android.</h2>
+    <form class="waitlist" id="waitlist-closing" novalidate>
+      <div class="wl-field">
+        <label for="waitlist-email-2" class="sr-only">Email address</label>
+        <input id="waitlist-email-2" type="email" autocomplete="email" placeholder="Your email address" required>
+        <button type="submit">Join the waitlist</button>
+      </div>
+      <p class="wl-note" role="status">Be the first to know when Robes launches.</p>
+    </form>
+    <span class="stores">
+      <span class="store" role="img" aria-label="Coming soon to the App Store"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg><span class="store-txt"><span class="store-pre">Coming soon to</span><span class="store-name">App Store</span></span></span>
+      <span class="store" role="img" aria-label="Coming soon to Google Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a.8.8 0 0 0 1.2.7l12-7.5a.8.8 0 0 0 0-1.4l-12-7.5A.8.8 0 0 0 7 4.5z"/></svg><span class="store-txt"><span class="store-pre">Coming soon to</span><span class="store-name">Google Play</span></span></span>
+    </span>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="shell foot-row">
+    <div class="foot-brand">
+      <span class="wordmark">Robes</span>
+      <span class="foot-tag">The world is your runway</span>
+    </div>
+    <nav class="foot-nav" aria-label="Footer">
+      <a href="https://forms.gle/bUqWkRJq7VXW986t9" target="_blank" rel="noopener">Feedback</a>
+    </nav>
+    <span class="foot-copy">© 2026 Robes. All rights reserved.</span>
+  </div>
+</footer>
+
+<!-- shown in place of a form once she joins -->
+<template id="wl-joined">
+  <div class="wl-joined" role="status">
+    <span class="wl-tick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+    <span class="wl-joined-txt"><span class="wl-joined-h">You’re on the list.</span><span class="wl-joined-s">We’ll email <span class="wl-email"></span> as soon as Robes launches.</span></span>
+  </div>
+</template>
+
+<script src="/js/site.js"></script>
 </body>
 </html>
