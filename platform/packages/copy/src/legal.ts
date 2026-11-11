@@ -19,7 +19,7 @@ export interface LegalDoc {
   contactLead: string;
 }
 
-const lastUpdated = 'Last updated 4 November 2026.';
+const lastUpdated = 'Last updated 11 November 2026.';
 
 const terms: LegalDoc = {
   title: 'Terms of use',
@@ -111,7 +111,7 @@ const privacy: LegalDoc = {
           'Emails are sent through Amazon SES. On the phone app, notifications travel through Expo, Apple and Google.',
           'Errors on our servers are reported to PostHog, on European servers, with email addresses removed and never linked to you. Rate limits are counted by Upstash in the EU.',
           'The waitlist form is checked by Cloudflare Turnstile to keep out bots.',
-          'How the app is used is measured in PostHog, on European servers, unless you turn it off.',
+          'How the app is used is measured in PostHog, on European servers, only if you agree.',
         ],
         'Where a service is outside the EU, or run by a company based outside it — Google Gemini, Vercel, Cloudflare and Expo — the transfer is covered by the European Commission’s Standard Contractual Clauses, or by the EU–US Data Privacy Framework where the provider is certified under it.',
       ],
@@ -131,7 +131,7 @@ const privacy: LegalDoc = {
     {
       heading: 'Usage counts and screen recordings',
       body: [
-        'Robes measures how the app is used in PostHog, and you can turn this off at any time under You › Privacy. PostHog counts which screens you open and what you tap; it never sees your photos, words or email. If something in the app breaks, PostHog also records the error so we can fix it. Screen recordings are a separate choice: recordings of how you move through Robes, with every word, photo and typed answer hidden. Recordings are stored on European servers, are visible only to us, and are never used for advertising.',
+        'Robes asks before measuring how the app is used in PostHog, and you can change your mind at any time under You › Privacy. PostHog counts which screens you open and what you tap; it never sees your photos, words or email. If something in the app breaks, PostHog also records the error so we can fix it. Screen recordings are a separate choice: recordings of how you move through Robes, with every word, photo and typed answer hidden. Recordings are stored on European servers, are visible only to us, and are never used for advertising.',
       ],
     },
     {
@@ -156,7 +156,7 @@ const privacy: LegalDoc = {
           'What Robes asked Google Gemini, and its answer: the text is cleared after 30 days. A record that a request was made, with its cost and counts but never your words, is kept for 13 months.',
           'A download of your data: seven days.',
           'Server logs: 14 days.',
-          'Usage counts unless you turned them off, and screen recordings only if you agreed: kept by PostHog for the period our plan sets, and deleted with your account.',
+          'Usage counts and screen recordings, only if you agreed: kept by PostHog for the period our plan sets, and deleted with your account.',
           'A look you share: until you turn the link off.',
         ],
       ],

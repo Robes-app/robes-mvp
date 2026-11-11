@@ -3,6 +3,8 @@ import Constants from 'expo-constants';
 // EXPO_PUBLIC_* values are inlined at build time; they are public config, never secrets.
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3300';
 export const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
+// Legal pages are served by the web app, which shares the API origin.
+export const LEGAL_URLS = { terms: `${API_URL}/legal/terms`, privacy: `${API_URL}/legal/privacy` };
 
 // Publishable keys, not secrets. Unset → analytics and error reporting stay off.
 export const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? 'dev';

@@ -59,6 +59,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
    3. Store `{"clientId":"…","clientSecret":"…"}` in `robes-<env>/auth/google` and Vercel env `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
 5. **Email OTP**: sent through SES (§9) from `MAIL_FROM` with `SES_CONFIGURATION_SET`, using the API user's keys. Locally, the app sends over SMTP to the mail catcher instead.
 6. Allowed callback URLs are exactly `https://<app>/api/auth/callback/{apple,google}`; add a preview-domain callback only if previews must sign in.
+7. **The App Review account**: Apple's reviewers cannot read a mailbox, so one address signs in with a fixed code. Set `REVIEW_EMAIL` to an address nobody can guess (`review-$(openssl rand -hex 8)@byrobes.com`; it needs no mailbox, Robes sends it nothing) and `REVIEW_CODE` to six random digits, both sensitive, and keep them out of the repo, with whoever submits the builds. The reviewer types the address, taps Send code, and types the code. It is an ordinary account with no admin role: sign in once before submitting and give it a wardrobe, a model and a few looks, so the reviewer sees Robes working. Give App Store Connect the two values (App Review Information and TestFlight → Test Information, "Sign-in required"). A reviewer may test Delete account, so check the account is still filled before each submission. Change the code after a review round; unset both to close the door (the account and its data stay).
 
 ## 4. AWS (Organizations)
 
@@ -125,6 +126,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | §3 |
 | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | §3; private key sensitive |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | §3; secret sensitive |
+| `REVIEW_EMAIL`, `REVIEW_CODE` | §3, the App Review account; both sensitive. Unset → no such door |
 | `APPLE_APP_BUNDLE_ID` + `APPLE_TEAM_ID` | universal links (§12): `com.byrobes.app.staging` / `com.byrobes.app` and the team id; served in `/.well-known/apple-app-site-association`. Unset → the file lists no app |
 | `ANDROID_APP_PACKAGE`, `ANDROID_CERT_SHA256` | Android App Links (§12): the stage's package and its signing certificate SHA-256 (comma-separated, `AA:BB:…`; from `eas credentials` or Play Console → App signing). Served in `/.well-known/assetlinks.json`; unset → `[]` |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | token sensitive |

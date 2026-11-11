@@ -52,12 +52,13 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 
 ## Known gaps (not built yet)
 
-- **TODO: Sign in with Apple.** Deliberately left out: sign-in stays email only (one-time code) until the app is in TestFlight, so the initial ask isn't widened with more sign-in flows to test. Add it before App Store submission: the App Store requires it once Google sign-in is offered (beta vs staging review, Arrival 01).
+- **Store readiness (11 Nov, iOS 1.0.0).** From the audit Annie answered: an App Review account (`REVIEW_EMAIL` + `REVIEW_CODE`, one address with a fixed code and no email; `runbooks/environments.md` §3); her yes before the selfie camera, on her "Digital twin consent" screen, saved as `photo_analysis` (web `you/selfie/twin-consent.tsx`, native `features/you/TwinConsent.tsx`); the phone asks once for usage counts and counts nothing before a yes (`AnalyticsSetup`); the App Store listing in `mobile/store.config.json`. Still open: the six-month re-ask (the answer's date is in `app.consents`), a report link on a shared look when sharing gets a screen, Sign in with Apple (below), and the question's title and buttons are a draft for Annie.
+- **TODO: Sign in with Apple.** The code is there and off: it turns on when the `APPLE_*` auth env is set. The App Store requires it wherever Google sign-in is offered (guideline 4.8), so until then an iPhone shows email only: the native sign-in screen hides Google unless the server offers Apple too (`mobile/src/app/(auth)/sign-in.tsx`, 11 Nov). The web is unchanged.
 - Receipts: each line's product photo is fetched by the isolated fetcher and read (legacy vision pass; SEC-40 as built). A shop that refuses the fetch, or a photo over 170 KB, leaves the line with the hanger and what the receipt printed (a reference code for Zara, Mango, COS). Unused receipt photos (a banner, a refused read) stay in storage until the account is deleted. Activating the SES rule set and the `in.` MX record are ops steps (`runbooks/environments.md` §9).
 - Alternates rail and swapping pieces in a daily draft (secondary frames now render on demand via `look_render`).
 - `borrowing` email and `finish` next-step rule (need look proposals). Your model: no photographed try-on from her own photos (renders use the catalog portrait for her picks, per SEC-22).
 - Trips: no images, no "more looks from this capsule", trips not drawn as Plan blocks.
-- Legal texts (pages exist, copy "On its way"), "export ready" email, push receipts polling.
+- "Export ready" email, push receipts polling. (Terms and the Privacy notice are live since 4 Nov, `packages/copy/src/legal.ts`.)
 - Native crash reporting needs `@posthog/react-native-plugin` in an EAS/dev build; push needs an EAS project id + APNs/FCM.
 - M8 monetisation.
 - Legacy migration tooling: see `migration.md` (rehearsed locally against a fixture, not the real legacy DB).

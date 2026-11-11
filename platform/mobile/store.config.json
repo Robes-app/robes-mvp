@@ -1,26 +1,30 @@
 {
   "configVersion": 0,
   "apple": {
+    "copyright": "2026 Robes Technologies Limited",
     "categories": ["LIFESTYLE"],
     "info": {
       "en-GB": {
         "title": "Robes: Your Personal Stylist",
         "subtitle": "Daily looks from your wardrobe",
+        "promoText": "Your week planned in looks from what you own, seen on you before you dress, and a lookbook of what you actually wore. Free on iPhone.",
+        "description": "Your life is the runway. Your wardrobe is the collection.\n\nRobes is a personal stylist, not a wardrobe app. It plans your week in looks built from what you already own, shows each one on you, and keeps a record of what you actually wore.\n\nTWO WAYS IN\nCreate your digital twin from an optional close-up and your size facts, and see looks on you from your first visit — before you’ve added a single piece. Or add a few pieces you own and see them on a Robes model matched to you.\n\nYOUR WEEK, PLANNED\nRobes styles daily looks for your day and the weather. Three, not thirty, each with its reason in a line: the occasion, the colour, the proportion. Plan the week on Sunday and the mornings take care of themselves.\n\nYOUR LOOKBOOK\nA planned look counts as worn automatically. Add a look you wore after the fact, even from last week. Over time, a lookbook of your real style — no streaks, no nagging.\n\nA STYLIST’S EYE\nRobes brings back the pieces you’ve stopped reaching for. It notices what you wear and asks before adding it to your Style DNA. When a look needs something you don’t have, it names the piece that finishes it — and the looks it completes.\n\nEverything you add stays exactly as you left it. Your twin is yours: adjust it, rebuild it or delete it at any time. Images of you are created with Google Gemini, only with your consent.\n\nWear more. Buy less.\n\nFor women 18 and over. Terms: www.byrobes.com/terms · Privacy: www.byrobes.com/privacy",
         "keywords": [
-          "closet",
-          "organizer",
+          "stylist",
           "outfit planner",
+          "what to wear",
           "ootd",
           "lookbook",
-          "what to wear",
-          "clothes",
-          "try on",
-          "virtual",
-          "weather",
-          "ideas"
+          "wardrobe",
+          "closet",
+          "outfits",
+          "style",
+          "fashion",
+          "avatar"
         ],
         "marketingUrl": "https://www.byrobes.com",
-        "privacyPolicyUrl": "https://app.byrobes.com/legal/privacy"
+        "supportUrl": "https://www.byrobes.com/support",
+        "privacyPolicyUrl": "https://www.byrobes.com/privacy"
       }
     }
   }

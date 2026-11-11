@@ -7,8 +7,12 @@ const mockSignInEmailOtp = jest.fn(async () => ({ error: { message: 'bad' } }));
 const mockSignInSocial = jest.fn(async (): Promise<{ error: unknown }> => ({ error: null }));
 const mockGetSession = jest.fn(async (): Promise<{ data: unknown }> => ({ data: null }));
 const mockReplace = jest.fn();
+const mockOpenBrowser = jest.fn(async (_url: string) => ({}));
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace }) }));
+jest.mock('expo-web-browser', () => ({
+  openBrowserAsync: (url: string) => mockOpenBrowser(url),
+}));
 jest.mock('../src/lib/auth-client', () => ({
   authClient: {
     getCookie: () => null,
@@ -73,15 +77,35 @@ test('shows no provider buttons when the server cannot be asked', async () => {
   expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
 });
 
+// App Store 4.8: a third-party sign-in needs Sign in with Apple beside it.
+test('an iPhone hides Google until the server offers Apple too', async () => {
+  const calls = mockFetch({ 'GET /public/auth-providers': { apple: false, google: true } });
+  await renderWithApi(<SignIn />);
+  await waitFor(() => expect(calls.map((c) => c.path)).toContain('/api/v1/public/auth-providers'));
+  await waitFor(() => expect(calls.length).toBe(1));
+  expect(screen.queryByText('or')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
+});
+
 test('signs in with Google when the server offers it, then goes home', async () => {
-  mockFetch({ 'GET /public/auth-providers': { apple: false, google: true } });
+  mockFetch({ 'GET /public/auth-providers': { apple: true, google: true } });
   mockGetSession.mockResolvedValueOnce({ data: { user: { id: 'u' } } });
   await renderWithApi(<SignIn />);
-  const google = await screen.findByRole('button', { name: 'Continue with Google' });
-  expect(screen.queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
-  await fireEvent.press(google);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Continue with Google' }));
   await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'));
   expect(mockSignInSocial).toHaveBeenCalledWith({ provider: 'google', callbackURL: '/' });
+});
+
+// Web twin: the line under app/src/app/auth/sign-in/sign-in-form.tsx.
+test('names the Terms and the Privacy notice before she signs in, and opens each', async () => {
+  mockFetch(EMAIL_ONLY);
+  await renderWithApi(<SignIn />);
+  await fireEvent.press(screen.getByRole('link', { name: 'Terms' }));
+  await fireEvent.press(screen.getByRole('link', { name: 'Privacy notice' }));
+  expect(mockOpenBrowser.mock.calls.map((c) => c[0])).toEqual([
+    'http://localhost:3300/legal/terms',
+    'http://localhost:3300/legal/privacy',
+  ]);
 });
 
 test('puts Apple first, stays put when she cancels, and says when it fails', async () => {

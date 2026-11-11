@@ -41,6 +41,11 @@ appId: host.exp.Exponent
 - tapOn: 'Continue'
 - assertVisible: 'Colours you love or avoid.'
 - tapOn: 'Get started'
+# Usage counts are asked once, on arrival, and the question sits over Home until answered.
+- extendedWaitUntil:
+    visible: 'Allow usage counts?'
+    timeout: 15000
+- tapOn: 'Not now'
 - extendedWaitUntil:
     visible: '.*, Niall\.'
     timeout: 15000
