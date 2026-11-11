@@ -123,6 +123,17 @@ describe('parseEnv(appServerEnv)', () => {
     );
   });
 
+  it('takes the review account as a pair, with a six-digit code', () => {
+    const review = { REVIEW_EMAIL: 'review-1a2b@example.test', REVIEW_CODE: '123456' };
+    expect(parseEnv(appServerEnv, { ...base, ...review }).REVIEW_CODE).toBe('123456');
+    expect(() => parseEnv(appServerEnv, { ...base, REVIEW_EMAIL: review.REVIEW_EMAIL })).toThrow(
+      /REVIEW_CODE/,
+    );
+    expect(() => parseEnv(appServerEnv, { ...base, ...review, REVIEW_CODE: 'abc' })).toThrow(
+      /REVIEW_CODE/,
+    );
+  });
+
   it('names the apps for app links only when fully configured', () => {
     expect(parseEnv(appServerEnv, base).appLinks).toEqual({ iosAppId: null, android: null });
     const fp = Array.from({ length: 32 }, () => 'AB').join(':');

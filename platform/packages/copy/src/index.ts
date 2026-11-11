@@ -717,6 +717,11 @@ export const consent = {
   privacyTitle: 'Privacy.',
   analyticsLabel: 'Usage counts',
   analyticsHint: 'Which screens you open and what you tap, so Robes can get better.',
+  // Asked once on the phone, after sign-in, while she has given no answer (11 Nov). The message
+  // is the hint above. TODO(founders): the title and the two buttons are a draft.
+  askTitle: 'Allow usage counts?',
+  askYes: 'Allow',
+  askNo: 'Not now',
   replayLabel: 'Screen recordings',
   replayHint:
     'Recordings of how you move through Robes, with every word, photo and typed answer hidden. Needs usage counts.',
@@ -1739,6 +1744,23 @@ export const twin = {
       reviewNote: 'Only used to draw your twin',
       retake: 'Retake',
       use: 'Use photo',
+    },
+    // Her yes before the camera (Annie's "Digital twin consent" artboard, 11 Nov; App Store
+    // 5.1.2): it names Google Gemini, and nothing is photographed until the box is ticked.
+    consent: {
+      title: 'Your twin is you.',
+      sub: 'And it’s yours.',
+      rows: [
+        ['Collects', 'A close-up and your size facts. Never your weight.'],
+        ['Use', 'Your looks, shown on you. Never slimmed or smoothed.'],
+        ['Made by', 'Google Gemini. It may process data outside the EU.'],
+        ['Kept', 'While your account exists.'],
+        ['Your controls', 'Remove your close-up, or delete your account, any time.'],
+      ],
+      agree: 'I agree to Robes building my digital twin from my close-up and size facts.',
+      privacy: 'Privacy',
+      notNow: 'Not now',
+      go: 'Take my close-up',
     },
     lineup: 'Choose a model',
     you: 'You',

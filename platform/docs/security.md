@@ -152,7 +152,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 
 **SEC-83 — No PII in logs.** Structured logger with a redaction list (email, name, handle, prompt text, URLs of user photos); prompts go only to `generation_log` (access-controlled), never stdout.
 
-**SEC-84 — Consent.** Analytics and session replay load only after consent (web: she turns usage counts on in You › Privacy — no page asks, the banner was removed 9 Nov 2026; native ATT prompt not required for first-party analytics without tracking, but consent screen for replay). Replay masks all inputs and images by default.
+**SEC-84 — Consent.** Analytics and session replay load only after consent (web: she turns usage counts on in You › Privacy — no page asks, the banner was removed 9 Nov 2026; native: one question after sign-in while she has given no answer, and nothing loads before a yes, 11 Nov 2026; native ATT prompt not required for first-party analytics without tracking, but consent screen for replay). Replay masks all inputs and images by default.
 
 **SEC-85 — Policies.** Privacy notice, terms, DPIA for photo analysis/AI edits, sub-processor list (Supabase, Vercel, AWS, Google, Cloudinary, Resend, PostHog), app-store privacy labels generated from a single data inventory (`docs/data-inventory.md`, maintained with the schema).
 

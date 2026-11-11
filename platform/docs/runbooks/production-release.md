@@ -74,8 +74,8 @@ register as you go. In order:
 10. **DNS** (no user-facing records yet): `media.byrobes.com` → the CloudFront output, the SES
     DKIM/MAIL FROM/DMARC records, the inbound MX. Keep `app.byrobes.com` private (Vercel
     deployment protection or no DNS) until T-0.
-11. **Legal**: real Terms and Privacy text in the app (currently "On its way"), naming SES, AWS,
-    Vercel, PostHog replay and Gemini.
+11. **Legal**: real Terms and Privacy text in the app (live since 4 Nov, `packages/copy/src/legal.ts`),
+    naming SES, AWS, Vercel, PostHog replay and Gemini.
 
 Then deploy through CI only: run the **`platform-deploy-prod`** workflow (manual, the reviewer
 approves). It migrates with the migration role, deploys `Production/*`, and smoke-tests
