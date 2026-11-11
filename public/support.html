@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robes · Support</title>
+<meta name="description" content="Help with Robes: common questions, and a way to write to a person.">
+<meta name="theme-color" content="#faf8f5">
+<link rel="preload" href="/fonts/Cormorant-Roman-Latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/Inter-Latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="shell nav-row">
+    <a class="wordmark" href="/" aria-label="Robes home">Robes</a>
+    <a class="nav-join" href="/#waitlist">Join the waitlist</a>
+    <span class="stores stores-sm nav-stores">
+      <span class="store" role="img" aria-label="Coming soon to the App Store"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg><span class="store-txt"><span class="store-pre">Coming soon to</span><span class="store-name">App Store</span></span></span>
+      <span class="store" role="img" aria-label="Coming soon to Google Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a.8.8 0 0 0 1.2.7l12-7.5a.8.8 0 0 0 0-1.4l-12-7.5A.8.8 0 0 0 7 4.5z"/></svg><span class="store-txt"><span class="store-pre">Coming soon to</span><span class="store-name">Google Play</span></span></span>
+    </span>
+  </div>
+</header>
+
+<main class="page support">
+  <div class="page-head">
+    <h1 class="page-h">Support. <i>From your IRL stylist.</i></h1>
+    <label class="field search">
+      <span>Search help</span>
+      <input type="search" id="faq-search" placeholder="Digital twin, worn looks, deleting my account…" autocomplete="off">
+    </label>
+  </div>
+
+  <section class="faq" aria-labelledby="faq-title">
+    <h2 id="faq-title">Common questions.</h2>
+    <div class="faq-list" id="faq-list">
+      <details name="faq" open>
+        <summary>What is a digital twin?<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <p>A likeness of you, built from an optional close-up and the size facts you set, so you can see each look on you before you get dressed. It’s built to be accurate, never slimmed or smoothed. Your face is used only to show you your own looks. Remove the close-up and your model is redrawn without your face.</p>
+      </details>
+      <details name="faq">
+        <summary>Do I have to make a twin?<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <p>No. Start with your pieces instead and see them on a Robes model matched to your size and shape. Every photo step can be skipped.</p>
+      </details>
+      <details name="faq">
+        <summary>Do I need to add my whole wardrobe first?<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <p>No. Your first looks come from your style notes, as a stylist’s suggestions. As you add pieces, Robes builds looks from what you own.</p>
+      </details>
+      <details name="faq">
+        <summary>Why does Robes say I wore something I didn’t?<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <p>A planned look counts as worn automatically. If you wore something else, tap Wore something else on that day — or add the look you did wear, even from last week.</p>
+      </details>
+      <details name="faq">
+        <summary>Does Robes ask me to buy things?<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <p>Rarely. Every look starts with what you own. When a look needs something you don’t have, Robes names the piece and the looks it completes. There’s no shopping in the app.</p>
+      </details>
+      <details name="faq">
+        <summary>Will I lose what I’ve added?<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <p>No. Everything you add stays exactly as you left it, on iPhone and the web. Sign in with the same email on both.</p>
+      </details>
+      <details name="faq">
+        <summary>How do I delete my twin, my photos or my account?<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <p>Under You › Account, download your data or delete your account and everything in it. Pieces you remove are deleted after 30 days.</p>
+      </details>
+    </div>
+    <p class="faq-none" id="faq-none" hidden>Nothing matches. Write to Robes below.</p>
+  </section>
+
+  <section class="write" aria-labelledby="write-title">
+    <h2 id="write-title">Write to Robes.</h2>
+    <p class="write-lede">A person reads every message. Or email <a href="mailto:hello@byrobes.com">hello@byrobes.com</a>.</p>
+    <form id="write-form" novalidate style="display:flex;flex-direction:column;gap:18px">
+      <div class="write-row">
+        <label class="field"><span>Your email</span><input type="email" name="email" autocomplete="email" placeholder="you@example.com" required></label>
+        <label class="field"><span>It’s about</span>
+          <select name="topic" required>
+            <option value="" disabled selected>Choose one</option>
+            <option>My digital twin</option>
+            <option>Looks and my week</option>
+            <option>My lookbook</option>
+            <option>My account and data</option>
+          </select>
+        </label>
+      </div>
+      <label class="field"><span>What happened</span><textarea name="message" rows="5" placeholder="Tell Robes what you were doing and what you expected." required></textarea></label>
+      <button class="btn-primary" type="submit">Send to Robes</button>
+      <p class="write-note" id="write-note" role="status"></p>
+    </form>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="shell foot-row">
+    <div class="foot-brand">
+      <span class="wordmark">Robes</span>
+      <span class="foot-tag">The world is your runway</span>
+    </div>
+    <nav class="foot-nav" aria-label="Footer">
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+      <a href="https://forms.gle/bUqWkRJq7VXW986t9" target="_blank" rel="noopener">Feedback</a>
+    </nav>
+    <span class="foot-copy">© 2026 Robes. All rights reserved.</span>
+  </div>
+</footer>
+<script src="/js/support.js"></script>
+</body>
+</html>
