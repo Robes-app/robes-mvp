@@ -21,7 +21,7 @@ import { errorCopy } from '@/lib/error-copy';
 import { anyReading } from '@/lib/wardrobe';
 import { AddPiecesSheet } from './add/add-pieces-sheet';
 import { DeletePieceDialog } from './delete-piece-dialog';
-import { AddCard, CardRow, type CardStatus, CardTile, cardLines, type RowMeta } from './piece-card';
+import { CardRow, type CardStatus, CardTile, cardLines, type RowMeta } from './piece-card';
 import { PieceImage } from './piece-image';
 import { useWardrobeLayout } from './use-layout';
 import { useRemovePiece } from './use-remove-piece';
@@ -294,11 +294,6 @@ export function PieceGrid() {
               />
             </li>
           ))}
-          {hasNextPage ? null : (
-            <li>
-              <AddCard href="/wardrobe/add" layout={list ? 'list' : 'grid'} />
-            </li>
-          )}
         </ul>
       )}
       <div ref={sentinel} aria-hidden className="h-px" />

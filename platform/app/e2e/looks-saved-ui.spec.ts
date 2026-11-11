@@ -194,7 +194,7 @@ test('removing a look can be undone', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Weekend' })).toBeVisible();
 });
 
-test('the image stack (D19, D20): a photograph lands in focus, waits for Update look, and the card in front leads', async ({
+test('the image stack (D19, D20): a photograph lands in focus and the strip’s ✓ keeps it as the cover, never waiting for Update look', async ({
   page,
 }) => {
   await signIn(page);
@@ -244,13 +244,14 @@ test('the image stack (D19, D20): a photograph lands in focus, waits for Update 
   await expect(manager.getByTestId('image-card-added')).toBeInViewport({ timeout: 30_000 });
   // ✓ straight away, while the strip may still be gliding to the new card: it still leads.
   await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(2);
-  // Nothing is written until Update look (D20).
+  // Nothing is written before the strip's ✓.
   expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).images).toEqual([]);
-  // ✓ leaves the card in view in front; the photo shows it, and Update look keeps it.
+  // ✓ keeps the card in view as the cover there and then (Annie, 11 Nov): the foot stays
+  // Schedule look, with no Update look to ask for.
   await page.getByTestId('image-manager-done').click();
   await expect(manager).toBeHidden();
-  await page.getByTestId('update-look').click();
-  await expect(page.getByText('Look updated.', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('update-look')).toHaveCount(0);
+  await expect(page.getByTestId('schedule-look')).toBeVisible();
   await expect
     .poll(async () => {
       const now = await (await api.get(`/api/v1/looks/${look.id}`)).json();
@@ -265,7 +266,6 @@ test('the image stack (D19, D20): a photograph lands in focus, waits for Update 
   await manager.getByRole('button', { name: 'Remove this image · Robes’ picture' }).click();
   await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(0);
   await page.getByTestId('image-manager-done').click();
-  await page.getByTestId('update-look').click();
   await expect
     .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).robesHidden)
     .toBe(true);

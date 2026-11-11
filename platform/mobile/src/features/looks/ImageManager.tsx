@@ -9,7 +9,6 @@ import {
   stageAdd,
   stageCards,
   stageFront,
-  stageInFront,
   stageRemove,
 } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
@@ -26,6 +25,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CaptureCamera } from '@/features/capture/CaptureCamera';
 import { type PickedPhoto, uploadPhoto } from '@/features/wardrobe/add-pieces';
 import { renditionUri } from '@/lib/images';
@@ -45,24 +45,34 @@ const STEP = CARD_W + GAP;
 // centred. Robes' picture leads with its sparkle (unless she hid it), then her photographs, then
 // the dashed Add a photo card, which opens the camera that only adds an image — it never reads the
 // pieces. Add to look uploads the photograph and it settles into the strip, in focus; every card
-// has its × but the last one left. ✓ leaves the card in view in front. Nothing is written here:
-// the owner holds the stage until Update look. Opened from the Edit look sheet or Home's stack,
+// has its × but the last one left. ✓ hands the card in view to the owner as the cover: a saved
+// look keeps the strip there and then (never waiting for Update look), a draft as it is saved. Opened from the Edit look sheet or Home's stack,
 // the Add a photo card is in focus. Web twin: app/src/components/looks/image-manager.tsx.
 export function ImageManager({
   look,
   stage,
   onStage,
   onDone,
+  busy = false,
   focusAdd = false,
+  onBack,
 }: {
   look: Look;
   stage: ImageStage;
   onStage: StageUpdate;
-  onDone: () => void;
+  // The card in view as she taps ✓; null on the Add a photo card, which leaves the front as it was.
+  onDone: (front: StageCard | null) => void;
+  // The strip is being kept: ✓ waits.
+  busy?: boolean;
   focusAdd?: boolean;
+  // On the saved look's page (3e) the band starts under the status bar and carries the back disc
+  // that stood on the picture, so she can always leave.
+  onBack?: () => void;
 }) {
   const api = useApiClient();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const top = onBack ? insets.top : 0;
   const ink = useColor('ink');
   const bg = useColor('bg');
   const muted = useColor('ink-muted');
@@ -99,9 +109,8 @@ export function ImageManager({
   }, [added]);
 
   const finish = () => {
-    const card = cards[inView.current];
-    if (card) onStage((s) => stageInFront(s, card));
-    onDone();
+    if (busy) return;
+    onDone(cards[inView.current] ?? null);
   };
   // Add to look: the photograph uploads, joins the stage, and the camera gives way to the strip.
   const add = async (photo: PickedPhoto) => {
@@ -125,7 +134,7 @@ export function ImageManager({
       accessibilityLabel={copy.title}
       testID="image-manager"
       className="relative overflow-hidden bg-surface-sunk"
-      style={{ height: 360 }}
+      style={{ height: 360 + top, paddingTop: top }}
     >
       <ScrollView
         ref={strip}
@@ -196,13 +205,28 @@ export function ImageManager({
           </Text>
         </Pressable>
       </ScrollView>
+      {onBack ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={lookbook.savedLook.back}
+          onPress={onBack}
+          hitSlop={10}
+          testID="saved-look-back"
+          className="absolute items-center justify-center rounded-pill bg-veil-soft"
+          style={{ top: top + 10, left: 12, width: 36, height: 36 }}
+        >
+          <Icon name="back" size={20} color={ink} />
+        </Pressable>
+      ) : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={copy.done}
+        accessibilityState={{ busy, disabled: busy }}
+        disabled={busy}
         onPress={finish}
         testID="image-manager-done"
         className="absolute items-center justify-center rounded-pill bg-scrim"
-        style={{ right: 16, bottom: 16, width: 44, height: 44 }}
+        style={{ right: 16, bottom: 16, width: 44, height: 44, opacity: busy ? 0.5 : 1 }}
       >
         <Icon name="check" size={18} color={bg} />
       </Pressable>

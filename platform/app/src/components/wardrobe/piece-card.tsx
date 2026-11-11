@@ -412,28 +412,3 @@ export function HeartButton({
     </button>
   );
 }
-
-// The list ends on the dashed "+ Add a piece" row; the grid on the add tile.
-export function AddCard({ href, layout }: { href: string; layout: 'list' | 'grid' }) {
-  if (layout === 'list') {
-    return (
-      <Link
-        href={href}
-        className={`flex min-h-[52px] items-center justify-center gap-2 rounded-soft border border-dashed border-rule-mid font-sans text-xs text-ink-muted hover:text-ink ${focus}`}
-      >
-        <Icon name="plus" size={16} />
-        {copy.addRow}
-      </Link>
-    );
-  }
-  return (
-    <Link
-      href={href}
-      className={`flex min-h-full flex-col items-center justify-center gap-2 rounded-soft border border-dashed border-rule-mid text-ink-muted hover:text-ink ${focus}`}
-    >
-      <Icon name="plus" size={20} />
-      <span className="font-display text-lg text-ink">{copy.addRow}</span>
-      <span className="font-sans text-[11px]">{copy.addHint}</span>
-    </Link>
-  );
-}

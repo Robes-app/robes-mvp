@@ -18,7 +18,7 @@ import { usePullRefresh } from '@/lib/pull-refresh';
 import { AddPiecesSheet } from './add/AddPiecesSheet';
 import { DeletePieceDialog } from './DeletePieceDialog';
 import { useWardrobeLayout } from './layout';
-import { AddRow, CardRow, type CardStatus, CardTile, type RowMeta, Status } from './PieceCard';
+import { CardRow, type CardStatus, CardTile, type RowMeta, Status } from './PieceCard';
 import { useDeletePiece, usePieces } from './pieces';
 import { CountRow, HeaderRow, type Segment } from './WardrobeHeader';
 import { WishlistView } from './WishlistView';
@@ -247,13 +247,6 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
         onEndReachedThreshold={0.5}
         onEndReached={() => (hasNextPage ? void fetchNextPage() : undefined)}
         refreshControl={<RefreshControl {...pull} />}
-        ListFooterComponent={
-          !grid && !hasNextPage && pieces.length > 0 ? (
-            <View className="pt-2">
-              <AddRow label={copy.card.addRow} onPress={addPieces} />
-            </View>
-          ) : undefined
-        }
         ListEmptyComponent={
           <View className="items-start gap-3 py-6">
             <Text tone="muted">{copy.filter.nothing}</Text>

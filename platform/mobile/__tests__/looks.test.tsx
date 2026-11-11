@@ -264,7 +264,7 @@ test('a card opens its sheet piece by piece, her own pieces marked', async () =>
   expect(screen.getByText('Black loafers')).toBeTruthy();
 });
 
-test('the image stack (D19, D20): Robes’ picture can be hidden; nothing is written until Update look', async () => {
+test('the image stack (D19, D20): Robes’ picture can be hidden; the strip’s ✓ keeps it, no Update look', async () => {
   const model = piece().image;
   if (!model) throw new Error('fixture piece has an image');
   const photo = { ...model, assetId: '99999999-9999-4999-8999-999999999999' };
@@ -293,14 +293,16 @@ test('the image stack (D19, D20): Robes’ picture can be hidden; nothing is wri
   await fireEvent.press(screen.getByLabelText(`${manager.remove} · ${manager.robes}`));
   // Her photograph is the last card left: it keeps no ×.
   expect(screen.queryAllByLabelText(new RegExp(`^${manager.remove}`))).toHaveLength(0);
-  await fireEvent.press(screen.getByTestId('image-manager-done'));
-  expect(screen.queryByTestId('image-manager')).toBeNull();
-  // Held until Update look (D20).
+  // Nothing is written before the strip's ✓; the ✓ keeps it there and then (Annie, 11 Nov).
   expect(calls.some((c) => c.path.includes('/images'))).toBe(false);
-  await fireEvent.press(screen.getByTestId('update-look'));
+  await fireEvent.press(screen.getByTestId('image-manager-done'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/images/robes'))?.body).toEqual({ hidden: true }),
   );
+  await waitFor(() => expect(screen.queryByTestId('image-manager')).toBeNull());
+  // The foot stays Schedule look: a photo is never a change waiting for Update look.
+  expect(screen.queryByTestId('update-look')).toBeNull();
+  expect(screen.getByTestId('schedule-look')).toBeTruthy();
 });
 
 test('Details › Seasons picks the four seasons (D12); the row reads them back', async () => {

@@ -314,6 +314,13 @@ test('the diary: the strip selects a day, the slot adds and changes its look, De
   await expect(page.getByTestId('draft-done')).toHaveAttribute('aria-disabled', 'true');
   await edit.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByTestId('draft-look')).toHaveCount(0);
+  // The photograph's image stack opens the same drawer on Add a photo, never the look's page, so
+  // its × is always in reach (design "Add a photo to a look", Annie 11 Nov).
+  await page.getByTestId('ootd-card').getByTestId('saved-look-stack').click();
+  await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=.*images=add/);
+  await expect(edit.getByTestId('image-card-add')).toBeInViewport();
+  await edit.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByTestId('draft-look')).toHaveCount(0);
 
   // Tomorrow: empty, Describe is there; yesterday: no Describe, the tile logs a wear.
   await page.getByTestId(`diary-day-${tomorrow}`).click();

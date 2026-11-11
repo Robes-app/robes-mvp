@@ -597,8 +597,9 @@ test('The Rack heading shows once a piece hangs, and the toggle turns the rows t
 
 // Add a photo to a look (Capture PRD flow 3): the Add a photo card opens the camera that only
 // adds an image. A shot reads Retake, a library photo Another; Add to look stages the photograph,
-// the Photos count goes up, and Update look (or the tick) keeps it. Nothing reads its pieces.
-test('add a photo to a look: camera, Retake or Another, Add to look, then Update look', async () => {
+// the Photos count goes up, and the strip's ✓ keeps it as the cover there and then — it is never a
+// change waiting for Update look (Annie, 11 Nov). Nothing reads its pieces.
+test('add a photo to a look: camera, Retake or Another, Add to look, then the strip’s ✓ keeps it', async () => {
   const saved = look({ model: piece().image, onModel: 'ready' });
   const withPhoto = {
     ...saved,
@@ -637,23 +638,27 @@ test('add a photo to a look: camera, Retake or Another, Add to look, then Update
   await fireEvent.press(await screen.findByRole('button', { name: cam.another }));
   await waitFor(() => expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledTimes(2));
 
-  // Add to look: the card joins the strip, the count goes up, Update look and the tick turn on.
+  // Add to look: the card joins the strip in focus and the count goes up; Update look and the
+  // tick stay off.
   await fireEvent.press(screen.getByRole('button', { name: cam.use }));
   expect(await screen.findByTestId('image-card-added')).toBeTruthy();
   expect(screen.queryByTestId('capture-review')).toBeNull();
   expect(screen.getByTestId('details-photos')).toHaveTextContent(/2/);
-  expect(update().props.accessibilityState.disabled).toBe(false);
-  expect(done().props.accessibilityState.disabled).toBe(false);
-  // Nothing is written until Update look.
+  expect(update().props.accessibilityState.disabled).toBe(true);
+  expect(done().props.accessibilityState.disabled).toBe(true);
+  // Nothing is written before the strip's ✓; the ✓ keeps the photograph and makes it the cover.
   expect(calls.some((c) => c.path.endsWith(`/looks/${LOOK_ID}/images`))).toBe(false);
-  await fireEvent.press(update());
+  await fireEvent.press(screen.getByTestId('image-manager-done'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith(`/looks/${LOOK_ID}/images`))?.body).toEqual({
       assetId: ASSET_ID,
     }),
   );
-  expect(await screen.findByText(lookbook.updated)).toBeTruthy();
-  expect(lookbook.updated).toBe('Look updated.');
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/images/cover'))?.body).toEqual({ imageId: SCARF }),
+  );
+  await waitFor(() => expect(screen.queryByTestId('image-manager')).toBeNull());
+  expect(update().props.accessibilityState.disabled).toBe(true);
   // Adding a photograph never reads its pieces.
   expect(calls.some((c) => /photo-reads|pieces\/find/.test(c.path))).toBe(false);
 });

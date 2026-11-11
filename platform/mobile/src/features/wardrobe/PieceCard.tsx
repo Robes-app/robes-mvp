@@ -484,21 +484,3 @@ export function HeartButton({
     </Pressable>
   );
 }
-
-// The list ends on the dashed "+ Add a piece" row.
-export function AddRow({ onPress, label }: { onPress: () => void; label: string }) {
-  const muted = useColor('ink-muted');
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      className="min-h-[52px] flex-row items-center justify-center gap-2 rounded-soft border border-dashed border-rule-mid"
-    >
-      <Icon name="plus" size={16} color={muted} />
-      <Text className="text-xs text-ink-muted" style={{ fontFamily: fonts.sans }}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}

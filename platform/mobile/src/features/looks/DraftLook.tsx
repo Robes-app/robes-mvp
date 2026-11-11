@@ -17,9 +17,11 @@ import {
   type ImageStage,
   isCaptureRow,
   type RackRow,
+  type StageCard,
   stageCards,
   stageChanged,
   stageFront,
+  stageInFront,
 } from '@robes/core/looks';
 import type { WardrobeLayout } from '@robes/core/wardrobe';
 import { shortRange } from '@robes/core/weather';
@@ -756,10 +758,10 @@ function DraftBody({
   });
   const busy = adjust.busy || save.isPending || editor.saving || stack.committing;
   const words = prompt.trim();
-  // A saved look's edit: anything not yet applied with Update look (D17, D18, D20).
+  // A saved look's edit: anything not yet applied with Update look (D17, D18). Her photographs
+  // and the cover are not among them: the strip's ✓ keeps them (keepStrip).
   const pending =
-    mode === 'edit' &&
-    (editor.dirty || adjust.stale || words.length > 0 || stack.changed || shop.changed);
+    mode === 'edit' && (editor.dirty || adjust.stale || words.length > 0 || shop.changed);
   // A look from her photograph saves at any point but while its pieces are being found (1c.10).
   const finding = capture.on && capture.stage === 'finding';
   const canDone =
@@ -813,8 +815,23 @@ function DraftBody({
     }
     apply();
   };
+  // The strip's ✓ (design "Add a photo to a look"): the card in focus goes in front. A saved
+  // look keeps its photographs and cover there and then, never waiting for Update look; a
+  // draft's are kept as it is saved.
+  const keepStrip = (front: StageCard | null) => {
+    const next = front ? stageInFront(stack.stage, front) : stack.stage;
+    if (mode === 'draft') {
+      stack.update(() => next);
+      setManaging(false);
+      return;
+    }
+    void stack.commit(next).then((ok) => {
+      if (ok) setManaging(false);
+    });
+  };
   const close = () => {
-    if (mode === 'edit' && !pending) {
+    // A strip left open without its ✓ still asks, so a photo she added is never lost unasked.
+    if (mode === 'edit' && !pending && !stack.changed) {
       onClose();
       return;
     }
@@ -1019,8 +1036,10 @@ function DraftBody({
           look={look}
           stage={stack.stage}
           onStage={stack.update}
-          onDone={() => setManaging(false)}
+          onDone={keepStrip}
+          busy={stack.committing}
           focusAdd={stripFirst}
+          {...(presentation === 'saved' ? { onBack: close } : {})}
         />
       ) : (
         <DraftPhoto

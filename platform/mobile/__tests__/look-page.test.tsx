@@ -434,11 +434,13 @@ test('flipping Shop on a saved look waits for Update look', async () => {
   await waitFor(() => expect(screen.queryByTestId('update-look')).toBeNull());
 });
 
-test('Home’s image stack lands on the Add a photo card of the look’s detail', async () => {
+test('the photo strip on the look’s page keeps its back disc, so she can always leave', async () => {
   mockFetch(editRoutes(twoPieces()));
-  await renderWithApi(<LookScreen id={LOOK_ID} addPhoto />);
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('saved-look-stack'));
   expect(await screen.findByTestId('image-manager')).toBeTruthy();
   expect(screen.getByRole('button', { name: lookbook.savedLook.manager.add })).toBeTruthy();
   // Still the saved look's page: its back disc, and Schedule look at the foot.
+  expect(screen.getByTestId('saved-look-back')).toBeTruthy();
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
 });

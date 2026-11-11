@@ -11,7 +11,6 @@ import {
   stageAdd,
   stageCards,
   stageFront,
-  stageInFront,
   stageRemove,
 } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
@@ -35,21 +34,29 @@ export type StageUpdate = (update: (stage: ImageStage) => ImageStage) => void;
 // centred. Robes' picture leads with its sparkle (unless she hid it), then her photographs, then
 // the dashed Add a photo card, which opens the camera that only adds an image — it never reads the
 // pieces. Add to look uploads the photograph and it settles into the strip, in focus; every card
-// has its × but the last one left. ✓ leaves the card in view in front. Nothing is written here:
-// the owner holds the stage until Update look. Opened from the Edit look drawer or Home's stack,
+// has its × but the last one left. ✓ hands the card in view to the owner as the cover: a saved
+// look keeps the strip there and then (never waiting for Update look), a draft as it is saved. Opened from the Edit look drawer or Home's stack,
 // the Add a photo card is in focus. Native twin: mobile/src/features/looks/ImageManager.tsx.
 export function ImageManager({
   look,
   stage,
   onStage,
   onDone,
+  busy = false,
   focusAdd = false,
+  onBack,
 }: {
   look: Look;
   stage: ImageStage;
   onStage: StageUpdate;
-  onDone: () => void;
+  // The card in view as she taps ✓; null on the Add a photo card, which leaves the front as it was.
+  onDone: (front: StageCard | null) => void;
+  // The strip is being kept: ✓ waits.
+  busy?: boolean;
   focusAdd?: boolean;
+  // On the saved look's page (3e) the band carries the back disc that stood on the picture, so
+  // she can always leave.
+  onBack?: () => void;
 }) {
   const api = useApiClient();
   const toast = useToast();
@@ -104,9 +111,8 @@ export function ImageManager({
     inView.current = at;
   };
   const finish = () => {
-    const card = cards[inView.current];
-    if (card) onStage((s) => stageInFront(s, card));
-    onDone();
+    if (busy) return;
+    onDone(cards[inView.current] ?? null);
   };
   // Add to look: the photograph uploads, joins the stage, and the camera gives way to the strip.
   const onPicked = async (picked: File) => {
@@ -186,13 +192,27 @@ export function ImageManager({
           </span>
         </button>
       </div>
+      {onBack ? (
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label={lookbook.savedLook.back}
+          title={lookbook.savedLook.back}
+          data-testid="saved-look-back"
+          className={`absolute top-2.5 left-3 z-10 flex size-9 items-center justify-center rounded-pill bg-veil-soft text-ink backdrop-blur-[8px] after:absolute after:-inset-2.5 after:content-[''] ${focus}`}
+        >
+          <Icon name="back" size={20} className="-ml-0.5" />
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={finish}
+        disabled={busy}
         aria-label={copy.done}
+        aria-busy={busy}
         title={copy.done}
         data-testid="image-manager-done"
-        className={`absolute right-4 bottom-4 z-10 flex size-11 items-center justify-center rounded-pill bg-scrim text-bg backdrop-blur-[8px] ${focus}`}
+        className={`absolute right-4 bottom-4 z-10 flex size-11 items-center justify-center rounded-pill bg-scrim text-bg backdrop-blur-[8px] disabled:opacity-50 ${focus}`}
       >
         <Icon name="check" size={18} />
       </button>

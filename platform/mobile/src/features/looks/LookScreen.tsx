@@ -33,13 +33,10 @@ import { RobesModelBadge } from './RobesModelBadge';
 export function LookScreen({
   id,
   schedule = false,
-  addPhoto = false,
 }: {
   id: string;
   // `?schedule=1`: a draft just saved from its sheet opens with the diary up.
   schedule?: boolean;
-  // `?images=add`: Home's image stack opens the saved look on the Add a photo card (PRD §6.1).
-  addPhoto?: boolean;
 }) {
   const router = useRouter();
   const query = useApi(
@@ -71,7 +68,6 @@ export function LookScreen({
           id={look.id}
           presentation="saved"
           schedule={schedule}
-          {...(addPhoto ? { images: 'add' as const } : {})}
           onClose={() => (router.canGoBack() ? router.back() : router.replace('/'))}
         />
       ) : (

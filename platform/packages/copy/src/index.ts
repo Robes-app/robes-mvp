@@ -506,8 +506,6 @@ export const wardrobe = {
     heroFull: 'The Hero Rack holds ten. Remove one first.',
     swipeRemove: 'Remove',
     swipeDelete: 'Delete',
-    addRow: 'Add a piece',
-    addHint: 'Photograph · Receipt · Link',
     noPhoto: 'Photograph it',
   },
   filter: {
