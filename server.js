@@ -20,6 +20,7 @@ setInterval(() => {
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(join(__dirname, 'public'), {
+  extensions: ['html'], // /privacy, /terms, /support
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
