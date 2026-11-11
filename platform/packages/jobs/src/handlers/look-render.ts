@@ -30,7 +30,7 @@ import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
 import { JobError, type JobHandler } from '../runtime';
 import { drawSuggestedFrame, type FrameRackPiece, modelReference } from './look-frame';
-import { StoredSet } from './style-piece';
+import { frameSetting, StoredSet } from './style-piece';
 
 export interface LookRenderDeps {
   ai: AiProvider;
@@ -453,6 +453,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           rack,
           capability: (found.look.setIndex ?? 0) === 0 ? 'image.hero' : 'image.secondary',
           pictureNote: found.look.pictureNote,
+          setting: frameSetting(found.look.status, set?.success ? set.data : null),
         });
       } catch (err) {
         return fail(err);

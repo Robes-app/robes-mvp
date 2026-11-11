@@ -4,6 +4,7 @@ import {
   bustCmOf,
   chosenTones,
   effectiveStops,
+  isTwinCurrent,
   NO_ADJ,
   stepTwinFact,
   type TwinFacts,
@@ -14,6 +15,7 @@ import {
   twinKey,
   twinKeyMaterial,
   twinSpec,
+  twinStatusIndex,
 } from './index';
 
 const none: TwinFacts = {
@@ -73,6 +75,59 @@ describe('the twin', () => {
     expect(twinKeyMaterial(inputs({ adj: { ...NO_ADJ, hips: 1 } }))).not.toBe(a);
     expect(twinKeyMaterial(inputs({ closeUpAssetId: 'x' }))).not.toBe(a);
     expect(twinKeyMaterial(inputs({ facts: { ...none, waistCm: 70 } }))).not.toBe(a);
+  });
+
+  it('steps the stage’s status a line at a time, from the read or the drawing, holding the last', () => {
+    const at = (startedReading: boolean, reading: boolean, elapsedMs: number) =>
+      twinStatusIndex({ count: 4, drawingFrom: 2, startedReading, reading, elapsedMs });
+    expect(at(true, true, 0)).toBe(0);
+    expect(at(true, true, 4_000)).toBe(1);
+    // The read done early: straight to the drawing; never back.
+    expect(at(true, false, 1_000)).toBe(2);
+    expect(at(true, false, 12_000)).toBe(3);
+    expect(at(true, true, 60_000)).toBe(3);
+    // A redraw with no selfie starts at the drawing.
+    expect(at(false, false, 0)).toBe(2);
+    expect(at(false, false, 4_000)).toBe(3);
+  });
+
+  it('keys a twin drawn from her close-up apart from the colouring read from it', async () => {
+    const photo = inputs({ closeUpAssetId: 'x' });
+    // The read lands mid-draw: the twin it started is still the one she has.
+    expect(twinKeyMaterial({ ...photo, skin: 6, hair: 4 })).toBe(twinKeyMaterial(photo));
+    // A hand pick is in the prompt, so it is in the key; without a photo the tones are words.
+    expect(twinKeyMaterial({ ...photo, skin: 6, skinSet: true })).not.toBe(twinKeyMaterial(photo));
+    expect(twinKeyMaterial({ ...photo, hair: 4, hairSet: true })).not.toBe(twinKeyMaterial(photo));
+    expect(twinKeyMaterial(inputs({ skin: 6 }))).not.toBe(twinKeyMaterial(inputs()));
+  });
+
+  it('keeps a twin stored under the key that hashed the read colouring', async () => {
+    const photo = inputs({ closeUpAssetId: 'x', skin: 6 });
+    const before = await globalThis.crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(
+        JSON.stringify([
+          JSON.parse(twinKeyMaterial(photo))[0],
+          'woman',
+          [null, null, null, null, null, null, null],
+          [null, null, null],
+          6,
+          1,
+          false,
+          false,
+          'x',
+        ]),
+      ),
+    );
+    const legacy = [...new Uint8Array(before)]
+      .slice(0, 12)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    expect(legacy).not.toBe(await twinKey(photo));
+    expect(await isTwinCurrent(legacy, photo)).toBe(true);
+    expect(await isTwinCurrent(await twinKey(photo), photo)).toBe(true);
+    expect(await isTwinCurrent(legacy, { ...photo, skin: 2 })).toBe(false);
+    expect(await isTwinCurrent(null, photo)).toBe(false);
   });
 
   it('draws a figure that moves with a slider', () => {

@@ -2,6 +2,7 @@ import http from 'node:http';
 import type { AddressInfo, LookupFunction } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { isBlockedAddress } from './address';
+import { fetchPhoto, PHOTO_MAX_BYTES } from './index';
 import { checkUrl, FetchRefused, safeFetch } from './safe-fetch';
 
 // SEC-40 table: every row must be refused. Resolvers are stubbed; nothing leaves the machine.
@@ -142,6 +143,15 @@ describe('SEC-40 response limits (local fixture server, allowPrivate)', () => {
       } else if (req.url === '/json') {
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end('{}');
+      } else if (req.url === '/photo.jpg') {
+        res.writeHead(200, { 'content-type': 'image/jpeg' });
+        res.end(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 1]));
+      } else if (req.url === '/huge.jpg') {
+        res.writeHead(200, { 'content-type': 'image/jpeg' });
+        res.end(Buffer.alloc(PHOTO_MAX_BYTES + 1));
+      } else if (req.url === '/photo.svg') {
+        res.writeHead(200, { 'content-type': 'image/svg+xml' });
+        res.end('<svg/>');
       } else if (req.url === '/slow') {
         res.writeHead(200, { 'content-type': 'text/html' });
         // Never ends: the timeout must fire.
@@ -167,5 +177,30 @@ describe('SEC-40 response limits (local fixture server, allowPrivate)', () => {
 
   it('refuses the same local server without the dev escape hatch', async () => {
     await refused(safeFetch(`${base}/`), 'scheme');
+    expect(await fetchPhoto(`${base}/photo.jpg`)).toEqual({ ok: false, reason: 'scheme' });
+  });
+
+  // A receipt line's photo: the same guard, a photo-only type list and a small cap; the bytes
+  // come back undecoded, for the rendition pipeline to check like an upload.
+  it('fetches a receipt photo as bytes, and refuses other types, big files and pages', async () => {
+    expect(await fetchPhoto(`${base}/photo.jpg`, { allowPrivate: true })).toEqual({
+      ok: true,
+      contentType: 'image/jpeg',
+      data: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 1]).toString('base64'),
+    });
+    expect(await fetchPhoto(`${base}/huge.jpg`, { allowPrivate: true })).toEqual({
+      ok: false,
+      reason: 'too_large',
+    });
+    expect(await fetchPhoto(`${base}/photo.svg`, { allowPrivate: true })).toEqual({
+      ok: false,
+      reason: 'content_type',
+    });
+    expect(await fetchPhoto(`${base}/`, { allowPrivate: true })).toEqual({
+      ok: false,
+      reason: 'content_type',
+    });
+    // A page fetch still refuses an image.
+    await refused(safeFetch(`${base}/photo.jpg`, { allowPrivate: true }), 'content_type');
   });
 });

@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import * as Clipboard from 'expo-clipboard';
 import { InboxView } from '../src/features/wardrobe/InboxView';
 import { LinkImport } from '../src/features/wardrobe/LinkImport';
-import { mockFetch, renderWithApi } from './support/api';
+import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { JOB_ID } from './support/fixtures';
 import { mockParams, mockRouter } from './support/router';
 
@@ -50,69 +50,169 @@ const job = (status: string) => ({
   finishedAt: null,
 });
 
-test('a receipt arrives all ticked; untick what went back and the one pill counts and files', async () => {
+const receipts = (items: typeof entry.items, state: 'inbox' | 'added' | 'discarded' = 'inbox') =>
+  ({
+    items: items.length ? [{ ...entry, items }] : [],
+    count: 3,
+    counts: { inbox: 3, added: 0, discarded: 0 },
+    state,
+  }) as const;
+
+// Receipts (Front Door PRD rev 3 §7.5): the tabs with their counts, the forwarding card, the
+// pieces by retailer, each with its own × and ✓.
+test('the Inbox tab lists the receipt by retailer; ✓ adds one piece, × discards one', async () => {
   const calls = mockFetch({
-    'GET /inbox': { items: [entry], count: 3 },
+    'GET /inbox': (_init: RequestInit, url: string) =>
+      url.includes('state=added') || url.includes('state=discarded')
+        ? receipts([])
+        : receipts(entry.items),
+    'GET /me/inbox-address': {
+      address: 'annie.k7f3@in.robes.test',
+      createdAt: '2026-09-01T00:00:00.000Z',
+    },
     [`POST /inbox/${ENTRY_ID}/decide`]: {
       id: ENTRY_ID,
-      status: 'filed',
+      status: 'held',
       filedTo: 'wardrobe',
-      filedIds: [PIECE, PIECE],
+      filedIds: [PIECE],
     },
   });
   await renderWithApi(<InboxView />);
-  expect(await screen.findByText('Wool coat')).toBeTruthy();
-  expect(screen.getByText(`${wardrobe.inbox.from('Zara')} · 24 Sep`)).toBeTruthy();
-  expect(screen.getByText(wardrobe.inbox.read(3))).toBeTruthy();
-  const scarf = screen.getByRole('checkbox', { name: 'Silk scarf' });
-  expect(scarf.props.accessibilityState.checked).toBe(true);
-  // One ink pill, and its count follows the ticks.
-  expect(screen.getByRole('button', { name: wardrobe.inbox.file(3) })).toBeTruthy();
-  await fireEvent.press(scarf);
-  expect(
-    screen.getByRole('checkbox', { name: 'Silk scarf' }).props.accessibilityState.checked,
-  ).toBe(false);
-  await fireEvent.press(screen.getByRole('button', { name: wardrobe.inbox.file(2) }));
+  expect(await screen.findByText(wardrobe.receipts.group('Zara', 3))).toBeTruthy();
+  expect(screen.getByRole('tab', { name: `${wardrobe.receipts.tabs.inbox} 3` })).toBeTruthy();
+  expect(screen.getByRole('tab', { name: `${wardrobe.receipts.tabs.added} 0` })).toBeTruthy();
+  // The forwarding card reads her address and says what happens next.
+  expect(await screen.findByText('annie.k7f3')).toBeTruthy();
+  expect(screen.getByText(wardrobe.receipts.extracted)).toBeTruthy();
+  // The footer: the sender and the day it came.
+  expect(screen.getByText(wardrobe.receipts.received('24 Sep'))).toBeTruthy();
+  // ✓ on the coat alone adds that piece; × on the scarf discards it.
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.receipts.add('Wool coat') }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       action: 'wardrobe',
-      itemIndexes: [0, 2],
+      itemIndexes: [0],
     }),
   );
-});
-
-test('the wishlist is a hairline pill and Skip a text link; nothing ticked files nothing', async () => {
-  const calls = mockFetch({
-    'GET /inbox': { items: [entry], count: 3 },
-    [`POST /inbox/${ENTRY_ID}/decide`]: {
-      id: ENTRY_ID,
-      status: 'dismissed',
-      filedTo: null,
-      filedIds: [],
-    },
-  });
-  await renderWithApi(<InboxView />);
-  await screen.findByText('Wool coat');
-  for (const label of ['Wool coat', 'Silk scarf', 'Loafers']) {
-    await fireEvent.press(screen.getByRole('checkbox', { name: label }));
-  }
-  const fileNone = screen.getByRole('button', { name: wardrobe.inbox.file(0) });
-  expect(fileNone.props.accessibilityState.disabled).toBe(true);
-  expect(
-    screen.getByRole('button', { name: wardrobe.inbox.toWishlist }).props.accessibilityState
-      .disabled,
-  ).toBe(true);
-  await fireEvent.press(screen.getByRole('button', { name: wardrobe.inbox.skip }));
+  expect(await screen.findByText(wardrobe.receipts.added)).toBeTruthy();
+  await fireEvent.press(
+    screen.getByRole('button', { name: wardrobe.receipts.discard('Silk scarf') }),
+  );
   await waitFor(() =>
-    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ action: 'dismiss' }),
+    expect(calls.filter((c) => c.method === 'POST').at(-1)?.body).toEqual({
+      action: 'dismiss',
+      itemIndexes: [1],
+    }),
+  );
+  // The group's ✓ takes every piece still waiting.
+  await fireEvent.press(screen.getByTestId(`receipt-${ENTRY_ID}-add`));
+  await waitFor(() =>
+    expect(calls.filter((c) => c.method === 'POST').at(-1)?.body).toEqual({ action: 'wardrobe' }),
   );
 });
 
-test('an empty Inbox points to forwarding a receipt', async () => {
-  mockFetch({ 'GET /inbox': { items: [], count: 0 } });
+// A Zara receipt prints no name but the price and size (beta's review row): the size reads on the
+// line, and the brand is left out where it is the shop the group already names.
+test('a line reads its price and the size the receipt printed', async () => {
+  mockFetch({
+    'GET /inbox': (_init: RequestInit, url: string) =>
+      url.includes('state=added') || url.includes('state=discarded')
+        ? receipts([])
+        : receipts([
+            {
+              index: 0,
+              label: 'Pink zip-up hoodie and wide-leg trousers set',
+              brand: 'Zara',
+              price: 27.95,
+              currency: 'EUR',
+              size: '11/12 years (148 cm)',
+              sourceUrl: null,
+            },
+          ] as unknown as typeof entry.items),
+    'GET /me/inbox-address': errorReply(404, 'not_found'),
+  });
   await renderWithApi(<InboxView />);
-  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.add.doors.receipt }));
-  expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/receipt');
+  expect(await screen.findByText('€27.95 · Size 11/12 years (148 cm)')).toBeTruthy();
+  expect(screen.getByText('Pink zip-up hoodie and wide-leg trousers set')).toBeTruthy();
+  // No photo read yet: the hanger.
+  expect(screen.queryByTestId('receipt-photo-0')).toBeNull();
+});
+
+// Once Robes has read the line's photo (her own stored copy), it stands in for the hanger.
+test('a line shows its photo once it is read', async () => {
+  mockFetch({
+    'GET /inbox': (_init: RequestInit, url: string) =>
+      url.includes('state=added') || url.includes('state=discarded')
+        ? receipts([])
+        : receipts([
+            {
+              index: 0,
+              label: 'Black flare leggings',
+              brand: 'Zara',
+              price: 10.95,
+              currency: 'EUR',
+              size: '6/7 years (122 cm)',
+              sourceUrl: null,
+              image: {
+                assetId: '99999999-9999-4999-8999-999999999999',
+                status: 'ready',
+                width: 400,
+                height: 500,
+                blurhash: null,
+                renditions: [
+                  {
+                    width: 320,
+                    avif: 'https://media.robes.test/a.avif',
+                    webp: 'https://media.robes.test/a.webp',
+                  },
+                ],
+              },
+            },
+          ] as unknown as typeof entry.items),
+    'GET /me/inbox-address': errorReply(404, 'not_found'),
+  });
+  await renderWithApi(<InboxView />);
+  expect(await screen.findByTestId('receipt-photo-0')).toBeTruthy();
+  expect(screen.getByText('Black flare leggings')).toBeTruthy();
+});
+
+test('ADDED and DISCARDED list what was decided, without the × and ✓', async () => {
+  mockFetch({
+    'GET /inbox': (_init: RequestInit, url: string) =>
+      url.includes('state=added')
+        ? {
+            items: [{ ...entry, items: [{ ...entry.items[0], state: 'added', filedId: PIECE }] }],
+            count: 2,
+            counts: { inbox: 2, added: 1, discarded: 0 },
+          }
+        : url.includes('state=discarded')
+          ? { items: [], count: 2, counts: { inbox: 2, added: 1, discarded: 0 } }
+          : {
+              items: [{ ...entry, items: entry.items.slice(1) }],
+              count: 2,
+              counts: { inbox: 2, added: 1, discarded: 0 },
+            },
+    'GET /me/inbox-address': errorReply(404, 'not_found'),
+  });
+  await renderWithApi(<InboxView />);
+  expect(await screen.findByText(wardrobe.receipts.group('Zara', 2))).toBeTruthy();
+  await fireEvent.press(screen.getByRole('tab', { name: `${wardrobe.receipts.tabs.added} 1` }));
+  expect(await screen.findByText(wardrobe.receipts.group('Zara', 1))).toBeTruthy();
+  expect(screen.getByText('Wool coat')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: wardrobe.receipts.add('Wool coat') })).toBeNull();
+  await fireEvent.press(screen.getByRole('tab', { name: `${wardrobe.receipts.tabs.discarded} 0` }));
+  expect(await screen.findByText(wardrobe.receipts.discardedEmpty)).toBeTruthy();
+});
+
+test('an empty Inbox says nothing past its forwarding card', async () => {
+  mockFetch({
+    'GET /inbox': { items: [], count: 0, counts: { inbox: 0, added: 0, discarded: 0 } },
+    'GET /me/inbox-address': errorReply(404, 'not_found'),
+  });
+  await renderWithApi(<InboxView />);
+  expect(await screen.findByTestId('receipts-tabs')).toBeTruthy();
+  // No empty-state card and no second way to forward (Annie, 9 Nov).
+  expect(screen.queryByRole('button', { name: wardrobe.add.doors.receipt })).toBeNull();
 });
 
 test('paste a link reads the page and opens Review on the piece', async () => {

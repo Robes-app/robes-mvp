@@ -35,7 +35,9 @@ function routes() {
   return mockFetch({
     'GET /me/notifications': () => ({ items: ITEMS.filter((i) => !dismissed.has(i.key)) }),
     'POST /me/notifications/dismiss': (init: RequestInit) => {
-      dismissed.add((JSON.parse(String(init.body)) as { key: string }).key);
+      const body = JSON.parse(String(init.body)) as { key?: string; all?: true };
+      if (body.all) for (const i of ITEMS) dismissed.add(i.key);
+      else if (body.key) dismissed.add(body.key);
       return { ok: true };
     },
   });
@@ -92,7 +94,7 @@ test('two items render with where each leads; a tap routes, × dismisses and the
   expect(screen.getByText(bell.logWear('Wednesday'))).toBeTruthy();
 });
 
-test('the sheet (Felix NotificationsSheet): the drawer header, a glyph by kind, and Done only closes', async () => {
+test('the sheet (Felix NotificationsSheet): the drawer header, a glyph by kind, × closes and ✓ clears all', async () => {
   const calls = mockFetch({
     'GET /me/notifications': {
       items: [
@@ -121,24 +123,25 @@ test('the sheet (Felix NotificationsSheet): the drawer header, a glyph by kind, 
   expect(screen.getByText(bell.dest.overnight)).toBeTruthy();
   for (const item of ITEMS) expect(item.text).not.toContain('!');
 
-  await fireEvent.press(screen.getByRole('button', { name: ui.done }));
+  // × closes and marks nothing read: no dismissal is sent and the dot stays.
+  await fireEvent.press(screen.getByRole('button', { name: ui.close }));
   await waitFor(() => expect(screen.queryByText(bell.receipts(2))).toBeNull());
-  // Done marks nothing read: no dismissal is sent and the dot stays.
   expect(calls.some((c) => c.method === 'POST')).toBe(false);
   expect(screen.getByTestId('bell-dot', { includeHiddenElements: true })).toBeTruthy();
-  // × closes the same way.
+  // The ✓ clears every card in one write and closes (PRD rev 3 §10 12).
   await fireEvent.press(screen.getByTestId('bell'));
-  await fireEvent.press(await screen.findByRole('button', { name: ui.close }));
+  await fireEvent.press(await screen.findByRole('button', { name: bell.clear }));
   await waitFor(() => expect(screen.queryByText(bell.receipts(2))).toBeNull());
-  expect(calls.some((c) => c.method === 'POST')).toBe(false);
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/notifications/dismiss'))?.body).toEqual({
+      all: true,
+    }),
+  );
 });
 
-test('with nothing waiting the bell carries no dot and the sheet says so', async () => {
+test('with nothing waiting there is no bell (PRD rev 3 §2.2)', async () => {
   mockFetch({ 'GET /me/notifications': { items: [] } });
   await renderWithApi(<Bell />);
-  const button = await screen.findByTestId('bell');
-  expect(button.props.accessibilityLabel).toBe('Notifications');
-  await fireEvent.press(button);
-  expect(await screen.findByText(bell.empty)).toBeTruthy();
+  await waitFor(() => expect(screen.queryByTestId('bell')).toBeNull());
   expect(screen.queryByTestId('bell-dot', { includeHiddenElements: true })).toBeNull();
 });

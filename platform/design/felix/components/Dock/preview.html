@@ -1,12 +1,15 @@
-<!-- @dsCard group="Navigation" height=96 -->
+<!-- @dsCard group="Navigation" height=220 width=420 subtitle="Active tab, wardrobe count, empty-wardrobe alert" -->
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><title>Dock — preview</title></head>
 <body>
-<div id="root" style="width:390px;background:var(--cream)"></div>
+<div id="root" style="width:390px;background:var(--cream);display:flex;flex-direction:column"></div>
 <script>
 var F = window.Felix, h = React.createElement;
-ReactDOM.createRoot(document.getElementById('root')).render(h(F.Dock,{active:'home',dots:{wardrobe:true}}));
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h(F.Dock, { active: 'home', badges: { wardrobe: { count: 24, title: '24 pieces in your wardrobe' } } }),
+  h(F.Dock, { active: 'lookbook', badges: { wardrobe: { count: 0, tone: 'alert', title: 'Your wardrobe is empty' } } }),
+  h(F.Dock, { active: 'wardrobe', dots: { diary: true } })));
 </script>
 </body>
 </html>

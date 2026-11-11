@@ -41,14 +41,16 @@ test('paste a link from Create, review it, and it files to the wishlist', async 
   await page.getByRole('button', { name: 'Read the page' }).click();
 
   // The page is read, then reviewed like a photo before anything files (design "Add Piece").
-  await expect(page.getByRole('heading', { name: 'Here’s what Robes saw.' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Review piece' })).toBeVisible({
     timeout: 20_000,
   });
-  await expect(page.getByRole('button', { name: /^Name\s*Silk slip dress/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Name\s*Silk slip dress/ })).toBeVisible({
+    timeout: 20_000,
+  });
   expect(await seriousViolations(page)).toEqual([]);
-  await page.getByRole('button', { name: 'Add to wishlist →' }).click();
-  await expect(page.getByRole('heading', { name: 'One piece filed.' })).toBeVisible();
-  await page.getByRole('link', { name: 'See your wishlist' }).click();
+  await page.getByTestId('review-add').click();
+  await expect(page).toHaveURL(/\/wardrobe\/wishlist/, { timeout: 15_000 });
+  await expect(page.getByText('1 piece added to your wishlist', { exact: true })).toBeVisible();
   await expect(
     page.getByRole('list', { name: 'Wishlist' }).getByText('Silk slip dress'),
   ).toBeVisible();

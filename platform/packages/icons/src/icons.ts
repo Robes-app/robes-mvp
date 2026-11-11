@@ -81,6 +81,13 @@ export const ICONS = {
   alert: ['M12 3 2.5 20h19L12 3z', 'M12 10v4M12 17h.01'],
   star: ['M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.85L12 16.9l-5.25 2.75 1-5.85L3.5 9.7l5.9-.9z'],
   filter: ['M4 7h16M7 12h10M10 17h4'],
+  // The Front Door's Filter button (PRD rev 3 §2.5): two sliders with their knobs.
+  sliders: [
+    'M4 8h9M17 8h3',
+    'M13 5.5a2.5 2.5 0 1 0 4 0a2.5 2.5 0 1 0 -4 0',
+    'M4 16h3M11 16h9',
+    'M7 13.5a2.5 2.5 0 1 0 4 0a2.5 2.5 0 1 0 -4 0',
+  ],
   sort: ['M7 4v16', 'M3 8l4-4 4 4', 'M17 20V4', 'M21 16l-4 4-4-4'],
   grid: ['M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'],
   list: ['M4 6h16M4 12h16M4 18h16'],
@@ -147,6 +154,10 @@ export const ICONS = {
   ],
   autumn: ['M5 19C5 11 10 5 20 4c-1 10-7 15-15 15z', 'M5 19l8-8'],
   winter: ['M12 2v20', 'M3.3 7l17.4 10M3.3 17l17.4-10', 'M9 4l3 2 3-2M9 20l3-2 3 2'],
+  // Front Door PRD rev 3 (Felix's bookmark and bag): the Lookbook's Saved tab and the save on a
+  // suggestion; the Wardrobe's Shop tab and the mark on a look with pieces still to find.
+  bookmark: ['M7 4h10v16l-5-3.5L7 20z'],
+  bag: ['M5 11h14v9.5H5z', 'M9 11C9 6.5 10.3 4 12 4s3 2.5 3 7'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type IconName = keyof typeof ICONS;

@@ -1,55 +1,37 @@
 import { useApi } from '@robes/api-client/react';
-import type { ListPiecesInput, Piece } from '@robes/contracts';
-import { wardrobe as copy, ui } from '@robes/copy';
-import { COLOUR_FAMILIES } from '@robes/core/colour';
-import { WEAR_SEEDS } from '@robes/core/taxonomy';
+import type { Piece } from '@robes/contracts';
+import { wardrobe as copy, filters as filterCopy, ui } from '@robes/copy';
+import { SEASON_OPTIONS, type SeasonOption, WEAR_FOR_ALL } from '@robes/core/filters';
 import { rankCategories } from '@robes/core/wardrobe';
-import {
-  Button,
-  CardSkeleton,
-  EmptyState,
-  Eyebrow,
-  Pill,
-  PrimaryScope,
-  Sheet,
-  Text,
-} from '@robes/ui-native';
+import { Button, CardSkeleton, EmptyState, PrimaryScope, Text } from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { type ReactNode, useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { TabScreen, useTabScroll } from '@/components/TabScreen';
+import { BrandSelect } from '@/features/filters/BrandSelect';
+import { FilterRow } from '@/features/filters/FilterRow';
+import { FilterSheet } from '@/features/filters/FilterSheet';
+import { SwatchGrid } from '@/features/filters/SwatchGrid';
+import { useWardrobeFilters, type WardrobeFilters } from '@/features/filters/use-wardrobe-filters';
 import { errorMessage } from '@/lib/errors';
-import { FamilyTile } from './ColourField';
-import { useInbox } from './inbox';
+import { usePullRefresh } from '@/lib/pull-refresh';
+import { AddPiecesSheet } from './add/AddPiecesSheet';
+import { DeletePieceDialog } from './DeletePieceDialog';
 import { useWardrobeLayout } from './layout';
-import { AddRow, CardRow, type CardStatus, CardTile, StarButton } from './PieceCard';
-import { useDeletePiece, usePieces, useStarPiece } from './pieces';
-import { CategoryTabs, CountRow, HeaderRow, InboxNotice, type Segment } from './WardrobeHeader';
+import { CardRow, type CardStatus, CardTile, type RowMeta, Status } from './PieceCard';
+import { useDeletePiece, usePieces } from './pieces';
+import { CountRow, HeaderRow, type Segment } from './WardrobeHeader';
 import { WishlistView } from './WishlistView';
 
 const SEGMENTS: readonly Segment[] = ['pieces', 'wishlist'];
-const SEASONS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
-type Season = (typeof SEASONS)[number];
-type Category = NonNullable<ListPiecesInput['category']>;
-// Filter (legacy Refine): one season, what she wears it for, one colour family, one brand.
-type Refine = {
-  season: Season | null;
-  wear: string | null;
-  family: string | null;
-  brand: string | null;
-};
-const NO_REFINE: Refine = { season: null, wear: null, family: null, brand: null };
-const refineInput = (r: Refine) => ({
-  ...(r.season ? { seasonBand: r.season } : {}),
-  ...(r.wear ? { wearFor: r.wear } : {}),
-  ...(r.family ? { colourFamily: r.family } : {}),
-  ...(r.brand ? { brand: r.brand } : {}),
-});
-const isRefined = (r: Refine) => Object.values(r).some((v) => v !== null);
-// What she can pick to wear it for: the seeded words first, then any of her own.
-const wearChoices = (own: readonly string[]) => [
-  ...new Set([...WEAR_SEEDS.map((w) => w.label), ...own]),
-];
+
+// A piece's row says its wears behind the calendar, or "New" before the first (PRD rev 3 §7.2).
+function pieceMeta(piece: Piece): RowMeta | null {
+  if (piece.status !== 'ready') return null;
+  return piece.wearCount > 0
+    ? { icon: 'calendar', text: String(piece.wearCount), label: copy.card.worn(piece.wearCount) }
+    : { text: copy.card.new, label: copy.card.neverWorn };
+}
 
 function pieceStatus(piece: Piece): CardStatus {
   if (piece.status === 'reading') return { text: copy.reading, warm: false };
@@ -59,150 +41,121 @@ function pieceStatus(piece: Piece): CardStatus {
     : { text: copy.card.neverWorn, warm: true };
 }
 
-// Filter (legacy Refine): Season · Wear it for · Colour · Brand, counted before she applies them.
-// The web twin is FilterSheet in app/src/components/wardrobe/piece-grid.tsx.
-function FilterSheet({
+// The wardrobe's filter sheet (Front Door PRD rev 3 §7.1a): SEASON and WEAR IT FOR as pills with
+// no counts, COLOUR as the swatch grid, BRAND as the select. Filters apply live; the one button
+// reads what they leave. Web twin: WardrobeFilterSheet in app/src/components/wardrobe/piece-grid.tsx.
+export function WardrobeFilterSheet({
   open,
   onClose,
-  category,
-  refine,
-  onApply,
+  filters,
+  brands,
+  wearChoices,
+  count,
 }: {
   open: boolean;
   onClose: () => void;
-  category: Category | null;
-  refine: Refine;
-  onApply: (refine: Refine) => void;
+  filters: WardrobeFilters;
+  brands: readonly string[];
+  wearChoices: readonly string[];
+  count: number | null;
 }) {
-  const [pick, setPick] = useState<Refine>(refine);
-  useEffect(() => {
-    if (open) setPick(refine);
-  }, [open, refine]);
-  const summary = useApi('wardrobe.summary', undefined, { enabled: open });
-  const count = useApi(
-    'wardrobe.list',
-    { input: { limit: 1, ...(category ? { category } : {}), ...refineInput(pick) } },
-    { enabled: open },
-  );
-  const toggle = <K extends keyof Refine>(key: K, value: NonNullable<Refine[K]>) =>
-    setPick({ ...pick, [key]: pick[key] === value ? null : value });
-  const brands = summary.data?.brands ?? [];
   return (
-    <Sheet open={open} onClose={onClose} title={copy.filter.title} testID="wardrobe-filter-sheet">
-      <PrimaryScope>
-        <View className="gap-5">
-          <FilterGroup legend={copy.filter.season} first>
-            {SEASONS.map((s) => (
-              <Pill key={s} selected={pick.season === s} onPress={() => toggle('season', s)}>
-                {copy.filter.seasons[s]}
-              </Pill>
-            ))}
-          </FilterGroup>
-          <FilterGroup legend={copy.filter.wearFor}>
-            {wearChoices(summary.data?.wearFor ?? []).map((w) => (
-              <Pill key={w} selected={pick.wear === w} onPress={() => toggle('wear', w)}>
-                {w}
-              </Pill>
-            ))}
-          </FilterGroup>
-          <FilterGroup legend={copy.filter.colour}>
-            {/* The family as one quartered tile with its name beneath (legacy .rb-ref-fam). */}
-            {COLOUR_FAMILIES.map((f) => (
-              <Pressable
-                key={f.id}
-                accessibilityRole="button"
-                accessibilityLabel={f.name}
-                accessibilityState={{ selected: pick.family === f.id }}
-                onPress={() => toggle('family', f.id)}
-                style={{ width: 72 }}
-                className={`items-center gap-1.5 rounded-crisp border px-1 py-1.5 ${
-                  pick.family === f.id ? 'border-selected-line bg-selected' : 'border-transparent'
-                }`}
-              >
-                <FamilyTile family={f} size={40} />
-                <Text
-                  size="caption"
-                  tone={pick.family === f.id ? 'ink' : 'muted'}
-                  weight={pick.family === f.id ? 'medium' : 'regular'}
-                  numberOfLines={1}
-                >
-                  {f.name}
-                </Text>
-              </Pressable>
-            ))}
-          </FilterGroup>
-          {brands.length ? (
-            <FilterGroup legend={copy.filter.brand}>
-              {brands.map((b) => (
-                <Pill key={b} selected={pick.brand === b} onPress={() => toggle('brand', b)}>
-                  {b}
-                </Pill>
-              ))}
-            </FilterGroup>
-          ) : null}
-          <Button
-            onPress={() => {
-              onApply(pick);
-              onClose();
-            }}
-          >
-            {count.data ? copy.filter.show(count.data.total) : copy.filter.title}
-          </Button>
-          <Button variant="quiet" disabled={!isRefined(pick)} onPress={() => setPick(NO_REFINE)}>
-            {copy.filter.clear}
-          </Button>
-        </View>
-      </PrimaryScope>
-    </Sheet>
+    <FilterSheet
+      open={open}
+      onClose={onClose}
+      sections={[
+        {
+          key: 'season',
+          title: filterCopy.season,
+          counts: false,
+          options: SEASON_OPTIONS.map((value) => ({
+            value,
+            label: filterCopy.seasons[value],
+            count: 0,
+          })),
+          selected: filters.state.seasons,
+          onToggle: (v) => filters.toggleSeason(v as SeasonOption),
+        },
+        {
+          key: 'wear',
+          title: filterCopy.wearFor,
+          counts: false,
+          options: wearChoices.map((value) => ({ value, label: value, count: 0 })),
+          selected: filters.state.wearFor,
+          onToggle: filters.toggleWear,
+        },
+        {
+          key: 'colour',
+          title: copy.filter.colour,
+          custom: <SwatchGrid selected={filters.state.families} onToggle={filters.toggleFamily} />,
+        },
+        ...(brands.length
+          ? [
+              {
+                key: 'brand',
+                title: copy.filter.brand,
+                custom: (
+                  <BrandSelect
+                    brands={brands}
+                    value={filters.state.brand}
+                    onChange={filters.setBrand}
+                  />
+                ),
+              },
+            ]
+          : []),
+      ]}
+      onClear={filters.clearSheet}
+      clearable={filters.sheetCount > 0}
+      cta={filterCopy.showPieces(count ?? 0)}
+      ctaDisabled={count === 0}
+      testID="wardrobe-filter-sheet"
+    />
   );
 }
 
-// One group of the Filter: its eyebrow, then its choices; a hairline above every group but the first.
-function FilterGroup({
-  legend,
-  first = false,
-  children,
-}: {
-  legend: string;
-  first?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <View className={`gap-3 ${first ? '' : 'border-hairline border-t pt-5'}`}>
-      <Eyebrow>{legend}</Eyebrow>
-      <View className="flex-row flex-wrap gap-2">{children}</View>
-    </View>
-  );
+// One list for the wear-it-for section: the shared list, then her own tags.
+export function wearChoicesOf(own: readonly string[]): string[] {
+  const seen = new Set(WEAR_FOR_ALL.map((w) => w.toLowerCase()));
+  const extra = own.filter((w) => !seen.has(w.toLowerCase()));
+  return [...WEAR_FOR_ALL, ...extra];
 }
 
-function Pieces() {
+function Pieces({ onAdd }: { onAdd: () => void }) {
   const tabScroll = useTabScroll();
   const router = useRouter();
   const [layout, setLayout] = useWardrobeLayout();
-  const [category, setCategory] = useState<Category | null>(null);
-  const [refine, setRefine] = useState<Refine>(NO_REFINE);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const summary = useApi('wardrobe.summary');
-  const {
-    pieces,
-    total,
-    isPending,
-    isError,
-    error,
-    refetch,
-    isRefetching,
-    fetchNextPage,
-    hasNextPage,
-  } = usePieces({
-    ...(category ? { category } : {}),
-    ...refineInput(refine),
-  });
-  const star = useStarPiece();
+  const filters = useWardrobeFilters();
+  const [sheet, setSheet] = useState(false);
+  // The chips count under the sheet's filters (the category itself set aside); the last answer
+  // stands while the next loads, so the sheet's brand list never blinks away between picks.
+  const summary = useApi(
+    'wardrobe.summary',
+    { input: filters.sheetInput },
+    { placeholderData: (prev) => prev },
+  );
+  const { pieces, total, isPending, isError, error, refetch, fetchNextPage, hasNextPage } =
+    usePieces(filters.input);
+  const pull = usePullRefresh(refetch);
   const remove = useDeletePiece();
-  // Every way in starts on the Add pieces sheet (design "Add Piece — Handoff").
-  const addPieces = () => router.push('/wardrobe/add');
-  const refined = isRefined(refine);
-  const filtered = category !== null || refined;
+  // The row's swipe asks first, as the piece page does (R14).
+  const [asking, setAsking] = useState<string | null>(null);
+  // Every way in starts on the Add pieces sheet (Front Door PRD rev 3 §7.4), the Wardrobe's.
+  const addPieces = onAdd;
+  const owned = summary.data?.total ?? null;
+  // "Other" isn't a place to browse to; its pieces stay under All (beta's sheet).
+  const categories = useMemo(
+    () =>
+      rankCategories(summary.data?.categories ?? [])
+        .filter((c) => c !== 'Other')
+        .map((c) => ({
+          value: c,
+          label: c,
+          count: summary.data?.categories.find((x) => x.category === c)?.count ?? 0,
+        })),
+    [summary.data],
+  );
+  const allCount = summary.data?.categories.reduce((n, c) => n + c.count, 0) ?? 0;
 
   if (isPending) {
     return (
@@ -224,14 +177,17 @@ function Pieces() {
       />
     );
   }
-  if (pieces.length === 0 && !filtered) {
+  if (owned === 0 || (pieces.length === 0 && !filters.active && owned === null)) {
     return (
       <PrimaryScope>
-        <View className="items-center gap-2 px-6 pt-8">
-          <EmptyState title={copy.empty.title} body={copy.empty.body} />
-          <Button icon="plus" onPress={addPieces}>
-            {copy.empty.action}
-          </Button>
+        <View className="px-5 pt-8">
+          <EmptyState
+            icon="wardrobe"
+            title={copy.empty.title}
+            body={copy.empty.body}
+            action={{ label: `+ ${copy.empty.action}`, variant: 'primary', onPress: addPieces }}
+            testID="wardrobe-empty"
+          />
         </View>
       </PrimaryScope>
     );
@@ -240,15 +196,22 @@ function Pieces() {
   const grid = layout === 'grid';
   return (
     <View className="flex-1">
-      <CategoryTabs
-        // "Other" isn't a place to browse to; its pieces stay under All (beta's sheet).
-        categories={rankCategories(summary.data?.categories ?? []).filter((c) => c !== 'Other')}
-        value={category}
-        onChange={(c) => setCategory(c as Category | null)}
-      />
+      <View className="px-5 pt-3">
+        <FilterRow
+          sheetCount={filters.sheetCount}
+          onOpenSheet={() => setSheet(true)}
+          seasons={[]}
+          onRemoveSeason={() => undefined}
+          quick={categories}
+          active={filters.state.category ? [filters.state.category] : []}
+          onToggle={filters.setCategory}
+          allCount={allCount}
+          onAll={() => filters.setCategory(null)}
+          testID="wardrobe-filter-row"
+        />
+      </View>
       <CountRow
         count={total === null ? null : copy.header.count(total)}
-        filter={{ on: refined, onOpen: () => setFilterOpen(true) }}
         layout={layout}
         onLayout={setLayout}
       />
@@ -258,65 +221,56 @@ function Pieces() {
         key={layout}
         data={pieces}
         keyExtractor={(p) => p.id}
-        numColumns={grid ? 2 : 1}
-        {...(grid ? { columnWrapperClassName: 'gap-3' } : {})}
-        contentContainerClassName={grid ? 'gap-3 px-5 pb-8' : 'gap-2 px-5 pb-8'}
+        numColumns={grid ? 3 : 1}
+        {...(grid ? { columnWrapperClassName: 'gap-2' } : {})}
+        contentContainerClassName={grid ? 'gap-2 px-5 pb-8' : 'gap-[3px] px-5 pb-8'}
         renderItem={({ item }) => {
           const open = () => router.push(`/piece/${item.id}`);
-          const action = (
-            <StarButton
-              label={item.label}
-              on={item.heroPosition !== null}
-              onToggle={() => star(item)}
-              tile={grid}
-            />
-          );
           return grid ? (
-            <CardTile piece={item} status={pieceStatus(item)} action={action} onOpen={open} />
+            <CardTile piece={item} status={pieceStatus(item)} onOpen={open} compact />
           ) : (
+            // The shared piece row (canvas 3b): its wears at the right; the Hero Rack star lives on
+            // the piece's page now (Annie, 9 Nov).
             <CardRow
               piece={item}
-              status={pieceStatus(item)}
-              action={action}
+              meta={pieceMeta(item)}
+              lines={item.status === 'ready' ? null : <Status status={pieceStatus(item)} />}
               onOpen={open}
-              removeLabel={copy.removePiece(item.label)}
-              onRemove={() => remove.mutate({ params: { id: item.id } })}
+              swipe={{
+                text: copy.card.swipeDelete,
+                label: copy.deletePiece(item.label),
+                onRemove: () => setAsking(item.id),
+              }}
             />
           );
         }}
         onEndReachedThreshold={0.5}
         onEndReached={() => (hasNextPage ? void fetchNextPage() : undefined)}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
-        }
-        ListFooterComponent={
-          !grid && !hasNextPage && pieces.length > 0 ? (
-            <View className="pt-2">
-              <AddRow label={copy.card.addRow} onPress={addPieces} />
-            </View>
-          ) : undefined
-        }
+        refreshControl={<RefreshControl {...pull} />}
         ListEmptyComponent={
           <View className="items-start gap-3 py-6">
             <Text tone="muted">{copy.filter.nothing}</Text>
-            <Button
-              variant="quiet"
-              onPress={() => {
-                setCategory(null);
-                setRefine(NO_REFINE);
-              }}
-            >
+            <Button variant="quiet" onPress={filters.clear}>
               {copy.filter.showEverything}
             </Button>
           </View>
         }
       />
-      <FilterSheet
-        open={filterOpen}
-        onClose={() => setFilterOpen(false)}
-        category={category}
-        refine={refine}
-        onApply={setRefine}
+      <WardrobeFilterSheet
+        open={sheet}
+        onClose={() => setSheet(false)}
+        filters={filters}
+        brands={summary.data?.brands ?? []}
+        wearChoices={wearChoicesOf(summary.data?.wearFor ?? [])}
+        count={total}
+      />
+      <DeletePieceDialog
+        open={asking !== null}
+        onDelete={() => {
+          if (asking) remove.mutate({ params: { id: asking } });
+          setAsking(null);
+        }}
+        onCancel={() => setAsking(null)}
       />
     </View>
   );
@@ -336,34 +290,28 @@ export function WardrobeView() {
       router.push('/wardrobe/inbox');
     }
   }, [params.segment, router]);
-  const inbox = useInbox();
-  const receipts = inbox.data?.items.length ?? 0;
-  const waiting = inbox.data?.count ?? 0;
+  // The + and the empty states open the Add pieces sheet (PRD rev 3 §7.4): the three tiles over
+  // the Wardrobe, filing to the segment she is on.
+  const [adding, setAdding] = useState(false);
   return (
     <TabScreen
+      title={copy.title}
       toolbar={
         <HeaderRow
           segment={segment}
           onSegment={setSegment}
           addLabel={segment === 'wishlist' ? copy.header.savePiece : copy.header.addPiece}
-          onAdd={() =>
-            router.push({
-              pathname: '/wardrobe/add',
-              params: { to: segment === 'wishlist' ? 'wishlist' : 'wardrobe' },
-            })
-          }
+          onAdd={() => setAdding(true)}
         />
       }
     >
-      {waiting > 0 ? (
-        <InboxNotice
-          receipts={receipts}
-          pieces={waiting}
-          onOpen={() => router.push('/wardrobe/inbox')}
-        />
-      ) : null}
-      {segment === 'pieces' ? <Pieces /> : null}
+      {segment === 'pieces' ? <Pieces onAdd={() => setAdding(true)} /> : null}
       {segment === 'wishlist' ? <WishlistView /> : null}
+      <AddPiecesSheet
+        open={adding}
+        onClose={() => setAdding(false)}
+        to={segment === 'wishlist' ? 'wishlist' : 'wardrobe'}
+      />
     </TabScreen>
   );
 }

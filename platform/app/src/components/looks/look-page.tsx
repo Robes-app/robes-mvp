@@ -7,15 +7,15 @@ import { Button, Dialog, Eyebrow, Heading, InlineTitleField, Text } from '@robes
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { type Adjust, useAdjust } from '@/lib/adjust';
-import { useLookEditor } from '@/lib/look-editor';
+import { onRackIds, useLookEditor } from '@/lib/look-editor';
 import { useLetGo, useRequestFrame, useSaveLook } from '@/lib/look-states';
 import { AdjustDock } from './adjust-dock';
 import { LookImage } from './look-image';
 import { LookVerdict } from './look-verdict';
+import { type PickerMode, PiecePicker } from './piece-picker';
 import { RackRowCard } from './rack-row';
 import { RobesModelBadge } from './robes-model-badge';
 import { Scanning, scanningLine } from './scan-line';
-import { SwapSheet } from './swap-sheet';
 
 // Robes' frame (drawn when she first reaches a suggestion, UX-09) or her look's picture.
 export function LookPicture({ look }: { look: Look }) {
@@ -88,6 +88,13 @@ export function Rack({
   const [adding, setAdding] = useState(false);
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const swapRow = editor.rack.rows.find((r) => r.key === swapping) ?? null;
+  // One picker for every + and every swap (plan 2026-11-09 PR 9: the older swap sheet is gone).
+  const picker: PickerMode | null =
+    swapping && swapRow
+      ? { swap: { key: swapping, name: swapRow.name, category: swapRow.category } }
+      : adding
+        ? { add: true }
+        : null;
   return (
     <section aria-labelledby="look-rack" className="flex flex-col gap-3">
       <h2
@@ -141,23 +148,25 @@ export function Rack({
           {copy.rack.addPiece}
         </button>
       ) : null}
-      <SwapSheet
-        open={swapping !== null || adding}
-        swapping={swapRow ? { name: swapRow.name, category: swapRow.category } : null}
-        onRack={editor.rack.rows.flatMap((r) => (r.pieceId ? [r.pieceId] : []))}
+      <PiecePicker
+        mode={picker}
+        onRack={onRackIds(editor.rack.rows)}
         onClose={() => {
           setSwapping(null);
           setAdding(false);
         }}
-        // A suggestion's ↻ and a saved look's swap land on one tap, each behind an Undo.
-        instant={swapInPlace || look.status === 'saved'}
-        onPick={(piece) =>
-          swapping
-            ? swapInPlace
-              ? editor.swapKeep(swapping, piece)
-              : editor.swap(swapping, piece)
-            : editor.add(piece)
-        }
+        onPick={(pieces, wishes) => {
+          if (swapping) {
+            const [piece] = pieces;
+            if (!piece) return;
+            // A suggestion's swap keeps the look's picture (↻ redraws it), behind an Undo.
+            if (swapInPlace) editor.swapKeep(swapping, piece);
+            else editor.swap(swapping, piece);
+            return;
+          }
+          for (const piece of pieces) editor.add(piece);
+          for (const wish of wishes) editor.addWish(wish);
+        }}
       />
     </section>
   );

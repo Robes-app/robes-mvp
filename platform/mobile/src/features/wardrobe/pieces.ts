@@ -18,7 +18,7 @@ export const READING_REFRESH_MS = 2000;
 
 export const piecesKey = [...queryKeys.route('wardrobe.list'), 'infinite'] as const;
 
-export type PieceFilters = Pick<ListPiecesInput, 'category' | 'seasonBand'>;
+export type PieceFilters = Omit<ListPiecesInput, 'limit' | 'cursor'>;
 
 export function usePieces(filters: PieceFilters = {}) {
   const api = useApiClient();
@@ -31,6 +31,9 @@ export function usePieces(filters: PieceFilters = {}) {
         signal,
       }),
     getNextPageParam: (last: PiecePage) => last.nextCursor ?? undefined,
+    // A filter change is a new query: the last page stands while the next loads, so the grid
+    // and the filter sheet over it never blink (Front Door PRD rev 3 §2.5, filters apply live).
+    placeholderData: (prev) => prev,
     refetchInterval: (q) =>
       q.state.data?.pages.some((p) => p.items.some((i) => i.status === 'reading'))
         ? READING_REFRESH_MS

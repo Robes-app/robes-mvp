@@ -6,11 +6,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PrimaryScope } from './Button';
 import { useColor } from './color';
 import { FINE_EDGE, MIN_TOUCH, maxFontSizeMultiplier, typeStyle } from './scale';
-import { Text } from './Text';
+import { Heading, Text } from './Text';
 
 // The subview's 56pt header on its own, for a screen of the stack drawn the same way (Settings):
-// the back chevron, the tracked title centred, a 36pt spacer, over a 0.5pt rule.
-export function SubviewHeader({ title, onBack }: { title: string; onBack: () => void }) {
+// the back chevron, the tracked title centred, a 36pt spacer, over a 0.5pt rule. A screen of its
+// own (Settings) reads in the tabs' serif title instead (Annie, 11 Nov).
+export function SubviewHeader({
+  title,
+  onBack,
+  serif = false,
+}: {
+  title: string;
+  onBack: () => void;
+  serif?: boolean;
+}) {
   const ink = useColor('ink');
   return (
     <View
@@ -27,15 +36,21 @@ export function SubviewHeader({ title, onBack }: { title: string; onBack: () => 
       >
         <Icon name="back" size={20} color={ink} />
       </Pressable>
-      <Text
-        accessibilityRole="header"
-        numberOfLines={1}
-        maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-        className="flex-1 text-center text-ink-muted"
-        style={typeStyle('label')}
-      >
-        {title}
-      </Text>
+      {serif ? (
+        <Heading size="md" numberOfLines={1} className="flex-1 text-center">
+          {title}
+        </Heading>
+      ) : (
+        <Text
+          accessibilityRole="header"
+          numberOfLines={1}
+          maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+          className="flex-1 text-center text-ink-muted"
+          style={typeStyle('label')}
+        >
+          {title}
+        </Text>
+      )}
       <View style={{ width: 36 }} />
     </View>
   );

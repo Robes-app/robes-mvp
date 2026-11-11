@@ -76,7 +76,16 @@ describe('the bell', () => {
     expect(items).toHaveLength(6);
     repos.looks.count.mockResolvedValue(0);
     expect((await loadNotifications(ann, now)).items).toEqual([]);
-    await dismissNotification(ann, 'receipts:1');
+    await dismissNotification(ann, { key: 'receipts:1' });
     expect(repos.uiState.dismiss).toHaveBeenCalledWith(ann, 'receipts:1');
+  });
+
+  it('the ✓ dismisses every item the bell holds in one write (PRD rev 3 §10 12)', async () => {
+    const { items } = await loadNotifications(ann, now);
+    await dismissNotification(ann, { all: true }, now);
+    expect(repos.uiState.dismiss).toHaveBeenCalledWith(
+      ann,
+      items.map((i) => i.key),
+    );
   });
 });

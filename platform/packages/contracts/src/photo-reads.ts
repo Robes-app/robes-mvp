@@ -65,6 +65,11 @@ export const FileReadOutput = z.object({
 });
 export type FileReadOutput = z.infer<typeof FileReadOutput>;
 
+// One piece of a read filed by itself (Capture PRD 1c.8, Add piece on The Rack): the others stay
+// where they are, to be matched, added or left on the look.
+export const FilePieceInput = z.object({ index: pieceIndex, edits: ReadPieceEdits.optional() });
+export type FilePieceInput = z.infer<typeof FilePieceInput>;
+
 // Use case 2b: every piece answered — new (filed on save), hers, or left out of the look.
 export const LookAnswer = z.discriminatedUnion('state', [
   z.object({ index: pieceIndex, state: z.literal('new') }),

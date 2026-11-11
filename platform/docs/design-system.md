@@ -102,7 +102,15 @@ Primitives (both `ui` and `ui-native`, same props):
 | `Skeleton` | shape-matched to final layout |
 | `Progress` (generation) | staged: "Styling your pieces" → per-image fill; copy from `packages/copy` |
 | `EmptyState` | title, body, one action; copy from `packages/copy` |
-| `Avatar`, `TabBar` (native), `NavRail`/`TopBar` (web) | IA per `SPEC.md` §UX |
+| `Avatar`, `TabBar` (native), `NavRail`/`TopBar` (web) | IA per `SPEC.md` §UX; the bar carries a centred serif title on every tab but Home, and the bell only while something waits (PRD rev 3 §2.2) |
+| `Tabs` | the underline rail; items may carry an icon, a count (never a fraction) and a trailing control (the Lookbook's bookmark, the Wardrobe's +); a disabled item (SHOP) reads faint |
+| `Chip` | a count in the label, the rose (`accent-inspire`) tone for a live weather chip, `disabled` at 40% |
+| `FilterButton` · `FilterRow` · `FilterSheet` (`features/filters/`) | the one filter pattern (PRD rev 3 §8): the button with its applied count, season chips with ×, quick chips; the sheet's option pills with live faceted counts, Clear, SHOW n LOOKS / NO LOOKS MATCH |
+| `Switch` | the pill toggle (Shop), 44 hit area, the selected fill on `selected-line` |
+| `GlassSheet` · `TileSheet` | the Front Door's floating glass sheet (8 from the edges, the dock's radius, × at the left and a sans title centred) and its three-tile form (New look, Add pieces) with an optional count badge on a tile |
+| `SwatchGrid` · `SelectField` | the colour picker's swatches with a check on the pick; a drill row that opens a sheet of options |
+| `DrillList` · `DrillRow` | a list of rows that each open their own drawer (Settings, the piece's record) |
+| `StylingCard` · `RackCard` · `RackGrid` · `PiecePicker` · `AddPiecesSheet` (looks) | the look's words in one card, its pieces as rows or tiles, the wardrobe picker behind every + and swap (OWNED · WISHLIST · SHOP), and the three doors pieces arrive through (Paste URL · Photo · From receipt) |
 
 **Counts**: never show a count as a fraction (`4 / 15`, `4 of 15`) — a denominator reads as a limit. Print the bare count ("4 pieces filed") or the distance ("Two more pieces and…").
 

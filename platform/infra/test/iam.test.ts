@@ -143,13 +143,18 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     expect(queues.sort()).toEqual([`${prefix}-jobs-interactive`, `${prefix}-notify`]);
   });
 
-  it('inbound can only read stored mail and send from the stage domain', () => {
+  // Receipt photos (SEC-40): inbound asks the isolated fetcher for them and follows no link itself.
+  it('inbound can only read stored mail, send from the stage domain and ask the fetcher', () => {
     const fn = functionNamed(s, 'inbound');
     const sts = roleStatements(s, roleOf(s, fn));
     const s3 = sts.filter((st) => list(st.Action).some((a) => a.startsWith('s3:')));
     expect(s3.flatMap((st) => list(st.Action))).toEqual(['s3:GetObject']);
     expect(JSON.stringify(s3.flatMap((st) => list(st.Resource)))).toContain('/inbound/*');
-    expect(actionsOf(sts).filter((a) => a.startsWith('sqs:SendMessage'))).toEqual([]);
+    const queues = sts
+      .filter((st) => list(st.Action).includes('sqs:SendMessage'))
+      .flatMap((st) => list(st.Resource))
+      .map((r) => String(s.resolve(fn.stack, r)?.properties.QueueName));
+    expect(queues).toEqual([`${prefix}-fetch`]);
   });
 
   it('workers get exactly the secrets they need', () => {

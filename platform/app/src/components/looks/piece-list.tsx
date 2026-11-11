@@ -7,50 +7,38 @@ import type { ReactNode } from 'react';
 const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// Felix's PieceList: the garments in a look as one `white` list on a 0.5px `rule-mid` edge, rows
-// divided by 0.5px rules (each row is a RackRowCard). In edit mode the list takes the top corners
-// and the dashed add row hangs underneath. Native twin: mobile/src/features/looks/PieceList.tsx.
+// The garments in a look as the Front Door canvas draws them (PRD §6.1): each row its own lifted
+// card (RackRowCard), 3px apart. On a saved look the small "+ hanger" chip under the list adds a
+// piece. Native twin: mobile/src/features/looks/PieceList.tsx.
 export function PieceList({
   children,
   onAdd,
   empty,
   label,
-  rows,
 }: {
   children: ReactNode;
-  // Edit mode: the dashed + row under the list.
+  // A saved look: the + hanger chip under the list.
   onAdd?: () => void;
   empty?: ReactNode;
   label?: string;
-  // How many rows the list holds: before the first, the add slot stands alone (Felix DraftLook:
-  // 55px, the wardrobe glyph in its disc, every corner soft).
-  rows?: number;
 }) {
-  const bare = onAdd !== undefined && rows === 0;
   return (
-    <div data-testid="piece-list">
-      {bare ? null : (
-        <ul
-          aria-label={label}
-          className={`divide-y divide-hairline overflow-hidden border-[0.5px] border-rule-mid bg-surface-raised ${onAdd ? 'rounded-t-soft' : 'rounded-soft'}`}
-        >
-          {children}
-        </ul>
-      )}
+    <div data-testid="piece-list" className="flex flex-col gap-2.5">
+      <ul aria-label={label} className="flex flex-col gap-[3px] empty:hidden">
+        {children}
+      </ul>
       {empty}
       {onAdd ? (
-        <div
-          className={`flex items-center justify-center border-dashed border-selected-line ${bare ? 'min-h-[55px] rounded-soft border' : 'border-x-[0.5px] border-b py-2.5'}`}
+        <button
+          type="button"
+          onClick={onAdd}
+          aria-label={lookbook.rack.addPiece}
+          data-testid="rack-add"
+          className={`relative flex h-7 items-center justify-center gap-1 self-center rounded-[6px] bg-surface-sunk px-2.5 text-ink-muted after:absolute after:-inset-2 after:content-[''] hover:text-ink ${focus}`}
         >
-          <button
-            type="button"
-            onClick={onAdd}
-            aria-label={lookbook.rack.addPiece}
-            className={`relative flex size-8 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted after:absolute after:-inset-2 after:content-[''] hover:text-ink ${focus}`}
-          >
-            <Icon name={bare ? 'wardrobe' : 'plus'} size={bare ? 15 : 13} />
-          </button>
-        </div>
+          <Icon name="plus" size={12} />
+          <Icon name="wardrobe" size={14} />
+        </button>
       ) : null}
     </div>
   );

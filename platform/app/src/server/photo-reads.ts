@@ -2,10 +2,12 @@ import 'server-only';
 import { ApiError } from '@robes/api';
 import {
   type FileAnswer,
+  type FilePieceInput,
   type FileReadOutput,
   type Look,
   type LookAnswer,
   type LookFromPhotoInput,
+  type Piece,
   ReadPiece,
   type StartJobOutput,
 } from '@robes/contracts';
@@ -104,9 +106,22 @@ function toRow(
     colourExtra: edits?.colourExtra ?? (piece.colourExtra.length ? piece.colourExtra : undefined),
     print: edits?.print !== undefined ? edits.print : (piece.print ?? undefined),
     material: edits?.material !== undefined ? edits.material : (piece.material ?? undefined),
-    itemDna: { ...piece.itemDna, source },
+    itemDna: { ...withoutAnswered(piece.itemDna, edits), source },
     imageAssetId: piece.cropAssetId,
   };
+}
+
+// A field she set on Review is answered: Robes' "check it" flag on it doesn't file.
+function withoutAnswered(
+  itemDna: StoredPiece['itemDna'],
+  edits?: Extract<FileAnswer, { state: 'add' }>['edits'],
+): StoredPiece['itemDna'] {
+  const answered: Record<string, boolean> = {
+    colour_check: edits?.colourShade !== undefined,
+    material_check: edits?.material !== undefined,
+    brand_check: edits?.brand !== undefined,
+  };
+  return Object.fromEntries(Object.entries(itemDna).filter(([key]) => !answered[key]));
 }
 
 // Owned pieces with no photograph take the crop; every crop nobody took is discarded.
@@ -181,8 +196,48 @@ export async function fileRead(
   return { filed: await toPieces(userId, ordered), wished: [], photoAdded };
 }
 
+// Find the pieces (Capture PRD 1c.5): the look's own photograph, the one in front, read for what
+// she is wearing. A look with no photograph of hers has nothing to read.
+export async function findLookPieces(
+  userId: UserId,
+  req: Request,
+  lookId: string,
+): Promise<StartJobOutput> {
+  const look = await repos.looks.get(userId, lookId);
+  if (!look) throw new ApiError('not_found');
+  const [front] = await repos.looks.imagesFor(userId, [lookId]);
+  const assetId = front?.assetId ?? look.photoAssetId;
+  if (!assetId) throw new ApiError('conflict');
+  return startPhotoRead(userId, req, assetId);
+}
+
+// Add piece on The Rack (Capture PRD 1c.8): one piece of a read filed to her wardrobe with her
+// edits, its crop as its photograph. The read's other pieces are untouched; filing it again
+// returns the piece already made.
+export async function filePiece(
+  userId: UserId,
+  jobId: string,
+  input: FilePieceInput,
+): Promise<Piece> {
+  const read = await loadRead(userId, jobId);
+  const piece = read.readPieces.find((p) => p.index === input.index);
+  if (!piece) throw new ApiError('not_found');
+  const source = { kind: 'look_photo' as const, of: read.readPieces.length };
+  const filed = await repos.wardrobe.createFromRead(userId, read.assetId, [
+    toRow(piece, source, input.edits),
+  ]);
+  const row = filed.find((p) => p.sourceIndex === input.index);
+  if (!row) throw new ApiError('not_found');
+  if (input.edits?.wearFor) await repos.wardrobe.setWearTags(userId, row.id, input.edits.wearFor);
+  const [out] = await toPieces(userId, [row]);
+  if (!out) throw new ApiError('not_found');
+  return out;
+}
+
 // Use case 2b: the new pieces file first, then the look saves with her photo as its record,
-// pieces in the read's order; "Wearing it today" logs the wear.
+// pieces in the read's order; "Wearing it today" logs the wear. No screen in this repo calls it
+// any more (Capture PRD 1c makes a draft and its rack instead); it stays for phone builds from
+// before 10 Nov 2026, whose photo flow still does.
 export async function lookFromRead(
   userId: UserId,
   jobId: string,

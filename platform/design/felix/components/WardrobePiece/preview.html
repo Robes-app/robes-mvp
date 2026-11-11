@@ -1,4 +1,4 @@
-<!-- @dsCard group="Wardrobe" height=860 width=1262 subtitle="A single piece: photo, name, Details (scrolled) / Looks" -->
+<!-- @dsCard group="Wardrobe" height=860 width=1676 subtitle="A piece from 3b: Piece · Colour · Wearing tabs, and a Shop piece" -->
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><title>WardrobePiece — preview</title></head>
@@ -7,14 +7,16 @@
 <script>
 var F = window.Felix, h = React.createElement;
 var frame = { width: 390, height: 820, flex: 'none', position: 'relative', overflow: 'hidden', borderRadius: 'var(--rad-device)' };
-var piece = { image: '/_blob/4618f82c6467c005fccf0c4fb79cc143', count: 1, category: 'Dresses', name: 'Red jacquard mini dress', brand: 'H&M',
-  details: { category: ['Dresses', 'Mini'], colour: { name: 'Red', hex: '#c8202a' }, material: 'Jacquard', seasons: ['Autumn', 'Winter'], occasions: ['Evening', 'Party'], worn: 'Not worn yet' } };
+var piece = { image: '/_blob/045693b3417feb00a48ceb46f01e48c1', count: 1, name: 'Lime green sweatshirt',
+  piece: { category: 'Tops', brand: 'Adidas', size: 'M', notes: 'A relaxed, cropped sweatshirt in a fresh lime green.' },
+  colour: { colour: { name: 'Lime', hex: '#c9e8a8' }, print: { name: 'Plain', swatch: '#efe9dc' }, material: ['Cotton fleece'] },
+  wearing: { worn: '5 times · last 27 Oct', looks: 3, seasons: [], occasions: ['Everyday'] } };
+function P(o) { return h('div', { style: frame, 'data-scrolled': '1' }, h(F.WardrobePiece, Object.assign({}, piece, o))); }
 ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
-  h('div', { style: frame }, h(F.WardrobePiece, piece)),
-  h('div', { style: frame, 'data-scrolled': '1' }, h(F.WardrobePiece, Object.assign({}, piece, { details: Object.assign({}, piece.details, { note: 'Dry clean only' }) }))),
-  h('div', { style: frame }, h(F.WardrobePiece, Object.assign({}, piece, { tab: 'Looks', favourite: true, looks: [{ img: '/_blob/963aef8bd203cb87e5113a54e2a70a7e', title: 'Dinner out' }, { img: '/_blob/dd740bfa87e00a5bf25ccda73bd466e6', title: 'Saturday, undone' }] })))
+  P({ tab: 'Piece' }), P({ tab: 'Colour' }), P({ tab: 'Wearing' }),
+  P({ tab: 'Piece', shop: true, image: '/_blob/adb4e9ebaed5da4084730ceda75ac8ae', name: 'Leather tote', piece: { category: 'Bags', shop: 'Arket', price: '€179' } })
 ));
-setTimeout(function () { var s = document.querySelector('[data-scrolled] .fx-wpc-scroll'); if (s) s.scrollTop = 470; }, 60);
+setTimeout(function () { document.querySelectorAll('[data-scrolled] .fx-wpc-scroll').forEach(function (s) { s.scrollTop = 9999; }); }, 80);
 </script>
 </body>
 </html>

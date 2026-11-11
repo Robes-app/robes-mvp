@@ -10,7 +10,6 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { LookTile } from '@/components/looks/look-tile';
 import { ImageStack } from '@/components/looks/saved-look';
-import { PHOTO_ACCEPT } from '@/lib/upload';
 import { DraftTile } from './draft-tile';
 import { ModelStack } from './model-stack';
 
@@ -19,7 +18,7 @@ const focus =
 
 export interface DayActions {
   // Into a look (the last page): her photograph, her words (today and ahead only), her lookbook.
-  onCapture: (file: File) => void;
+  onCapture: () => void;
   onDescribe: (() => void) | null;
   onPick: () => void;
   // Onto a look: Swap from the lookbook, Edit on its page (a link), × off the day.
@@ -41,8 +40,6 @@ export function DaySlot({
   justSaved = null,
   model,
   actions,
-  onAnother,
-  anotherBusy = false,
 }: {
   day: DiaryDay;
   today: string;
@@ -52,8 +49,6 @@ export function DaySlot({
   justSaved?: string | null;
   model: Model | undefined;
   actions: DayActions;
-  onAnother: (lookId: string) => void;
-  anotherBusy?: boolean;
 }) {
   const router = useRouter();
   const scroller = useRef<HTMLDivElement>(null);
@@ -97,7 +92,8 @@ export function DaySlot({
                       ✓ {lookbook.draft.badgeSaved}
                     </span>
                   ) : null}
-                  {/* Felix 3k: the image stack opens the Edit look drawer on Add a photo (D19). */}
+                  {/* The image stack opens the Edit look drawer on its Add a photo card (design
+                      "Add a photo to a look", Annie 11 Nov): × always closes it. */}
                   <ImageStack
                     look={entry.look}
                     onOpen={() =>
@@ -136,15 +132,7 @@ export function DaySlot({
             <p className="type-meta mt-3 truncate text-center text-ink-muted">{entry.look.name}</p>
           </div>
         ))}
-        {draft ? (
-          <DraftTile
-            draft={draft}
-            day={day}
-            today={today}
-            onAnother={onAnother}
-            anotherBusy={anotherBusy}
-          />
-        ) : null}
+        {draft ? <DraftTile draft={draft} day={day} today={today} /> : null}
         <AddPage dayWord={dayWord} model={model} actions={actions} another={looks.length > 0} />
       </div>
       {pages > 1 ? <Pager pages={pages} page={Math.min(page, pages - 1)} /> : null}
@@ -192,8 +180,14 @@ function AddPage({
     >
       <div className="relative aspect-[4/5] overflow-hidden rounded-tile bg-surface-sunk">
         {portrait ? (
+          // Keyed by the picture: a model change fades the new portrait in (PRD rev 3 §2.6).
           // biome-ignore lint/performance/noImgElement: a signed portrait in a fixed frame
-          <img src={portrait} alt="" className="absolute inset-0 size-full object-cover" />
+          <img
+            key={portrait}
+            src={portrait}
+            alt=""
+            className="absolute inset-0 size-full object-cover motion-safe:animate-fade-in"
+          />
         ) : (
           <Skeleton className="absolute inset-0 rounded-none" />
         )}
@@ -206,9 +200,7 @@ function AddPage({
           icon="capture"
           label={copy.discs.capture}
           ariaLabel={copy.discs.captureLabel(dayWord)}
-          onFile={actions.onCapture}
-          accept={PHOTO_ACCEPT}
-          capture="environment"
+          onClick={actions.onCapture}
           testId="disc-capture"
         />
         {actions.onDescribe ? (

@@ -23,8 +23,9 @@ const copy = wardrobe.add;
 const focusRing =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// The Add pieces page (design "Add Piece — Handoff"): the sheet's body, the camera over it, and
-// Review in its place once photos are in — one page, so her photos never leave it. Native twin:
+// The Add pieces page (design "Add Piece — Handoff"; Capture PRD 3c): the sheet's body, the camera
+// over it, and Review in its place once photos are in — one page, so her photos never leave it,
+// and the camera and Review pass the same sitting back and forth. Native twin:
 // app/wardrobe/add.tsx (the sheet), camera.tsx and review.tsx routes.
 export function AddFlow({ initial, start }: { initial: AddDestination; start: 'camera' | null }) {
   const session = useShotSession();
@@ -97,14 +98,8 @@ export function AddFlow({ initial, start }: { initial: AddDestination; start: 'c
           to={to}
           session={session}
           onAnother={again}
-          {...(from === 'camera'
-            ? {
-                onRetake: () => {
-                  session.reset();
-                  openCamera();
-                },
-              }
-            : {})}
+          // The camera stays behind Review with its photographs kept (Capture PRD 3c.3).
+          {...(from === 'camera' && canUseCamera() ? { onCamera: () => setStage('camera') } : {})}
         />
       ) : (
         <AddPiecesPanel

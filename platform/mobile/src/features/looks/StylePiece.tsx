@@ -1,7 +1,7 @@
 import { useApiMutation } from '@robes/api-client/react';
 import type { GenerateLookInput, Piece } from '@robes/contracts';
 import { looks as copy } from '@robes/copy';
-import type { Balance } from '@robes/core/looks';
+import { defaultBalance } from '@robes/core/looks';
 import {
   Button,
   Eyebrow,
@@ -25,7 +25,6 @@ import {
 import { usePieces } from '@/features/wardrobe/pieces';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
-import { BalanceQuestion } from './BalanceQuestion';
 
 function PieceChoice({
   piece,
@@ -66,8 +65,6 @@ export function StylePiece({ initialPieceId }: { initialPieceId?: string }) {
   const [pieceId, setPieceId] = useState<string | null>(initialPieceId ?? null);
   const [text, setText] = useState('');
   const [occasion, setOccasion] = useState('');
-  // The balance question waits for her answer before the ask goes (legacy 2026-10-19).
-  const [held, setHeld] = useState(false);
   const start = useApiMutation('looks.generate', {
     onSuccess: ({ jobId }) => router.replace(`/looks/job/${jobId}`),
   });
@@ -78,14 +75,14 @@ export function StylePiece({ initialPieceId }: { initialPieceId?: string }) {
       ? { type: 'text', text: text.trim() }
       : null;
 
-  const go = (balance?: Balance) => {
+  // Where the pieces come from follows the Shop toggle's rest (plan 2026-11-09 R1).
+  const go = () => {
     if (!anchor) return;
-    setHeld(false);
     start.mutate({
       input: {
         anchor,
         ...(occasion.trim() ? { occasion: occasion.trim() } : {}),
-        ...(balance ? { balance } : {}),
+        balance: defaultBalance(ready.length),
       },
     });
   };
@@ -137,18 +134,10 @@ export function StylePiece({ initialPieceId }: { initialPieceId?: string }) {
           onChangeText={setOccasion}
           error={start.isError ? errorMessage(start.error) : null}
         />
-        {held ? <BalanceQuestion disabled={start.isPending} onPick={(b) => go(b)} /> : null}
         <PrimaryScope>
           <Button
-            onPress={() => {
-              // Asked once per new look, and only while she has something filed to choose from.
-              if (ready.length > 0 && !held) {
-                setHeld(true);
-                return;
-              }
-              go();
-            }}
-            disabled={!anchor || held}
+            onPress={go}
+            disabled={!anchor}
             loading={start.isPending}
             loadingLabel={copy.stylePiece.starting}
           >

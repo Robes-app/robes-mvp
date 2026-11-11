@@ -1,7 +1,7 @@
 import { JOB_KINDS, LEGACY_CATEGORIES } from '@robes/core';
 import { ADD_DESTINATIONS } from '@robes/core/add-flow';
 import { HOME_STEPS } from '@robes/core/home';
-import { BALANCES, LOOK_STATUSES } from '@robes/core/looks';
+import { LOOK_STATUSES } from '@robes/core/looks';
 import { z } from 'zod';
 
 // One catalogue for web, native and server (infrastructure.md §9). Props are ids, counts, booleans
@@ -40,10 +40,14 @@ export const EVENTS = {
 
   // Add pieces: the in-app camera opens.
   camera_opened: none,
+  // Capture a look (PRD 1c): Use photo made a draft from her photograph (`day` when Home's day
+  // opened the camera).
+  look_captured: z.object({ day: z.boolean() }).strict(),
+  // The Rack of a look from her photograph: she asked for its pieces, and what she did with one.
+  look_pieces_asked: none,
+  look_piece_filed: z.object({ how: z.enum(['match', 'suggested', 'add', 'remove']) }).strict(),
   // Add pieces: the camera hands its shots to Review.
   camera_filed: z.object({ n: count }).strict(),
-  // Review: she answers one piece Robes read (Add or Skip; `edited` when she changed a field).
-  piece_answered: z.object({ state: z.enum(['add', 'skip']), edited: z.boolean() }).strict(),
   // Review: a photo's (or a link's) answered pieces are filed.
   pieces_filed: z
     .object({
@@ -63,7 +67,7 @@ export const EVENTS = {
     .strict(),
 
   // The wardrobe sheet opens to swap a piece or add one.
-  swap_drawer_opened: z.object({ mode: z.enum(['swap', 'add']) }).strict(),
+  swap_drawer_opened: z.object({ mode: z.enum(['swap', 'add', 'match']) }).strict(),
   // The look editor: a piece is swapped in (`surface` is the look's state).
   piece_swapped: z.object({ surface: status, cat: category }).strict(),
   // The look editor: a piece is added to the rack.
@@ -115,11 +119,6 @@ export const EVENTS = {
     })
     .strict(),
   // The box holds her ask to ask where its pieces come from.
-  balance_asked: z.object({ surface: boxSurface, piece: z.boolean() }).strict(),
-  // She answers it (`words` when she wrote her own answer).
-  balance_answered: z
-    .object({ surface: boxSurface, balance: z.enum([...BALANCES, 'words']) })
-    .strict(),
 
   // Home: a step card (O1–O4) is shown.
   home_module_view: z.object({ id: z.enum(HOME_STEPS) }).strict(),

@@ -53,7 +53,7 @@ test('a styled piece lands on the deck: keep, pass with Undo, then See Suggested
   const grid = page.getByRole('list', { name: 'Suggested' });
   await expect(grid.getByRole('link', { name: first })).toBeVisible();
   await expect(grid.getByRole('link', { name: second })).toBeVisible();
-  await expect(page.getByTestId('looks-count')).toHaveText(/2 suggested|3 suggested/);
+  expect(await grid.getByRole('link').count()).toBeGreaterThanOrEqual(2);
   expect(await seriousViolations(page), 'Suggested').toEqual([]);
 });
 
@@ -65,13 +65,12 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
   const piece = await (
     await page.request.post('/api/v1/wardrobe/items', { data: { label: 'Navy blazer' } })
   ).json();
-  await page.goto(`/piece/${piece.id}`);
-  // The piece page's door opens the new-look box with the piece inside it; Send asks the one
-  // question, then three looks around it.
-  await page.getByRole('button', { name: 'Style this piece' }).click();
-  await expect(page.getByTestId('box-piece')).toContainText('Navy blazer');
-  await page.getByRole('button', { name: 'Send' }).click();
-  await page.getByRole('button', { name: 'A mix' }).click();
+  expect(piece.id).toBeTruthy();
+  // Create › Style a piece: the piece picked from her wardrobe, styled three ways around it (the
+  // piece page carries no styling buttons since canvas 3b, Annie 9 Nov).
+  await page.goto('/looks/style');
+  await page.getByRole('button', { name: 'Navy blazer' }).click();
+  await page.getByRole('button', { name: 'Style it' }).click();
   await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Around your navy blazer')).toBeVisible({ timeout: 30_000 });
   await deckLive(page);
@@ -84,7 +83,8 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
   await expect(
     page.getByRole('heading', { level: 2, name: /^The rack · \d+ pieces$/ }),
   ).toBeVisible();
-  await expect(page.getByText('Not yours yet', { exact: false }).first()).toBeVisible();
+  // A piece to find shows its bag and price at the row's right; readers hear "Not yours yet".
+  await expect(page.getByText('Not yours yet', { exact: false }).first()).toBeAttached();
   expect(await seriousViolations(page), 'a suggested look').toEqual([]);
   await page.getByRole('button', { name: 'Save to lookbook' }).click();
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
@@ -103,7 +103,7 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
   await page.goto('/looks');
   await expect(page.getByRole('link', { name: name })).toBeVisible();
   await expect(page.getByText('In progress', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('looks-count')).toHaveText('1 look · 1 in progress');
+  await expect(page.getByRole('list', { name: 'Saved' }).getByRole('link')).toHaveCount(1);
 });
 
 test('a new look is a draft; the look prompt swaps a piece and names what it replaced', async ({
@@ -128,13 +128,13 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   // name field (D16: the name is the Caption in Details).
   await expect(page).toHaveURL(/\/looks\/draft\/new$/);
   await expect(page.getByLabel('Name this look')).toHaveCount(0);
-  // The add slot opens the piece picker; Add 1 piece makes the draft.
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  // The Rack card opens the piece picker (PRD rev 3 §4.6); Add 1 piece makes the draft.
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   const picker = page.getByTestId('piece-picker');
   await picker.getByRole('button', { name: 'Include White wide-leg trouser' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
-  // The draft carries on in the same drawer: the piece on the rack, the prompt card under it.
+  // The draft carries on in the same drawer: the piece on the rack, the styling card under it.
   await expect(page.getByText('Draft look')).toBeVisible();
   await expect(page.getByRole('list', { name: 'The rack · 1 piece' })).toBeVisible();
   // Her words go through the look prompt (plan 2026-11-03) and the picture follows (D14).
@@ -170,12 +170,12 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
     timeout: 30_000,
   });
   await page.goto('/looks');
-  await expect(page.getByTestId('looks-count')).toHaveText('1 look');
-  // Under four looks Sort and Filter are hidden, as beta — never rendered inert (L1).
+  await expect(page.getByRole('list', { name: 'Saved' }).getByRole('link')).toHaveCount(1);
+  // The Front Door's filter row stands on both tabs (PRD rev 3 §5.1); there is no sort.
   await expect(page.getByRole('button', { name: /^Sort/ })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Filter' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Filter' })).toBeVisible();
   // Nothing suggested: beta's line, and the prompt (L7).
-  await page.getByRole('radio', { name: 'Suggested' }).click();
+  await page.getByRole('tab', { name: 'Suggested' }).click();
   await expect(
     page.getByText('Tell Robes where you’re going, or pick a piece, and it dresses you.'),
   ).toBeVisible();
@@ -202,7 +202,7 @@ test('the draft look at 390: her model, the piece picker, and the done disc', as
 
   // The piece picker (Felix WardrobePicker): a search, one row of pills with counts (All leads),
   // Photograph one first, a tick on every piece, Add N pieces at the foot.
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   const picker = page.getByTestId('piece-picker');
   await expect(picker.getByRole('button', { name: /^All/ })).toHaveAttribute(
     'aria-pressed',
@@ -222,7 +222,7 @@ test('the draft look at 390: her model, the piece picker, and the done disc', as
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('list', { name: 'The rack · 1 piece' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   await picker.getByRole('button', { name: 'Include White wide-leg trouser' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();
@@ -272,7 +272,9 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
   // The old address of a draft still opens it: the one DraftLook, on its page (D14).
   await page.goto(`/look/${draft.id}`);
   await expect(page.getByText('Draft look')).toBeVisible();
-  // L10: the hanger opens the picker on the row; Swap it in lands at once; Undo (6 s) puts it back.
+  // L10: the pencil shows the hanger (plan R2); it opens the picker on the row; Swap it in lands
+  // at once; Undo (6 s) puts it back.
+  await page.getByRole('button', { name: 'Edit pieces' }).click();
   await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
   const picker = page.getByTestId('piece-picker');
   await picker.getByRole('button', { name: 'Include Dark straight jean' }).click();
@@ -287,7 +289,9 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
   // draft keeps it only as it is saved.
   await page.getByTestId('saved-look-stack').click();
   await expect(page.getByTestId('image-manager')).toBeVisible();
-  await page.locator('input[type="file"][aria-label="Add a photo"]').setInputFiles(PHOTO);
+  await page.getByTestId('image-card-add').click();
+  await page.getByTestId('capture-photos-input').setInputFiles(PHOTO);
+  await page.getByTestId('capture-review').getByRole('button', { name: 'Add to look' }).click();
   await expect(page.getByTestId('image-card-added')).toBeInViewport({ timeout: 30_000 });
   await page.getByTestId('image-manager-done').click();
   await expect(page.getByText('Draft look')).toBeVisible();

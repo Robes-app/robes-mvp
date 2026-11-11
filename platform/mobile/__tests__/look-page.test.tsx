@@ -260,12 +260,28 @@ const editRoutes = (mine: Look) => ({
   [`POST /looks/${LOOK_ID}/render`]: { jobId: ASK_JOB, status: 'queued' },
 });
 
-test('3e edits in place: no Edit chip, the rows carry swap and ×, the adjust disc stays on the look', async () => {
+test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjust disc stays on the look', async () => {
   mockFetch(editRoutes(twoPieces()));
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  expect(
-    await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
-  ).toBeTruthy();
+  // At rest a row opens its piece (PRD §6.1, plan R2); the pencil shows the swap and ×.
+  expect(await screen.findByText(lookbook.draftLook.rack)).toBeTruthy();
+  // The canvas's rack: the serif heading, each row's wears behind a calendar, and the small
+  // + hanger chip under the list.
+  expect(screen.getByRole('header', { name: lookbook.draftLook.rack })).toBeTruthy();
+  expect(screen.getAllByLabelText(/^\d+ wears?$/)).toHaveLength(2);
+  expect(screen.getByTestId('rack-add')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeNull();
+  await fireEvent.press(
+    screen.getByRole('button', { name: lookbook.rack.open('Camel wool coat') }),
+  );
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    pathname: '/piece/[id]',
+    params: { id: PIECE_ID },
+  });
+  mockRouter.push.mockClear();
+  await fireEvent.press(screen.getByTestId('rack-pencil'));
+  expect(screen.getByTestId('rack-pencil').props.accessibilityState.selected).toBe(true);
+  expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
   expect(screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') })).toBeTruthy();
   expect(screen.queryByRole('button', { name: lookbook.savedLook.edit })).toBeNull();
   // The prompt card reads "Describe other changes…" with no chip of its own; nothing waits yet.
@@ -282,20 +298,24 @@ test('3e edits in place: no Edit chip, the rows carry swap and ×, the adjust di
   expect(mockRouter.push).not.toHaveBeenCalled();
 });
 
-test('a change waits for Update look: back asks Discard your changes?, the pill applies it in place', async () => {
+test('a change turns the foot to Update look: back asks Discard your changes?, Update applies it in place', async () => {
   const calls = mockFetch(editRoutes(twoPieces()));
   await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('rack-pencil'));
   await fireEvent.press(
-    await screen.findByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
+    screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
+  // One button at the foot (PRD §6.1): Update look takes Schedule look's place while it waits.
   expect(screen.getByTestId('update-look')).toBeTruthy();
+  expect(screen.getAllByRole('button', { name: lookbook.draftLook.update })).toHaveLength(1);
+  expect(screen.queryByTestId('schedule-look')).toBeNull();
   expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
   // Leaving with the change unapplied asks first; Keep editing stays.
   await fireEvent.press(screen.getByTestId('saved-look-back'));
   expect(await screen.findByText(lookbook.draftLook.discardEdit.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.draftLook.discard.keep }));
   expect(mockRouter.back).not.toHaveBeenCalled();
-  // The pill writes the rack, then draws the picture for it; she stays on the look.
+  // Update writes the rack, then draws the picture for it; she stays on the look.
   await fireEvent.press(screen.getByTestId('update-look'));
   await waitFor(() =>
     expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBe(true),
@@ -307,6 +327,7 @@ test('a change waits for Update look: back asks Discard your changes?, the pill 
   );
   expect(await screen.findByText(lookbook.updated)).toBeTruthy();
   await waitFor(() => expect(screen.queryByTestId('update-look')).toBeNull());
+  expect(screen.getByTestId('schedule-look')).toBeTruthy();
   expect(mockRouter.back).not.toHaveBeenCalled();
   // Nothing waits now: back leaves without a question.
   await fireEvent.press(screen.getByTestId('saved-look-back'));
@@ -316,8 +337,9 @@ test('a change waits for Update look: back asks Discard your changes?, the pill 
 test('Discard drops the unapplied change and leaves; nothing is written', async () => {
   const calls = mockFetch(editRoutes(twoPieces()));
   await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('rack-pencil'));
   await fireEvent.press(
-    await screen.findByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
+    screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
   await fireEvent.press(screen.getByTestId('saved-look-back'));
   await fireEvent.press(
@@ -378,4 +400,47 @@ test('words typed wait for Update look, which sends them and writes the answered
   );
   const patch = calls.find((c) => c.method === 'PATCH')?.body as { styling: unknown };
   expect(patch.styling).toEqual({ [PIECE_ID]: 'collar up' });
+});
+
+// Adjust model image is for Robes' picture alone (PRD §6.4): a look whose record is her own
+// photograph carries no disc.
+test('the adjust disc is not on a photograph of hers', async () => {
+  const photo = piece().image;
+  mockFetch(
+    editRoutes(
+      twoPieces().photo === null
+        ? { ...twoPieces(), photo, image: photo, record: 'photo' as const }
+        : twoPieces(),
+    ),
+  );
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  expect(await screen.findByTestId('saved-look-back')).toBeTruthy();
+  expect(screen.queryByTestId('draft-adjust')).toBeNull();
+});
+
+// The Shop toggle on a saved look (PRD §6.1): flipping it counts as a change and enables Update.
+test('flipping Shop on a saved look waits for Update look', async () => {
+  mockFetch({
+    ...editRoutes(twoPieces()),
+    'GET /wardrobe/summary': { total: 2, categories: [] },
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  const toggle = await screen.findByTestId('shop-toggle');
+  await waitFor(() => expect(toggle.props.accessibilityState.checked).toBe(false));
+  expect(screen.queryByTestId('update-look')).toBeNull();
+  await fireEvent.press(toggle);
+  expect(screen.getByTestId('update-look')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('shop-toggle'));
+  await waitFor(() => expect(screen.queryByTestId('update-look')).toBeNull());
+});
+
+test('the photo strip on the look’s page keeps its back disc, so she can always leave', async () => {
+  mockFetch(editRoutes(twoPieces()));
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('saved-look-stack'));
+  expect(await screen.findByTestId('image-manager')).toBeTruthy();
+  expect(screen.getByRole('button', { name: lookbook.savedLook.manager.add })).toBeTruthy();
+  // Still the saved look's page: its back disc, and Schedule look at the foot.
+  expect(screen.getByTestId('saved-look-back')).toBeTruthy();
+  expect(screen.getByTestId('schedule-look')).toBeTruthy();
 });

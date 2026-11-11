@@ -13,6 +13,13 @@ import { LookAskJobInput, type LookAskResult } from '@robes/contracts';
 import type { SystemRepositories } from '@robes/db';
 import { JobError, type JobHandler } from '../runtime';
 
+// A wish's price as a proposal's price point ("€120"); none when it has no price.
+function priceOf(price: number | null, currency: string | null): string {
+  if (price === null || !(price > 0)) return '';
+  const sign = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : '€';
+  return `${sign}${Number.isInteger(price) ? price : price.toFixed(2)}`;
+}
+
 export interface LookAskDeps {
   ai: AiProvider;
   styling: Pick<SystemRepositories['styling'], 'context'>;
@@ -75,19 +82,48 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
         ];
       });
       if (rows.length === 0) throw new JobError('empty_look');
-      const pool = her.closet.filter((c) => !rows.some((r) => r.pieceId === c.id));
+      // The pool: her wardrobe minus the rack. With Shop on (`mix`, plan 2026-11-09 R1) the
+      // pieces on her wishlist follow it, each marked; with Shop off (`owned`) no new piece may
+      // be proposed. A wish already on the rack stays off the pool.
+      type PoolEntry =
+        | { kind: 'piece'; piece: (typeof her.closet)[number] }
+        | { kind: 'wish'; wish: NonNullable<typeof her.wishes>[number] };
+      const onRack = new Set(input.rack.flatMap((r) => (r.pieceId ? [r.pieceId] : [])));
+      const wishedOnRack = new Set(
+        input.rack.flatMap((r) => (r.proposal ? [r.proposal.name.trim().toLowerCase()] : [])),
+      );
+      const pool: PoolEntry[] = [
+        ...her.closet
+          .filter((c) => !onRack.has(c.id))
+          .map((piece): PoolEntry => ({ kind: 'piece', piece })),
+        ...(input.balance === 'mix'
+          ? (her.wishes ?? [])
+              .filter((w) => !wishedOnRack.has(w.label.trim().toLowerCase()))
+              .map((wish): PoolEntry => ({ kind: 'wish', wish }))
+          : []),
+      ];
       const askCtx: AskContext = {
         gender: her.gender,
         styleDna: her.styleDna,
         styleIcons: her.styleIcons,
         pool: {
-          kind: 'wardrobe',
-          items: pool.map((c) => ({
-            label: c.label,
-            category: c.category,
-            color: c.color,
-            brand: c.brand,
-          })),
+          kind: input.balance === 'owned' ? 'owned' : 'wardrobe',
+          items: pool.map((entry) =>
+            entry.kind === 'piece'
+              ? {
+                  label: entry.piece.label,
+                  category: entry.piece.category,
+                  color: entry.piece.color,
+                  brand: entry.piece.brand,
+                }
+              : {
+                  label: entry.wish.label,
+                  category: entry.wish.category,
+                  color: entry.wish.color,
+                  brand: entry.wish.brand,
+                  wish: true,
+                },
+          ),
         },
         rack: rows.map((r) => r.row),
         context: input.context ?? null,
@@ -143,8 +179,30 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
           const key = keyAt(s.i);
           if (!key) return [];
           if ('poolIndex' in s.to) {
-            const piece = pool[s.to.poolIndex];
-            if (!piece) return [];
+            const entry = pool[s.to.poolIndex];
+            if (!entry) return [];
+            if (entry.kind === 'wish') {
+              const w = entry.wish;
+              const price = priceOf(w.price, w.currency);
+              return [
+                {
+                  key,
+                  to: {
+                    proposal: {
+                      name: w.label,
+                      category: w.category,
+                      color: w.color ?? '',
+                      brand: w.brand ?? '',
+                      retailerHint: w.sourceLabel ?? '',
+                      pricePoint: price,
+                      wishlisted: true,
+                      wishlistItemId: w.id,
+                    },
+                  },
+                },
+              ];
+            }
+            const piece = entry.piece;
             return [
               {
                 key,

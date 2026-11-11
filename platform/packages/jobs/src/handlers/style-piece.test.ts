@@ -10,6 +10,7 @@ const ASSET = '33333333-3333-4333-8333-333333333333';
 const SET = '55555555-5555-4555-8555-555555555555';
 const LOOK = '77777777-7777-4777-8777-777777777777';
 const JOB = '66666666-6666-4666-8666-666666666666';
+const WISH = '88888888-8888-4888-8888-888888888888';
 const owned = {
   id: PIECE,
   label: 'Camel coat',
@@ -30,6 +31,7 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fake() })) {
       gender: 'woman' as const,
       styleIcons: [],
       closet: [owned],
+      wishes: [{ id: WISH, label: 'Silk cami', category: 'Tops', color: 'coral', brand: 'Vince' }],
       styleDna: {},
       wardrobeCount: 1,
     })),
@@ -160,7 +162,7 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       expect.objectContaining({
         title: 'Camel coat',
-        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 6 }),
+        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 8 }),
       }),
     );
     const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
@@ -185,6 +187,8 @@ describe('key_piece handler (suggested looks)', () => {
     // Only the first frame now; the anchor's photo rides it.
     expect(generateImage).toHaveBeenCalledTimes(1);
     expect(generateImage.mock.calls[0]?.[0].references).toHaveLength(1);
+    // A suggestion stands in its scene.
+    expect(generateImage.mock.calls[0]?.[0].prompt).toContain('The scene: ');
     // The hero's frame is claimed with the mint (before the set is exposed), then lands by key.
     const claim = suggested.mintSet.mock.calls[0]?.[3] as { frameKey: string } | undefined;
     expect(claim).toEqual({
@@ -385,7 +389,7 @@ describe('key_piece handler (suggested looks)', () => {
 
   // The prompt box (plan 2026-11-03): her words make one draft for the day, not three suggestions.
   it('mints one draft for the day from the prompt box, its frame claimed with it', async () => {
-    const { run, suggested, styling, writeStage } = setup();
+    const { run, suggested, styling, writeStage, generateImage } = setup();
     await expect(
       run({ mode: 'prompt', draft: true, prompt: 'the office, then drinks', date: '2026-10-17' }),
     ).resolves.toEqual({ status: 'succeeded', artifactId: SET });
@@ -395,13 +399,21 @@ describe('key_piece handler (suggested looks)', () => {
     expect(claim).toMatchObject({ setIndex: 0, jobId: JOB });
     expect(opts).toEqual({ status: 'draft' });
     expect((styling.createSet.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
-      data: { mode: 'prompt', ways: [expect.objectContaining({ title: expect.any(String) })] },
+      data: {
+        mode: 'prompt',
+        draft: true,
+        ways: [expect.objectContaining({ title: expect.any(String) })],
+      },
     });
     expect(writeStage).toHaveBeenCalledWith('text', expect.objectContaining({ lookIds: ['l0'] }));
+    // Design 1b: her draft is dressed on her model in the studio, never set in a scene.
+    const prompt = generateImage.mock.calls[0]?.[0].prompt ?? '';
+    expect(prompt).toContain('clean warm-grey studio backdrop');
+    expect(prompt).not.toContain('real setting');
   });
 
   it('dresses a draft again from the same brief, with what she said is not right', async () => {
-    const { run, generateJson, suggested } = setup();
+    const { run, generateJson, suggested, generateImage } = setup();
     suggested.look.mockResolvedValueOnce({
       look: {
         id: LOOK,
@@ -425,6 +437,7 @@ describe('key_piece handler (suggested looks)', () => {
     const user = generateJson.mock.calls[0]?.[0].user ?? '';
     expect(user).toContain('Too formal — softer shoes');
     expect(user).not.toContain('A different look entirely');
+    expect(generateImage.mock.calls[0]?.[0].prompt).toContain('clean warm-grey studio backdrop');
     expect(suggested.rewrite).toHaveBeenCalledWith(
       USER,
       LOOK,
@@ -484,6 +497,33 @@ describe('key_piece handler (suggested looks)', () => {
       'WHERE THE PIECES COME FROM — in her own words: <user_input>\ntwo of mine',
     );
     expect(suggested.rewrite).toHaveBeenCalled();
+  });
+
+  it('with Shop on, names the pieces she wants and files one Robes picks as her wish (v7)', async () => {
+    const out = fake();
+    const way = out.ways[0];
+    if (!way) throw new Error('no way');
+    // Robes lists the wished piece by its exact label, as the prompt asks.
+    way.pieces = way.pieces.map((p, i) => (i === 0 ? { ...p, name: 'Silk cami' } : p));
+    const { run, generateJson, suggested } = setup(
+      createFakeProvider({ 'looks.style_piece': () => out }),
+    );
+    await run({ anchor: { type: 'piece', pieceId: PIECE }, balance: 'mix' });
+    const system = generateJson.mock.calls[0]?.[0].system ?? '';
+    expect(system).toContain('THE PIECES SHE WANTS');
+    expect(system).toContain('Silk cami [Tops], coral, Vince');
+    const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
+    expect(specs[0]?.proposals[0]).toMatchObject({
+      name: 'Silk cami',
+      wishlisted: true,
+      wishlistItemId: WISH,
+    });
+    expect(specs[0]?.proposals[1]).toMatchObject({ wishlisted: false, wishlistItemId: null });
+    // Shop off: the wishlist stays out of the brief, and nothing is marked.
+    await run({ anchor: { type: 'piece', pieceId: PIECE }, balance: 'owned' });
+    expect(generateJson.mock.calls[1]?.[0].system).not.toContain('THE PIECES SHE WANTS');
+    const later = suggested.mintSet.mock.calls[1]?.[2] as ReturnType<typeof specFromWay>[];
+    expect(later[0]?.proposals[0]).toMatchObject({ name: 'Silk cami', wishlisted: false });
   });
 
   it('counts her own pieces per way, and logs that she wrote words, never the words', async () => {

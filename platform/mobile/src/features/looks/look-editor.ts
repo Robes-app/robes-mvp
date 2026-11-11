@@ -7,9 +7,11 @@ import {
   pieceRow,
   rackFromLook,
   rackUpdate,
+  type Wish,
+  wishRow,
 } from '@robes/contracts';
 import { errors, lookbook, ui } from '@robes/copy';
-import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/looks';
+import { applyAsk, changedKeys, type RackRow, type RackState, rowNote } from '@robes/core/looks';
 import { useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
@@ -23,6 +25,12 @@ import type { RowMark } from './RackRow';
 // picture is drawn again only when she asks — Update the model, Dress it again, Save (plan
 // 2026-11-03 D3) — through `redraw`; a suggestion's swap-in-place still re-frames by itself.
 // `onChange` fires on every change to the rack. Web twin: app/src/lib/look-editor.ts.
+// The pieces and wishes already on the rack, so the picker never offers one twice.
+export const onRackIds = (rows: readonly RackRow[]): string[] =>
+  rows.flatMap((r) =>
+    r.pieceId ? [r.pieceId] : r.proposal?.wishlistItemId ? [r.proposal.wishlistItemId] : [],
+  );
+
 export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) {
   const api = useApiClient();
   const queryClient = useQueryClient();
@@ -233,9 +241,23 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
           toast.show({ message: errors.internal });
         });
     },
+    // The rows of a look from her photograph (Capture PRD 1c.6): found rows land, one files as her
+    // piece, one leaves or comes back. The rack reducer in @robes/core/looks decides the rows.
+    setRows: (rows: RackRow[]) => {
+      const keys = new Set(rows.map((r) => r.key));
+      const edits = Object.fromEntries(Object.entries(rack.edits).filter(([k]) => keys.has(k)));
+      change({ ...rack, rows, edits });
+    },
     add: (piece: Piece) => {
       nativeAnalytics.track('look_piece_added', { surface: look.status, cat: piece.category });
       change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] });
+    },
+    // A wish from the picker's WISHLIST tab (PRD rev 3 §4.6): a proposal row that is already hers
+    // to find, so the look carries a piece to find and Save files nothing twice.
+    addWish: (wish: Wish) => {
+      if (rack.rows.some((r) => r.proposal?.wishlistItemId === wish.id)) return;
+      nativeAnalytics.track('look_piece_added', { surface: look.status, cat: wish.category });
+      change({ ...rack, rows: [...rack.rows, wishRow(wish)] });
     },
     remove: (key: string) => {
       nativeAnalytics.track('look_piece_removed', { surface: look.status });
@@ -256,12 +278,12 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
             ...(p.retailerHint ? { sourceLabel: p.retailerHint } : {}),
           },
         })
-        .then(() =>
+        .then((wish) =>
           change({
             ...rack,
             rows: rack.rows.map((r) =>
               r.key === key && r.proposal
-                ? { ...r, proposal: { ...r.proposal, wishlisted: true } }
+                ? { ...r, proposal: { ...r.proposal, wishlisted: true, wishlistItemId: wish.id } }
                 : r,
             ),
           }),
@@ -276,7 +298,7 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
           nativeAnalytics.track('look_updated', { pieces: updated.pieces.length });
           setDirty(false);
           setEditing(false);
-          toast.show({ message: lookbook.updated });
+          toast.show({ message: lookbook.updated, duration: 2600 });
           return true;
         })
         .catch(() => false),

@@ -1,5 +1,5 @@
-import { type PieceValues, SeasonBand, type UpdatePieceInput } from '@robes/contracts';
-import { wardrobe } from '@robes/copy';
+import type { PieceValues, Season, UpdatePieceInput } from '@robes/contracts';
+import { filters as filterCopy, wardrobe } from '@robes/copy';
 import { type PieceColour, shade } from '@robes/core/colour';
 import {
   convertUkSize,
@@ -58,7 +58,9 @@ export type PieceField =
   | 'wearFor'
   | 'size'
   | 'price'
-  | 'notes';
+  | 'notes'
+  // A wish's retailer (Front Door PRD rev 3 §7.3), where an owned piece has its brand.
+  | 'shop';
 
 const TITLES: Record<PieceField, string> = {
   category: copy.rows.category,
@@ -73,15 +75,32 @@ const TITLES: Record<PieceField, string> = {
   size: copy.rows.size,
   price: copy.rows.price,
   notes: copy.rows.notes,
+  shop: copy.rows.shop,
 };
 
 // The drawers she types into: one field, a Save that waits for a change (redline "one
 // single-field sheet").
-const TYPED: ReadonlySet<PieceField> = new Set(['label', 'brand', 'size', 'price', 'notes']);
+const TYPED: ReadonlySet<PieceField> = new Set([
+  'label',
+  'brand',
+  'size',
+  'price',
+  'notes',
+  'shop',
+]);
 
 // The record the drawer opens on: the row values, and the category the piece files under (it
 // decides the size scale).
-export type FieldPiece = PieceValues & { category?: string | null };
+export type FieldPiece = PieceValues & {
+  category?: string | null;
+  // The four seasons (D12), where the record carries them; none filed reads Year round.
+  seasons?: readonly Season[];
+  // A wish's retailer (§7.3).
+  sourceLabel?: string | null;
+};
+
+// What a drawer writes: a piece's fields, and a wish's Shop (the retailer) on a wish's page.
+export type FieldInput = UpdatePieceInput & { sourceLabel?: string | null };
 
 const colourOf = (p: PieceValues): PieceColour => ({
   colourShade: p.colourShade,
@@ -90,21 +109,24 @@ const colourOf = (p: PieceValues): PieceColour => ({
 });
 
 const orNull = (v: string): string | null => (v.trim() ? v.trim() : null);
+const SEASONS: readonly Season[] = ['spring', 'summer', 'autumn', 'winter'];
 
-const textOf = (field: PieceField, p: PieceValues): string =>
+const textOf = (field: PieceField, p: FieldPiece): string =>
   field === 'label'
     ? p.label
     : field === 'brand'
       ? (p.brand ?? '')
-      : field === 'size'
-        ? (p.size ?? '')
-        : field === 'price'
-          ? p.price === null
-            ? ''
-            : String(p.price)
-          : field === 'notes'
-            ? (p.notes ?? '')
-            : '';
+      : field === 'shop'
+        ? (p.sourceLabel ?? '')
+        : field === 'size'
+          ? (p.size ?? '')
+          : field === 'price'
+            ? p.price === null
+              ? ''
+              : String(p.price)
+            : field === 'notes'
+              ? (p.notes ?? '')
+              : '';
 
 // Where the category drill opens: where the piece already sits.
 type Drill = { sheetL1: string | null; l2: string | null };
@@ -137,7 +159,7 @@ export function PieceFieldSheet({
   piece: FieldPiece;
   field: PieceField | null;
   onClose: () => void;
-  onSave: (input: UpdatePieceInput) => void;
+  onSave: (input: FieldInput) => void;
   saving: boolean;
 }) {
   const [text, setText] = useState('');
@@ -165,18 +187,21 @@ export function PieceFieldSheet({
     setDrill(drillOf(piece));
   }, [field, piece]);
 
-  const commit = (input: UpdatePieceInput) => {
+  const commit = (input: FieldInput) => {
     onSave(input);
     onClose();
   };
 
   // What Save would write, or null while nothing has changed (or the price isn't one).
-  const pending = (): UpdatePieceInput | null => {
+  const pending = (): FieldInput | null => {
     if (field === 'label') {
       const label = text.trim();
       return label && label !== piece.label ? { label } : null;
     }
     if (field === 'brand') return orNull(text) === piece.brand ? null : { brand: orNull(text) };
+    if (field === 'shop') {
+      return orNull(text) === (piece.sourceLabel ?? null) ? null : { sourceLabel: orNull(text) };
+    }
     if (field === 'notes') return orNull(text) === piece.notes ? null : { notes: orNull(text) };
     if (field === 'size') {
       const size = stepper ? (uk === null ? null : formatUkSize(uk)) : orNull(text);
@@ -216,7 +241,9 @@ export function PieceFieldSheet({
             ),
           }
         : {})}
-      {...(field === 'wearFor' ? { closeLabel: copy.done } : { closeButton: true })}
+      {...(field === 'wearFor' || field === 'season'
+        ? { closeLabel: copy.done }
+        : { closeButton: true })}
     >
       <View className="gap-4 pb-6">
         {field === 'wearFor' ? (
@@ -224,21 +251,36 @@ export function PieceFieldSheet({
         ) : field === 'category' ? (
           <CategoryList piece={piece} drill={drill} onDrill={setDrill} onPick={commit} />
         ) : field === 'season' ? (
-          // The bands as a list of answers, a pick saves and closes (beta's Season sheet).
-          <View accessibilityRole="radiogroup" accessibilityLabel={TITLES.season}>
-            {SeasonBand.options.map((band) => (
-              <OptionRow
-                key={band}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: piece.seasonBand === band }}
-                selected={piece.seasonBand === band}
-                label={wardrobe.filter.seasons[band]}
-                onPress={() => commit({ seasonBand: band })}
-              />
-            ))}
+          // The four seasons (D12, PRD rev 3 §7.3): each tap is the answer; none picked is Year round.
+          <View accessibilityLabel={TITLES.season}>
+            {SEASONS.map((season) => {
+              const on = (piece.seasons ?? []).includes(season);
+              return (
+                <OptionRow
+                  key={season}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  selected={on}
+                  label={filterCopy.seasons[season]}
+                  onPress={() =>
+                    onSave({
+                      seasons: on
+                        ? (piece.seasons ?? []).filter((x) => x !== season)
+                        : [...(piece.seasons ?? []), season],
+                    })
+                  }
+                />
+              );
+            })}
           </View>
         ) : field === 'material' ? (
-          <MaterialPicker value={piece.material} onChange={(material) => commit({ material })} />
+          <MaterialPicker
+            value={piece.material}
+            // "Not sure" while nothing is filed is already the answer: it only closes.
+            onChange={(material) =>
+              material === piece.material ? onClose() : commit({ material })
+            }
+          />
         ) : field === 'print' ? (
           <PrintPicker value={colour} onChange={(next) => commit({ print: next.print })} />
         ) : field === 'colour' || field === 'extra' ? (
@@ -285,7 +327,7 @@ export function PieceFieldSheet({
             returnKeyType={field === 'notes' ? 'default' : 'done'}
             onSubmitEditing={field === 'notes' ? undefined : save}
             placeholder={
-              field === 'brand'
+              field === 'brand' || field === 'shop'
                 ? fields.brand.placeholder
                 : field === 'notes'
                   ? fields.notes.placeholder

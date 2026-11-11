@@ -12,22 +12,19 @@ export function daysBetween(from: string, date: string): number {
   );
 }
 
-// The home diary's window (Front Door design 3k, plan 2026-11-02 D1): three pages of seven days with
-// today's page centred, so the strip reaches ten days back and ten ahead.
-export const DIARY_BACK = 10;
-export const DIARY_AHEAD = 10;
+// The home diary's window (Front Door design 3k, plan 2026-11-02 D1; PRD rev 3 §3, R4): three
+// whole Monday weeks — last week, this week and next — so the strip's pages are calendar weeks and
+// today's page is the middle one.
+export const DIARY_WEEKS = 3;
+export const DIARY_PAGE = 7;
 export function diaryWindow(today: string): { from: string; to: string; days: string[] } {
-  const from = addDays(today, -DIARY_BACK);
-  const to = addDays(today, DIARY_AHEAD);
-  return {
-    from,
-    to,
-    days: Array.from({ length: DIARY_BACK + DIARY_AHEAD + 1 }, (_, i) => addDays(from, i)),
-  };
+  const from = addDays(mondayOf(today), -DIARY_PAGE);
+  const days = Array.from({ length: DIARY_WEEKS * DIARY_PAGE }, (_, i) => addDays(from, i));
+  return { from, to: days[days.length - 1] ?? from, days };
 }
 
 // The strip's pages: seven days each, today's page in the middle.
-export function diaryPages<T>(days: readonly T[], size = 7): T[][] {
+export function diaryPages<T>(days: readonly T[], size = DIARY_PAGE): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < days.length; i += size) out.push(days.slice(i, i + size));
   return out;

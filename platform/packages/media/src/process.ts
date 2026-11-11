@@ -3,7 +3,14 @@ import type { PieceBox } from '@robes/core/photo-pieces';
 import { detectImageFormat } from './detect';
 import { mediaKeys, parseOriginalKey } from './keys';
 import type { RenditionManifest } from './manifest';
-import { cropImage, RejectedImage, type RejectReason, renderImage } from './render';
+import {
+  cropImage,
+  RejectedImage,
+  type RejectReason,
+  type RenderedImage,
+  renderFromMaster,
+  renderMasterImage,
+} from './render';
 import { deleteAssetObjects, type MediaStorage } from './storage';
 
 export { cropImage, IMAGE_LIMITS, RejectedImage, type RejectReason, renderImage } from './render';
@@ -75,32 +82,43 @@ export async function processUpload(deps: ProcessUploadDeps, key: string): Promi
   const format = detectImageFormat(original);
   if (!format) return fail('unsupported_type');
 
-  let rendered: Awaited<ReturnType<typeof renderImage>>;
+  let master: RenderedImage['master'];
   try {
     const crop = asCrop(asset.crop);
-    rendered = crop
-      ? await renderImage(await cropImage(original, crop), 'jpeg')
-      : await renderImage(original, format);
+    master = crop
+      ? await renderMasterImage(await cropImage(original, crop), 'jpeg')
+      : await renderMasterImage(original, format);
   } catch (err) {
     if (err instanceof RejectedImage) return fail(err.reason);
     throw err;
   }
 
+  // The master is stored before the renditions are made: a photo read needs only the master
+  // (wardrobe jobs wait for it, not for `ready`), and the renditions are most of the render time.
   const masterKey = mediaKeys.master(userId, assetId);
-  await Promise.all([
-    deps.storage.putObject(masterKey, rendered.master.data, {
-      contentType: 'image/jpeg',
-      cacheControl: CACHE_CONTROL,
-    }),
-    ...rendered.renditions.map((r) =>
+  await deps.storage.putObject(masterKey, master.data, {
+    contentType: 'image/jpeg',
+    cacheControl: CACHE_CONTROL,
+  });
+
+  let rendered: Omit<RenderedImage, 'master'>;
+  try {
+    rendered = await renderFromMaster(master);
+  } catch (err) {
+    if (!(err instanceof RejectedImage)) throw err;
+    await deps.storage.deleteObject(masterKey);
+    return fail(err.reason);
+  }
+  await Promise.all(
+    rendered.renditions.map((r) =>
       deps.storage.putObject(mediaKeys.rendition(userId, assetId, r.width, r.format), r.data, {
         contentType: CONTENT_TYPES[r.format],
         cacheControl: CACHE_CONTROL,
       }),
     ),
-  ]);
+  );
 
-  const { width, height } = rendered.master;
+  const { width, height } = master;
   const manifest: RenditionManifest = {
     v: 1,
     master: { width, height },

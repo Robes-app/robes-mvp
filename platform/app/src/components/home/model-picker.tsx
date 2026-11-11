@@ -3,8 +3,9 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
 import type { Model } from '@robes/contracts';
 import { diary } from '@robes/copy';
+import { lineupOrder } from '@robes/core/avatar';
 import { Icon } from '@robes/icons/web';
-import { ErrorText, Sheet, useToast } from '@robes/ui';
+import { Sheet, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { errorCopy } from '@/lib/error-copy';
 import { useSelfie } from '@/lib/use-selfie';
@@ -15,8 +16,9 @@ const focus =
 
 // Felix's ModelPicker ("Your model", design 3a; D10): the body her looks are drawn on, opened
 // from the ModelStack. One sideways row of 96×120 face-cropped cards, 10 apart: first "Use my
-// likeness" (her selfie, the one door to her twin), then the five Robes models. A pick applies at
-// once and is remembered as a pick. The native twin is mobile/src/features/home/ModelPicker.tsx.
+// likeness" (her selfie, the one door to her twin), then the five Robes models in a fixed order
+// until she chooses; the chosen one then leads, ticked (lineupOrder). A pick applies at once and is
+// remembered as a pick. The native twin is mobile/src/features/home/ModelPicker.tsx.
 export function ModelPicker({
   open,
   model,
@@ -54,8 +56,11 @@ export function ModelPicker({
           <li>
             <button
               type="button"
-              onClick={selfie.start}
-              disabled={selfie.busy}
+              onClick={() => {
+                onClose();
+                selfie.start();
+              }}
+              data-testid="model-own"
               className={`flex h-[120px] w-24 shrink-0 flex-col items-center justify-center gap-2 rounded-thumb border border-cream400 border-dashed bg-surface px-2 ${focus}`}
             >
               <span className="flex size-12 items-center justify-center rounded-pill bg-surface-raised text-ink-muted">
@@ -64,7 +69,9 @@ export function ModelPicker({
               <span className="type-label text-center text-ink-muted">{copy.own}</span>
             </button>
           </li>
-          {(model?.robesModels ?? []).map((g, i) => {
+          {lineupOrder({ own: false, chosen }).map((n, i) => {
+            const g = model?.robesModels.find((r) => r.n === n);
+            if (!g) return null;
             const on = g.n === chosen;
             return (
               <li key={g.id}>
@@ -100,8 +107,6 @@ export function ModelPicker({
             );
           })}
         </ul>
-        {selfie.error ? <ErrorText>{selfie.error}</ErrorText> : null}
-        {selfie.field}
       </div>
     </Sheet>
   );

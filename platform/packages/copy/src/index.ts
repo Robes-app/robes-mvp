@@ -134,15 +134,6 @@ export const today = {
   week: 'This week',
   weekDay: (label: string, looks: number): string =>
     looks === 0 ? `${label}, free` : `${label}, ${looks === 1 ? 'one look' : `${looks} looks`}`,
-  tray: {
-    title: 'In the studio',
-    running: 'Styling…',
-    ready: 'Ready',
-    failed: 'Didn’t finish',
-    stylePiece: 'Style a piece',
-    styleColour: 'Reading your colours',
-    trip: 'Packing a trip',
-  },
   ideas: 'Recent ideas',
   seeAll: 'See all',
   // Style it for today (legacy Dress today).
@@ -154,7 +145,6 @@ export const today = {
     promptPlaceholder: 'Client lunch, then drinks',
     start: 'Style it',
     starting: 'Starting…',
-    trayTitle: 'Style it for today',
     steps: {
       'The Anchor': 'The anchor',
       'The Canvas': 'The canvas',
@@ -314,30 +304,34 @@ export const devUpload = {
 } as const;
 
 export const wardrobe = {
-  title: 'Wardrobe',
+  title: 'Your wardrobe',
   newPiece: 'New piece',
   reading: 'Robes is reading this piece…',
   noPieceFound: 'Robes couldn’t see a piece in this photo.',
-  // Beta's premise: the look is built from her photographs.
+  // The empty wardrobe (Front Door PRD rev 3 §7.2): a hanger on a white disc, one line, one door.
   empty: {
-    title: 'Every look starts with a photograph.',
-    body: 'Catalogue your wardrobe, or photograph what you’re wearing now.',
-    action: 'Catalogue your wardrobe',
+    title: 'Your wardrobe is empty',
+    body: 'Add pieces from a photo, a product link or a receipt. Robes fills in the details for you to review.',
+    action: 'Add pieces',
   },
   deleted: 'Piece removed.',
   undo: 'Undo',
-  // The header's segment reads Wardrobe (beta); the list it opens is still "Pieces".
-  segments: { pieces: 'Pieces', wardrobe: 'Wardrobe', wishlist: 'Wishlist', inbox: 'Inbox' },
+  // The header's tabs (Front Door PRD rev 3 §7.1): Owned · Wishlist · Shop (not open yet). The
+  // list under Owned is still "Pieces"; Inbox names the receipts.
+  segments: {
+    pieces: 'Pieces',
+    wardrobe: 'Wardrobe',
+    owned: 'Owned',
+    wishlist: 'Wishlist',
+    shop: 'Shop',
+    inbox: 'Inbox',
+  },
   removePiece: (label: string): string => `Remove ${label}`,
+  deletePiece: (label: string): string => `Delete ${label}`,
   photoAlt: (label: string): string => `Photo of ${label}`,
   wishlistEmpty: {
     title: 'Pieces you’re after live here.',
     body: 'Keep a list of what you want, then tell Robes when you buy it.',
-  },
-  // The Inbox holds forwarded receipts only; a pasted link goes straight to Review.
-  inboxEmpty: {
-    title: 'Forwarded receipts land here.',
-    body: 'Forward an order email to your Robes address and its pieces wait here for a yes or no.',
   },
   piece: {
     back: 'Wardrobe',
@@ -353,8 +347,9 @@ export const wardrobe = {
     stylePiece: 'Style this piece',
     // The record door leads with the photograph (legacy bc56305): the name carries a pencil
     // and the brand is its own tappable line, empty or not.
-    editName: 'Edit the name',
     addBrand: 'Add the brand',
+    // Robes named the house from the design, not a label it could read.
+    brandCheck: 'Robes named this brand from the design. Check it.',
     // The pill on the record's photograph (legacy rb-pc-rephoto); with no photo, it adds one.
     changePhoto: 'Change photo',
     addPhoto: 'Add a photo',
@@ -381,14 +376,33 @@ export const wardrobe = {
       extra: 'Additional colours',
       print: 'Print',
       material: 'Material',
-      season: 'Season',
+      // The four seasons (D12); none filed reads Year round.
+      season: 'Seasons',
       wearFor: 'Wear it for',
       size: 'Size',
       price: 'Price',
       notes: 'Notes',
+      // A wish's retailer, where an owned piece reads Brand (Front Door PRD rev 3 §7.3).
+      shop: 'Shop',
+      // The Wearing tab's record rows (§7.3): "8 times · last 27 Oct", "3".
+      worn: 'Worn',
+      inLooks: 'In looks',
     },
+    // The page's tabs (PRD rev 3 §7.3): PIECE · COLOUR · WEARING.
+    tabs: { piece: 'Piece', colour: 'Colour', wearing: 'Wearing' },
+    // Delete piece (PRD §7.3, plan R14): an outline button, asked first; Undo still follows.
+    delete: 'Delete piece',
+    deleteTitle: 'Delete this piece?',
+    deleteBody: 'It will be removed from your wardrobe and from any looks it’s in.',
+    deleteWishBody: 'It will be removed from your wishlist.',
+    deleteConfirm: 'Delete',
+    cancel: 'Cancel',
+    // A wish's page (§7.3): the same anatomy, Bought and Delete piece at the foot.
+    openShop: 'Open the shop page',
     // What a row says when there is nothing filed yet — a door, not a blank.
     add: 'Add',
+    // A row that is a fact with nothing to say yet (a wish's Wear it for, In looks).
+    none: '—',
     // Robes' read on this row is a guess she should look at (until she touches it).
     check: 'Check',
     saveField: 'Save',
@@ -430,7 +444,6 @@ export const wardrobe = {
   // The piece record's rows and their one-field drawers (redline audit "Add a piece", 26 Oct).
   fields: {
     // What an empty row offers, in the faint ink, instead of a column of "Add".
-    hints: { brand: 'e.g. Toteme', category: 'Choose', optional: 'Optional' },
     // A filled Notes row: the note prints beneath, the row is the door to change it.
     edit: 'Edit',
     name: { placeholder: 'What is it?' },
@@ -462,6 +475,8 @@ export const wardrobe = {
     boughtToast: (label: string): string => `${label} is in your wardrobe now.`,
     removed: 'Removed from your wishlist.',
     remove: (label: string): string => `Remove ${label}`,
+    // The filled heart on a wish's photograph (PRD rev 3 §7.2) lets it go.
+    unwish: (label: string): string => `Remove ${label} from your wishlist`,
   },
   // The one header (legacy a268ef0/809b13e): track + circle, category tabs, the 32pt count row.
   header: {
@@ -476,10 +491,12 @@ export const wardrobe = {
     grid: 'Grid',
     list: 'List',
   },
-  // The piece card (legacy b4b051a): eyebrow, serif name, status line, the star or Bought.
+  // The piece card and row (legacy b4b051a; Front Door canvas 3b).
   card: {
     worn: (n: number): string => `Worn ${n}×`,
     neverWorn: 'Never worn',
+    // A row's meta before the first wear (PRD rev 3 §7.2).
+    new: 'New',
     notYours: (price: string | null): string =>
       price ? `${price} · Not yours yet` : 'Not yours yet',
     star: (label: string): string => `Feature ${label} in your Hero Rack`,
@@ -487,11 +504,8 @@ export const wardrobe = {
     starred: 'Saved to your Hero Rack.',
     unstarred: 'Removed from your Hero Rack.',
     heroFull: 'The Hero Rack holds ten. Remove one first.',
-    bought: 'Bought',
-    boughtLabel: (label: string): string => `I bought ${label}`,
     swipeRemove: 'Remove',
-    addRow: 'Add a piece',
-    addHint: 'Photograph · Receipt · Link',
+    swipeDelete: 'Delete',
     noPhoto: 'Photograph it',
   },
   filter: {
@@ -504,6 +518,8 @@ export const wardrobe = {
     allBrands: 'All brands',
     show: (n: number): string => (n === 1 ? 'Show 1 piece' : `Show ${n} pieces`),
     clear: 'Clear all',
+    // The brand select, open: the list to pick from.
+    brands: 'Brands',
     nothing: 'Nothing in your wardrobe here.',
     wishNothing: 'Nothing on your wishlist here.',
     showEverything: 'Show everything',
@@ -526,16 +542,47 @@ export const wardrobe = {
     skip: 'Skip',
     more: (n: number): string =>
       n === 1 ? 'One more receipt after this.' : `${countWord(n)} more receipts after this.`,
-    notice: (receipts: number): string =>
-      receipts === 1
-        ? 'Robes read one receipt'
-        : `Robes read ${countWord(receipts).toLowerCase()} receipts`,
     filed: 'Filed.',
     skipped: 'Skipped.',
   },
 
   // Add a piece, end to end (design "Add Piece — Handoff", 2026-10-26): one sheet, every way in,
   // one Review before anything files. Where the pieces go is chosen once and carried through.
+  // The Add pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles over the screen; Paste
+  // URL turns it into Add from Link with the field inline. Over the draft it reads Add your pieces.
+  addSheet: {
+    title: 'Add pieces',
+    draftTitle: 'Add your pieces',
+    pasteUrl: 'Paste URL',
+    photo: 'Photo',
+    fromReceipt: 'From receipt',
+    linkTitle: 'Add from Link',
+    linkField: 'Paste a link',
+    linkGo: 'Read the page',
+    manual: 'Add without a photo',
+  },
+  // Receipts (PRD rev 3 §7.5): the Inbox as tabs, her forwarding address, the pieces by retailer.
+  receipts: {
+    title: 'Receipts',
+    tabs: { inbox: 'Inbox', added: 'Added', discarded: 'Discarded' },
+    forwardTo: 'Forward receipts to',
+    extracted: 'Pieces will be extracted for your review.',
+    group: (retailer: string, n: number): string => `${retailer} (${n})`,
+    size: (size: string): string => `Size ${size}`,
+    unknownRetailer: 'A receipt',
+    add: (label: string): string => `Add ${label} to your wardrobe`,
+    discard: (label: string): string => `Discard ${label}`,
+    addAll: 'Add every piece',
+    discardAll: 'Discard every piece',
+    order: (ref: string): string => `Order ${ref}`,
+    sender: (email: string): string => `From ${email}`,
+    received: (day: string): string => `Received ${day}`,
+    decided: (day: string): string => `Decided ${day}`,
+    addedEmpty: 'Nothing added from a receipt yet.',
+    discardedEmpty: 'Nothing discarded.',
+    added: 'Added to your wardrobe.',
+    discarded: 'Discarded.',
+  },
   add: {
     title: 'Add pieces',
     close: 'Close',
@@ -547,19 +594,6 @@ export const wardrobe = {
       link: 'Paste a link',
       receipt: 'Forward a receipt',
       manual: 'Add without a photo',
-    },
-    // What the camera says once it has a shot.
-    shots: {
-      reading: 'Reading…',
-      found: (n: number): string =>
-        n === 0
-          ? 'Nothing found yet'
-          : n === 1
-            ? 'One piece found'
-            : `${countWord(n)} pieces found`,
-      // "Review 3": how many photos are waiting; hidden until there is one.
-      review: (n: number): string => `Review ${n}`,
-      roll: 'Open the camera roll',
     },
     link: {
       eyebrow: 'Paste a link',
@@ -589,35 +623,15 @@ export const wardrobe = {
       uploading: 'Adding the photo…',
       failed: 'Robes couldn’t add that piece. Try again in a moment.',
     },
+    // What Review still says from before the list (Capture PRD 3c): a row while Robes reads,
+    // and the photo that could not be read.
     review: {
-      eyebrow: 'Review',
-      title: 'Here’s what Robes',
-      wink: 'saw.',
-      sub: {
-        photo: 'Read from your photo. Tap anything that isn’t quite right.',
-        link: 'Read from the shop page. Tap anything that isn’t quite right.',
-      },
       reading: 'Reading…',
-      // "Robes is *reading* your photo…": the middle word in serif italic.
-      readingHead: {
-        pre: 'Robes is',
-        wink: 'reading',
-        post: (n: number): string => (n > 1 ? 'your photos…' : 'your photo…'),
-      },
-      readingPhoto: (n: number): string =>
-        n > 1 ? 'Robes is reading your photos…' : 'Robes is reading your photo…',
       unread: 'Robes couldn’t read this one.',
       fillIn: 'Fill it in yourself',
-      cancel: 'Cancel',
-      retake: 'Retake',
-      notThis: 'Not this piece',
-      pieces: 'Pieces to review',
-      piece: (n: number, of: number): string => `Piece ${n} of ${of}`,
       nothing: 'Robes couldn’t see a piece in those photos.',
       stalled: 'One photo didn’t upload. Take it again.',
       failed: 'Robes couldn’t file that. Try again in a moment.',
-      file: (to: 'wardrobe' | 'wishlist', next: boolean): string =>
-        `${to === 'wishlist' ? 'Add to wishlist' : 'Add to wardrobe'}${next ? ', next piece →' : ' →'}`,
     },
     filed: {
       head: (n: number): string => `${countWord(n)} ${n === 1 ? 'piece' : 'pieces'}`,
@@ -633,6 +647,49 @@ export const wardrobe = {
     },
     file: (to: 'wardrobe' | 'wishlist'): string =>
       to === 'wishlist' ? 'Add to wishlist →' : 'Add to wardrobe →',
+  },
+  // Wardrobe › Photo (Capture PRD 3c, 10 Nov 2026; canvas frame 3c): several photographs in one
+  // sitting, reviewed together, added at once. Every string is the PRD's.
+  capture: {
+    camera: {
+      hint: 'One piece per photo · Lay it flat or hang it up',
+      next: 'Next piece, or review when you’re done',
+      ready: (n: number): string => (n === 1 ? '1 piece ready' : `${n} pieces ready`),
+      review: (n: number): string => `Review ${n}`,
+      close: 'Close',
+      photos: 'Choose from your photos',
+      shutter: 'Take photo',
+      denied: 'Allow the camera in your settings to take a photo here.',
+      // The sitting's limit (twelve photographs; each is read on its own).
+      full: 'That’s twelve. Review these, then carry on.',
+    },
+    review: {
+      title: 'Review',
+      one: 'Review piece',
+      of: (n: number, of: number): string => `Piece ${n} of ${of}`,
+      head: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+      sub: 'Tap a piece to check its details. Remove anything that shouldn’t be here.',
+      reading: 'Reading the details…',
+      details: 'Add the details',
+      another: '+ Add another piece',
+      back: 'Back',
+      open: (label: string): string => `Check ${label}`,
+      remove: (label: string): string => `Remove ${label}`,
+      removePiece: 'Remove this piece',
+      done: 'Done',
+      piece: 'Piece',
+      colour: 'Colour',
+      footnote: 'Seasons and what you wear it for live on the piece’s Wearing tab.',
+      add: (n: number, to: 'wardrobe' | 'wishlist'): string => {
+        const where = to === 'wishlist' ? 'wishlist' : 'wardrobe';
+        return n === 1 ? `Add to ${where}` : `Add ${n} to ${where}`;
+      },
+      adding: 'Adding…',
+    },
+    added: (n: number, to: 'wardrobe' | 'wishlist'): string => {
+      const where = to === 'wishlist' ? 'wishlist' : 'wardrobe';
+      return n === 1 ? `1 piece added to your ${where}` : `${n} pieces added to your ${where}`;
+    },
   },
   // The camera in the app (design "Add Piece — Handoff"): every shot is read as it is taken, and
   // Review opens on them, filing where the Add pieces sheet chose.
@@ -653,13 +710,8 @@ export const wardrobe = {
   },
 } as const;
 
-// SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.
+// SEC-84: answered in You › Privacy (the web's banner is gone, Annie 9 Nov).
 export const consent = {
-  bannerTitle: 'Help shape Robes.',
-  bannerBody:
-    'May Robes count which screens you open and what you tap? It never sees your photos, words or email.',
-  allow: 'Allow',
-  decline: 'Don’t allow',
   failed: 'Robes couldn’t save that. Try again in a moment.',
   privacyEyebrow: 'You',
   privacyTitle: 'Privacy.',
@@ -694,6 +746,31 @@ export const ui = {
   },
   back: 'Back',
   retry: 'Try again',
+  // The shared filter pattern (Front Door PRD rev 3 §2.5): the row's button and the sheet's header.
+  filter: 'Filter',
+  clear: 'Clear',
+} as const;
+
+// The shared filter pattern (Front Door PRD rev 3 §2.5): the row's chips, the sheet's sections
+// and its one button. Seasons are the four plus Year round, the empty set (D12).
+export const filters = {
+  all: 'All',
+  season: 'Season',
+  wearFor: 'Wear it for',
+  seasons: {
+    spring: 'Spring',
+    summer: 'Summer',
+    autumn: 'Autumn',
+    winter: 'Winter',
+    year_round: 'Year round',
+  } as const,
+  removeSeason: (season: string): string => `Remove ${season}`,
+  showLooks: (n: number): string =>
+    n === 0 ? 'No looks match' : n === 1 ? 'Show 1 look' : `Show ${n} looks`,
+  showPieces: (n: number): string =>
+    n === 0 ? 'No pieces match' : n === 1 ? 'Show 1 piece' : `Show ${n} pieces`,
+  noLooks: 'No looks match.',
+  clear: 'Clear filters',
 } as const;
 
 // App shell (IA §3.2): nav, Create sheet, command bar, placeholder routes.
@@ -1650,19 +1727,34 @@ export const twin = {
     addSelfieSub: 'Create your digital twin.',
     // The one way to another selfie: the redraw control on her twin's hero (redlines R15).
     retake: 'Retake selfie to update your twin',
-    // Take one or choose one (the design's selfie screen offers the library too).
-    selfieCamera: 'Take a selfie',
-    selfieLibrary: 'Choose from your photos',
+    // The selfie camera, its photo picker and the review (designs 03–05, Annie 10 Nov).
+    selfie: {
+      title: 'Selfie',
+      hint: 'Hair back · No glasses · Chin level',
+      close: 'Close the camera',
+      shutter: 'Take the selfie',
+      photos: 'Choose from your photos',
+      flip: 'Switch camera',
+      review: 'Your selfie',
+      reviewNote: 'Only used to draw your twin',
+      retake: 'Retake',
+      use: 'Use photo',
+    },
     lineup: 'Choose a model',
     you: 'You',
-    // While her selfie reads and her twin draws (design 3d lands with the read).
-    reading: 'Reading your selfie…',
+    // The stage while her selfie reads and her twin draws (designs 06–07), one line at a time;
+    // the last holds until her twin lands. A redraw with no selfie starts at the drawing.
+    status: [
+      'Reading your selfie',
+      'Reading your colouring',
+      'Drawing your model',
+      'Finishing your twin',
+    ],
     fewerSeasons: 'Fewer seasons',
     // The caption under her model: colour words only, never a shape.
     // Only what she chose or a close-up read: an unchosen skin or hair has no name to show.
     caption: (skin: string, hair: string): string =>
       [skin, hair ? `${String(hair).toLowerCase()} hair` : ''].filter(Boolean).join(' · '),
-    drawing: 'Drawing your model…',
     twinFailed:
       'Robes couldn’t photograph your model just now. A close-up in daylight, facing the camera, helps.',
     season: 'Your season',
@@ -1742,6 +1834,7 @@ export const twin = {
   dnaPage: {
     title: 'Style DNA',
     sub: 'What you love, and the lines you dress by.',
+    you: 'You',
     taste: 'Your taste',
     words: 'In your words',
     styleType: 'Style type',
@@ -1899,72 +1992,6 @@ export { bell, diary, firstRun, home } from './home';
 export { legal } from './legal';
 export { lookbook } from './lookbook';
 
-// Several pieces from one photograph (legacy 2026-10-13): a look from a photo (use case 2b); the
-// wardrobe add (use case 3) is now Add pieces' Review (wardrobe.add).
-const piecesWord = (n: number): string => (n === 1 ? 'piece' : 'pieces');
-
-export const photoPieces = {
-  failed: 'Robes couldn’t read the pieces in that photo. Try again in a moment.',
-  // A photo that never finished preparing is not a photo with nothing in it: saying "no
-  // piece" for a stalled upload sends everyone looking at the wrong thing (23 Oct).
-  stalled: 'Robes couldn’t open that photo. Try it again in a moment.',
-  photoAlt: 'Your photo',
-  tag: (n: number, label: string): string => `Piece ${n}: ${label}`,
-  cards: 'Pieces in your photo',
-  chip: { new: 'New', check: 'Check' },
-  status: {
-    toAdd: 'To add',
-    skipped: 'Skipped',
-    owned: 'Already yours',
-    ownedPhoto: 'Already yours · photo added',
-    looksLikeYours: 'Looks like yours',
-    ownPhoto: ' · its own photo',
-  },
-  picker: {
-    title: 'Which piece is it?',
-    sub: 'From your wardrobe',
-    close: 'Close',
-  },
-  look: {
-    start: {
-      title: 'Start with a photo',
-      body: 'Robes reads every piece in it, and asks about each.',
-      action: 'Add a photo',
-    },
-    reading: {
-      eyebrow: 'One moment',
-      title: 'Robes is finding the pieces.',
-      aside: 'The top, for a start.',
-    },
-    eyebrow: 'The look',
-    title: 'A look from a photo.',
-    head: (n: number): string => `The look · ${n} ${piecesWord(n)}`,
-    // The same head while the read runs, so the canvas never changes its label mid-read.
-    headReading: 'The look · Reading',
-    askMatch: (label: string): string => `Your ${label.toLowerCase()}?`,
-    askNew: 'Not in your rack. New?',
-    yes: 'Yes',
-    find: 'No, find it',
-    leaveOut: 'Leave it out',
-    ctxNew: 'Robes files it on save',
-    ctxMatch: (label: string): string => `Looks like the ${label.toLowerCase()}`,
-    newRow: 'New · filed on save',
-    remove: (label: string): string => `Take ${label} off the look`,
-    gate: (n: number): string =>
-      n === 1 ? 'One piece to confirm before you save.' : `${n} pieces to confirm before you save.`,
-    wearToday: 'Wearing it today, log it worn',
-    findTitle: (label: string): string => `Find the ${label.toLowerCase()}`,
-    findNone: 'None of these — it’s new',
-    findEmpty: 'Pick the piece it is',
-    findGo: (label: string): string => `It’s the ${label.toLowerCase()}`,
-    readFailed: 'Robes couldn’t read the pieces — the photo is kept, add them from your wardrobe.',
-    empty: 'Robes couldn’t see a piece in that photo — it is kept as the record.',
-    save: 'Save look',
-    saving: 'Filing the pieces…',
-    saveFailed: 'Robes couldn’t save that look. Try again.',
-  },
-} as const;
-
 // The key-piece result, "Worn three ways" (legacy 7dfc96c, the native design).
 export const keyPiece = {
   eyebrowYours: 'Key piece · yours',
@@ -1985,7 +2012,6 @@ export const copy = {
   diary,
   lookbook,
   wardrobe,
-  photoPieces,
   errors,
   auth,
   emails,
@@ -1997,6 +2023,7 @@ export const copy = {
   devUpload,
   consent,
   ui,
+  filters,
   shell,
   looks,
   you,

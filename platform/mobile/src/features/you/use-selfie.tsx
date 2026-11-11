@@ -1,63 +1,56 @@
 import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
-import { twin, you } from '@robes/copy';
-import { Sheet } from '@robes/ui-native';
+import { you } from '@robes/copy';
 import { useQueryClient } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 import { isTerminal, JOB_REFRESH_MS } from '@/features/looks/ideas';
-import { PICKER_OPTIONS, uploadPhoto } from '@/features/wardrobe/add-pieces';
-import { SettingsRow } from './Settings';
+import { type PickedPhoto, uploadPhoto } from '@/features/wardrobe/add-pieces';
 
 const copy = you.style;
-const tw = twin.twinPage;
 // The read's job, carried in the route params from the camera to Your digital twin.
 export const READ_PARAM = 'read';
+export const SELFIE_ROUTE = '/you/selfie';
 
-// The one door to her twin (plan 2026-11-05 §2.6), behind every selfie button: a sheet that
-// offers the front camera or her photo library (the design's selfie screen offers both), the
-// photograph uploaded as her close-up and read for her colouring, then Your digital twin at once
-// with the read's job in the params so that screen can draw her when it lands. The caller renders
-// `chooser`. Web twin: app/src/lib/use-selfie.tsx.
+// The one door to her twin (plan 2026-11-05 §2.6), behind every selfie button: the selfie camera
+// (designs 03–05), with her photo library a tap away. Web twin: app/src/lib/use-selfie.tsx.
 export function useSelfie(): {
   start: () => void;
-  chooser: ReactNode;
+  // From a button in a sheet: `startOnceClosed()` as it closes that sheet, whose `onClosed` is
+  // `afterClose`. The camera waits for that sheet to fully go: presented over a sheet still
+  // dismissing, iOS left a see-through layer over the whole app, taking every tap.
+  startOnceClosed: () => void;
+  afterClose: () => void;
+} {
+  const router = useRouter();
+  const queued = useRef(false);
+  const start = () => router.push(SELFIE_ROUTE);
+  return {
+    start,
+    startOnceClosed: () => {
+      queued.current = true;
+    },
+    afterClose: () => {
+      if (!queued.current) return;
+      queued.current = false;
+      start();
+    },
+  };
+}
+
+// The photograph she keeps on the review (design 05): uploaded as her close-up and read for her
+// colouring, then Your digital twin at once with the read's job in the params so that screen
+// follows the read (and her twin, which draws alongside it).
+export function useSelfieSend(): {
+  send: (photo: PickedPhoto) => Promise<void>;
   busy: boolean;
   error: string | null;
 } {
   const api = useApiClient();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // The camera or library opens only once the chooser has fully gone (Sheet onClosed): iOS
-  // refuses to present over a closing sheet.
-  const picking = useRef<'camera' | 'library' | null>(null);
-  const pick = (from: 'camera' | 'library') => {
-    picking.current = from;
-    setChoosing(false);
-  };
-  const chosen = () => {
-    const from = picking.current;
-    picking.current = null;
-    if (from) void take(from);
-  };
-  async function take(from: 'camera' | 'library') {
-    let result: ImagePicker.ImagePickerResult;
-    if (from === 'camera') {
-      const camera = await ImagePicker.requestCameraPermissionsAsync();
-      if (!camera.granted) return;
-      result = await ImagePicker.launchCameraAsync({
-        ...PICKER_OPTIONS,
-        cameraType: ImagePicker.CameraType.front,
-      });
-    } else {
-      result = await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
-    }
-    const photo = result.canceled ? undefined : result.assets[0];
-    if (!photo) return;
+  async function send(photo: PickedPhoto) {
+    if (busy) return;
     setError(null);
     setBusy(true);
     try {
@@ -65,37 +58,14 @@ export function useSelfie(): {
       const started = await api.call('me.style.analyse', {
         input: { kind: 'colour', assetId },
       });
-      router.push({ pathname: '/you/model', params: { [READ_PARAM]: started.jobId } });
+      router.replace({ pathname: '/you/model', params: { [READ_PARAM]: started.jobId } });
     } catch {
       setError(copy.failed);
     } finally {
       setBusy(false);
     }
   }
-  const chooser = (
-    <Sheet
-      open={choosing}
-      onClose={() => setChoosing(false)}
-      onClosed={chosen}
-      title={tw.addSelfie}
-      closeButton
-    >
-      <View className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
-        <SettingsRow
-          first
-          label={tw.selfieCamera}
-          onPress={() => pick('camera')}
-          testID="selfie-camera"
-        />
-        <SettingsRow
-          label={tw.selfieLibrary}
-          onPress={() => pick('library')}
-          testID="selfie-library"
-        />
-      </View>
-    </Sheet>
-  );
-  return { start: () => setChoosing(true), chooser, busy, error };
+  return { send, busy, error };
 }
 
 // Your digital twin, landed on from the camera: follows the read named in the params and, when it
@@ -109,8 +79,8 @@ export function useSelfieRead(): { reading: boolean; error: string | null } {
   const draw = useApiMutation('me.model.twin', {
     onSuccess: (data) => queryClient.setQueryData(queryKeys.call('me.model.get'), data),
   });
-  const mutate = useRef(draw.mutate);
-  mutate.current = draw.mutate;
+  const drawTwin = useRef(draw.mutateAsync);
+  drawTwin.current = draw.mutateAsync;
   const job = useApi(
     'jobs.get',
     { params: { id: jobId ?? '' } },
@@ -121,18 +91,26 @@ export function useSelfieRead(): { reading: boolean; error: string | null } {
   );
   const [error, setError] = useState<string | null>(null);
   const finished = jobId !== null && (job.isError || isTerminal(job.data));
+  const settled = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!finished) return;
+    if (!finished || settled.current === jobId) return;
+    settled.current = jobId;
     const data = job.data;
     const read = data?.status === 'succeeded' && !data.output.noSubject;
     if (data?.status !== 'succeeded') setError(copy.failed);
     else if (data.output.noSubject) setError(copy.noFace);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.style.get') });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') });
-    if (read) mutate.current();
-    router.setParams({ [READ_PARAM]: undefined });
-  }, [finished, job.data, queryClient, router]);
+    // Still reading until her model has caught up with the read (her twin drawing, or drawn):
+    // in between, the colouring it read would stand a catalog model in her place.
+    void (async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('me.style.get') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') }),
+      ]).catch(() => {});
+      if (read) await drawTwin.current().catch(() => {});
+      router.setParams({ [READ_PARAM]: undefined });
+    })();
+  }, [finished, jobId, job.data, queryClient, router]);
 
   return { reading: jobId !== null, error };
 }

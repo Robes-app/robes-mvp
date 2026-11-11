@@ -152,6 +152,48 @@ describe('wardrobe repo', () => {
     await deleteTestUsers(db, user);
   });
 
+  it('filters by several seasons, families and tags at once, with Year round as the untagged (PRD rev 3)', async () => {
+    const user = await createTestUser(db);
+    const coat = await wardrobe.create(user, {
+      label: 'Wool coat',
+      seasons: ['autumn', 'winter'],
+      colourShade: 'navy',
+    });
+    const dress = await wardrobe.create(user, {
+      label: 'Linen dress',
+      seasons: ['summer'],
+      colourShade: 'cherry',
+    });
+    const tee = await wardrobe.create(user, { label: 'White tee' });
+    await wardrobe.setWearTags(user, coat.id, ['Work']);
+    await wardrobe.setWearTags(user, dress.id, ['Evening']);
+    await wardrobe.setWearTags(user, tee.id, ['Everyday']);
+    const ids = async (q: Parameters<typeof wardrobe.list>[1]) =>
+      (await wardrobe.list(user, q)).items.map((p) => p.id).sort();
+    // An untagged piece answers any season; Year round returns the untagged alone.
+    expect(await ids({ limit: 10, seasons: ['autumn'] })).toEqual([coat.id, tee.id].sort());
+    expect(await ids({ limit: 10, seasons: ['summer', 'spring'] })).toEqual(
+      [dress.id, tee.id].sort(),
+    );
+    expect(await ids({ limit: 10, seasons: ['year_round'] })).toEqual([tee.id]);
+    // Families OR within the section; tags too; sections AND.
+    expect(await ids({ limit: 10, colourFamilies: ['blues', 'reds'] })).toEqual(
+      [coat.id, dress.id].sort(),
+    );
+    expect(await ids({ limit: 10, wearFor: ['work', 'Evening'] })).toEqual(
+      [coat.id, dress.id].sort(),
+    );
+    expect(await ids({ limit: 10, seasons: ['autumn'], wearFor: ['Evening'] })).toEqual([]);
+    // The category chips count under the other filters.
+    expect(await wardrobe.categoryCounts(user, { seasons: ['summer'] })).toEqual(
+      expect.arrayContaining([{ category: 'Other', count: 2 }]),
+    );
+    expect(await wardrobe.countMatching(ann, { seasons: ['autumn'] })).toBe(
+      (await wardrobe.list(ann, { limit: 50 })).items.length,
+    );
+    await deleteTestUsers(db, user);
+  });
+
   it("files a material; her answer clears Robes' check on it alone, and stays hers", async () => {
     const piece = await wardrobe.create(ann, { label: 'Wool blazer', material: 'wool' });
     expect(piece.material).toBe('wool');
@@ -226,6 +268,58 @@ describe('wardrobe repo', () => {
     const other = await wardrobe.create(ann, { label: 'New piece', status: 'reading' });
     await pieces.apply(bea, other.id, { ...read, material: 'silk', itemDna: {} });
     expect((await wardrobe.get(ann, other.id))?.material).toBeNull();
+  });
+
+  it('a brand read from the design carries a check until she answers it, never over hers', async () => {
+    const read = {
+      label: 'Lace blouse',
+      categoryL2: null,
+      categoryL3: null,
+      category: 'Tops',
+      color: 'Optic white',
+      colourShade: 'optic',
+      colourExtra: [],
+      print: null,
+      material: null,
+      price: null,
+      currency: null,
+      size: null,
+      notes: null,
+    };
+    const fresh = await wardrobe.create(ann, { label: 'New piece', status: 'reading' });
+    await pieces.apply(ann, fresh.id, {
+      ...read,
+      brand: 'Sézane',
+      itemDna: { brand_check: true, prompt_version: 5 },
+    });
+    expect(await wardrobe.get(ann, fresh.id)).toMatchObject({
+      brand: 'Sézane',
+      itemDna: { brand_check: true, prompt_version: 5 },
+    });
+
+    // Her answer clears the check on the brand alone.
+    await db
+      .updateTable('wardrobeItems')
+      .set({ itemDna: JSON.stringify({ brand_check: true, colour_check: true }) })
+      .where('id', '=', fresh.id)
+      .execute();
+    const named = await wardrobe.update(ann, fresh.id, { brand: 'Sézane' });
+    expect(named?.itemDna).toEqual({ colour_check: true });
+
+    // A brand she typed while Robes read is kept, and Robes' doubt about it is dropped.
+    const typed = await wardrobe.create(ann, {
+      label: 'New piece',
+      status: 'reading',
+      brand: 'Isabel Marant',
+    });
+    await pieces.apply(ann, typed.id, {
+      ...read,
+      brand: 'Sézane',
+      itemDna: { brand_check: true, prompt_version: 5 },
+    });
+    const kept = await wardrobe.get(ann, typed.id);
+    expect(kept?.brand).toBe('Isabel Marant');
+    expect(kept?.itemDna).toEqual({ prompt_version: 5 });
   });
 
   it('a read that finds nothing leaves no piece, and only for the job owner', async () => {

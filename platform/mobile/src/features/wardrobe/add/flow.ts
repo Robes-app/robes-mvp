@@ -16,6 +16,20 @@ export const READ_PATIENCE_MS = 20_000;
 // Photos one Review takes at once: each is its own read, and reads are rate-limited (20/min).
 export const REVIEW_MAX = 12;
 
+// Review removed its last piece (Capture PRD 3c.3): the camera beneath it starts the sitting
+// afresh when it comes back into view. One flag, set by Review and taken once by the camera.
+let emptied = false;
+export const sitting = {
+  empty: () => {
+    emptied = true;
+  },
+  takeEmptied: (): boolean => {
+    const was = emptied;
+    emptied = false;
+    return was;
+  },
+};
+
 export function destinationOf(raw: unknown): AddDestination {
   return isDestination(raw) ? raw : 'wardrobe';
 }

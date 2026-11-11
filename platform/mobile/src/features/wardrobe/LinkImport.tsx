@@ -38,10 +38,11 @@ const copy = wardrobe.add.link;
 // page that can't be read keeps her here. Web twin: components/wardrobe/link-import.tsx.
 export function LinkImport() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ to?: string }>();
+  const params = useLocalSearchParams<{ to?: string; url?: string }>();
   const ink = useColor('ink');
   const faint = useColor('ink-faint');
-  const [url, setUrl] = useState('');
+  // A link pasted on the Add pieces sheet (PRD rev 3 §7.4) arrives here and is read at once.
+  const [url, setUrl] = useState(params.url?.trim() ?? '');
   const to = destinationOf(params.to);
   const field = useRef<TextInputInstance>(null);
   const start = useApiMutation('imports.link');
@@ -61,6 +62,13 @@ export function LinkImport() {
   useEffect(() => {
     if (inboxId) router.replace(reviewHref({ to, link: inboxId }));
   }, [inboxId, router, to]);
+  const handed = useRef(false);
+  useEffect(() => {
+    const given = params.url?.trim();
+    if (!given || handed.current) return;
+    handed.current = true;
+    start.mutate({ input: { url: given, as: to } });
+  }, [params.url, start, to]);
 
   async function paste() {
     const text = (await Clipboard.getStringAsync().catch(() => '')).trim();

@@ -6,6 +6,8 @@ import { EmptyState } from './EmptyState';
 import { Image } from './Image';
 import { Progress } from './Progress';
 import { Skeleton } from './Skeleton';
+import { SubviewHeader } from './Subview';
+import { fonts } from './scale';
 
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(async () => {}),
@@ -165,5 +167,21 @@ describe('Avatar', () => {
   test('initials handles empty and single names', () => {
     expect(initials(null)).toBe('');
     expect(initials('  ann ')).toBe('A');
+  });
+});
+
+describe('SubviewHeader', () => {
+  test('reads its title as the tracked label by default', async () => {
+    await render(<SubviewHeader title="Tags" onBack={() => undefined} />);
+    expect(screen.getByRole('header', { name: 'Tags' })).not.toHaveStyle({
+      fontFamily: fonts.display,
+    });
+  });
+
+  test('reads a page of its own (Settings) in the tabs’ serif title', async () => {
+    await render(<SubviewHeader title="Settings" onBack={() => undefined} serif />);
+    expect(screen.getByRole('header', { name: 'Settings' })).toHaveStyle({
+      fontFamily: fonts.display,
+    });
   });
 });

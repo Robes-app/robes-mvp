@@ -1,6 +1,7 @@
 import type { Look } from '@robes/contracts';
-import { lookbook as copy } from '@robes/copy';
-import { anchorName, lookFacts, lookWearFor, startedLabel } from '@robes/core/looks';
+import { lookbook as copy, filters } from '@robes/copy';
+import { weekdayLong } from '@robes/core/calendar';
+import { anchorName, startedLabel, suggestionReason } from '@robes/core/looks';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
 import { type Aspect, fonts, Image, MIN_TOUCH, useColor } from '@robes/ui-native';
@@ -44,6 +45,35 @@ export function OnPhoto({
   );
 }
 
+// The Lookbook card's line (Front Door PRD rev 3 §5.2): the wears or New, then its seasons, Year
+// round when it carries none; a bag marks a look with pieces still to find. Twin of look-tiles.tsx.
+export function cardMeta(look: Look): string {
+  return copy.meta.frontDoor(
+    look.timesWorn,
+    look.seasons.map((s) => filters.seasons[s]),
+    filters.seasons.year_round,
+  );
+}
+
+// Why Robes suggested a look, as the card's line (PRD §5.3).
+export function reasonLine(look: Look): string {
+  const reason = suggestionReason(look);
+  switch (reason.kind) {
+    case 'anchor':
+      return copy.suggestedTile.around(reason.piece);
+    case 'day':
+      return copy.suggestedTile.reason.day(weekdayLong(reason.date));
+    case 'wishlist':
+      return copy.suggestedTile.reason.wishlist;
+    case 'own':
+      return copy.suggestedTile.reason.own(reason.pieces);
+    case 'wearMost':
+      return copy.suggestedTile.reason.wearMost;
+    default:
+      return copy.suggestedTile.fromPrompt;
+  }
+}
+
 // Saved: no eyebrow (the default state needs no label). The calendar sits ON the image bottom
 // left — the look's own diary door, so a day is set without leaving the grid (legacy 13 Oct) —
 // and ✕ deletes, top right, as on a suggestion.
@@ -66,8 +96,9 @@ export function SavedTile({
       onPress={onPress}
       {...(aspect ? { aspect } : {})}
       className="flex-1"
-      tag={lookWearFor(look)[0] ?? null}
-      meta={copy.meta.card(lookFacts(look, look.pieces.length))}
+      metaIcon="calendar"
+      meta={cardMeta(look)}
+      mark={look.proposals.length ? { icon: 'bag', label: copy.card.shop } : null}
       onImage={
         onDiary ? (
           <View className="absolute bottom-2 left-2">
@@ -151,12 +182,15 @@ function SuggestedMark({ look }: { look: Look }) {
   );
 }
 
-// Suggested: Robes' frame, where it came from in the corner, ✕ and ↻ always shown.
+// Suggested: Robes' frame, why it was suggested under the name, where it came from in the corner,
+// the bookmark that saves it on the photograph (PRD §5.3), ✕ and ↻ always shown.
 export function SuggestedTile({
   look,
   onPress,
   onRemove,
   onSwap,
+  onSave,
+  saving = false,
   swapping,
   showMark = true,
   aspect,
@@ -165,11 +199,12 @@ export function SuggestedTile({
   onPress: () => void;
   onRemove: () => void;
   onSwap: () => void;
+  onSave?: () => void;
+  saving?: boolean;
   swapping: boolean;
   showMark?: boolean;
   aspect?: Aspect;
 }) {
-  const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
   const busy = scanningLine(look, swapping);
   return (
     <LookTile
@@ -179,12 +214,24 @@ export function SuggestedTile({
       className="flex-1"
       eyebrow={copy.suggestedTile.eyebrow}
       eyebrowTone="warm"
-      meta={around ? copy.suggestedTile.around(around) : copy.suggestedTile.fromPrompt}
+      meta={reasonLine(look)}
+      mark={look.proposals.length ? { icon: 'bag', label: copy.card.shop } : null}
       testID={`suggested-${look.id}`}
       onImage={
         <>
           {busy ? <Scanning line={busy} /> : null}
           {showMark ? <SuggestedMark look={look} /> : null}
+          {onSave ? (
+            <View className="absolute right-2 bottom-2">
+              <OnPhoto
+                icon="bookmark"
+                label={copy.suggestedTile.save(look.name)}
+                size={32}
+                onPress={onSave}
+                disabled={saving}
+              />
+            </View>
+          ) : null}
         </>
       }
       corner={

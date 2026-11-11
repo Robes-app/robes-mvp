@@ -45,13 +45,12 @@ test('styling a chosen piece sends a piece anchor with the occasion and opens th
   expect(await screen.findByRole('radio', { name: 'Camel wool coat', checked: true })).toBeTruthy();
   await fireEvent.changeText(screen.getByLabelText(looks.stylePiece.occasionLabel), 'Dinner');
   await fireEvent.press(screen.getByRole('button', { name: looks.stylePiece.start }));
-  // She has pieces filed, so the ask waits on where its pieces come from (legacy 2026-10-19).
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.prompt.balance.mix }));
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith(`/looks/job/${JOB_ID}`));
+  // She has pieces filed, so the look is built from them (the Shop toggle's rest, plan R1).
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     anchor: { type: 'piece', pieceId: PIECE_ID },
     occasion: 'Dinner',
-    balance: 'mix',
+    balance: 'owned',
   });
 });
 
@@ -265,7 +264,7 @@ test('a card opens its sheet piece by piece, her own pieces marked', async () =>
   expect(screen.getByText('Black loafers')).toBeTruthy();
 });
 
-test('the image stack (D19, D20): Robes’ picture can be hidden; nothing is written until Update look', async () => {
+test('the image stack (D19, D20): Robes’ picture can be hidden; the strip’s ✓ keeps it, no Update look', async () => {
   const model = piece().image;
   if (!model) throw new Error('fixture piece has an image');
   const photo = { ...model, assetId: '99999999-9999-4999-8999-999999999999' };
@@ -294,14 +293,16 @@ test('the image stack (D19, D20): Robes’ picture can be hidden; nothing is wri
   await fireEvent.press(screen.getByLabelText(`${manager.remove} · ${manager.robes}`));
   // Her photograph is the last card left: it keeps no ×.
   expect(screen.queryAllByLabelText(new RegExp(`^${manager.remove}`))).toHaveLength(0);
-  await fireEvent.press(screen.getByTestId('image-manager-done'));
-  expect(screen.queryByTestId('image-manager')).toBeNull();
-  // Held until Update look (D20).
+  // Nothing is written before the strip's ✓; the ✓ keeps it there and then (Annie, 11 Nov).
   expect(calls.some((c) => c.path.includes('/images'))).toBe(false);
-  await fireEvent.press(screen.getByTestId('update-look'));
+  await fireEvent.press(screen.getByTestId('image-manager-done'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/images/robes'))?.body).toEqual({ hidden: true }),
   );
+  await waitFor(() => expect(screen.queryByTestId('image-manager')).toBeNull());
+  // The foot stays Schedule look: a photo is never a change waiting for Update look.
+  expect(screen.queryByTestId('update-look')).toBeNull();
+  expect(screen.getByTestId('schedule-look')).toBeTruthy();
 });
 
 test('Details › Seasons picks the four seasons (D12); the row reads them back', async () => {
@@ -370,8 +371,9 @@ test('Update on a saved look her model wears asks her model to wear the new rack
   });
   // Home's Edit look sheet (D18): the rack is worked there, Update look keeps it.
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  await fireEvent.press(await screen.findByTestId('rack-pencil'));
   await fireEvent.press(
-    await screen.findByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
+    screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
   // The piece taken off leaves the picture behind, so Update look draws it after (D6).
   await fireEvent.press(screen.getByTestId('update-look'));

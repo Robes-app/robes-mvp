@@ -17,7 +17,7 @@ import { PHOTO_ACCEPT, uploadPhoto } from '@/lib/upload';
 import { invalidateWardrobe } from '@/lib/wardrobe';
 import { type PieceField, PieceFieldSheet } from '../piece-field-sheet';
 import { RecordRows } from '../piece-rows';
-import { Filed } from './review';
+import { Filed } from './filed';
 
 const copy = wardrobe.add.manual;
 const EMPTY = readDraft({

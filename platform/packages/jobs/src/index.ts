@@ -11,10 +11,14 @@ export {
   checkUrl,
   FetchRefused,
   fetchLink,
+  fetchPhoto,
   isBlockedAddress,
   LinkFetchResult,
+  PHOTO_MAX_BYTES,
+  PhotoFetchResult,
   parseFetchRequest,
   parseLinkResultMessage,
+  parsePhotoResultMessage,
   parseProduct,
   safeFetch,
 } from './link';
@@ -55,6 +59,11 @@ export {
   SesNotification,
   verdictsPass,
 } from './receipts/mail';
+export {
+  queueReceiptPhotos,
+  type ReceiptPhotosDeps,
+  type RequestPhoto,
+} from './receipts/photos';
 export {
   JobCancelled,
   type JobContext,

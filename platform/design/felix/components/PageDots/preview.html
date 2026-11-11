@@ -1,0 +1,12 @@
+<!-- @dsCard group="Home" height=90 width=420 subtitle="Today’s looks pager under the caption" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>PageDots — preview</title></head>
+<body>
+<div id="root" style="display:flex;flex-direction:column;gap:14px;padding:20px;background:var(--cream);width:350px"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null, h(F.PageDots, { count: 2, value: 0 }), h(F.PageDots, { count: 4, value: 2 })));
+</script>
+</body>
+</html>

@@ -1,3 +1,4 @@
+import { useApi } from '@robes/api-client/react';
 import { nav } from '@robes/copy';
 import type { TAB_ICONS } from '@robes/icons';
 import { fonts, useColor } from '@robes/ui-native';
@@ -40,6 +41,10 @@ export default function TabsLayout() {
   const pathname = usePathname();
   const ink = useColor('ink');
   const muted = useColor('ink-muted');
+  // The Wardrobe's badge counts every piece she owns (Front Door PRD rev 3, Q1); none at zero,
+  // since iOS draws a badge as an alert (plan R11).
+  const summary = useApi('wardrobe.summary', undefined, { enabled: gate.state === 'ready' });
+  const owned = summary.data?.total ?? 0;
 
   if (gate.state === 'loading') return <LoadingScreen />;
   if (gate.state === 'signed-out') return <Redirect href="/sign-in" />;
@@ -52,6 +57,7 @@ export default function TabsLayout() {
       <LocationSetup />
       <NativeTabs
         tintColor={ink}
+        badgeBackgroundColor={ink}
         iconColor={{ default: muted, selected: ink }}
         // Felix's dock-label: Inter 500 at 9.5, ink-soft, the current tab ink. The bar is the
         // system's own, so Felix's tracking and active bar are left to it.
@@ -73,6 +79,11 @@ export default function TabsLayout() {
             <NativeTabs.Trigger.Label>
               {tab.title.toLocaleUpperCase('en-GB')}
             </NativeTabs.Trigger.Label>
+            {tab.name === 'wardrobe' && owned > 0 ? (
+              <NativeTabs.Trigger.Badge selectedBackgroundColor={ink}>
+                {String(owned)}
+              </NativeTabs.Trigger.Badge>
+            ) : null}
           </NativeTabs.Trigger>
         ))}
       </NativeTabs>

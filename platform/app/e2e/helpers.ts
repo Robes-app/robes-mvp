@@ -90,6 +90,9 @@ export async function seriousViolations(page: Page): Promise<string[]> {
   const { default: AxeBuilder } = await import('@axe-core/playwright');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.waitForLoadState('networkidle');
+  // A soft navigation (a tab's ?tab=) re-renders the streamed metadata and can leave the page
+  // without its <title> for a moment; wait for it, so a page that never gets one still fails.
+  await expect.poll(() => page.title()).not.toBe('');
   // Infinite animations (loading pulses) never finish, so the wait is capped.
   await page.evaluate(() =>
     Promise.race([

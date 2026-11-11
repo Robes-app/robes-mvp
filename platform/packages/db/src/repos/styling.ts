@@ -97,6 +97,16 @@ export function stylingRepo(db: Db) {
         .where('deletedAt', 'is', null)
         .where('status', '=', 'ready')
         .executeTakeFirst();
+      // The pieces she wants (Shop on, plan 2026-11-09 R1): a look may be built around one.
+      const wishes = await db
+        .selectFrom('wishlistItems')
+        .select(['id', 'label', 'category', 'color', 'brand', 'sourceLabel', 'price', 'currency'])
+        .where('userId', '=', userId)
+        .where('deletedAt', 'is', null)
+        .where('promotedItemId', 'is', null)
+        .orderBy('createdAt', 'desc')
+        .limit(40)
+        .execute();
       return {
         styleDna: {
           color_harmony: dna?.colorHarmony ?? null,
@@ -143,6 +153,16 @@ export function stylingRepo(db: Db) {
           timesWorn: c.timesWorn ?? 0,
           hero: c.heroPosition !== null,
           seasonBand: c.seasonBand,
+        })),
+        wishes: wishes.map((w) => ({
+          id: w.id,
+          label: w.label,
+          category: w.category,
+          color: w.color,
+          brand: w.brand,
+          sourceLabel: w.sourceLabel,
+          price: w.price === null ? null : Number(w.price),
+          currency: w.currency,
         })),
       };
     },

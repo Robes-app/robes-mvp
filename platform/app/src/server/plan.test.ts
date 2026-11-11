@@ -5,7 +5,7 @@ vi.mock('./db', () => ({ repos: {} }));
 vi.mock('./looks-entity', () => ({ toLooks: vi.fn() }));
 vi.mock('./flags', () => ({ isFlagEnabled: vi.fn() }));
 
-const { addDays, todayIn, withoutTripLooks } = await import('./plan');
+const { addDays, entriesOn, todayIn, withoutTripLooks } = await import('./plan');
 
 describe('plan dates', () => {
   it('uses her timezone for today', () => {
@@ -19,6 +19,24 @@ describe('plan dates', () => {
     expect(addDays('2026-09-30', 1)).toBe('2026-10-01');
     expect(addDays('2026-10-24', 2)).toBe('2026-10-26');
     expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
+  });
+});
+
+describe("today's entries", () => {
+  // The page starts on Monday; on a Tuesday, today is the second day, not the first.
+  const week = [
+    { date: '2026-11-09', entries: ['monday'] },
+    { date: '2026-11-10', entries: ['tuesday'] },
+    { date: '2026-11-11', entries: [] },
+  ];
+
+  it('finds the day by its date, not its place in the page', () => {
+    expect(entriesOn(week, '2026-11-10')).toEqual(['tuesday']);
+    expect(entriesOn(week, '2026-11-09')).toEqual(['monday']);
+  });
+
+  it('is empty for a day outside the read', () => {
+    expect(entriesOn(week, '2026-11-20')).toEqual([]);
   });
 });
 

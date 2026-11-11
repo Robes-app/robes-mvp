@@ -2,10 +2,11 @@
 
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { Icon } from '@robes/icons/web';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { PrimaryScope } from './button';
 import { cn, focusRing } from './cn';
 import { CloseDisc } from './icon-button';
+import { useToastLiftOver } from './toast';
 
 export interface DrawerDone {
   label: string;
@@ -82,6 +83,28 @@ export function DrawerHeader({
   );
 }
 
+// How much of the page the on-screen keyboard covers. Safari on a phone draws the keyboard over
+// the page without resizing it, so a drawer held at the page's foot would keep its action (Style
+// it, Update look) under the keyboard; the visual viewport says where the visible page ends.
+// Native twin: mobile/src/lib/keyboard.ts.
+export function useKeyboardInset(): number {
+  const [inset, setInset] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const read = () =>
+      setInset(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+    read();
+    vv.addEventListener('resize', read);
+    vv.addEventListener('scroll', read);
+    return () => {
+      vv.removeEventListener('resize', read);
+      vv.removeEventListener('scroll', read);
+    };
+  }, []);
+  return inset;
+}
+
 // Felix's drawer (DraftLook): a cream panel 24px from the top over `backdrop`, soft top corners,
 // sliding up over 0.32s, with a 56px header — the × disc, the tracked title, the ink done disc —
 // over a 0.5px rule and a scrolling body. On a wide window it stands centred with room around it.
@@ -99,6 +122,8 @@ export function Drawer({
   footer,
   testId,
 }: DrawerProps) {
+  // The drawer's foot stands on the keyboard while it is up, never under it.
+  const keyboard = useKeyboardInset();
   return (
     <RadixDialog.Root
       open={open}
@@ -119,6 +144,7 @@ export function Drawer({
           aria-describedby={undefined}
           data-testid={testId}
           onInteractOutside={(e) => e.preventDefault()}
+          style={keyboard ? { bottom: keyboard } : undefined}
           className="fixed inset-x-0 top-6 bottom-0 z-50 mx-auto flex w-full max-w-md flex-col overflow-hidden rounded-t-sheet bg-bg text-ink shadow-sheet motion-safe:animate-[robes-sheet-up_320ms_cubic-bezier(.2,0,.2,1)] md:inset-y-10 md:rounded-sheet"
         >
           <DrawerHeader
@@ -133,14 +159,24 @@ export function Drawer({
               <div className="h-full overflow-y-auto overscroll-contain pb-8">{children}</div>
               {over}
             </div>
-            {footer ? (
-              <div className="shrink-0 border-hairline border-t-[0.5px] bg-bg px-5 pt-3 pb-[max(1.375rem,env(safe-area-inset-bottom))]">
-                {footer}
-              </div>
-            ) : null}
+            {footer ? <DrawerFooter>{footer}</DrawerFooter> : null}
           </PrimaryScope>
         </RadixDialog.Content>
       </RadixDialog.Portal>
     </RadixDialog.Root>
+  );
+}
+
+// The drawer's foot; toasts rise above it while it stands, so an Undo never covers its button.
+function DrawerFooter({ children }: { children: ReactNode }) {
+  const bar = useRef<HTMLDivElement>(null);
+  useToastLiftOver(bar);
+  return (
+    <div
+      ref={bar}
+      className="shrink-0 border-hairline border-t-[0.5px] bg-bg px-5 pt-3 pb-[max(1.375rem,env(safe-area-inset-bottom))]"
+    >
+      {children}
+    </div>
   );
 }

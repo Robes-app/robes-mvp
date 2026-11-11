@@ -5,6 +5,7 @@ import { createFakeHandler } from './fake';
 import { createLinkImportHandler, type LinkImportDeps } from './link-import';
 import { createLookAskHandler, type LookAskDeps } from './look-ask';
 import { createLookRenderHandler, type LookRenderDeps } from './look-render';
+import { createReceiptReadHandler, type ReceiptReadDeps } from './receipt-read';
 import { createStyleAnalyseHandler, type StyleAnalyseDeps } from './style-analyse';
 import { createStyleBriefHandler, type StyleBriefDeps } from './style-brief';
 import { createStylePieceHandler, type StylePieceDeps } from './style-piece';
@@ -26,6 +27,7 @@ export interface HandlerDeps {
   lookAsk?: LookAskDeps;
   travel?: TravelDeps;
   avatarCell?: AvatarCellDeps;
+  receiptRead?: ReceiptReadDeps;
 }
 
 // One registry for SQS workers and the inline dev transport, keyed by job kind.
@@ -49,5 +51,6 @@ export function createHandlers(opts: HandlerDeps = {}): JobHandlers {
       ? { stylenotes_analyse: createStyleAnalyseHandler(opts.styleAnalyse) }
       : {}),
     ...(opts.styleBrief ? { style_brief: createStyleBriefHandler(opts.styleBrief) } : {}),
+    ...(opts.receiptRead ? { receipt_read: createReceiptReadHandler(opts.receiptRead) } : {}),
   };
 }

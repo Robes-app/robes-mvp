@@ -47,6 +47,7 @@ test('a batch of photos becomes filed pieces', async ({ page }) => {
     categoryL2: 'Coats',
     material: 'wool',
     materialCheck: false,
+    brandCheck: false,
   });
   // A material is one id from the list, or none; a word off the list is refused.
   expect((await api.patch(pieceUrl, { data: { material: 'nylon' } })).status()).toBe(400);
@@ -54,7 +55,13 @@ test('a batch of photos becomes filed pieces', async ({ page }) => {
   expect(linen.material).toBe('linen');
   const unsure = await (await api.patch(pieceUrl, { data: { material: null } })).json();
   expect(unsure.material).toBeNull();
-  expect(piece.image.renditions.length).toBeGreaterThan(0);
+  // The read needs only the master (jobs/wait.ts), so a piece can be ready before its renditions
+  // land: wait for them rather than read them once.
+  await expect
+    .poll(async () => (await (await api.get(pieceUrl)).json()).image?.renditions.length ?? 0, {
+      timeout: 30_000,
+    })
+    .toBeGreaterThan(0);
 
   const list = await (await api.get('/api/v1/wardrobe/items')).json();
   expect(list.items.map((p: { id: string }) => p.id)).toContain(piece.id);
