@@ -1,6 +1,6 @@
 // A look's image stack while she works it (plan 2026-11-06 D19, D20): Robes' picture (unless she
-// hid it) and her photographs, then the ones she has just added. Nothing here is written until
-// Update look; the stage is what she has done since. Shared by both clients' ImageManager.
+// hid it) and her photographs, then the ones she has just added. The stage is what she has done
+// since: a saved look writes it on the strip's ✓, a draft as it is saved. Shared by both clients' ImageManager.
 
 export type StageCard =
   | { kind: 'robes' }
@@ -86,7 +86,7 @@ export function stageInFront(stage: ImageStage, card: StageCard): ImageStage {
   return { ...stage, front: card };
 }
 
-// Anything waiting for Update look.
+// Anything the strip has not kept yet.
 export function stageChanged(base: StackBase, stage: ImageStage): boolean {
   if (stage.added.length > 0 || stage.removed.length > 0) return true;
   if (stage.robesHidden !== null && stage.robesHidden !== base.robesHidden) return true;

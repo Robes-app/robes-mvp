@@ -1,30 +1,12 @@
 import { useApi } from '@robes/api-client/react';
 import type { Facts, Model, UpdateModelInput } from '@robes/contracts';
 import { twin, ui } from '@robes/copy';
-import {
-  effectiveStops,
-  GENDER_IDENTITIES,
-  isAdjusted,
-  readAdj,
-  STOPS,
-  TWIN_SCALES,
-} from '@robes/core/avatar';
-import { AGE_BANDS, ageBandLabel, euSize } from '@robes/core/style-dna';
-import { Icon } from '@robes/icons/native';
-import {
-  Button,
-  EmptyState,
-  Eyebrow,
-  MIN_TOUCH,
-  Sheet,
-  Skeleton,
-  Text,
-  useColor,
-} from '@robes/ui-native';
+import { effectiveStops, isAdjusted, readAdj, STOPS, TWIN_SCALES } from '@robes/core/avatar';
+import { euSize } from '@robes/core/style-dna';
+import { Button, EmptyState, Eyebrow, MIN_TOUCH, Sheet, Skeleton, Text } from '@robes/ui-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
-import { useDnaMutations } from './dna';
 import {
   bustOf,
   FactsBody,
@@ -54,7 +36,7 @@ export function BodyShape() {
   const open = () => setFacts(true);
   return (
     <ScrollView contentContainerClassName="gap-5 px-6 pb-12">
-      <LineCard model={model} facts={dna.data.facts} onOpen={open} pick={pick} />
+      <LineCard model={model} facts={dna.data.facts} onOpen={open} />
       <Scales model={model} facts={dna.data.facts} pick={pick} />
       <Sheet open={facts} onClose={() => setFacts(false)} title={f.title} closeLabel={ui.done}>
         <FactsBody dna={dna.data} gender={model.presence} />
@@ -63,80 +45,7 @@ export function BodyShape() {
   );
 }
 
-// A pill that opens its own short list and saves on the pick (decided 27 Oct): Gender and Age are
-// set here, never in the facts drawer. Twin of web you/model/body/body-view.tsx PillMenu.
-function PillMenu<T extends string>({
-  label,
-  value,
-  options,
-  current,
-  onPick,
-}: {
-  label: string;
-  value: string;
-  options: readonly { key: T; label: string }[];
-  current: T | null;
-  onPick: (key: T) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const muted = useColor('ink-muted');
-  const ink = useColor('ink');
-  return (
-    <>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${label}: ${value || f.add}`}
-        onPress={() => setOpen(true)}
-        style={{ minHeight: MIN_TOUCH }}
-        className={`flex-row items-center gap-2 rounded-pill border px-4 ${value ? 'border-hairline' : 'border-border-control border-dashed'}`}
-      >
-        <Eyebrow style={{ fontSize: 9.5 }}>{label}</Eyebrow>
-        <Text size={value ? 'small' : 'caption'} tone={value ? 'ink' : 'faint'} italic={!value}>
-          {value || f.add}
-        </Text>
-        <Icon name="down" color={muted} size={12} />
-      </Pressable>
-      <Sheet open={open} onClose={() => setOpen(false)} title={label} closeLabel={ui.done}>
-        <View>
-          {options.map((o, i) => (
-            <Pressable
-              key={o.key}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: current === o.key }}
-              onPress={() => {
-                onPick(o.key);
-                setOpen(false);
-              }}
-              style={{ minHeight: MIN_TOUCH }}
-              className={`flex-row items-center justify-between ${i ? 'border-t border-hairline' : ''}`}
-            >
-              <Text>{o.label}</Text>
-              {current === o.key ? <Icon name="check" color={ink} size={16} /> : null}
-            </Pressable>
-          ))}
-        </View>
-      </Sheet>
-    </>
-  );
-}
-
-const GENDERS = GENDER_IDENTITIES.map((key) => ({
-  key,
-  label: f.genderOptions[key],
-}));
-
-function LineCard({
-  model,
-  facts,
-  onOpen,
-  pick,
-}: {
-  model: Model;
-  facts: Facts;
-  onOpen: () => void;
-  pick: Pick;
-}) {
-  const { update } = useDnaMutations();
+function LineCard({ model, facts, onOpen }: { model: Model; facts: Facts; onOpen: () => void }) {
   const chest = model.presence === 'man' ? tw.chest : f.bust;
   const rows: [string, string][] = [
     [f.height, facts.heightCm ? f.heightValue(facts.heightCm) : ''],
@@ -151,7 +60,6 @@ function LineCard({
     [f.waist, rows[2]?.[1] ?? ''],
     [f.shoes, facts.shoeUk ? f.ukValue(facts.shoeUk) : ''],
   ];
-  const age = ageBandLabel(facts.ageBand);
   return (
     <View className="gap-4 rounded-soft border border-hairline bg-surface-raised p-5">
       <View className="flex-row items-center justify-between">
@@ -177,22 +85,6 @@ function LineCard({
             </View>
           ))}
         </View>
-      </View>
-      <View className="flex-row flex-wrap gap-2">
-        <PillMenu
-          label={tw.gender}
-          value={f.genderOptions[model.presence]}
-          options={GENDERS}
-          current={model.presence}
-          onPick={(presence) => pick({ presence })}
-        />
-        <PillMenu
-          label={tw.age}
-          value={age}
-          options={AGE_BANDS}
-          current={facts.ageBand}
-          onPick={(ageBand) => update.mutate({ input: { facts: { ageBand } } })}
-        />
       </View>
       <Pressable
         accessibilityRole="button"

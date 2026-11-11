@@ -3,32 +3,35 @@
 import { trackFiled } from '@robes/analytics';
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { InboxEntry, PieceValues, ReadPiece, UpdatePieceInput } from '@robes/contracts';
-import { ui, wardrobe } from '@robes/copy';
+import { wardrobe } from '@robes/copy';
 import { sheetL1For } from '@robes/core';
 import {
   type AddDestination,
+  bulkGroups,
   fileEdits,
-  nextPending,
-  type ReviewEntry,
   type RowChanges,
   readDraft,
-  readyGroups,
-  reviewTally,
+  reviewScreen,
   rowChanges,
-  SCAN_READY_STEP,
-  SCAN_STEP_MS,
-  SCAN_STEPS,
-  scanTags,
   wishChanges,
   withTagDefaults,
 } from '@robes/core/add-flow';
 import { shade } from '@robes/core/colour';
-import { pieceWord } from '@robes/core/photo-pieces';
-import { Button, buttonClasses, ErrorText, Heading, IconButton, Text } from '@robes/ui';
+import { material } from '@robes/core/material';
+import { Icon } from '@robes/icons/web';
+import {
+  Button,
+  buttonClasses,
+  ErrorText,
+  Heading,
+  SubviewHeader,
+  Text,
+  useToast,
+} from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 import { CropThumb } from '@/components/photo-pieces/photo-frame';
 import { PinnedAction } from '@/components/pinned-action';
@@ -42,30 +45,31 @@ import {
 import { invalidateWardrobe } from '@/lib/wardrobe';
 import { type PieceField, PieceFieldSheet } from '../piece-field-sheet';
 import { RecordRows } from '../piece-rows';
-import { ScanPhoto, type ScanSource } from './scan-photo';
 
-const copy = wardrobe.add;
+const old = wardrobe.add.review;
+const copy = wardrobe.capture.review;
+const focus =
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+const link = `min-h-11 self-center font-sans text-ink-muted text-[13px] underline underline-offset-[3px] hover:text-ink ${focus}`;
+const eyebrow = 'font-medium font-sans text-[9px] text-ink-faint uppercase tracking-[0.2em]';
+// How long the toast that follows "Add N to wardrobe" stands (Capture PRD 3c.5).
+const ADDED_MS = 2800;
 
 type Found =
   | { kind: 'read'; piece: ReadPiece; photo: SessionShot }
   | { kind: 'link'; item: InboxEntry['items'][number] };
 
-type Entry = ReviewEntry<RowChanges> & { found: Found; base: PieceValues };
-
-const sheetOf = (p: { categoryL2: string | null; category: string }) =>
-  (p.categoryL2 && sheetL1For(p.categoryL2)) || p.category;
-
-function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduced(query.matches);
-    const on = (e: MediaQueryListEvent) => setReduced(e.matches);
-    query.addEventListener('change', on);
-    return () => query.removeEventListener('change', on);
-  }, []);
-  return reduced;
+interface Entry {
+  key: string;
+  group: string;
+  index: number;
+  found: Found;
+  // Robes' read; `category` is the read's own sheet where the taxonomy names none.
+  base: PieceValues & { category?: string | null };
 }
+
+const sheetOf = (p: { categoryL2: string | null; category: string | null | undefined }) =>
+  (p.categoryL2 && sheetL1For(p.categoryL2)) || p.category || '';
 
 const NO_SHOTS: ShotSession = {
   shots: [],
@@ -76,91 +80,93 @@ const NO_SHOTS: ShotSession = {
   found: 0,
 };
 
-// Review (design "Add Piece — Handoff"): every way in lands here, one piece at a time, and
-// nothing files without a look. The scan plays, the rows resolve from "Reading…", any row opens
-// its drawer, and the one ink button files the piece and walks on to the next. A read files once
-// all its pieces are answered (its spare crops are let go); a link files on its own. When the
-// last piece is answered, Filed says how many. Native twin: features/wardrobe/add/Review.tsx.
+// Review (Capture PRD 3c.3–3c.5; canvas frame 3c): every photograph of the sitting, and a link's
+// page, reviewed together. Two or more are a list she removes from and opens a piece out of;
+// one is that piece's own page; "Add N to wardrobe" files what is left in one go, each piece once
+// with her edits, then the wardrobe opens on them under a toast. Nothing files before that tap.
+// Native twin: features/wardrobe/add/Review.tsx.
 export function Review({
   to,
   session = NO_SHOTS,
-  link = null,
-  onRetake,
+  link: linkId = null,
+  onCamera,
   onAnother,
   onFillIn,
 }: {
   to: AddDestination;
   session?: ShotSession;
   link?: string | null;
-  // One photo can be taken again; more than one is reviewed as it is.
-  onRetake?: () => void;
-  // Back to the Add pieces sheet in place, where Review shares its page with it.
+  // Back to the camera with the photographs kept (the back disc, "+ Add another piece", and the
+  // last piece removed). Absent where there is no camera behind Review (a link, the camera roll).
+  onCamera?: () => void;
+  // Back to the Add pieces sheet, the sitting dropped.
   onAnother?: () => void;
   // A read that never lands: the piece by hand, with this photo attached.
   onFillIn?: (shot: SessionShot | undefined) => void;
 }) {
   const api = useApiClient();
+  const router = useRouter();
+  const toast = useToast();
   const queryClient = useQueryClient();
   const { track } = useAnalytics().analytics;
-  const reduced = useReducedMotion();
   // A link's own entry (links never sit in the Inbox list, which holds receipts).
-  const inbox = useApi('inbox.get', { params: { id: link ?? '' } }, { enabled: link !== null });
-  const [answers, setAnswers] = useState<
-    Record<string, { answer: 'add' | 'skip'; edits?: RowChanges }>
-  >({});
+  const inbox = useApi('inbox.get', { params: { id: linkId ?? '' } }, { enabled: linkId !== null });
+  const [removed, setRemoved] = useState<ReadonlySet<string>>(() => new Set());
   const [changes, setChanges] = useState<Record<string, RowChanges>>({});
-  const [current, setCurrent] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
   const [field, setField] = useState<PieceField | null>(null);
-  const [step, setStep] = useState(0);
-  const [filed, setFiled] = useState<Set<string>>(() => new Set());
-  const [failed, setFailed] = useState<ReadonlySet<string>>(() => new Set());
-  const filing = useRef(new Set<string>());
+  const [adding, setAdding] = useState(false);
+  const [failed, setFailed] = useState(false);
   // A link's Inbox entry leaves the Inbox once filed, so Review keeps the one it saw.
   const [held, setHeld] = useState<InboxEntry | null>(null);
-  const seen = link && inbox.data?.id === link ? inbox.data : undefined;
+  const seen = linkId && inbox.data?.id === linkId ? inbox.data : undefined;
   if (seen && !held) setHeld(seen);
 
-  // The queue, in the order she took the photos and Robes found the pieces.
+  // The pieces, in the order she took the photos and Robes found them.
   const entries = useMemo<Entry[]>(() => {
     const out: Entry[] = [];
     for (const shot of session.shots) {
       const job = shot.jobId ? session.jobs.get(shot.jobId) : undefined;
       if (!shot.jobId || !isTerminal(job)) continue;
       for (const piece of job.output.readPieces ?? []) {
-        const key = `${shot.jobId}:${piece.index}`;
         out.push({
-          key,
+          key: `${shot.jobId}:${piece.index}`,
           group: shot.jobId,
           index: piece.index,
-          answer: answers[key]?.answer ?? 'pending',
-          ...(answers[key]?.edits ? { edits: answers[key].edits } : {}),
           found: { kind: 'read', piece, photo: shot },
-          base: readDraft(piece),
+          base: { ...readDraft(piece), category: piece.category } as Entry['base'],
         });
       }
     }
     for (const item of held?.items ?? []) {
-      const key = `inbox:${held?.id}:${item.index}`;
       out.push({
-        key,
+        key: `inbox:${held?.id}:${item.index}`,
         group: `inbox:${held?.id}`,
         index: item.index,
-        answer: answers[key]?.answer ?? 'pending',
-        ...(answers[key]?.edits ? { edits: answers[key].edits } : {}),
         found: { kind: 'link', item },
-        base: readDraft({ ...item, notes: null, categoryL2: null, categoryL3: null, color: null }),
+        base: readDraft({
+          ...item,
+          notes: null,
+          categoryL2: null,
+          categoryL3: null,
+          color: null,
+        }) as PieceValues,
       });
     }
     return out;
-  }, [session.shots, session.jobs, held, answers]);
+  }, [session.shots, session.jobs, held]);
 
-  const at = current ? entries.findIndex((e) => e.key === current) : -1;
-  const pendingAt = at >= 0 && entries[at]?.answer === 'pending' ? at : nextPending(entries, -1);
-  const cur = pendingAt === null ? undefined : entries[pendingAt];
-  const reading = session.reading || (link !== null && !held && inbox.isPending);
+  // Photographs whose read has not landed: each holds a "Reading the details…" row.
+  const readingShots = session.shots.filter(
+    (s) => !s.failed && !(s.jobId && isTerminal(session.jobs.get(s.jobId))),
+  );
+  const linkReading = linkId !== null && !held && inbox.isPending;
+  const reading = readingShots.length + (linkReading ? 1 : 0);
+  const kept = entries.filter((e) => !removed.has(e.key));
+  const screen = reviewScreen({ keys: kept.map((e) => e.key), reading, open });
 
-  // Twenty seconds without a piece to show: offer the piece by hand (a late read still lands).
-  const waiting = reading && !cur;
+  // A read that takes too long offers the piece by hand (redline 01).
+  const waiting = reading > 0 && kept.length === 0;
   const [slow, setSlow] = useState(false);
   useEffect(() => {
     if (!waiting) {
@@ -171,274 +177,349 @@ export function Review({
     return () => window.clearTimeout(timer);
   }, [waiting]);
 
-  // Each piece plays its scan once, as it comes up.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: restart only when the piece changes.
+  // The last piece removed: back to the camera with nothing in hand (3c.3).
+  const emptied = screen.kind === 'camera' && entries.length > 0;
   useEffect(() => {
-    if (!cur) return;
-    if (reduced) {
-      setStep(SCAN_STEPS);
-      return;
-    }
-    setStep(0);
-    const timer = window.setInterval(
-      () =>
-        setStep((s) => {
-          if (s + 1 >= SCAN_STEPS) window.clearInterval(timer);
-          return s + 1;
-        }),
-      SCAN_STEP_MS,
-    );
-    return () => window.clearInterval(timer);
-  }, [cur?.key, reduced]);
+    if (!emptied) return;
+    session.reset();
+    (onCamera ?? onAnother)?.();
+  }, [emptied, onAnother, onCamera, session]);
 
-  // A group files the moment its last piece is answered.
-  useEffect(() => {
-    for (const { group, answers: groupAnswers } of readyGroups(entries, filed)) {
-      if (filing.current.has(group) || failed.has(group)) continue;
-      filing.current.add(group);
-      const done = () => setFiled((s) => new Set(s).add(group));
-      fileGroup(group, groupAnswers)
-        .then(done)
-        .catch(() => setFailed((f) => new Set(f).add(group)))
-        .finally(() => filing.current.delete(group));
-    }
-  });
+  const remove = (key: string) => {
+    setRemoved((r) => new Set(r).add(key));
+    setOpen(null);
+  };
+  const valuesOf = (e: Entry): PieceValues => ({ ...e.base, ...changes[e.key] }) as PieceValues;
 
-  async function fileGroup(
-    group: string,
-    groupAnswers: Array<{ index: number; state: 'add' | 'skip'; edits?: RowChanges }>,
-  ) {
-    const labelOf = (i: number) =>
-      entries.find((e) => e.group === group && e.index === i)?.base.label ?? '';
-    if (group.startsWith('inbox:')) {
-      const id = group.slice('inbox:'.length);
-      const kept = groupAnswers.filter((a) => a.state === 'add');
-      const decision = await api.call('inbox.decide', {
-        params: { id },
-        input: kept.length
-          ? { action: to, itemIndexes: kept.map((a) => a.index) }
-          : { action: 'dismiss' },
-      });
-      // Her changes land on what the decision filed (a link holds one piece).
-      await Promise.all(
-        kept.map((a, i) => {
-          const pieceId = decision.filedIds[i];
-          if (!pieceId || !a.edits) return null;
-          return to === 'wishlist'
-            ? api.call('wishlist.update', { params: { id: pieceId }, input: wishChanges(a.edits) })
-            : api.call('wardrobe.update', { params: { id: pieceId }, input: a.edits });
-        }),
-      );
-      await queryClient.invalidateQueries({ queryKey: queryKeys.route('inbox.list') });
-    } else {
-      await api.call('photoReads.file', {
-        params: { id: group },
-        input: {
-          to,
-          answers: groupAnswers.map((a) =>
-            a.state === 'add'
-              ? {
-                  index: a.index,
-                  state: 'add' as const,
-                  edits: fileEdits(labelOf(a.index), a.edits ?? {}),
-                }
-              : { index: a.index, state: 'skip' as const },
-          ),
-        },
-      });
-    }
-    trackFiled(track, group.startsWith('inbox:') ? 'link' : 'photo', groupAnswers, to);
-    if (to === 'wishlist') {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') });
-    } else {
-      await invalidateWardrobe(queryClient);
+  async function addAll() {
+    if (adding || reading > 0 || kept.length === 0) return;
+    setAdding(true);
+    setFailed(false);
+    try {
+      for (const { group, answers } of bulkGroups(entries, removed, changes)) {
+        const labelOf = (i: number) =>
+          entries.find((e) => e.group === group && e.index === i)?.base.label ?? '';
+        if (group.startsWith('inbox:')) {
+          const id = group.slice('inbox:'.length);
+          const keep = answers.filter((a) => a.state === 'add');
+          const decision = await api.call('inbox.decide', {
+            params: { id },
+            input: keep.length
+              ? { action: to, itemIndexes: keep.map((a) => a.index) }
+              : { action: 'dismiss' },
+          });
+          await Promise.all(
+            keep.map((a, i) => {
+              const pieceId = decision.filedIds[i];
+              if (!pieceId || !a.edits) return null;
+              return to === 'wishlist'
+                ? api.call('wishlist.update', {
+                    params: { id: pieceId },
+                    input: wishChanges(a.edits),
+                  })
+                : api.call('wardrobe.update', { params: { id: pieceId }, input: a.edits });
+            }),
+          );
+          await queryClient.invalidateQueries({ queryKey: queryKeys.route('inbox.list') });
+        } else {
+          await api.call('photoReads.file', {
+            params: { id: group },
+            input: {
+              to,
+              answers: answers.map((a) =>
+                a.state === 'add'
+                  ? {
+                      index: a.index,
+                      state: 'add' as const,
+                      edits: fileEdits(labelOf(a.index), a.edits ?? {}),
+                    }
+                  : { index: a.index, state: 'skip' as const },
+              ),
+            },
+          });
+        }
+        trackFiled(track, group.startsWith('inbox:') ? 'link' : 'photo', answers, to);
+      }
+      if (to === 'wishlist') {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') });
+      } else {
+        await invalidateWardrobe(queryClient);
+      }
+      toast({ message: wardrobe.capture.added(kept.length, to), duration: ADDED_MS });
+      router.push(wardrobeHref(to));
+    } catch {
+      // Each piece files once, so trying again files only what is left.
+      setFailed(true);
+      setAdding(false);
     }
   }
 
-  function answer(entry: Entry, state: 'add' | 'skip') {
-    const edits = changes[entry.key];
-    track('piece_answered', { state, edited: edits !== undefined });
-    setAnswers((a) => ({ ...a, [entry.key]: { answer: state, ...(edits ? { edits } : {}) } }));
-    const next = nextPending(
-      entries.map((e) => (e.key === entry.key ? { ...e, answer: state } : e)),
-      entries.indexOf(entry),
-    );
-    setCurrent(next === null ? null : (entries[next]?.key ?? null));
-  }
-
-  const tally = reviewTally(entries);
-  const allFiled = readyGroups(entries, filed).length === 0 && tally.pending === 0;
-  const anyFound = entries.length > 0;
-
-  // Filed: every piece answered and filed, nothing still reading.
-  if (!reading && !cur && anyFound && allFiled && filing.current.size === 0) {
-    return <Filed to={to} kept={tally.kept} onAnother={onAnother} />;
-  }
-
-  const latest = session.shots.at(-1);
-  const fillIn = <FillIn to={to} shot={latest} onFillIn={onFillIn} />;
-
-  // Nothing in any photo (or a link that never arrived): she fills it in herself.
-  if (!reading && !anyFound) {
-    const stalled = session.shots.some((s) => s.failed);
-    return (
-      <div className="mx-auto flex w-full max-w-md flex-col gap-4">
-        <ReviewHead to={to} onClose={onAnother}>
-          <Heading level={1} size="lg" role="status">
-            {copy.review.unread}
-          </Heading>
-        </ReviewHead>
-        <Text tone="muted">{stalled ? copy.review.stalled : copy.review.nothing}</Text>
-        {fillIn}
-      </div>
-    );
-  }
-
-  // The next piece isn't read yet: the latest photo, the scan line falling, three rows breathing.
-  if (!cur) {
-    const count = Math.max(1, session.shots.length);
-    return (
-      <div className="mx-auto flex w-full max-w-md flex-col gap-5" aria-busy={!slow}>
-        <ReviewHead to={to} onClose={onAnother}>
-          <Heading level={1} size="lg" role="status">
-            {slow ? (
-              copy.review.unread
-            ) : (
-              <>
-                {copy.review.readingHead.pre} <em>{copy.review.readingHead.wink}</em>{' '}
-                {copy.review.readingHead.post(count)}
-              </>
-            )}
-          </Heading>
-        </ReviewHead>
-        <ScanPhoto
-          source={latest ? { ...latest, box: { x: 0, y: 0, w: 1, h: 1 } } : null}
-          monogram={copy.review.eyebrow}
-          step={0}
-          tags={[]}
-          caption=""
-          alt={copy.review.readingPhoto(count)}
-          scanning={!slow}
-        />
-        {slow ? (
-          fillIn
-        ) : (
-          <div
-            aria-hidden
-            className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface-raised p-4"
-          >
-            {['w-3/5', 'w-2/5', 'w-[30%]'].map((w) => (
-              <span
-                key={w}
-                className={`h-3 rounded-pill bg-surface-sunk motion-safe:animate-breathe ${w}`}
-              />
-            ))}
-          </div>
-        )}
-        {failed.size ? <Retry onRetry={() => setFailed(new Set())} /> : null}
-      </div>
-    );
-  }
-
-  const values: PieceValues = { ...cur.base, ...changes[cur.key] } as PieceValues;
-  const ready = step >= SCAN_READY_STEP;
-  const isRead = cur.found.kind === 'read';
-  const source: ScanSource | null =
-    cur.found.kind === 'read' ? { ...cur.found.photo, box: cur.found.piece.box } : null;
-  const category = cur.found.kind === 'read' ? sheetOf(cur.found.piece) : null;
-  const tags = scanTags([
-    category,
-    cur.found.kind === 'read' ? pieceWord(cur.found.piece) : null,
-    values.brand,
-    shade(values.colourShade)?.name,
-    values.label,
-  ]);
-  const position = entries.indexOf(cur);
-  const hasNext = nextPending(entries, position) !== null || session.reading;
-  const save = (input: UpdatePieceInput) =>
-    setChanges((c) => ({ ...c, [cur.key]: { ...c[cur.key], ...rowChanges(input) } }));
-
-  return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-5">
-      {entries.length > 1 ? (
-        <nav aria-label={copy.review.pieces} className="-mx-1 flex gap-2 overflow-x-auto px-1">
-          {entries.map((e, i) => (
-            <button
-              key={e.key}
-              type="button"
-              aria-label={copy.review.piece(i + 1, entries.length)}
-              aria-current={e.key === cur.key ? 'true' : undefined}
-              disabled={e.answer !== 'pending'}
-              onClick={() => setCurrent(e.key)}
-              className={`shrink-0 rounded-crisp border p-[2px] focus-visible:outline-[1.5px] focus-visible:outline-focus-ring ${e.key === cur.key ? 'border-selected-line' : 'border-transparent'} ${e.answer === 'pending' ? '' : 'opacity-40'}`}
-            >
-              {e.found.kind === 'read' ? (
-                <CropThumb
-                  src={e.found.photo.url}
-                  box={e.found.piece.box}
-                  natural={e.found.photo}
-                  className="size-[52px]"
-                />
-              ) : (
-                <span className="block size-[52px] rounded-soft bg-surface-sunk" />
-              )}
-            </button>
-          ))}
-        </nav>
-      ) : null}
-      <header className="flex flex-col gap-2">
-        <ReviewHead to={to} onClose={onAnother}>
-          <Heading level={1} size="lg">
-            {copy.review.title} <em>{copy.review.wink}</em>
-          </Heading>
-        </ReviewHead>
-        <Text size="small" tone="muted">
-          {isRead ? copy.review.sub.photo : copy.review.sub.link}
-        </Text>
-      </header>
-      <div className="relative">
-        <ScanPhoto
-          source={source}
-          monogram={values.label}
-          step={step}
-          tags={tags}
-          caption={ready ? values.label : ''}
-          alt={wardrobe.photoAlt(values.label)}
-        />
-        {isRead && session.shots.length === 1 && onRetake ? (
+  const back = onCamera ?? onAnother ?? (() => router.push(`/wardrobe/add?to=${to}`));
+  const another = onCamera ? (
+    <button type="button" onClick={onCamera} className={link} data-testid="review-another">
+      {copy.another}
+    </button>
+  ) : null;
+  const addButton = (
+    <Button
+      variant="primary"
+      block
+      disabled={adding || reading > 0 || kept.length === 0}
+      aria-busy={adding}
+      onClick={() => void addAll()}
+      data-testid="review-add"
+    >
+      {adding ? copy.adding : copy.add(kept.length + reading, to)}
+    </Button>
+  );
+  const problem = failed ? <ErrorText>{old.failed}</ErrorText> : null;
+  const header = (title: string, onBack: () => void) => (
+    <div className="-mx-4 md:mx-0">
+      <SubviewHeader
+        title={title}
+        back={
           <button
             type="button"
-            onClick={onRetake}
-            className="absolute top-3 right-3 inline-flex min-h-11 items-center rounded-pill bg-bg px-4 font-sans text-ink text-sm focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
+            aria-label={copy.back}
+            onClick={onBack}
+            data-testid="review-back"
+            className={`flex size-9 shrink-0 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted ${focus}`}
           >
-            {copy.review.retake}
+            <Icon name="back" size={15} />
           </button>
-        ) : null}
-      </div>
-      <div key={cur.key} className="motion-safe:animate-fade-in">
-        <RecordRows values={withTagDefaults(values)} onField={setField} withName reading={!ready} />
-      </div>
-      <Button variant="quiet" className="self-center" onClick={() => answer(cur, 'skip')}>
-        {copy.review.notThis}
-      </Button>
-      {failed.size ? <Retry onRetry={() => setFailed(new Set())} /> : null}
-      <PinnedAction>
-        <Button variant="primary" block disabled={!ready} onClick={() => answer(cur, 'add')}>
-          {copy.review.file(to, hasNext)}
-        </Button>
-      </PinnedAction>
-      <PieceFieldSheet
-        piece={values}
-        field={field}
-        onClose={() => setField(null)}
-        onSave={save}
-        saving={false}
+        }
       />
+    </div>
+  );
+
+  // Nothing found, and nothing still reading: the photo by hand.
+  if (screen.kind === 'camera') {
+    if (entries.length > 0) return null;
+    const latest = session.shots.at(-1);
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col gap-4" data-testid="review-unread">
+        {header(copy.title, back)}
+        <Heading level={2} size="lg" role="status">
+          {old.unread}
+        </Heading>
+        <Text tone="muted">{session.shots.some((s) => s.failed) ? old.stalled : old.nothing}</Text>
+        <FillIn to={to} shot={latest} onFillIn={onFillIn} />
+      </div>
+    );
+  }
+
+  if (screen.kind === 'list') {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col gap-4" data-testid="review-list">
+        {header(copy.title, back)}
+        <div className="flex flex-col gap-2 pt-2">
+          <Heading level={2} size="lg">
+            {copy.head(screen.count)}
+          </Heading>
+          <Text size="small" tone="muted">
+            {copy.sub}
+          </Text>
+        </div>
+        <ul className="overflow-hidden rounded-card border-[0.5px] border-rule-mid bg-surface-raised">
+          {kept.map((e) => (
+            <ReviewRow
+              key={e.key}
+              entry={e}
+              values={valuesOf(e)}
+              onOpen={() => setOpen(e.key)}
+              onRemove={() => remove(e.key)}
+            />
+          ))}
+          {readingShots.map((shot) => (
+            <ReadingRow key={shot.key} shot={shot} />
+          ))}
+          {linkReading ? <ReadingRow shot={null} /> : null}
+        </ul>
+        {another}
+        {problem}
+        <PinnedAction>{addButton}</PinnedAction>
+      </div>
+    );
+  }
+
+  // One piece: the sitting's only one, or one opened from the list.
+  const entry = kept.find((e) => e.key === screen.key);
+  const single = screen.kind === 'single';
+  const values = entry ? withTagDefaults(valuesOf(entry)) : null;
+  const shot = entry?.found.kind === 'read' ? entry.found.photo : (readingShots[0] ?? null);
+  const blank = {
+    ...readDraft({
+      label: '',
+      brand: null,
+      notes: null,
+      categoryL2: null,
+      categoryL3: null,
+      color: null,
+    }),
+    category: null,
+  } as PieceValues;
+  return (
+    <div className="mx-auto flex w-full max-w-md flex-col gap-4" data-testid="review-piece">
+      {header(
+        single
+          ? copy.one
+          : copy.of(
+              screen.kind === 'piece' ? screen.at : 1,
+              screen.kind === 'piece' ? screen.of : 1,
+            ),
+        single ? back : () => setOpen(null),
+      )}
+      <div className="flex justify-center pt-2">
+        {shot ? (
+          <CropThumb
+            src={shot.url}
+            box={entry?.found.kind === 'read' ? entry.found.piece.box : { x: 0, y: 0, w: 1, h: 1 }}
+            natural={shot}
+            className="h-[320px] w-[236px] shadow-row"
+          />
+        ) : (
+          <span className="block h-[320px] w-[236px] rounded-[3px] bg-surface-sunk" />
+        )}
+      </div>
+      <section className="flex flex-col gap-2" aria-label={copy.piece}>
+        <h2 className={eyebrow}>{copy.piece}</h2>
+        <RecordRows
+          values={values ?? blank}
+          onField={setField}
+          withName
+          only="piece"
+          reading={!values}
+        />
+      </section>
+      <section className="flex flex-col gap-2" aria-label={copy.colour}>
+        <h2 className={eyebrow}>{copy.colour}</h2>
+        <RecordRows values={values ?? blank} onField={setField} only="colour" reading={!values} />
+      </section>
+      <Text size="small" tone="muted" className="text-center">
+        {copy.footnote}
+      </Text>
+      {!values && slow ? <FillIn to={to} shot={session.shots.at(-1)} onFillIn={onFillIn} /> : null}
+      {single ? (
+        another
+      ) : entry ? (
+        <button
+          type="button"
+          onClick={() => remove(entry.key)}
+          data-testid="review-remove-piece"
+          className={`min-h-11 self-center font-sans text-[13px] text-danger underline underline-offset-[3px] ${focus}`}
+        >
+          {copy.removePiece}
+        </button>
+      ) : null}
+      {problem}
+      <PinnedAction>
+        {single ? (
+          addButton
+        ) : (
+          <Button variant="primary" block onClick={() => setOpen(null)} data-testid="review-done">
+            {copy.done}
+          </Button>
+        )}
+      </PinnedAction>
+      {entry && values ? (
+        <PieceFieldSheet
+          piece={values}
+          field={field}
+          onClose={() => setField(null)}
+          onSave={(input: UpdatePieceInput) =>
+            setChanges((c) => ({ ...c, [entry.key]: { ...c[entry.key], ...rowChanges(input) } }))
+          }
+          saving={false}
+        />
+      ) : null}
     </div>
   );
 }
 
-// The piece by hand (redline 01): one hairline pill, into the form with the photo attached.
+// One piece on the list (3c.3): its crop, the category in small caps, the name in the serif,
+// then Colour · Material · Brand, or "Add the details" when the read saw none of them. The row
+// opens the piece; × removes it.
+function ReviewRow({
+  entry,
+  values,
+  onOpen,
+  onRemove,
+}: {
+  entry: Entry;
+  values: PieceValues;
+  onOpen: () => void;
+  onRemove: () => void;
+}) {
+  const label = values.label || copy.piece;
+  const sub =
+    [shade(values.colourShade)?.name, material(values.material)?.name, values.brand]
+      .filter(Boolean)
+      .join(' · ') || copy.details;
+  return (
+    <li
+      className="relative flex min-h-[76px] items-center gap-3.5 border-rule border-t-[0.5px] px-3 first:border-t-0"
+      data-testid="review-row"
+    >
+      {entry.found.kind === 'read' ? (
+        <CropThumb
+          src={entry.found.photo.url}
+          box={entry.found.piece.box}
+          natural={entry.found.photo}
+          className="h-[55px] w-11"
+        />
+      ) : (
+        <span className="block h-[55px] w-11 shrink-0 rounded-[3px] bg-surface-sunk" />
+      )}
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className={`truncate ${eyebrow} tracking-[0.18em]`}>
+          {sheetOf({ categoryL2: values.categoryL2, category: entry.base.category })}
+        </span>
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={copy.open(label)}
+          className={`truncate text-left font-display text-[17px] text-ink leading-[1.25] after:absolute after:inset-0 ${focus}`}
+        >
+          {label}
+        </button>
+        <span className="truncate font-sans text-[12px] text-ink-faint">{sub}</span>
+      </span>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={copy.remove(label)}
+        title={copy.remove(label)}
+        className={`relative z-10 flex size-11 shrink-0 items-center justify-center rounded-pill ${focus}`}
+      >
+        <span className="flex size-[30px] items-center justify-center rounded-pill bg-surface-sunk text-ink-muted">
+          <Icon name="close" size={12} />
+        </span>
+      </button>
+      <Icon name="forward" size={14} className="shrink-0 text-ink-faint" />
+    </li>
+  );
+}
+
+// A photograph still being read: its thumbnail, and "Reading the details…" breathing.
+function ReadingRow({ shot }: { shot: SessionShot | null }) {
+  return (
+    <li
+      className="flex min-h-[76px] items-center gap-3.5 border-rule border-t-[0.5px] px-3 first:border-t-0 motion-safe:animate-breathe"
+      data-testid="review-reading"
+    >
+      {shot ? (
+        // biome-ignore lint/performance/noImgElement: a local object URL of her own photo
+        <img src={shot.url} alt="" className="h-[55px] w-11 shrink-0 rounded-[3px] object-cover" />
+      ) : (
+        <span className="block h-[55px] w-11 shrink-0 rounded-[3px] bg-surface-sunk" />
+      )}
+      <span role="status" className="flex-1 font-sans text-[13px] text-ink-faint">
+        {copy.reading}
+      </span>
+    </li>
+  );
+}
+
 function FillIn({
   to,
   shot,
@@ -451,111 +532,11 @@ function FillIn({
   const pill = buttonClasses({ variant: 'outline' });
   return onFillIn ? (
     <button type="button" className={`${pill} self-start`} onClick={() => onFillIn(shot)}>
-      {copy.review.fillIn}
+      {old.fillIn}
     </button>
   ) : (
     <Link href={`/wardrobe/manual?to=${to}`} className={`${pill} self-start`}>
-      {copy.review.fillIn}
-    </Link>
-  );
-}
-
-// Review's one header (beta's add flow: the title, and × to leave): no eyebrow restating the
-// title, no back pill above it. × goes back to Add pieces; anything not yet answered isn't filed.
-function ReviewHead({
-  to,
-  onClose,
-  children,
-}: {
-  to: AddDestination;
-  onClose?: (() => void) | undefined;
-  children: ReactNode;
-}) {
-  const router = useRouter();
-  return (
-    <div className="flex items-start justify-between gap-3">
-      {children}
-      <IconButton
-        icon="close"
-        label={ui.close}
-        onClick={onClose ?? (() => router.push(`/wardrobe/add?to=${to}`))}
-      />
-    </div>
-  );
-}
-
-function Retry({ onRetry }: { onRetry: () => void }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <ErrorText>{copy.review.failed}</ErrorText>
-      <Button variant="quiet" className="self-start" onClick={onRetry}>
-        {ui.retry}
-      </Button>
-    </div>
-  );
-}
-
-// Filed (design 3a): how many, in words, one line on where they are, and the way on.
-export function Filed({
-  to,
-  kept,
-  onAnother,
-}: {
-  to: AddDestination;
-  kept: number;
-  onAnother?: (() => void) | undefined;
-}) {
-  return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-6 py-10">
-      {/* The region announces the outcome; the h1 stays a heading inside it. */}
-      <div role="status" className="flex flex-col gap-3">
-        <Heading level={1} size="lg">
-          {kept ? (
-            <>
-              {copy.filed.head(kept)} <em>{copy.filed.wink}</em>
-            </>
-          ) : (
-            copy.filed.none
-          )}
-        </Heading>
-        {kept ? (
-          <Text tone="muted">
-            {to === 'wishlist' ? copy.filed.line.wishlist(kept) : copy.filed.line.wardrobe}
-          </Text>
-        ) : null}
-      </div>
-      <div className="flex flex-col gap-3">
-        <Link
-          href={wardrobeHref(to)}
-          className={buttonClasses({ variant: 'primary', block: true })}
-        >
-          {copy.filed.see[to]}
-        </Link>
-        <Another to={to} onAnother={onAnother} />
-      </div>
-    </div>
-  );
-}
-
-function Another({
-  to,
-  onAnother,
-  className = '',
-}: {
-  to: AddDestination;
-  onAnother?: (() => void) | undefined;
-  className?: string;
-}) {
-  return onAnother ? (
-    <Button variant="outline" className={className} onClick={onAnother}>
-      {copy.filed.another}
-    </Button>
-  ) : (
-    <Link
-      href={`/wardrobe/add?to=${to}`}
-      className={`${buttonClasses({ variant: 'outline', block: !className })} ${className}`}
-    >
-      {copy.filed.another}
+      {old.fillIn}
     </Link>
   );
 }

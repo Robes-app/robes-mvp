@@ -11,6 +11,9 @@ export class FetchRefused extends Error {
 }
 
 export interface SafeFetchOptions {
+  // page: an HTML product page (link import). image: a product photo from a forwarded receipt,
+  // kept as bytes and never decoded here (the rendition pipeline checks it like an upload).
+  kind?: 'page' | 'image';
   maxBytes?: number;
   timeoutMs?: number;
   maxRedirects?: number;
@@ -27,6 +30,8 @@ export interface HopResult {
   location: string | null;
   contentType: string;
   body: string;
+  // The raw bytes, kept for an image fetch.
+  bytes?: Buffer;
 }
 
 export interface FetchedPage {
@@ -34,9 +39,13 @@ export interface FetchedPage {
   status: number;
   contentType: string;
   body: string;
+  bytes?: Buffer;
 }
 
-const ALLOWED_TYPES = ['text/html', 'application/xhtml+xml'];
+const ALLOWED_TYPES = {
+  page: ['text/html', 'application/xhtml+xml'],
+  image: ['image/jpeg', 'image/png', 'image/webp'],
+} as const;
 
 // Validates the URL itself before any network: scheme, credentials, port, IP literals.
 export function checkUrl(raw: string, allowPrivate = false): URL {
@@ -87,6 +96,7 @@ function guardedLookup(allowPrivate: boolean, resolve: LookupFunction): LookupFu
 }
 
 type HopOptions = {
+  kind: 'page' | 'image';
   maxBytes: number;
   timeoutMs: number;
   allowPrivate: boolean;
@@ -103,7 +113,7 @@ function requestOnce(url: URL, opts: HopOptions) {
         lookup: guardedLookup(opts.allowPrivate, opts.resolve),
         headers: {
           'user-agent': 'RobesLinkImport/1.0 (+https://byrobes.com)',
-          accept: 'text/html,application/xhtml+xml',
+          accept: ALLOWED_TYPES[opts.kind].join(','),
         },
         timeout: opts.timeoutMs,
       },
@@ -114,7 +124,7 @@ function requestOnce(url: URL, opts: HopOptions) {
           res.resume();
           return resolve({ status, location: res.headers.location ?? null, contentType, body: '' });
         }
-        if (!ALLOWED_TYPES.some((t) => contentType.startsWith(t))) {
+        if (!ALLOWED_TYPES[opts.kind].some((t) => contentType.startsWith(t))) {
           res.destroy();
           return reject(new FetchRefused('content_type'));
         }
@@ -134,14 +144,14 @@ function requestOnce(url: URL, opts: HopOptions) {
           }
           chunks.push(chunk);
         });
-        res.on('end', () =>
-          resolve({
-            status,
-            location: null,
-            contentType,
-            body: Buffer.concat(chunks).toString('utf8'),
-          }),
-        );
+        res.on('end', () => {
+          const bytes = Buffer.concat(chunks);
+          resolve(
+            opts.kind === 'image'
+              ? { status, location: null, contentType, body: '', bytes }
+              : { status, location: null, contentType, body: bytes.toString('utf8') },
+          );
+        });
         res.on('error', reject);
       },
     );
@@ -156,6 +166,7 @@ function requestOnce(url: URL, opts: HopOptions) {
 // SEC-40: the only way Robes fetches a URL someone gave it.
 export async function safeFetch(raw: string, options: SafeFetchOptions = {}): Promise<FetchedPage> {
   const opts = {
+    kind: options.kind ?? 'page',
     maxBytes: options.maxBytes ?? 2_000_000,
     timeoutMs: options.timeoutMs ?? 8_000,
     maxRedirects: options.maxRedirects ?? 3,
@@ -172,6 +183,7 @@ export async function safeFetch(raw: string, options: SafeFetchOptions = {}): Pr
         status: res.status,
         contentType: res.contentType,
         body: res.body,
+        ...(res.bytes ? { bytes: res.bytes } : {}),
       };
     }
     // Every hop is re-validated from scratch, so a redirect can't lead somewhere private.

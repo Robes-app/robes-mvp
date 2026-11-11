@@ -207,6 +207,8 @@ export const bell = {
   openNew: (n: number): string => (n > 0 ? `Notifications, ${n} new` : 'Notifications'),
   empty: 'Nothing new.',
   dismiss: 'Dismiss',
+  // The sheet's ✓.
+  clear: 'Clear all',
   dest: { receipts: 'Wardrobe', diary: 'Diary', overnight: 'Lookbook' },
   overnight: (weekday: string): string => `See ${weekday}’s look`,
   receipts: (n: number): string => (n === 1 ? '1 receipt to review' : `${n} receipts to review`),
@@ -247,17 +249,10 @@ export const diary = {
   },
   drawer: {
     eyebrow: (dayWord: string, date: string): string => `${dayWord} · ${date}`,
-    yourLooks: 'Your looks',
-    lastWorn: 'Last worn ↓',
-    firstWorn: 'First worn ↑',
-    sortLabel: 'Order',
-    refine: 'Refine',
-    refineOn: (n: number): string => `Refine · ${n}`,
-    search: 'Search by name or piece',
-    season: 'Season',
-    wearFor: 'Wear it for',
-    none: 'No looks match.',
-    clear: 'Clear refine',
+    // The search under the filter row (Front Door PRD rev 3 §4.5): a title or a piece word.
+    search: 'Search your looks',
+    // The ✓ that applies her picks, while nothing has changed yet.
+    done: 'Done',
     scheduled: 'Scheduled',
     adding: 'Adding',
     wears: (n: number): string => (n === 1 ? '1 wear' : `${n} wears`),
@@ -316,7 +311,8 @@ export const diary = {
       range ? `${place}, ${range}` : place,
     changePlace: 'Change where you are that day',
     weatherOut: 'Leave the weather out',
-    weather: 'Weather',
+    // The outline chip once the weather is out (Front Door PRD rev 3 §4.6); a tap restores it.
+    weather: 'Add location & weather',
     weatherBack: 'Bring the weather back',
     pieces: 'Add pieces from your wardrobe',
     piecesOn: (n: number): string => `${n} ${n === 1 ? 'piece' : 'pieces'} to build around`,

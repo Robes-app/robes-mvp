@@ -1,3 +1,4 @@
+import { ApiError } from '@robes/api';
 import { CreateLookInput, ListLooksInput, Look, LookPage } from '@robes/contracts';
 import { verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
@@ -26,10 +27,22 @@ export const POST = route({
   handler: async ({ user, input }) => {
     const userId = verifiedUserId(user.id);
     const name = input.name ?? (await suggestedName(userId, input.pieces[0]?.pieceId));
+    // Home's Capture: the photograph is read back as hers first, so an id that is not hers is not
+    // found rather than a database error (as looks.images.add does).
+    if (input.photoAssetId) {
+      const asset = await repos.assets.getForUser(userId, input.photoAssetId);
+      if (asset?.kind !== 'look_photo' || asset.status === 'failed')
+        throw new ApiError('not_found');
+    }
     // A draft names itself from its first piece too; Save keeps the name provisional until she types one.
     const row = await draftsFull(() =>
       withOwnedPieces(() =>
-        repos.looks.create(userId, { ...input, name, nameProvisional: input.name === undefined }),
+        repos.looks.create(userId, {
+          ...input,
+          name,
+          nameProvisional: input.name === undefined,
+          ...(input.photoAssetId ? { source: 'capture' as const } : {}),
+        }),
       ),
     );
     return toLook(userId, row);

@@ -1,4 +1,5 @@
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
+import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { parseEnv, type WorkerEnv, workerEnv } from '@robes/config';
 import {
   createDb,
@@ -19,11 +20,13 @@ import {
   createTripWeather,
   createWeather,
   fetchLink,
+  fetchPhoto,
   type JobLogger,
   type JobTransport,
   type NotifyDeps,
   type OvernightDeps,
   type ReceiptDeps,
+  type RequestPhoto,
   type RunOutcome,
   runJob,
   sendReceiptMail,
@@ -31,6 +34,7 @@ import {
 import { createLogger } from '@robes/logger';
 import { createMailer, type Mailer } from '@robes/mailer';
 import { createMediaBucket, createMediaStorage, type MediaStorage } from '@robes/media/storage';
+import { storeFetchedPhoto } from './photos';
 
 export interface WorkerContext {
   system: SystemRepositories;
@@ -46,6 +50,8 @@ export interface WorkerContext {
   overnight(): Promise<OvernightDeps>;
   // Everything inboundFn needs to turn a forwarded receipt into a held Inbox row.
   inbound(): Promise<ReceiptDeps>;
+  // Asks the isolated fetcher for a receipt line's photo; unset where the fetch queue isn't.
+  requestPhoto?: RequestPhoto;
   // Waits for in-process runs started by the dev transport, then closes the pool.
   close(): Promise<void>;
 }
@@ -174,6 +180,13 @@ async function createWorkerContext(): Promise<WorkerContext> {
             lookPrompt: system.lookPrompt,
             ledger: system.ledger,
           },
+          receiptRead: {
+            ai,
+            storage,
+            intake: system.inboxIntake,
+            assets: system.assets,
+            ledger: system.ledger,
+          },
           avatarCell: {
             ai,
             storage,
@@ -221,11 +234,35 @@ async function createWorkerContext(): Promise<WorkerContext> {
       ? createInlineTransport({ run, schedule: (task) => void inline.push(task()), logger })
       : null;
 
+  // A receipt line's photo goes to the isolated fetcher (SEC-40); in dev the same guarded fetch
+  // runs here, and the photo is stored, rendered and read in-process.
+  const fetchQueue = env.FETCH_QUEUE_URL;
+  const requestPhoto: RequestPhoto | undefined = fetchQueue
+    ? async ({ jobId, url }) => {
+        await new SQSClient({}).send(
+          new SendMessageCommand({
+            QueueUrl: fetchQueue,
+            MessageBody: JSON.stringify({ jobId, url, kind: 'photo' }),
+          }),
+        );
+      }
+    : env.APP_ENV === 'dev' && storage
+      ? async ({ jobId, url }) => {
+          const deps = {
+            jobs: system.jobs,
+            storage,
+            ...(onGenerated ? { onStored: onGenerated } : {}),
+          };
+          if (await storeFetchedPhoto(deps, jobId, await fetchPhoto(url))) await run(jobId);
+        }
+      : undefined;
+
   return {
     system,
     storage,
     logger,
     run,
+    ...(requestPhoto ? { requestPhoto } : {}),
     transport() {
       if (!transport) throw new Error('JOBS_INTERACTIVE_QUEUE_URL is required outside dev');
       return transport;
@@ -292,6 +329,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
         ledger: system.ledger,
         domain,
         logger,
+        ...(requestPhoto ? { requestPhoto } : {}),
         ...(mail ? { onHeld: async (held) => void (await sendReceiptMail(mail, held)) } : {}),
       };
     },

@@ -1,14 +1,28 @@
 import { z } from 'zod';
+import { PieceImage } from './wardrobe';
 
 // Wardrobe › Inbox (M3 task 4): things Robes found for her, waiting for a yes or no.
-// Product images stay out of the API: they're third-party URLs, never hotlinked (SEC-40).
+// A shop's photo URL never leaves the API (SEC-40: never hotlinked). A line's photo reaches her
+// only once the isolated fetcher has stored it as her own asset, signed like any piece's.
+// Where a receipt's piece stands (Front Door PRD rev 3 §7.5): waiting in the Inbox, added to her
+// wardrobe, or discarded. Each piece is decided on its own; the row stays held until all are.
+export const InboxItemState = z.enum(['inbox', 'added', 'discarded']);
+export type InboxItemState = z.infer<typeof InboxItemState>;
+
 export const InboxItem = z.object({
   index: z.number().int().min(0),
   label: z.string(),
   brand: z.string().nullable(),
   price: z.number().nullable(),
   currency: z.string().nullable(),
+  // The size the receipt printed ("6/7 years (122 cm)"), shown on the row and filed with the piece.
+  size: z.string().nullable().default(null),
+  // The line's photo once it is read and rendered; null shows the hanger.
+  image: PieceImage.nullable().default(null),
   sourceUrl: z.string().nullable(),
+  state: InboxItemState.default('inbox'),
+  // The piece or wish it became, once added.
+  filedId: z.uuid().nullable().default(null),
 });
 
 export const InboxEntry = z.object({
@@ -16,19 +30,41 @@ export const InboxEntry = z.object({
   source: z.enum(['receipt', 'photo', 'link', 'share']),
   retailer: z.string().nullable(),
   subject: z.string().nullable(),
+  // The order's own reference and the sender, for the group's footer (§7.5).
+  orderRef: z.string().nullable().default(null),
+  fromEmail: z.string().nullable().default(null),
   items: z.array(InboxItem),
   receivedAt: z.iso.datetime(),
+  decidedAt: z.iso.datetime().nullable().default(null),
 });
 export type InboxEntry = z.infer<typeof InboxEntry>;
 
-export const InboxList = z.object({ items: z.array(InboxEntry), count: z.number().int().min(0) });
+// The Receipts' tabs: INBOX · ADDED · DISCARDED, each listing the receipts with pieces in that
+// state (and only those pieces). `inbox` is the default and what the notice and badge count.
+export const InboxListInput = z.object({ state: InboxItemState.default('inbox') });
+export type InboxListInput = z.infer<typeof InboxListInput>;
+
+export const InboxCounts = z.object({
+  inbox: z.number().int().min(0),
+  added: z.number().int().min(0),
+  discarded: z.number().int().min(0),
+});
+export type InboxCounts = z.infer<typeof InboxCounts>;
+
+export const InboxList = z.object({
+  items: z.array(InboxEntry),
+  // The pieces waiting in the Inbox, whatever tab was asked for (the notice and the badge).
+  count: z.number().int().min(0),
+  counts: InboxCounts.default({ inbox: 0, added: 0, discarded: 0 }),
+});
 export type InboxList = z.infer<typeof InboxList>;
 
 export const InboxParams = z.object({ id: z.uuid() });
 
 export const DecideInboxInput = z.object({
   action: z.enum(['wardrobe', 'wishlist', 'dismiss']),
-  // Which items to file (all when omitted).
+  // Which items to file or discard (every piece still waiting when omitted). A receipt's other
+  // pieces keep waiting; the row is decided once none does.
   itemIndexes: z.array(z.number().int().min(0).max(50)).max(50).optional(),
 });
 

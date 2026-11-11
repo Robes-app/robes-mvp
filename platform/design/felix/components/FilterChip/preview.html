@@ -1,0 +1,14 @@
+<!-- @dsCard group="Actions" height=150 width=560 subtitle="Category filters: rest, selected, empty" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>FilterChip — preview</title></head>
+<body>
+<div id="root" style="display:flex;flex-direction:column;gap:14px;padding:20px;background:var(--cream);width:520px"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+    h(F.FilterChip, { label: 'All', count: 5, selected: true }), h(F.FilterChip, { label: 'Work', count: 3 }), h(F.FilterChip, { label: 'Weekend', count: 1 }), h(F.FilterChip, { label: 'Evening', count: 0, disabled: true }), h(F.FilterChip, { label: 'Active', count: 1 }))));
+</script>
+</body>
+</html>

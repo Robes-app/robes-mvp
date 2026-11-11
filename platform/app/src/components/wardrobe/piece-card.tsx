@@ -109,43 +109,20 @@ export function StarButton({
   );
 }
 
-export function BoughtButton({
-  label,
-  onBought,
-  busy,
-  tile = false,
-}: {
-  label: string;
-  onBought: () => void;
-  busy: boolean;
-  tile?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onBought}
-      disabled={busy}
-      aria-label={copy.boughtLabel(label)}
-      className={`relative z-10 inline-flex shrink-0 items-center rounded-pill border border-rule-mid bg-surface-raised font-sans text-ink-muted hover:border-border-control hover:text-ink disabled:text-ink-faint ${
-        tile ? 'h-8 px-3.5 text-xs after:absolute after:-inset-1.5' : 'h-10 px-4 text-[13px]'
-      } ${focus}`}
-    >
-      {copy.bought}
-    </button>
-  );
-}
-
 const OPEN_AT = 88;
 const ASK_AT = 160;
 
-// Swipe to let go (legacy _wrSwipeInit): a drag slides the face over the Remove; past 44px it
-// rests open at 88, past 160 it removes. Keyboard users reach the Remove by tabbing to it.
+// Swipe to let go (legacy _wrSwipeInit): a drag slides the face over the action; past 44px it
+// rests open at 88, past 160 it acts; a click on an open row closes it. The action reads Remove (a
+// wish) or Delete (a piece she owns, which asks first). Keyboard users reach it by tabbing to it.
 function SwipeRow({
   children,
+  removeText = copy.swipeRemove,
   removeLabel,
   onRemove,
 }: {
   children: ReactNode;
+  removeText?: string;
   removeLabel: string;
   onRemove: () => void;
 }) {
@@ -181,7 +158,7 @@ function SwipeRow({
   };
   const shown = dx !== 0 || focused;
   return (
-    <div className={`relative overflow-hidden rounded-soft ${shown ? 'bg-accent-warm' : ''}`}>
+    <div className={`relative overflow-hidden rounded-[3px] ${shown ? 'bg-accent-warm' : ''}`}>
       <button
         type="button"
         onClick={() => {
@@ -195,7 +172,7 @@ function SwipeRow({
           shown ? '' : 'opacity-0'
         } ${focus}`}
       >
-        {copy.swipeRemove}
+        {removeText}
       </button>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: a gesture layer; the Remove button and the row's links are the keyboard and screen-reader paths. */}
       <div
@@ -209,9 +186,10 @@ function SwipeRow({
         // A link's native drag would cancel the swipe's pointer events.
         onDragStart={(e) => e.preventDefault()}
         onClickCapture={(e) => {
-          // A drag never opens the piece.
-          if (swallow.current) {
+          // A drag never opens the piece, and a click on an open row only closes it.
+          if (swallow.current || dx !== 0) {
             swallow.current = false;
+            setDx(0);
             e.preventDefault();
             e.stopPropagation();
           }
@@ -225,44 +203,127 @@ function SwipeRow({
   );
 }
 
-// The rack card as the wardrobe's row: 52 × 64 photo, eyebrow, serif name, status, action, ›.
+// What a row says at its right (Front Door canvas 3b and the Rack): an owned piece's wears behind
+// a calendar ("New" before the first), a wish's price, a piece to find's price behind a bag or —
+// on a look — a wish's price behind a heart. `label` is what a reader hears.
+export interface RowMeta {
+  icon?: 'calendar' | 'heart' | 'bag';
+  text?: string;
+  label: string;
+}
+
+// ONE piece row for every list of pieces (Front Door canvas 3b, PRD §6.1/§7.2): the Wardrobe's
+// Owned and Wishlist, a look's Rack, the Shop to come. Its own lifted white card (`shadow-row`),
+// the photo flush left at 52 wide, the category (and a look's role) in small caps, the serif name
+// on one line and the brand under it, then the meta, any action and ›. The whole card opens the
+// piece through a stretched link; the actions sit above it. `lines` carries a row's quiet extras.
+// The native twin is CardRow in mobile/src/features/wardrobe/PieceCard.tsx.
 export function CardRow({
   piece,
   thumb,
-  status,
-  href,
+  role,
+  maker,
+  dashed = false,
+  meta,
   action,
-  removeLabel,
-  onRemove,
+  lines,
+  below,
+  href,
+  openLabel,
+  highlight = false,
+  swipe,
 }: {
-  piece: CardPiece;
+  piece: Omit<CardPiece, 'id'>;
   thumb: ReactNode;
-  status: CardStatus;
+  // A look's role for the piece, after the category in the small caps.
+  role?: string;
+  // The line under the name; the brand unless the row says otherwise (a find's retailer).
+  maker?: string;
+  dashed?: boolean;
+  meta?: RowMeta | null;
+  action?: ReactNode;
+  lines?: ReactNode;
+  // A second line of the card under its face, from the text column on (a found piece's "Looks
+  // like your …", Capture PRD 1c.6).
+  below?: ReactNode;
   href?: string;
-  action: ReactNode;
-  removeLabel: string;
-  onRemove: () => void;
+  openLabel?: string;
+  // A row the prompt changed: the warm fill and an ink dot at its edge.
+  highlight?: boolean;
+  swipe?: { text?: string; label: string; onRemove: () => void };
 }) {
-  const lines = cardLines({ piece, ...(href ? { href } : {}), status });
-  return (
-    <SwipeRow removeLabel={removeLabel} onRemove={onRemove}>
-      <div className="relative grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-soft border border-hairline bg-surface-raised py-3.5 pr-2.5 pl-3 hover:border-border-control">
-        <div className="row-span-2 w-[52px] overflow-hidden rounded-[6px]">{thumb}</div>
-        <div className="min-w-0 self-end">
-          {lines.eyebrow}
-          <div className="mt-1">{lines.name}</div>
-        </div>
-        <div className="flex items-center gap-1.5 self-end">
-          {action}
-          {href ? (
-            <span aria-hidden className="w-5 text-center text-ink-muted">
-              <Icon name="forward" size={16} />
-            </span>
-          ) : null}
-        </div>
-        <div className="col-span-2 col-start-2 self-start">{lines.status}</div>
+  const name = nameWithoutBrand(piece.label, piece.brand);
+  const eye = pieceEyebrow({ ...piece, brand: null });
+  const eyebrow = [eye.category, role ?? ''].filter(Boolean).join(' · ');
+  const under = maker ?? piece.brand?.trim() ?? '';
+  const face = (
+    <div
+      className={`relative flex min-h-[65px] items-center gap-3 pr-3 ${highlight ? 'bg-selected' : 'bg-surface-raised'}`}
+    >
+      <div
+        className={`flex w-[52px] shrink-0 flex-col justify-center self-stretch overflow-hidden bg-surface-sunk ${dashed ? 'border border-dashed border-selected-line' : ''}`}
+      >
+        {thumb}
       </div>
-    </SwipeRow>
+      <div className="flex min-w-0 flex-1 flex-col py-2.5">
+        <span className="truncate font-medium font-sans text-[9px] text-ink-faint uppercase tracking-[0.18em]">
+          {eyebrow}
+        </span>
+        <h3 className="mt-0.5 truncate font-display font-normal text-[16px] text-ink leading-[1.25]">
+          {href ? (
+            <Link
+              href={href}
+              draggable={false}
+              aria-label={openLabel ?? piece.label}
+              className={`after:absolute after:inset-0 ${focus}`}
+            >
+              {name}
+            </Link>
+          ) : (
+            name
+          )}
+        </h3>
+        {under ? (
+          <span className="truncate font-sans text-[11px] text-ink-faint">{under}</span>
+        ) : null}
+        {lines}
+      </div>
+      {meta ? (
+        <span className="flex shrink-0 items-center gap-1 font-sans text-[11px] text-ink-faint">
+          {meta.icon ? <Icon name={meta.icon} size={12} filled={meta.icon === 'heart'} /> : null}
+          {meta.text ? <span aria-hidden>{meta.text}</span> : null}
+          <span className="sr-only">{meta.label}</span>
+        </span>
+      ) : null}
+      {action ? <div className="relative z-10 flex shrink-0 items-center">{action}</div> : null}
+      {href ? <Icon name="forward" size={14} className="shrink-0 text-ink-faint" /> : null}
+    </div>
+  );
+  return (
+    <div className="relative rounded-[3px] bg-surface-raised shadow-row">
+      {highlight ? (
+        <span
+          aria-hidden
+          className="absolute top-1/2 -left-1 z-10 size-2 -translate-y-1/2 rounded-pill bg-ink"
+        />
+      ) : null}
+      <div className="overflow-hidden rounded-[3px]">
+        {swipe ? (
+          <SwipeRow
+            {...(swipe.text ? { removeText: swipe.text } : {})}
+            removeLabel={swipe.label}
+            onRemove={swipe.onRemove}
+          >
+            {face}
+          </SwipeRow>
+        ) : (
+          face
+        )}
+        {below ? (
+          <div className="mr-3 ml-16 border-hairline border-t-[0.5px] pt-[9px] pb-2.5">{below}</div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -274,50 +335,80 @@ export function CardTile({
   status,
   href,
   action,
+  compact = false,
+  onImage,
 }: {
   piece: CardPiece;
   photo: ReactNode;
   status: CardStatus;
   href?: string;
-  action: ReactNode;
+  action?: ReactNode;
+  // The Front Door's 3-up tile (PRD rev 3 §2.4): the photograph, the serif name on one line, the
+  // meta; no eyebrow.
+  compact?: boolean;
+  // On the photograph (a wish's heart), bottom right.
+  onImage?: ReactNode;
 }) {
   const lines = cardLines({ piece, ...(href ? { href } : {}), status });
   return (
     <div className="relative flex min-w-0 flex-col overflow-hidden rounded-soft border border-hairline bg-surface-raised hover:border-border-control">
-      <div className="relative bg-surface-raised p-3.5">
+      <div className={`relative bg-surface-raised ${compact ? 'p-1.5' : 'p-3.5'}`}>
         <div className="overflow-hidden rounded-crisp">{photo}</div>
+        {onImage ? <div className="absolute right-2 bottom-2 z-10">{onImage}</div> : null}
       </div>
-      <div className="absolute top-1.5 right-1.5 z-10">{action}</div>
-      <div className="flex flex-col gap-[3px] px-3 pt-2.5 pb-3">
-        {lines.eyebrow}
-        {lines.name}
-        {lines.status}
-      </div>
+      {action ? <div className="absolute top-1.5 right-1.5 z-10">{action}</div> : null}
+      {compact ? (
+        <div className="flex flex-col gap-[2px] px-2 pt-1.5 pb-2.5">
+          <h3 className="truncate font-display font-normal text-[15px] text-ink leading-[19px]">
+            {href ? (
+              <Link
+                href={href}
+                draggable={false}
+                className={`after:absolute after:inset-0 ${focus}`}
+              >
+                {nameWithoutBrand(piece.label, piece.brand)}
+              </Link>
+            ) : (
+              nameWithoutBrand(piece.label, piece.brand)
+            )}
+          </h3>
+          {lines.status}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-[3px] px-3 pt-2.5 pb-3">
+          {lines.eyebrow}
+          {lines.name}
+          {lines.status}
+        </div>
+      )}
     </div>
   );
 }
 
-// The list ends on the dashed "+ Add a piece" row; the grid on the add tile.
-export function AddCard({ href, layout }: { href: string; layout: 'list' | 'grid' }) {
-  if (layout === 'list') {
-    return (
-      <Link
-        href={href}
-        className={`flex min-h-[52px] items-center justify-center gap-2 rounded-soft border border-dashed border-rule-mid font-sans text-xs text-ink-muted hover:text-ink ${focus}`}
-      >
-        <Icon name="plus" size={16} />
-        {copy.addRow}
-      </Link>
-    );
-  }
+// The filled heart on a wish (PRD rev 3 §7.2): a click lets the wish go. On a photograph it sits on
+// its own white disc; on a row it stands bare in the rose, after the price (canvas 3b).
+export function HeartButton({
+  label,
+  onClick,
+  onRow = false,
+}: {
+  label: string;
+  onClick: () => void;
+  onRow?: boolean;
+}) {
   return (
-    <Link
-      href={href}
-      className={`flex min-h-full flex-col items-center justify-center gap-2 rounded-soft border border-dashed border-rule-mid text-ink-muted hover:text-ink ${focus}`}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={`relative z-10 inline-flex items-center justify-center rounded-pill after:absolute after:-inset-2 ${
+        onRow
+          ? 'size-6 text-accent-warm hover:text-ink'
+          : 'size-7 bg-surface-raised/90 text-ink hover:bg-surface'
+      } ${focus}`}
     >
-      <Icon name="plus" size={20} />
-      <span className="font-display text-lg text-ink">{copy.addRow}</span>
-      <span className="font-sans text-[11px]">{copy.addHint}</span>
-    </Link>
+      <Icon name="heart" size={14} filled />
+    </button>
   );
 }

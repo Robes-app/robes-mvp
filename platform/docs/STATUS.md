@@ -53,7 +53,7 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 ## Known gaps (not built yet)
 
 - **TODO: Sign in with Apple.** Deliberately left out: sign-in stays email only (one-time code) until the app is in TestFlight, so the initial ask isn't widened with more sign-in flows to test. Add it before App Store submission: the App Store requires it once Google sign-in is offered (beta vs staging review, Arrival 01).
-- Receipts: no photo-based re-read of receipt lines (legacy vision pass; would need image fetching); product images kept as metadata only. Activating the SES rule set and the `in.` MX record are ops steps (`runbooks/environments.md` §9).
+- Receipts: each line's product photo is fetched by the isolated fetcher and read (legacy vision pass; SEC-40 as built). A shop that refuses the fetch, or a photo over 170 KB, leaves the line with the hanger and what the receipt printed (a reference code for Zara, Mango, COS). Unused receipt photos (a banner, a refused read) stay in storage until the account is deleted. Activating the SES rule set and the `in.` MX record are ops steps (`runbooks/environments.md` §9).
 - Alternates rail and swapping pieces in a daily draft (secondary frames now render on demand via `look_render`).
 - `borrowing` email and `finish` next-step rule (need look proposals). Your model: no photographed try-on from her own photos (renders use the catalog portrait for her picks, per SEC-22).
 - Trips: no images, no "more looks from this capsule", trips not drawn as Plan blocks.

@@ -1,8 +1,6 @@
 // Look states, the keep-or-pass deck and the look prompt (legacy beta 2026-10-01 → 10-13).
 // en-GB, curly apostrophes, Robes in the third person, no exclamation marks.
 
-import { SEASON_LABELS } from './seasons';
-
 const pieces = (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`);
 const TO_FIND_WORDS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'] as const;
 const KEPT_WORDS = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
@@ -23,18 +21,15 @@ export interface LookFacts {
 export const lookbook = {
   title: 'Lookbook',
   tabs: { saved: 'Saved', suggested: 'Suggested' },
-  count: {
-    looks: (n: number): string => (n === 1 ? '1 look' : `${n} looks`),
-    inProgress: (n: number): string => `${n} in progress`,
-    suggested: (n: number): string => `${n} suggested`,
-  },
   newLook: 'New look',
-  sort: {
-    label: 'Sort',
-    newest: 'Newest',
-    lastWorn: 'Last worn',
-    name: 'Name',
+  // The New Look sheet (Front Door PRD rev 3 §5.5): three doors on glass.
+  newLookSheet: {
+    describe: 'Describe',
+    photo: 'Photo',
+    fromPieces: 'From pieces',
   },
+  // The Lookbook's hidden search, revealed by a pull (PRD Q6).
+  search: 'Search your looks',
   inProgress: 'In progress',
   draftTile: {
     eyebrow: 'Draft',
@@ -51,16 +46,28 @@ export const lookbook = {
     yourPiece: (piece: string): string => `Your ${piece}`,
     remove: (name: string): string => `Remove ${name}`,
     swap: (name: string): string => `Swap ${name} for another look`,
+    // The bookmark on a suggestion's photograph (Front Door PRD rev 3 §5.3) saves it to Saved.
+    save: (name: string): string => `Save ${name}`,
+    saved: (name: string): string => `${name} is saved`,
+    // Why Robes suggested it, under the name (core suggestionReason).
+    reason: {
+      day: (weekday: string): string => `For ${weekday}`,
+      wishlist: 'Works with your wishlist',
+      own: (n: number): string => (n === 1 ? 'Uses 1 piece you own' : `Uses ${n} pieces you own`),
+      wearMost: 'Built from what you wear most',
+    },
     framing: 'Creating the frame…',
     restyling: 'Changing the look…',
   },
   removed: 'Removed',
   passed: 'Passed',
   swapFailed: 'Robes couldn’t swap that look — please try again in a moment.',
+  // Front Door PRD rev 3 §5.4.
   savedEmpty: {
-    title: 'Looks you keep live here.',
-    body: 'Save one Robes suggests, or start one from your pieces.',
+    title: 'No saved looks yet',
+    body: 'Describe a look, start from a photo or build one from your pieces. Looks you save from Suggested land here too.',
   },
+  noMatch: 'No looks match',
   suggestedEmpty: {
     title: 'Nothing suggested yet.',
     body: 'Tell Robes where you’re going, or pick a piece, and it dresses you.',
@@ -84,6 +91,9 @@ export const lookbook = {
     around: (piece: string): string => `around your ${piece}`,
     pinnedFor: (day: string): string => `pinned for ${day}`,
     photographOnly: 'Photograph · not yet filed',
+    // The Lookbook card (Front Door PRD rev 3 §5.2): the wears, or New, then the seasons.
+    frontDoor: (wears: number, seasons: readonly string[], yearRound: string): string =>
+      `${wears > 0 ? wears : 'New'} · ${seasons.length ? seasons.join(', ') : yearRound}`,
     // One line of facts, built from the same words wherever a saved look says them.
     // On a card the wears LEAD — how often a look actually gets worn is the card's
     // job in a lookbook she browses; the look page leads with its rack instead.
@@ -108,23 +118,11 @@ export const lookbook = {
   // The text block over a look's picture (plan 2026-11-03 §1.3): what it is made of.
   mix: (yours: number, toFind: number): string =>
     toFind === 0 ? `The look · ${pieces(yours)}` : `The look · ${yours} yours, ${toFind} to find`,
-  // The Lookbook's Filter drawer (legacy Refine): the axes a saved look can be narrowed by.
-  refine: {
-    open: 'Filter',
-    title: 'Filter',
-    clear: 'Clear',
-    show: (n: number): string => `Show ${n} ${n === 1 ? 'look' : 'looks'}`,
-    season: 'Season',
-    wearFor: 'Wear it for',
-    vibe: 'Vibe',
-    // The wardrobe's labels (wardrobe.filter.seasons): one spelling for a band.
-    seasons: SEASON_LABELS,
-    none: 'Nothing in this edit.',
-    on: 'Filters on',
-  },
   card: {
     diary: 'Put this look in the diary',
     delete: 'Delete this look',
+    // A look with pieces still to find (Front Door PRD rev 3 §5.2): the small bag on the card.
+    shop: 'Includes pieces to find',
   },
   // The saved look as Felix 3e (plan 2026-11-06 D8–D10): the photo with its three discs, Pieces ·
   // Details, and one Schedule look. Web components/looks/saved-look.tsx and look-details.tsx;
@@ -150,12 +148,31 @@ export const lookbook = {
       add: 'Add a photo',
       remove: 'Remove this image',
       done: 'Done',
+      // Add a photo to a look (Capture PRD flow 3): the camera that only adds an image. It never
+      // reads the pieces. A photo from her library reads Another where a shot reads Retake.
+      camera: {
+        title: 'Add a photo',
+        hint: 'Wearing this look? Step back · Head to toe',
+        close: 'Back to the look',
+        photos: 'Choose from photos',
+        shutter: 'Take photo',
+        review: 'Review your photo',
+        reviewNote: '',
+        back: 'Back to the look',
+        retake: 'Retake',
+        another: 'Another',
+        use: 'Add to look',
+        denied: 'Allow the camera in your settings to take a photo here.',
+        failed: 'That photo didn’t upload. Try it again.',
+      },
       // 409 look_needs_image (D19): the change would leave the look with no image.
       lastImage: 'A look keeps at least one image.',
       // 409 upload_in_use on uploads.discard: the photo is already on a look, so it stays.
       inUse: 'This photo is on a look, so it stays.',
     },
     details: {
+      // The look's images, counted (Capture PRD 3.1): Robes' picture and her photographs.
+      photos: 'Photos',
       tags: 'Tags',
       seasons: 'Seasons',
       worn: 'Worn',
@@ -208,19 +225,106 @@ export const lookbook = {
     // A saved look's one accept (3e's pill, the Edit look drawer's footer; D17, D18).
     update: 'Update look',
     doneForDay: 'Save and schedule for this day',
-    // The prompt card.
+    // The styling card (Front Door PRD rev 3 §4.6): the prompt row's placeholders turn while it
+    // is empty; a saved look's row asks for the change instead.
     placeholder: 'Describe look…',
-    editPlaceholder: 'Describe other changes…',
-    // Felix's Generate, in Robes' words: Robes styles, it never generates.
+    placeholders: [
+      'dinner date, smart casual…',
+      'the office, a long day…',
+      'a walk, then lunch…',
+      'drinks after work…',
+    ],
+    editPlaceholder: 'more casual…',
+    // The sticky primary at the foot (PRD §4.6 draws it as GENERATE ✓), in Robes' words: Robes
+    // styles, it never generates (the voice guard in index.test.ts).
     generate: 'Style it',
+    // The Shop toggle (PRD §4.6, plan R1): off keeps the look to her wardrobe; on lets Robes reach
+    // for her wishlist and new pieces. What a reader hears for each state.
+    shop: {
+      label: 'Shop',
+      on: 'Shop is on: looks can include your wishlist and new pieces',
+      off: 'Shop is off: looks use your wardrobe pieces only',
+    },
+    // The Rack card before the first piece (PRD §4.6): with a wardrobe it opens the picker; empty
+    // it opens Add your pieces. The heading shows once a piece hangs.
+    rack: 'The Rack',
+    // The pencil on The Rack (PRD §6.1, plan R2): edit-pieces mode shows each row's swap and ×;
+    // at rest a row opens its piece.
+    editPieces: 'Edit pieces',
+    rackCard: {
+      eyebrow: 'Your wardrobe',
+      pick: 'Pick from your wardrobe',
+      orRobes: 'Or let Robes style below',
+      add: 'Add your pieces',
+      ways: 'Photo, link or receipt',
+    },
+    // A look from her photograph (Capture PRD 1c, 10 Nov 2026): Home's Capture opens the camera,
+    // Use photo opens the draft with the photograph as its picture, and The Rack offers to find
+    // what she is wearing. Every string is the PRD's.
+    capture: {
+      camera: {
+        title: 'Capture a look',
+        hint: 'Step back from the mirror · Head to toe',
+        close: 'Close',
+        photos: 'Choose from your photos',
+        shutter: 'Take photo',
+        review: 'Review your photo',
+        reviewNote: 'Whole outfit in frame?',
+        back: 'Back',
+        retake: 'Retake',
+        use: 'Use photo',
+        // The camera refused: her photos still work (PRD 1c.1).
+        denied: 'Allow the camera in your settings to take a photo here.',
+        saving: 'Opening your look…',
+        failed: 'That photo didn’t upload. Try it again.',
+      },
+      card: {
+        eyebrow: 'From your photo',
+        title: 'Find the pieces',
+        sub: 'Match or add each piece',
+        // Once she has skipped, or the look is saved with only its photo (1c.4).
+        later: 'Optional · you can do this later',
+        skip: 'Skip, keep just the photo',
+      },
+      finding: 'Finding the pieces…',
+      failed: 'Couldn’t find the pieces',
+      nothing: 'No pieces found in this photo',
+      retry: 'Retry',
+      clear: 'The rack is clear. The look keeps its photo.',
+      row: {
+        match: 'Match to piece',
+        add: 'Add piece',
+        remove: 'Remove',
+        looksLike: 'Looks like your',
+        quick: 'Match',
+        noMatch: 'No close match in your wardrobe',
+      },
+      removed: (n: number): string => (n === 1 ? '1 piece removed' : `${n} pieces removed`),
+      undo: 'Undo',
+      match: {
+        title: 'Match to your wardrobe',
+        cta: 'Match piece',
+        from: (category: string): string => `From the photo · ${category}`,
+      },
+      // The new-piece review (1c.8): the found piece's details, hers to change before it files.
+      review: {
+        back: 'Back',
+        cta: 'Add to wardrobe',
+        adding: 'Adding…',
+        failed: 'That piece didn’t file. Try again.',
+        // The read is gone (a look saved long ago): the piece is added from the wardrobe instead.
+        gone: 'This photo’s read has expired. Add the piece from your wardrobe.',
+      },
+      discard: {
+        title: 'Discard this look?',
+        body: 'Pieces you added to your wardrobe stay there.',
+      },
+    },
     // Describe's day draft: the job behind Style it ended without a look (D22).
     styleFailed: 'Robes couldn’t style that one. Try again in a moment.',
     thread: 'Your words on this look',
     // The context chip: the day's place and weather, read from the diary.
     context: (place: string, range: string): string => `${place} · ${range}`,
-    // The add slot before the first piece.
-    addPieces: 'Add pieces',
-    startFromPhoto: 'Start from a photo',
     // Delete, in edit mode (D9).
     delete: 'Delete this look',
     adjustSheet: {
@@ -246,6 +350,11 @@ export const lookbook = {
         n === 0 ? 'Add pieces' : n === 1 ? 'Add 1 piece' : `Add ${n} pieces`,
       swapCta: 'Swap it in',
       empty: 'Nothing here yet.',
+      // The WISHLIST tab (PRD §4.6): her wishes join the rack as pieces to find.
+      wishEmpty: 'Nothing on your wishlist yet.',
+      pickWish: (label: string): string => `Include ${label} from your wishlist`,
+      // The ink + at the rail's end: a new piece, filed as she adds it.
+      addNew: 'Add a new piece',
     },
     discard: {
       title: 'Discard this draft?',
@@ -276,7 +385,8 @@ export const lookbook = {
   // Beta's save and update toasts: a suggestion kept as it stands, a look she worked on by name.
   saved: 'Saved to your lookbook',
   savedAs: (name: string): string => `${name} saved to your Lookbook ✓`,
-  updated: 'Updated',
+  // Update look landed (Capture PRD 3.5).
+  updated: 'Look updated.',
   addedToDay: (day: string): string => `In your plan for ${day}.`,
   // Save opens the diary every time (legacy 0.2); closing it is "not yet" and writes nothing.
   // The diary sheet is beta's month (legacy _lkDiaryPaint): any day is one tap, a day gone by
@@ -380,30 +490,13 @@ export const lookbook = {
     badgeSaved: 'Saved to Lookbook',
     tileBar: 'Draft look',
     tileDressing: 'Dressing…',
-    tileRegen: 'Another take, same brief',
     open: 'Open the draft',
     // The bar.
     saving: 'Saving…',
     saved: 'Saved',
     discardChanges: 'Discard changes',
-    // The pending count on the picture, read out.
-    behind: (n: number): string => `${n} ${n === 1 ? 'change' : 'changes'} the picture is behind`,
-    stale: 'The picture is behind your changes',
   },
   // The one wardrobe sheet behind every + and every swap (legacy 2026-10-15, design 2 / 4a).
-  sheet: {
-    eyebrow: 'From your wardrobe',
-    swapEyebrow: 'Swap from your wardrobe',
-    slot: { top: 'Add a top', bottom: 'Add a bottom', shoes: 'Add shoes' },
-    search: 'Search your wardrobe',
-    photograph: 'Photograph one',
-    filesIn: 'Files straight in',
-    swapsIn: 'Swaps straight in',
-    inLook: '✓ In the look',
-    noMatch: (q: string): string => `Nothing in your wardrobe matches “${q}”.`,
-    emptyCategory: (category: string): string => `No ${category.toLowerCase()} yet.`,
-    emptyHint: 'Photograph one to add it to your wardrobe',
-  },
   rack: {
     title: (n: number): string => `The rack · ${pieces(n)}`,
     addPiece: '+ Add a piece',
@@ -426,12 +519,6 @@ export const lookbook = {
     hint: 'A tee, jeans, a knit…',
   },
   swap: {
-    title: (piece: string): string => `Swap the ${piece}`,
-    add: 'Add a piece',
-    all: 'All',
-    swapIn: (name: string): string => `Swap in ${name}`,
-    addIn: (name: string): string => `Add ${name}`,
-    empty: 'Nothing else of this kind in your wardrobe.',
     // A swap on a suggested look lands at once, behind Undo.
     swapped: (name: string): string => `${name} is on the look.`,
   },
@@ -524,14 +611,6 @@ export const lookbook = {
     label: (name: string): string => `Change ${name}`,
     newLabel: 'A new look',
     failed: 'Robes couldn’t read that just now. Try again.',
-    // The one question on a new look: where its pieces come from.
-    balance: {
-      question: 'Where should the pieces in your look come from?',
-      owned: 'All mine',
-      mix: 'A mix',
-      new: 'Suggest new pieces',
-      typed: 'Or say it your way',
-    },
   },
   // F8: a verdict on a suggestion lands in her memory; "not quite" lets it go.
   verdict: {

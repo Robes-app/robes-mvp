@@ -1,19 +1,16 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import type { Piece, UpdatePieceInput } from '@robes/contracts';
-import { wardrobe as copy, lookbook, looks as looksCopy } from '@robes/copy';
+import type { UpdatePieceInput } from '@robes/contracts';
+import { wardrobe as copy, lookbook } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
   EmptyState,
   ErrorText,
-  Eyebrow,
-  Heading,
-  IconButton,
   Image,
-  PrimaryScope,
   Sheet,
   Skeleton,
+  Tabs,
   Text,
   useColor,
 } from '@robes/ui-native';
@@ -26,20 +23,35 @@ import { SuggestedRail } from '@/features/looks/SuggestedRail';
 import { SettingsRow } from '@/features/you/Settings';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { DeletePieceDialog } from './DeletePieceDialog';
 import { StarButton } from './PieceCard';
 import { type PieceField, PieceFieldSheet } from './PieceFieldSheet';
-import { RecordRows } from './PieceRows';
+import { PieceHeader } from './PieceHeader';
+import { PieceRow, RecordRows, type RecordTab } from './PieceRows';
 import { READING_REFRESH_MS, useDeletePiece, usePiecePhoto, useStarPiece } from './pieces';
 
 const LOOKS_LIMIT = 30;
+const TABS = [copy.piece.tabs.piece, copy.piece.tabs.colour, copy.piece.tabs.wearing] as const;
+type TabLabel = (typeof TABS)[number];
+const TAB_OF: Record<TabLabel, RecordTab> = {
+  [copy.piece.tabs.piece]: 'piece',
+  [copy.piece.tabs.colour]: 'colour',
+  [copy.piece.tabs.wearing]: 'wearing',
+};
 
-// The record (legacy Piece_Sheet 01): the photograph, her name for it with the pencil on it, the
-// facts she has given, then the days she wore it. Every fact is a row that opens its own drawer —
-// there is no form, so what the title says and what a row says can never disagree.
+// The record (legacy Piece_Sheet 01; Front Door canvas 3b, PRD rev 3 §7.3): the bar with her name
+// for it and the Hero Rack star, the photograph edge to edge, then PIECE · COLOUR · WEARING over the
+// record's rows. Every fact is a row
+// that opens its own drawer — there is no form, so what the title says and what a row says can
+// never disagree. Delete piece closes the page, asked first (plan R14). Web twin:
+// app/src/app/(app)/piece/[id]/piece-detail.tsx.
 export function PieceDetail({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [field, setField] = useState<PieceField | null>(null);
+  const [tab, setTab] = useState<TabLabel>(TABS[0]);
+  const [open, setOpen] = useState<'wears' | 'looks' | null>(null);
+  const [confirm, setConfirm] = useState(false);
   const photo = usePiecePhoto(id);
   const {
     data: piece,
@@ -86,10 +98,23 @@ export function PieceDetail({ id }: { id: string }) {
   const save = (input: UpdatePieceInput) => update.mutate({ params: { id: piece.id }, input });
   return (
     <View className="flex-1">
-      <ScrollView contentContainerClassName="gap-5 px-6 pb-10">
-        {/* The whole cut-out, contained on white in a 4:5 frame: never cropped at the hem. The
+      {/* The canvas's bar (3b): ‹, the name in the serif, the Hero Rack star at the right. Her
+          name for it is edited from the PIECE tab's Name row (✎). */}
+      <PieceHeader
+        title={ready ? piece.label : reading ? copy.newPiece : piece.label}
+        faint={!ready}
+        trailing={
+          <StarButton
+            label={piece.label}
+            on={piece.heroPosition !== null}
+            onToggle={() => star(piece)}
+          />
+        }
+      />
+      <ScrollView contentContainerClassName="gap-5 pb-10">
+        {/* The whole cut-out, edge to edge on white in a 4:5 frame: never cropped at the hem. The
             frame stands without a photo too, so Change photo has a place to sit. */}
-        <View className="relative rounded-crisp border border-hairline bg-surface-raised p-4">
+        <View className="relative bg-surface-raised">
           {shown ? (
             <Image
               source={shown}
@@ -106,91 +131,63 @@ export function PieceDetail({ id }: { id: string }) {
             onPress={() => setChoosing(true)}
           />
         </View>
-        <View className="gap-1.5">
-          <View className="flex-row items-start gap-2">
-            {/* Until Robes has read it, "New piece" is a placeholder, not a fact. */}
-            {ready ? (
-              <Heading size="md" className="min-w-0 flex-1">
-                {piece.label}
-              </Heading>
-            ) : (
-              <Text tone="faint" italic accessibilityRole="header" className="flex-1">
-                {reading ? copy.newPiece : piece.label}
-              </Text>
-            )}
-            {/* The pencil edits the name where it is written, never a field further down. */}
-            <IconButton
-              icon="pencil"
-              label={copy.piece.editName}
-              onPress={() => setField('label')}
-            />
-            <StarButton
-              label={piece.label}
-              on={piece.heroPosition !== null}
-              onToggle={() => star(piece)}
-            />
-          </View>
-          {/* The brand is its own line, and says so when it is missing — one source, the piece. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={piece.brand ?? copy.piece.addBrand}
-            onPress={() => setField('brand')}
-          >
-            <Text tone="muted" italic>
-              {piece.brand ?? copy.piece.addBrand}
-            </Text>
-          </Pressable>
+        <View className="gap-5 px-5">
           {reading ? <Text tone="muted">{copy.reading}</Text> : null}
           {piece.status === 'failed' ? <ErrorText>{copy.noPieceFound}</ErrorText> : null}
+
+          {/* PIECE · COLOUR · WEARING (PRD §7.3): one tab's rows at a time. */}
+          <Tabs items={TABS} value={tab} onChange={setTab} testID="piece-tabs" />
+          <RecordRows
+            values={piece}
+            onField={setField}
+            only={TAB_OF[tab]}
+            wearing={
+              <WearingRows
+                piece={piece}
+                onWorn={() => setOpen('wears')}
+                onLooks={() => setOpen('looks')}
+              />
+            }
+          />
+          <SuggestedRail pieceId={piece.id} />
+          {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
+
+          {/* Delete piece (§7.3, R14): outline, asked first; the Undo toast still follows. */}
+          <Button
+            variant="outline"
+            onPress={() => setConfirm(true)}
+            testID="delete-piece"
+            accessibilityHint={copy.piece.deleteBody}
+          >
+            {copy.piece.delete}
+          </Button>
         </View>
-
-        {ready ? <Stats piece={piece} /> : null}
-
-        <PrimaryScope>
-          <View className="gap-3">
-            <Button
-              icon="looks"
-              disabled={reading}
-              onPress={() =>
-                router.push({ pathname: '/looks/style', params: { pieceId: piece.id } })
-              }
-            >
-              {copy.piece.stylePiece}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={reading}
-              onPress={() =>
-                router.push({
-                  pathname: '/looks/draft/[id]',
-                  params: { id: 'new', pieceId: piece.id },
-                })
-              }
-            >
-              {lookbook.startLook}
-            </Button>
-          </View>
-        </PrimaryScope>
-
-        <RecordRows values={piece} onField={setField} />
-
-        <Wears pieceId={piece.id} />
-        <InLooks pieceId={piece.id} />
-        <SuggestedRail pieceId={piece.id} />
-        {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
-
-        <Button
-          variant="quiet"
-          icon="trash"
-          className="self-center"
-          onPress={() => {
-            remove.mutate({ params: { id: piece.id } });
-            router.back();
-          }}
-        >
-          {copy.piece.remove}
-        </Button>
       </ScrollView>
+      <DeletePieceDialog
+        open={confirm}
+        onDelete={() => {
+          setConfirm(false);
+          remove.mutate({ params: { id: piece.id } });
+          router.back();
+        }}
+        onCancel={() => setConfirm(false)}
+      />
+      <Sheet
+        open={open === 'wears'}
+        onClose={() => setOpen(null)}
+        title={copy.piece.rows.worn}
+        closeButton
+      >
+        <Wears pieceId={piece.id} />
+      </Sheet>
+      <Sheet
+        open={open === 'looks'}
+        onClose={() => setOpen(null)}
+        title={copy.piece.rows.inLooks}
+        closeButton
+      >
+        <InLooks pieceId={piece.id} onOpen={() => setOpen(null)} />
+      </Sheet>
       <PieceFieldSheet
         piece={piece}
         field={field}
@@ -255,6 +252,41 @@ function ChangePhoto({
   );
 }
 
+// The WEARING tab's first rows (PRD §7.3): Worn ("8 times · last 27 Oct") and In looks, each
+// opening its list in a sheet. Web twin: WearingRows in piece-detail.tsx.
+function WearingRows({
+  piece,
+  onWorn,
+  onLooks,
+}: {
+  piece: { id: string; wearCount: number };
+  onWorn: () => void;
+  onLooks: () => void;
+}) {
+  const wears = useApi('wardrobe.wears', { params: { id: piece.id } });
+  const looks = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId: piece.id } });
+  const last = wears.data?.items[0]?.wornOn;
+  // Never worn reads "New" and opens nothing (canvas 3b); worn, the count and the last day.
+  const worn = piece.wearCount
+    ? lookbook.savedLook.details.wornSummary(piece.wearCount, last ? dayMonth(last) : null)
+    : copy.card.new;
+  return (
+    <>
+      <PieceRow
+        first
+        label={copy.piece.rows.worn}
+        value={worn}
+        {...(piece.wearCount ? { onPress: onWorn } : {})}
+      />
+      <PieceRow
+        label={copy.piece.rows.inLooks}
+        value={looks.data ? String(looks.data.items.length) : '—'}
+        onPress={onLooks}
+      />
+    </>
+  );
+}
+
 // The piece's own record: the days it was on her, and the look she wore it in.
 function Wears({ pieceId }: { pieceId: string }) {
   const router = useRouter();
@@ -263,31 +295,33 @@ function Wears({ pieceId }: { pieceId: string }) {
   const items = query.data?.items ?? [];
   const undated = query.data?.undated ?? 0;
   if (query.isPending) return <Skeleton shape="text" width="60%" />;
-  // Nothing worn yet: the stats strip already says so, so the section stands down (beta).
-  if (items.length === 0 && !undated) return null;
+  if (items.length === 0 && !undated) {
+    return (
+      <Text size="small" tone="muted" italic>
+        {copy.piece.wears.none}
+      </Text>
+    );
+  }
   return (
-    <View className="gap-2">
-      <Eyebrow>{copy.piece.sections.wears}</Eyebrow>
+    <View className="gap-2 pb-6">
       {items.length ? (
-        <>
-          <View className="overflow-hidden rounded-crisp border border-hairline bg-surface">
-            {items.map((wear, i) => (
-              <Pressable
-                key={wear.id}
-                accessibilityRole="link"
-                accessibilityLabel={copy.piece.wears.openDay(longDate(wear.wornOn))}
-                onPress={() => router.push(`/day/${wear.wornOn}`)}
-                className={`flex-row items-center gap-3 px-4 py-3 ${i ? 'border-hairline border-t' : ''}`}
-              >
-                <Text size="small">{dayMonth(wear.wornOn)}</Text>
-                <Text size="caption" tone="faint" italic numberOfLines={1} className="flex-1">
-                  {wear.lookName ?? ''}
-                </Text>
-                <Icon name="forward" size={15} color={faint} />
-              </Pressable>
-            ))}
-          </View>
-        </>
+        <View className="overflow-hidden rounded-crisp border border-hairline bg-surface">
+          {items.map((wear, i) => (
+            <Pressable
+              key={wear.id}
+              accessibilityRole="link"
+              accessibilityLabel={copy.piece.wears.openDay(longDate(wear.wornOn))}
+              onPress={() => router.push(`/day/${wear.wornOn}`)}
+              className={`flex-row items-center gap-3 px-4 py-3 ${i ? 'border-hairline border-t' : ''}`}
+            >
+              <Text size="small">{dayMonth(wear.wornOn)}</Text>
+              <Text size="caption" tone="faint" italic numberOfLines={1} className="flex-1">
+                {wear.lookName ?? ''}
+              </Text>
+              <Icon name="forward" size={15} color={faint} />
+            </Pressable>
+          ))}
+        </View>
       ) : null}
       {undated ? (
         <Text size="caption" tone="faint" italic>
@@ -298,53 +332,25 @@ function Wears({ pieceId }: { pieceId: string }) {
   );
 }
 
-// Worn · Last worn · In looks, as beta's strip reads them: facts side by side under the name,
-// between two hairlines. The web twin is Stats in app/src/app/(app)/piece/[id]/piece-detail.tsx.
-function Stats({ piece }: { piece: Piece }) {
-  const wears = useApi('wardrobe.wears', { params: { id: piece.id } });
-  const looks = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId: piece.id } });
-  const last = wears.data?.items[0]?.wornOn;
-  const cells: [string, string][] = [
-    [
-      copy.piece.stats.worn,
-      piece.wearCount ? looksCopy.page.wears.count(piece.wearCount) : copy.piece.stats.never,
-    ],
-    [copy.piece.stats.lastWorn, last ? dayMonth(last) : '—'],
-    [copy.piece.stats.inLooks, looks.data ? String(looks.data.items.length) : '—'],
-  ];
-  return (
-    <View className="flex-row border-hairline border-y">
-      {cells.map(([k, v], i) => (
-        <View
-          key={k}
-          className={`flex-1 gap-1.5 py-3 ${i ? 'border-hairline border-l pl-3.5' : ''}`}
-        >
-          <Eyebrow>{k}</Eyebrow>
-          <Text size="small" numberOfLines={1}>
-            {v}
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 // "In N looks": the saved looks she has put this piece on, drawn as the Lookbook draws them.
-function InLooks({ pieceId }: { pieceId: string }) {
+function InLooks({ pieceId, onOpen }: { pieceId: string; onOpen: () => void }) {
   const router = useRouter();
   const query = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId } });
   const items = query.data?.items ?? [];
   if (query.isPending) return <Skeleton shape="text" width="60%" />;
   return (
-    <View className="gap-2">
-      <Eyebrow>
-        {items.length ? copy.piece.sections.looks(items.length) : copy.piece.sections.noLooks}
-      </Eyebrow>
+    <View className="gap-2 pb-6">
       {items.length ? (
         <View className="flex-row flex-wrap gap-3">
           {items.map((look) => (
             <View key={look.id} style={{ width: '47%' }}>
-              <SavedTile look={look} onPress={() => router.push(`/look/${look.id}`)} />
+              <SavedTile
+                look={look}
+                onPress={() => {
+                  onOpen();
+                  router.push(`/look/${look.id}`);
+                }}
+              />
             </View>
           ))}
         </View>

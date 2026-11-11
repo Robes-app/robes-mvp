@@ -4,6 +4,7 @@ import {
   catalogGender,
   catalogKey,
   HAIR_SWATCHES,
+  lineupOrder,
   parseCellId,
   parseRobesModelId,
   ROBES_MODELS,
@@ -21,7 +22,7 @@ describe('the Robes models', () => {
     expect(parseRobesModelId('m-r2')).toEqual({ gender: 'man', n: 2 });
     expect(parseRobesModelId('w-r6')).toBeNull();
     expect(parseRobesModelId('w-s4-h1-nt')).toBeNull();
-    expect(catalogKey('w-r4')).toBe('w-r4@v1');
+    expect(catalogKey('w-r4')).toBe('w-r4@v2');
     expect(catalogKey('w-s4-h1-nt')).toBe('w-s4-h1-nt@v2');
     expect(catalogGender('m-r1')).toBe('man');
     expect(catalogGender('w-s4-h5-nt')).toBe('woman');
@@ -29,7 +30,7 @@ describe('the Robes models', () => {
   });
 
   it('cover age and size as well as colouring, and every swatch they name exists', () => {
-    const older = ROBES_MODELS[3];
+    const older = ROBES_MODELS[2];
     const larger = ROBES_MODELS[4];
     expect(older?.age).toBeGreaterThanOrEqual(60);
     expect(larger?.sizeUk).toBeGreaterThanOrEqual(18);
@@ -40,8 +41,18 @@ describe('the Robes models', () => {
     expect(parseCellId('w-s4-h5-nt')?.hair).toBe(5);
   });
 
+  it("are Annie's five, in her order", () => {
+    expect(ROBES_MODELS.map((m) => [m.skin, m.hair, m.age, m.sizeUk])).toEqual([
+      [5, 4, 35, 10], // Sand · Ash blonde
+      [3, 1, 35, 10], // Tan · Espresso
+      [6, 5, 62, 12], // Peach · Silver, the older model
+      [7, 3, 35, 10], // Porcelain · Caramel
+      [2, 1, 35, 18], // Chestnut · Espresso, the larger model
+    ]);
+  });
+
   it('draw through the twin prompt with no face', () => {
-    expect(robesModelSpec('w-r4')).toMatchObject({
+    expect(robesModelSpec('w-r3')).toMatchObject({
       gender: 'woman',
       age: 62,
       sizeUk: 12,
@@ -62,6 +73,19 @@ describe('the Robes models', () => {
     for (const k of ['w-r0@v1', 'w-r6@v1', 'w-s3-h6-nt@v2', 'preset:w4@v1', 'w-r4']) {
       expect(k).not.toMatch(CATALOG_KEY);
     }
+  });
+});
+
+describe('the lineup', () => {
+  it('stays in order until she chooses, then the chosen one leads', () => {
+    expect(lineupOrder({ own: false, chosen: null })).toEqual([1, 2, 3, 4, 5]);
+    expect(lineupOrder({ own: false, chosen: 1 })).toEqual([1, 2, 3, 4, 5]);
+    expect(lineupOrder({ own: false, chosen: 4 })).toEqual([4, 1, 2, 3, 5]);
+    expect(lineupOrder({ own: true, chosen: 'own' })).toEqual(['own', 1, 2, 3, 4, 5]);
+    expect(lineupOrder({ own: true, chosen: 3 })).toEqual([3, 'own', 1, 2, 4, 5]);
+    // Her own model chosen before she has one on file names nothing in the row: the order stands.
+    expect(lineupOrder({ own: false, chosen: 'own' })).toEqual([1, 2, 3, 4, 5]);
+    expect(lineupOrder({ own: false, chosen: 9 })).toEqual([1, 2, 3, 4, 5]);
   });
 });
 

@@ -2,7 +2,15 @@ import type { PieceImage } from '@robes/contracts';
 import { wardrobe as copy } from '@robes/copy';
 import { nameWithoutBrand, pieceEyebrow } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/native';
-import { fonts, Image, Skeleton, useColor } from '@robes/ui-native';
+import { shadowNative } from '@robes/tokens';
+import {
+  FINE_EDGE,
+  fonts,
+  Image,
+  maxFontSizeMultiplier,
+  Skeleton,
+  useColor,
+} from '@robes/ui-native';
 import { type ReactNode, useMemo, useRef } from 'react';
 import { Animated, PanResponder, Pressable, Text, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
@@ -135,43 +143,20 @@ export function StarButton({
   );
 }
 
-export function BoughtButton({
-  label,
-  onBought,
-  busy,
-}: {
-  label: string;
-  onBought: () => void;
-  busy: boolean;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={copy.card.boughtLabel(label)}
-      accessibilityState={{ disabled: busy }}
-      disabled={busy}
-      onPress={onBought}
-      hitSlop={(44 - 32) / 2}
-      className="h-8 items-center justify-center rounded-pill border border-rule-mid bg-surface-raised px-3.5"
-    >
-      <Text className="text-xs text-ink-muted" style={{ fontFamily: fonts.sans }}>
-        {copy.card.bought}
-      </Text>
-    </Pressable>
-  );
-}
-
 const OPEN_AT = 88;
 const REMOVE_AT = 160;
 
-// Swipe to let go (legacy _wrSwipeInit): past 44 it rests open at 88 over the Remove, past 160 it
-// removes. Screen readers get Remove as an action on the row.
+// Swipe to let go (legacy _wrSwipeInit): past 44 it rests open at 88 over the action, past 160 it
+// acts; a tap on an open row closes it. The action reads Remove (a wish) or Delete (a piece she
+// owns, which asks first). Screen readers get it as an action on the row.
 function SwipeRow({
   children,
+  removeText = copy.card.swipeRemove,
   removeLabel,
   onRemove,
 }: {
   children: ReactNode;
+  removeText?: string;
   removeLabel: string;
   onRemove: () => void;
 }) {
@@ -187,11 +172,17 @@ function SwipeRow({
     return {
       settle,
       responder: PanResponder.create({
+        // An open row takes the tap that would open the piece, and closes.
+        onStartShouldSetPanResponderCapture: () => rest.current !== 0,
         onMoveShouldSetPanResponder: (_, g) =>
           Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
         onPanResponderMove: (_, g) =>
           x.setValue(Math.max(-REMOVE_AT - 20, Math.min(0, rest.current + g.dx))),
         onPanResponderRelease: (_, g) => {
+          if (rest.current !== 0 && Math.abs(g.dx) < 8) {
+            settle(0);
+            return;
+          }
           const at = rest.current + g.dx;
           if (at <= -REMOVE_AT) {
             settle(0);
@@ -203,7 +194,7 @@ function SwipeRow({
     };
   }, [x]);
   return (
-    <View className="overflow-hidden rounded-soft bg-accent-warm">
+    <View className="overflow-hidden rounded-[3px] bg-accent-warm">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={removeLabel}
@@ -218,7 +209,7 @@ function SwipeRow({
           className="text-[10px] text-bg uppercase"
           style={{ fontFamily: fonts.sansMedium, letterSpacing: 2 }}
         >
-          {copy.card.swipeRemove}
+          {removeText}
         </Text>
       </Pressable>
       <Animated.View
@@ -235,54 +226,178 @@ function SwipeRow({
   );
 }
 
-// The rack card as the wardrobe's row: 52 × 64 photo, eyebrow, serif name, status, action, ›.
+// What a row says at its right (Front Door canvas 3b and the Rack): an owned piece's wears behind
+// a calendar ("New" before the first), a wish's price, a piece to find's price behind a bag or —
+// on a look — a wish's price behind a heart. `label` is what a reader hears.
+export interface RowMeta {
+  icon?: 'calendar' | 'heart' | 'bag';
+  text?: string;
+  label: string;
+}
+
+// The row's photo, 52 wide and the row's height, flush left (a piece to find on a dashed edge).
+const THUMB = 52;
+const ROW_HEIGHT = 65;
+
+// ONE piece row for every list of pieces (Front Door canvas 3b, PRD §6.1/§7.2): the Wardrobe's
+// Owned and Wishlist, a look's Rack, the Shop to come. Its own lifted white card (`shadow-row`),
+// the photo flush left, the category (and a look's role) in small caps, the serif name on one line
+// and the brand under it, then the meta, any action and ›. `lines` carries a row's quiet extras (a
+// read in progress, a swap's mark). Web twin: CardRow in app/src/components/wardrobe/piece-card.tsx.
 export function CardRow({
   piece,
-  status,
+  role,
+  maker,
+  dashed = false,
+  meta,
   action,
+  lines,
+  below,
   onOpen,
-  removeLabel,
-  onRemove,
+  openLabel,
+  highlight = false,
+  swipe,
+  testID,
 }: {
   piece: CardPiece;
-  status: CardStatus;
-  action: ReactNode;
+  // A look's role for the piece, after the category in the small caps.
+  role?: string;
+  // The line under the name; the brand unless the row says otherwise (a find's retailer).
+  maker?: string;
+  dashed?: boolean;
+  meta?: RowMeta | null;
+  action?: ReactNode;
+  lines?: ReactNode;
+  // A second line of the card under its face, from the text column on (a found piece's "Looks
+  // like your …", Capture PRD 1c.6).
+  below?: ReactNode;
   onOpen?: () => void;
-  removeLabel: string;
-  onRemove: () => void;
+  openLabel?: string;
+  // A row the prompt changed: the warm fill and an ink dot at its edge.
+  highlight?: boolean;
+  swipe?: { text?: string; label: string; onRemove: () => void };
+  testID?: string;
 }) {
-  const muted = useColor('ink-muted');
-  return (
-    <SwipeRow removeLabel={removeLabel} onRemove={onRemove}>
-      <View className="flex-row gap-3 rounded-soft border border-hairline bg-surface-raised py-3.5 pr-2.5 pl-3">
-        <View style={{ width: 52 }} className="overflow-hidden rounded-[6px]">
-          <Photo piece={piece} width={52} />
-        </View>
-        <View className="flex-1 justify-between">
-          <View className="flex-row items-end gap-2">
-            <Pressable
-              accessibilityRole={onOpen ? 'button' : undefined}
-              accessibilityLabel={piece.label}
-              onPress={onOpen}
-              disabled={!onOpen}
-              className="flex-1"
-            >
-              <Eyebrow piece={piece} />
-              <View className="mt-1">
-                <Name piece={piece} />
-              </View>
-            </Pressable>
-            <View className="flex-row items-center gap-1.5">
-              {action}
-              {onOpen ? <Icon name="forward" size={16} color={muted} /> : null}
+  const faint = useColor('ink-faint');
+  const name = nameWithoutBrand(piece.label, piece.brand);
+  const eye = pieceEyebrow({ ...piece, brand: null });
+  const eyebrow = [eye.category, role ?? ''].filter(Boolean).join(' · ');
+  const under = maker ?? piece.brand?.trim() ?? '';
+  const face = (
+    <View className={highlight ? 'bg-selected' : 'bg-surface-raised'}>
+      <Pressable
+        accessibilityRole={onOpen ? 'button' : undefined}
+        accessibilityLabel={openLabel ?? piece.label}
+        onPress={onOpen}
+        disabled={!onOpen}
+        testID={testID}
+        className="flex-row items-center gap-3 pr-3"
+        style={{ minHeight: ROW_HEIGHT }}
+      >
+        <View
+          className={`justify-center self-stretch overflow-hidden bg-surface-sunk ${dashed ? 'border border-dashed border-selected-line' : ''}`}
+          style={{ width: THUMB }}
+        >
+          {piece.image ? (
+            <Photo piece={piece} width={THUMB} />
+          ) : (
+            <View className="items-center justify-center" style={{ aspectRatio: 4 / 5 }}>
+              <Text className="text-xs text-ink-muted" style={{ fontFamily: fonts.sans }}>
+                {name.charAt(0)}
+              </Text>
             </View>
-          </View>
-          <View className="mt-2">
-            <Status status={status} />
-          </View>
+          )}
         </View>
+        <View className="flex-1 py-2.5">
+          <Text
+            numberOfLines={1}
+            maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+            className="text-ink-faint uppercase"
+            style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.6 }}
+          >
+            {eyebrow}
+          </Text>
+          <Text
+            numberOfLines={1}
+            className="mt-0.5 text-ink"
+            style={{ fontFamily: fonts.displayRegular, fontSize: 16, lineHeight: 20 }}
+          >
+            {name}
+          </Text>
+          {under ? (
+            <Text
+              numberOfLines={1}
+              className="text-ink-faint"
+              style={{ fontFamily: fonts.sans, fontSize: 11 }}
+            >
+              {under}
+            </Text>
+          ) : null}
+          {lines}
+        </View>
+        {meta ? (
+          <View accessible accessibilityLabel={meta.label} className="flex-row items-center gap-1">
+            {meta.icon ? (
+              <Icon name={meta.icon} size={12} color={faint} filled={meta.icon === 'heart'} />
+            ) : null}
+            {meta.text ? (
+              <Text className="text-ink-faint" style={{ fontFamily: fonts.sans, fontSize: 11 }}>
+                {meta.text}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+        {action}
+        {onOpen ? <Icon name="forward" size={14} color={faint} /> : null}
+      </Pressable>
+    </View>
+  );
+  return (
+    <View className="rounded-[3px] bg-surface-raised" style={shadowNative.row}>
+      {highlight ? (
+        <View
+          accessibilityElementsHidden
+          className="absolute z-10 size-2 rounded-pill bg-ink"
+          style={{ left: -4, top: '50%', marginTop: -4 }}
+        />
+      ) : null}
+      <View className="overflow-hidden rounded-[3px]">
+        {swipe ? (
+          <SwipeRow
+            {...(swipe.text ? { removeText: swipe.text } : {})}
+            removeLabel={swipe.label}
+            onRemove={swipe.onRemove}
+          >
+            {face}
+          </SwipeRow>
+        ) : (
+          face
+        )}
+        {below ? (
+          <View
+            className="border-hairline"
+            style={{
+              marginLeft: 64,
+              marginRight: 12,
+              paddingTop: 9,
+              paddingBottom: 10,
+              borderTopWidth: FINE_EDGE,
+            }}
+          >
+            {below}
+          </View>
+        ) : null}
       </View>
-    </SwipeRow>
+    </View>
+  );
+}
+
+// The list of rows: 3 apart (the canvas's PieceList).
+export function CardRows({ children, testID }: { children: ReactNode; testID?: string }) {
+  return (
+    <View style={{ gap: 3 }} {...(testID ? { testID } : {})}>
+      {children}
+    </View>
   );
 }
 
@@ -293,11 +408,18 @@ export function CardTile({
   status,
   action,
   onOpen,
+  compact = false,
+  onImage,
 }: {
   piece: CardPiece;
   status: CardStatus;
-  action: ReactNode;
+  action?: ReactNode;
   onOpen?: () => void;
+  // The Front Door's 3-up tile (PRD rev 3 §2.4): the photograph, the serif name on one line, the
+  // meta; no eyebrow.
+  compact?: boolean;
+  // On the photograph (a wish's heart), bottom right.
+  onImage?: ReactNode;
 }) {
   return (
     <View className="flex-1 overflow-hidden rounded-soft border border-hairline bg-surface-raised">
@@ -307,36 +429,58 @@ export function CardTile({
         onPress={onOpen}
         disabled={!onOpen}
       >
-        <View className="bg-surface-raised p-3.5">
+        <View className={compact ? 'bg-surface-raised p-1.5' : 'bg-surface-raised p-3.5'}>
           <View className="overflow-hidden rounded-crisp">
-            <Photo piece={piece} width={180} aspect="3:4" fit="contain" />
+            <Photo piece={piece} width={compact ? 120 : 180} aspect="3:4" fit="contain" />
           </View>
+          {onImage ? <View className="absolute right-2 bottom-2">{onImage}</View> : null}
         </View>
-        <View className="gap-[3px] px-3 pt-2.5 pb-3">
-          <Eyebrow piece={piece} />
-          <Name piece={piece} />
-          <Status status={status} />
-        </View>
+        {compact ? (
+          <View className="gap-[2px] px-2 pt-1.5 pb-2.5">
+            <Text
+              numberOfLines={1}
+              className="text-ink"
+              style={{ fontFamily: fonts.displayRegular, fontSize: 15, lineHeight: 19 }}
+            >
+              {nameWithoutBrand(piece.label, piece.brand)}
+            </Text>
+            <Status status={status} />
+          </View>
+        ) : (
+          <View className="gap-[3px] px-3 pt-2.5 pb-3">
+            <Eyebrow piece={piece} />
+            <Name piece={piece} />
+            <Status status={status} />
+          </View>
+        )}
       </Pressable>
-      <View className="absolute top-1.5 right-1.5">{action}</View>
+      {action ? <View className="absolute top-1.5 right-1.5">{action}</View> : null}
     </View>
   );
 }
 
-// The list ends on the dashed "+ Add a piece" row.
-export function AddRow({ onPress, label }: { onPress: () => void; label: string }) {
-  const muted = useColor('ink-muted');
+// The filled heart on a wish (PRD rev 3 §7.2): a tap lets the wish go. On a photograph it sits on
+// its own white disc; on a row it stands bare in the rose, after the price (canvas 3b).
+export function HeartButton({
+  label,
+  onPress,
+  onRow = false,
+}: {
+  label: string;
+  onPress: () => void;
+  onRow?: boolean;
+}) {
+  const ink = useColor(onRow ? 'accent-warm' : 'ink');
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      className="min-h-[52px] flex-row items-center justify-center gap-2 rounded-soft border border-dashed border-rule-mid"
+      hitSlop={onRow ? 10 : 8}
+      style={{ width: onRow ? 24 : 28, height: onRow ? 24 : 28 }}
+      className={`items-center justify-center rounded-pill ${onRow ? '' : 'bg-surface-raised/90'}`}
     >
-      <Icon name="plus" size={16} color={muted} />
-      <Text className="text-xs text-ink-muted" style={{ fontFamily: fonts.sans }}>
-        {label}
-      </Text>
+      <Icon name="heart" size={14} color={ink} filled />
     </Pressable>
   );
 }

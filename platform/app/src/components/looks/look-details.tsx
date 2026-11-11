@@ -35,6 +35,7 @@ export function LookDetails({
   onSeasons,
   onWorn,
   onCaption,
+  photos,
 }: {
   look: Look;
   onTags: () => void;
@@ -43,6 +44,8 @@ export function LookDetails({
   onWorn?: () => void;
   // The Caption is the look's name (D16): empty or unchanged keeps the name it had.
   onCaption: (name: string) => void;
+  // A saved look's images, counted; the row opens the photo strip (Capture PRD 3.1).
+  photos?: { count: number; onOpen: () => void };
 }) {
   const summary = detailSummaries(look);
   const [editing, setEditing] = useState(false);
@@ -58,6 +61,14 @@ export function LookDetails({
   };
   return (
     <DrillList testId="look-details">
+      {photos ? (
+        <DrillRow
+          label={copy.photos}
+          value={String(photos.count)}
+          onClick={photos.onOpen}
+          testId="details-photos"
+        />
+      ) : null}
       <DrillRow
         label={copy.tags}
         value={summary.tags ?? copy.none}

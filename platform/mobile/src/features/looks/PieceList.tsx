@@ -1,66 +1,43 @@
 import { lookbook } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
-import { FINE_EDGE, useColor } from '@robes/ui-native';
+import { useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
+import { CardRows } from '@/features/wardrobe/PieceCard';
 
-// Felix's PieceList: the garments in a look as one `white` list on a 0.5pt `rule-mid` edge, rows
-// divided by 0.5pt rules (each row is a RackRowCard). In edit mode the list takes the top corners
-// and the dashed add row hangs underneath. Web twin: app/src/components/looks/piece-list.tsx.
+// The garments in a look as the Front Door canvas draws them (PRD §6.1): each row its own lifted
+// card (RackRowCard), 3pt apart. On a saved look the small "+ hanger" chip under the list adds a
+// piece. Web twin: app/src/components/looks/piece-list.tsx.
 export function PieceList({
   children,
   onAdd,
   empty,
   testID,
-  rows,
 }: {
   children: ReactNode;
-  // Edit mode: the dashed + row under the list.
+  // A saved look: the + hanger chip under the list.
   onAdd?: () => void;
   empty?: ReactNode;
   testID?: string;
-  // How many rows the list holds: before the first, the add slot stands alone (Felix DraftLook:
-  // 55pt, the wardrobe glyph in its disc, every corner soft).
-  rows?: number;
 }) {
   const muted = useColor('ink-muted');
-  const bare = onAdd !== undefined && rows === 0;
   return (
-    <View testID={testID ?? 'piece-list'}>
-      {bare ? null : (
-        <View
-          className={`overflow-hidden border-rule-mid bg-surface-raised ${onAdd ? 'rounded-t-soft' : 'rounded-soft'}`}
-          style={{ borderWidth: FINE_EDGE }}
-        >
-          {children}
-        </View>
-      )}
+    <View testID={testID ?? 'piece-list'} className="gap-2.5">
+      <CardRows>{children}</CardRows>
       {empty}
       {onAdd ? (
-        <View
-          className={`items-center justify-center border-selected-line ${bare ? 'rounded-soft' : 'py-2.5'}`}
-          style={
-            bare
-              ? { minHeight: 55, borderWidth: 1, borderStyle: 'dashed' }
-              : {
-                  borderLeftWidth: FINE_EDGE,
-                  borderRightWidth: FINE_EDGE,
-                  borderBottomWidth: 1,
-                  borderStyle: 'dashed',
-                }
-          }
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={lookbook.rack.addPiece}
+          onPress={onAdd}
+          hitSlop={8}
+          testID="rack-add"
+          className="flex-row items-center justify-center gap-1 self-center rounded-[6px] bg-surface-sunk px-2.5"
+          style={{ height: 28 }}
         >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={lookbook.rack.addPiece}
-            onPress={onAdd}
-            hitSlop={8}
-            className="items-center justify-center rounded-pill bg-surface-sunk"
-            style={{ width: 32, height: 32 }}
-          >
-            <Icon name={bare ? 'wardrobe' : 'plus'} size={bare ? 15 : 13} color={muted} />
-          </Pressable>
-        </View>
+          <Icon name="plus" size={12} color={muted} />
+          <Icon name="wardrobe" size={14} color={muted} />
+        </Pressable>
       ) : null}
     </View>
   );

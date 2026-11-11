@@ -1,11 +1,37 @@
 # WardrobePiece
-The page for a single garment in her wardrobe: the product photo, its category, name and brand, then Details and Looks tabs. It has no ink action of its own; styling starts from a look, not from here.
+The page for one piece, opened from a **PieceTile** on the Wardrobe tab (frame 3b). It has a titled nav, the photo full-bleed, then three tabs: Piece · Colour · Wearing. Each tab is one white card of rows.
 
-Provide `image` (`images` and `count` feed the stack badge), `category`, `name`, `brand`, and `details`: `{category: ['Dresses', 'Mini'], colour: {name, hex}, material, seasons, occasions, worn, note}`. Handlers: `onBack`, `onImages`, `onEdit`, `onFavourite` (with `favourite`), `onTab` (with `tab`), one per detail row (`onCategory`, `onColour`, `onMaterial`, `onSeasons`, `onOccasions`, `onWorn`, `onNote`), and `onLook(i)` with `looks` (`[{img, title}]`).
+**Props**
+- `image`, plus `images` and `count` for the stack badge.
+- `name`.
+- `piece`: `{category, brand, shop, size, price, notes}`.
+- `colour`: `{colour: {name, hex}, additional: [], print: {name, swatch}, material: []}`.
+- `wearing`: `{worn: '5 times · last 27 Oct', looks: 3, seasons: [], occasions: []}`.
+- `tab` (`Piece` | `Colour` | `Wearing`) and `onTab`.
+- `shop`: true for a Shop or Wishlist piece that she doesn't own yet.
+- Handlers: `onBack`, `onAdjust`, `onImages`, `onField(label)` (every row), `onDelete`, `onAddToWardrobe`.
 
-- **Photo:** the **SavedLook** frame (1056:1323) with the back disc and the image stack, but no sparkle, because a piece isn't a render. Product shots sit on `white` and are contained, not cropped.
-- **Title block:** 20px padding. The category is the `eyebrow` style in `rose` ("DRESSES"). The name is Cormorant 24px `ink`, 10px below. The brand is Cormorant italic 300 17px `ink-soft` ("H&M"). Edit (pencil) and favourite (star) sit top-right as 18px `ink-soft` glyphs in 44px hit areas. A favourite star fills `ink`.
-- **Tabs:** Details · Looks, 20px below, with the rail running edge to edge.
-- **Details:** the drill-down card from **LookDetails** (48px rows, 9px tracked labels, 11px summaries, 14px `ink-faint` chevrons). The rows are Category ("Dresses · Mini"), Colour (a 13px swatch plus the name), Material, Seasons (glyphs plus names), Wear it for ("Evening · Party"), Worn (always `ink-faint`), and Note (with a pencil). Empty values read "None", "Year Round", "Anything" or "Not worn yet" in `ink-faint`.
-- **Looks:** a two-column grid of the looks that use this piece. Each is a 4:5 tile with `rad-tile` corners and the title in Cormorant 15px. When there are none, it shows "Not in a look yet." in Cormorant italic.
-- **No footer:** the page ends with the tab panel (32px bottom padding) and holds no `ink`-filled button. Don't add a "Style this piece" call to action here.
+**Nav.** A **TopNav** with the back chevron and the piece name as its centred serif title. There is no avatar.
+
+**Photo.** 3:4, edge to edge, cropped to cover, on `shadow-card`. The **SavedLook** controls sit on it: the sparkle disc bottom-left (adjust piece image) and the image stack with its `ink` badge bottom-right.
+
+**Tabs.** **Tabs** with Piece · Colour · Wearing, 6px below the photo.
+
+**Rows.** One white card (`rad`, 0.5px `rule-mid`). Rows are 48px tall and split by `rule` hairlines.
+- The label is 9px tracked uppercase in `ink-faint`.
+- The value is 13px Inter in `ink-faint`, right-aligned.
+- Text fields (Name, Price, Notes) end in a pencil and edit in place; pickers end in a chevron.
+- An empty value reads "Add" at weight 500.
+
+**What each tab holds**
+- **Piece:** Name, Category, Brand (Shop for a shop piece), Size, Price, Notes. Notes show below their label in Cormorant italic 300, 16px.
+- **Colour:**
+  - Colour: a 16px round swatch plus the name.
+  - Additional colours.
+  - Print: a 16px square swatch plus the name.
+  - Material.
+- **Wearing:** Worn ("5 times · last 27 Oct", or "New" at 60%), In looks (a count, or "None"), Seasons (glyphs, or "Year Round"), Wear it for.
+
+**Footer**
+- An owned piece ends with an outline "Delete piece" pill (44px, white, `ink-faint` label).
+- A shop piece has no delete. Instead, its one `ink` commit "Add to wardrobe" sits in a footer over a `rule`.

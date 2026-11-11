@@ -1,6 +1,5 @@
-import { diary, twin } from '@robes/copy';
+import { diary, twin, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { BodyShape } from '../src/features/you/BodyShape';
 import { Colouring } from '../src/features/you/Colouring';
 import { Model } from '../src/features/you/Model';
@@ -11,13 +10,6 @@ import { mockParams, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
-jest.mock('expo-image-picker', () => ({
-  CameraType: { front: 'front', back: 'back' },
-  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
-  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
-  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: true })),
-  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
-}));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -55,14 +47,9 @@ test('on a Robes model (3c): its portrait, Add a selfie, the lineup, the doors c
   expect(await screen.findByText(tw.robesModel, {}, { timeout: 4000 })).toBeTruthy();
   expect(screen.queryByText(tw.stageEmpty)).toBeNull();
   await waitFor(() => expect(twinCalls(calls)).toHaveLength(1));
-  // The one commitment is the selfie: a choice of the front camera or her photos (redlines).
+  // The one commitment is the selfie: the selfie camera, her photos a tap away (designs 03–04).
   await fireEvent.press(screen.getByTestId('twin-add-selfie'));
-  await fireEvent.press(await screen.findByTestId('selfie-camera'));
-  await waitFor(() =>
-    expect(ImagePicker.launchCameraAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ cameraType: 'front' }),
-    ),
-  );
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/selfie');
   expect(screen.getByTestId('twin-robes-tag')).toBeTruthy();
   // Colouring and Body shape are the twin's: no door opens, nothing is said under them.
   expect(screen.queryByRole('button', { name: new RegExp(tw.bodyShape) })).toBeNull();
@@ -71,8 +58,15 @@ test('on a Robes model (3c): its portrait, Add a selfie, the lineup, the doors c
   // The lineup: the five, the first ticked, nothing of her own yet; a tap stores the pick.
   expect(screen.queryByTestId('lineup-you')).toBeNull();
   expect(screen.getByTestId('lineup-1').props.accessibilityState).toMatchObject({ checked: true });
+  const order = () => screen.getAllByTestId(/^lineup-/).map((t) => t.props.testID);
+  expect(order()).toEqual(['lineup-1', 'lineup-2', 'lineup-3', 'lineup-4', 'lineup-5']);
   await fireEvent.press(screen.getByRole('radio', { name: diary.dayOne.modelPick(4) }));
   await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ preset: 4 }));
+  // The chosen one leads, ticked; the rest keep their order.
+  await waitFor(() =>
+    expect(order()).toEqual(['lineup-4', 'lineup-1', 'lineup-2', 'lineup-3', 'lineup-5']),
+  );
+  expect(screen.getByTestId('lineup-4').props.accessibilityState).toMatchObject({ checked: true });
   expect(screen.queryByTestId('twin-retake')).toBeNull();
 });
 
@@ -96,6 +90,11 @@ test('on her own twin (3d): the retake, the doors open, herself first in the lin
   expect(await screen.findByTestId('twin-retake', {}, { timeout: 4000 })).toBeTruthy();
   expect(screen.queryByText(tw.robesModel)).toBeNull();
   expect(screen.queryByTestId('twin-add-selfie')).toBeNull();
+  // The studio behind her headroom is the picture's top-left corner blown up: wall only, never a
+  // second, blurred head over hers (Annie, 10 Nov).
+  const backdrop = screen.getByTestId('twin-backdrop');
+  expect(backdrop.props.contentPosition).toEqual({ top: 0, left: 0 });
+  expect(backdrop.props.style).toMatchObject({ top: 0, left: 0, width: '400%', height: '400%' });
   // R17: no footer line under the doors; R18: the facts eyebrow.
   expect(screen.getByText(tw.readFrom)).toBeTruthy();
   await fireEvent.press(
@@ -106,11 +105,9 @@ test('on her own twin (3d): the retake, the doors open, herself first in the lin
     checked: true,
   });
   expect(screen.getByTestId('lineup-1').props.accessibilityState).toMatchObject({ checked: false });
-  // R15: the redraw control opens the chooser; her photos are a way in too.
+  // R15: the redraw control opens the selfie camera.
   await fireEvent.press(screen.getByTestId('twin-retake'));
-  await fireEvent.press(await screen.findByTestId('selfie-library'));
-  await waitFor(() => expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled());
-  expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled();
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/selfie');
   // A Robes model chosen over her: her selfie and twin stay; the pick is all that changes, and
   // the page turns to the Robes model's (3c) — no retake there.
   await fireEvent.press(screen.getByRole('radio', { name: diary.dayOne.modelPick(2) }));
@@ -145,6 +142,72 @@ test('landed from the camera: the read is followed, then the twin asked for, the
   expect(mockRouter.setParams).toHaveBeenCalledWith({ read: undefined });
 });
 
+// One wait from Use photo to her twin (Annie, 10 Nov): the read changes her colouring, which picks
+// another catalog model, before her twin lands — the picture she had holds until it does.
+test('landed from the camera: the picture she had holds, dimmed, until her twin lands', async () => {
+  const JOB = '77777777-7777-4777-8777-777777777777';
+  const BEFORE = 'https://media.test/catalog/porcelain.png';
+  const OTHER = 'https://media.test/catalog/peach.png';
+  const TWIN_URL = 'https://media.test/media/twin-new.jpg';
+  mockParams.read = JOB;
+  mockRouter.setParams.mockImplementation(() => {
+    delete mockParams.read;
+  });
+  let phase: 'reading' | 'drawing' | 'drawn' = 'reading';
+  const mine = { closeUpUrl: CLOSE_UP, stand: ownStand, filed: true };
+  const job = (status: string) => ({
+    id: JOB,
+    kind: 'stylenotes_analyse',
+    status,
+    stage: 'text',
+    output: {},
+    error: null,
+    cancelRequested: false,
+    createdAt: '2026-11-05T10:00:00.000Z',
+    updatedAt: '2026-11-05T10:00:00.000Z',
+    finishedAt: status === 'succeeded' ? '2026-11-05T10:00:01.000Z' : null,
+  });
+  const now = () =>
+    phase === 'reading'
+      ? model({ ...mine, cell: { status: 'ready', imageUrl: BEFORE } })
+      : phase === 'drawing'
+        ? model({
+            ...mine,
+            cell: { status: 'ready', imageUrl: OTHER },
+            twin: { status: 'pending', current: false, imageUrl: null },
+          })
+        : model({
+            ...mine,
+            cell: { status: 'ready', imageUrl: OTHER },
+            twin: { status: 'ready', current: true, imageUrl: TWIN_URL },
+          });
+  let polls = 0;
+  mockFetch({
+    ...TWIN,
+    'GET /me/model': () => now(),
+    'POST /me/model/twin': () => now(),
+    [`GET /jobs/${JOB}`]: () => {
+      polls += 1;
+      if (polls < 2) return job('running');
+      phase = 'drawing';
+      return job('succeeded');
+    },
+    'GET /today': {},
+  });
+  await renderWithApi(<Model />);
+  const shown = () => screen.getByLabelText(you.model.imageAlt).props.source?.[0]?.uri;
+  await waitFor(() => expect(shown()).toBe(BEFORE));
+  // The read lands and her new colouring would pick another model: hers holds while she is drawn.
+  await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ read: undefined }), {
+    timeout: 6000,
+  });
+  expect(shown()).toBe(BEFORE);
+  expect(screen.getByTestId('twin-status')).toBeTruthy();
+  phase = 'drawn';
+  await waitFor(() => expect(shown()).toBe(TWIN_URL), { timeout: 8000 });
+  expect(screen.queryByTestId('twin-status')).toBeNull();
+});
+
 const facts = (over: object = {}) => ({ ...styleDna().facts, ...over });
 
 // What drew her, read from her model and facts (the footer line it once fed went, redlines R17).
@@ -169,8 +232,12 @@ test('says so while her twin is being drawn, and shows the twin over the catalog
   });
   mockFetch({ ...TWIN, 'GET /me/model': drawing, 'POST /me/model/twin': drawing });
   await renderWithApi(<Model />);
-  expect(await screen.findByText(tw.drawing)).toBeTruthy();
-  expect(screen.getByText(tw.caption('Tan', 'Espresso'))).toBeTruthy();
+  // A redraw with no selfie starts the stage's status at the drawing (designs 06–07).
+  expect(await screen.findByText(tw.status[2])).toBeTruthy();
+  expect(screen.getByTestId('twin-status')).toBeTruthy();
+  // One wait (Annie, 10 Nov): the picture she had, dimmed under the scan; the caption is quiet.
+  expect(screen.getByTestId('scan-line')).toBeTruthy();
+  expect(screen.queryByText(tw.caption('Tan', 'Espresso'))).toBeNull();
 });
 
 test('a skin or hair she never chose is never named under her model', async () => {
@@ -210,16 +277,10 @@ test('body shape: the facts drawer, a scale by hand, back to her facts, a redraw
       facts: { sizeUk: 10 },
     }),
   );
-  // Gender is its own pill on Body shape: it opens a short list and saves on the pick.
-  await fireEvent.press(
-    screen.getByRole('button', { name: `${tw.gender}: ${twin.facts.genderOptions.woman}` }),
-  );
-  await fireEvent.press(screen.getByRole('radio', { name: twin.facts.genderOptions.man }));
-  await waitFor(() =>
-    expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/model'))?.body).toEqual({
-      presence: 'man',
-    }),
-  );
+  // Gender and age live in Style DNA › You now (Annie, 7 Nov): Body shape asks for neither.
+  expect(
+    screen.queryByRole('button', { name: `${tw.gender}: ${twin.facts.genderOptions.woman}` }),
+  ).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Hips: much fuller' }));
   await waitFor(() =>
     expect(calls.filter((c) => c.method === 'PATCH').at(-1)?.body).toEqual({ adj: { hips: 2 } }),
@@ -290,6 +351,5 @@ test('colouring with no read yet: the camera is still the one way to a season', 
   expect(await screen.findByText(tw.addSeason)).toBeTruthy();
   expect(screen.getByText(tw.skinAndHairHand)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: tw.addSelfie }));
-  await fireEvent.press(await screen.findByTestId('selfie-camera'));
-  await waitFor(() => expect(ImagePicker.launchCameraAsync).toHaveBeenCalled());
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/selfie');
 });

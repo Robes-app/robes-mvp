@@ -4,13 +4,7 @@ import { useApi, useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { home as copy, lookbook } from '@robes/copy';
 import { isTripAsk } from '@robes/core/home';
-import {
-  ASK_MAX_CHARS,
-  askDateFrom,
-  type Balance,
-  pieceNoun,
-  readBalance,
-} from '@robes/core/looks';
+import { ASK_MAX_CHARS, askDateFrom, defaultBalance, pieceNoun } from '@robes/core/looks';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/web';
 import { ErrorText, Eyebrow, IconButton, Text } from '@robes/ui';
@@ -18,8 +12,7 @@ import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 import { useFeatures } from '@/components/features';
-import { BalanceQuestion } from '@/components/looks/balance-question';
-import { SwapSheet } from '@/components/looks/swap-sheet';
+import { PiecePicker } from '@/components/looks/piece-picker';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { formatDay, localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
@@ -27,7 +20,6 @@ import { usePhotoFiling } from '@/lib/file-photo';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 
 type Attached = { kind: 'piece'; piece: Piece } | { kind: 'photo' };
-type Steer = { balance: Balance } | { balanceNote: string };
 type MenuKey = 'camera' | 'upload' | 'wardrobe';
 
 const MENU: readonly (readonly [MenuKey, string, string, IconName])[] = [
@@ -39,8 +31,8 @@ const MENU: readonly (readonly [MenuKey, string, string, IconName])[] = [
 // The new-look box (legacy _rbLookPrompt, mode new — HomePrompt 2026-10-15): her words become
 // three suggested looks on the deck for the day they name. A piece by photograph or from the
 // wardrobe sits INSIDE the box above her words and is the ask on its own: Send is three looks
-// around it. Once per new look, while she has filed anything, the box asks where the pieces come
-// from. The native twin is mobile/src/features/home/HomeBox.tsx.
+// around it. Where the pieces come from follows the Shop toggle's rest (plan 2026-11-09 R1): her
+// wardrobe alone once she has one, a mix before. The native twin is mobile/src/features/home/HomeBox.tsx.
 export function HomeBox({
   placeholder = lookbook.prompt.doorNew,
   date = null,
@@ -77,8 +69,6 @@ export function HomeBox({
   const [busy, setBusy] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Her ask, held while the box asks where its pieces come from.
-  const [held, setHeld] = useState<string | null>(null);
   const { track } = useAnalytics().analytics;
   const surface = fromHome ? 'home' : 'create';
   const { filing, file, reset } = usePhotoFiling();
@@ -94,20 +84,12 @@ export function HomeBox({
 
   const clearPiece = () => {
     setAttached(null);
-    if (held !== null) setText(held);
-    setHeld(null);
     reset();
   };
-
-  // Once per new look, while she has filed anything: the ask waits for her answer.
-  const holdFor = (words: string, steer: Steer | undefined) => {
-    if (steer || !(hasPieces || pieceForSend)) return false;
-    track('balance_asked', { surface, piece: pieceForSend !== null });
-    setHeld(words);
-    setText('');
-    return true;
-  };
-  const failed = (err: unknown, words: string) => {
+  // The Shop toggle's rest (PRD rev 3 §4.6): the box has no toggle, so the look is built from her
+  // wardrobe once she has one, and reaches for new pieces only while it is empty.
+  const balance = defaultBalance(hasPieces || pieceForSend ? 1 : 0);
+  const failed = (err: unknown) => {
     track('prompt_submitted', {
       surface,
       intent: attached ? 'piece' : 'words',
@@ -115,23 +97,13 @@ export function HomeBox({
       ok: false,
     });
     setBusy(null);
-    if (held !== null) setText(words);
-    setHeld(null);
     setError(errorCopy(err));
   };
 
-  async function send(steer?: Steer) {
+  async function send() {
     if (busy) return;
-    if (held !== null && !steer) {
-      const read = readBalance(text);
-      if (read.balance) void send({ balance: read.balance });
-      else if (read.note) void send({ balanceNote: read.note });
-      return;
-    }
-    const words = (held ?? text).trim();
+    const words = text.trim();
     setError(null);
-    if (steer)
-      track('balance_answered', { surface, balance: 'balance' in steer ? steer.balance : 'words' });
     if (attached) {
       if (stillFiling) {
         setWaiting(true);
@@ -141,20 +113,19 @@ export function HomeBox({
         setError(copy.plus.notFiled);
         return;
       }
-      if (holdFor(words, steer)) return;
       setBusy(lookbook.prompt.busyRead);
       try {
         const { jobId } = await api.call('looks.generate', {
           input: {
             anchor: { type: 'piece', pieceId: pieceForSend.id },
             ...(words ? { occasion: words.slice(0, 120) } : {}),
-            ...steer,
+            balance,
           },
         });
         track('prompt_submitted', { surface, intent: 'piece', scope: 'none', ok: true });
         router.push(`/looks/style/${jobId}${fromHome ? '?from=home' : ''}`);
       } catch (err) {
-        failed(err, words);
+        failed(err);
       }
       return;
     }
@@ -165,11 +136,10 @@ export function HomeBox({
       return;
     }
     const day = date ?? (trip ? null : askDateFrom(words, localToday()));
-    if (holdFor(words, steer)) return;
     setBusy(lookbook.prompt.busyRead);
     try {
       const { jobId } = await api.call('looks.prompt', {
-        input: { prompt: words, ...(day ? { date: day } : {}), ...steer },
+        input: { prompt: words, ...(day ? { date: day } : {}), balance },
       });
       track('prompt_submitted', {
         surface,
@@ -179,7 +149,7 @@ export function HomeBox({
       });
       router.push(`/looks/style/${jobId}${fromHome ? '?from=home' : ''}`);
     } catch (err) {
-      failed(err, words);
+      failed(err);
     }
   }
 
@@ -226,20 +196,17 @@ export function HomeBox({
         : filing.phase === 'failed'
           ? copy.plus.notFiled
           : copy.plus.readingSub;
-  const fieldHint =
-    held !== null
-      ? lookbook.prompt.balance.typed
-      : pieceForSend
-        ? copy.plus.styleFor(pieceNoun(pieceForSend.label))
-        : attached
-          ? copy.plus.placeholder
-          : date
-            ? copy.doorDay(formatDay(date))
-            : placeholder;
+  const fieldHint = pieceForSend
+    ? copy.plus.styleFor(pieceNoun(pieceForSend.label))
+    : attached
+      ? copy.plus.placeholder
+      : date
+        ? copy.doorDay(formatDay(date))
+        : placeholder;
   // A piece is the ask on its own: the arrow is ready the moment it lands.
-  const ready = held !== null ? text.trim().length > 0 : attached ? true : text.trim().length >= 2;
-  // The box opens to 24px corners on the warm edge once it holds a piece or a question.
-  const open = attached !== null || held !== null;
+  const ready = attached ? true : text.trim().length >= 2;
+  // The box opens to 24px corners on the warm edge once it holds a piece.
+  const open = attached !== null;
 
   const plus = (
     <div className="relative shrink-0">
@@ -343,16 +310,7 @@ export function HomeBox({
               <IconButton icon="close" label={copy.plus.remove} onClick={clearPiece} />
             </div>
           ) : null}
-          {held !== null ? (
-            <BalanceQuestion
-              echo={held}
-              disabled={busy !== null}
-              onPick={(b) => void send({ balance: b })}
-            />
-          ) : null}
-          <div className={held !== null ? 'border-hairline border-t pt-2' : undefined}>
-            {textarea}
-          </div>
+          {textarea}
           <div className="flex items-center justify-between">
             {plus}
             {sendButton}
@@ -397,12 +355,14 @@ export function HomeBox({
         </Text>
       ) : null}
       {error ? <ErrorText size="caption">{error}</ErrorText> : null}
-      <SwapSheet
-        open={picking}
-        swapping={null}
+      {/* The one wardrobe picker (plan 2026-11-09 PR 9); the box takes the first piece picked.
+          shortcut: a wish can't be attached to the prompt yet — the box speaks of her pieces. */}
+      <PiecePicker
+        mode={picking ? { add: true } : null}
         onRack={[]}
         onClose={() => setPicking(false)}
-        onPick={(p) => {
+        onPick={([p]) => {
+          if (!p) return;
           reset();
           setAttached({ kind: 'piece', piece: p });
           field.current?.focus();
@@ -412,8 +372,7 @@ export function HomeBox({
   );
 }
 
-// The same box on the doors that are not home (the empty Suggested tab, the Create sheet): it
-// asks the balance question whenever she has filed anything, like home's.
+// The same box on the doors that are not home (the empty Suggested tab, the Create sheet).
 export function NewLookBox({ date, autoFocus = false }: { date?: string; autoFocus?: boolean }) {
   const pieces = useApi('wardrobe.list', { input: { limit: 1 } });
   return (

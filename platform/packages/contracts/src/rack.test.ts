@@ -25,6 +25,7 @@ const mules = {
   pricePoint: '€390',
   role: 'exclamation' as const,
   wishlisted: false,
+  wishlistItemId: null,
 };
 
 describe('the rack, shared by both clients', () => {

@@ -204,7 +204,7 @@ test('a styled piece lands on the deck and home carries it on', async ({ page })
   await expect(page.getByRole('heading', { level: 1, name: /, Annie\.$/ })).toBeVisible();
   await expect(page.getByTestId('diary-strip')).toBeVisible();
   await page.getByRole('link', { name: 'Lookbook' }).first().click();
-  await page.getByRole('radio', { name: 'Suggested' }).click();
+  await page.getByRole('tab', { name: 'Suggested' }).click();
   const card = page.getByRole('list', { name: 'Suggested' }).getByRole('link', { name });
   await expect(card).toBeVisible();
   await card.click();
@@ -222,11 +222,8 @@ test('an empty day: her model with Capture · Describe · Pick; the model stack 
   const add = page.getByTestId('add-page');
   await expect(add.getByRole('button', { name: 'Describe a look for today' })).toBeVisible();
   await expect(add.getByRole('button', { name: 'Pick a look for today' })).toBeVisible();
-  // Capture is the camera itself: a hidden file input under the disc.
-  await expect(add.getByLabel('Photograph a look for today')).toHaveAttribute(
-    'capture',
-    'environment',
-  );
+  // Capture opens the camera over Home (Capture PRD 1c; capture-look.spec walks it).
+  await expect(add.getByRole('button', { name: 'Photograph a look for today' })).toBeVisible();
   expect(await seriousViolations(page), 'home, day one').toEqual([]);
 
   // Home holds no prompt box (3a, D22): Describe opens the Draft look drawer for the day, at
@@ -268,8 +265,9 @@ test('the diary: the strip selects a day, the slot adds and changes its look, De
     await api.post('/api/v1/looks', { data: { name, pieces: [] } });
   }
   const { date, diary } = await (await api.get('/api/v1/today')).json();
-  const tomorrow = diary.days[11].date;
-  const yesterday = diary.days[9].date;
+  const at = diary.days.findIndex((d: { date: string }) => d.date === date);
+  const tomorrow = diary.days[at + 1].date;
+  const yesterday = diary.days[at - 1].date;
   await page.goto('/');
 
   // Twenty-one cells, today's current; an empty day is her model with the three ways in.
@@ -280,31 +278,48 @@ test('the diary: the strip selects a day, the slot adds and changes its look, De
   await expect(page.getByTestId('disc-describe')).toBeVisible();
   expect(await seriousViolations(page), 'home, the diary').toEqual([]);
 
-  // Pick → the drawer asks what she is wearing and schedules one.
+  // Pick → the drawer asks what she is wearing and schedules one (Front Door PRD rev 3 §4.5):
+  // the ✓ waits grey until her picks change the day; the filter row and search sit under the
+  // question.
   await page.getByRole('button', { name: 'Pick a look for today' }).click();
-  const drawer = page.getByRole('dialog', { name: 'What are you wearing?' });
-  await expect(drawer.getByTestId('drawer-idle')).toHaveText('Schedule Looks');
+  const drawer = page.getByRole('dialog').filter({
+    has: page.getByRole('heading', { name: 'What are you wearing?' }),
+  });
+  await expect(drawer.getByTestId('drawer-done')).toHaveAttribute('aria-disabled', 'true');
+  await expect(drawer.getByRole('button', { name: 'Filter' })).toBeVisible();
+  await expect(drawer.getByRole('searchbox', { name: 'Search your looks' })).toBeVisible();
   await drawer.getByRole('button', { name: /Office/ }).click();
   await drawer.getByRole('button', { name: 'Schedule 1 Look' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Office');
   await expect(page.getByTestId(`diary-day-${date}`)).toHaveAccessibleName('Today, 1 look planned');
 
-  // Swap on the look changes it: one tap replaces it.
+  // Swap opens the same sheet with the day's look ticked: untick it, tick another, ✓.
   await page.getByRole('button', { name: 'Swap Office for another look' }).click();
-  await expect(drawer.getByTestId('drawer-idle')).toHaveText('Tap looks to add or take off today');
+  await expect(drawer.getByText('Scheduled')).toHaveCount(1);
+  await drawer.getByRole('button', { name: /Office/ }).click();
   await drawer.getByRole('button', { name: /Dinner/ }).click();
   await drawer.getByRole('button', { name: 'Wear this look today' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Dinner');
   await expect(page.getByTestId('ootd-card')).not.toContainText('Office');
-  // Edit opens the Edit look drawer over the day (3k, D18): 3e inside, Update look at its foot,
-  // dimmed until something changes; the tick closes while nothing waits.
+  // Edit opens the Edit look drawer over the day (3k, D18): its photo strip on the Add a photo
+  // card, and Update look and the tick both dimmed until something changes (Capture PRD 3.1);
+  // × leaves.
   await page.getByRole('link', { name: 'Edit Dinner' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/);
-  await expect(page.getByTestId('draft-look')).toBeVisible();
+  const edit = page.getByTestId('draft-look');
+  await expect(edit).toBeVisible();
   await expect(page.getByText('Edit look')).toBeVisible();
+  await expect(edit.getByTestId('image-card-add')).toBeInViewport();
   await expect(page.getByTestId('update-look')).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.getByTestId('draft-done')).toHaveAttribute('aria-disabled', 'false');
-  await page.getByTestId('draft-done').click();
+  await expect(page.getByTestId('draft-done')).toHaveAttribute('aria-disabled', 'true');
+  await edit.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByTestId('draft-look')).toHaveCount(0);
+  // The photograph's image stack opens the same drawer on Add a photo, never the look's page, so
+  // its × is always in reach (design "Add a photo to a look", Annie 11 Nov).
+  await page.getByTestId('ootd-card').getByTestId('saved-look-stack').click();
+  await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=.*images=add/);
+  await expect(edit.getByTestId('image-card-add')).toBeInViewport();
+  await edit.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByTestId('draft-look')).toHaveCount(0);
 
   // Tomorrow: empty, Describe is there; yesterday: no Describe, the tile logs a wear.
@@ -314,7 +329,9 @@ test('the diary: the strip selects a day, the slot adds and changes its look, De
   await page.getByTestId(`diary-day-${yesterday}`).click();
   await expect(page.getByTestId('disc-describe')).toHaveCount(0);
   await page.getByRole('button', { name: /^Pick a look for \w+day$/ }).click();
-  const past = page.getByRole('dialog', { name: 'What did you wear?' });
+  const past = page.getByRole('dialog').filter({
+    has: page.getByRole('heading', { name: 'What did you wear?' }),
+  });
   await past.getByRole('button', { name: /Office/ }).click();
   await past.getByRole('button', { name: 'Schedule 1 Look' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Office');
@@ -350,7 +367,7 @@ test('the diary: the strip selects a day, the slot adds and changes its look, De
 test('Describe: her words become the day’s one draft, which dresses in the slot', async ({
   page,
 }) => {
-  // Two generations: more than the default budget.
+  // A generation and its picture: more than the default budget.
   test.setTimeout(150_000);
   const errors = watchErrors(page);
   await signIn(page);
@@ -373,10 +390,7 @@ test('Describe: her words become the day’s one draft, which dresses in the slo
   );
   expect(tile, tile).toContain('tile=ready');
   await expect(page.getByRole('heading', { level: 1, name: /, Niall\.$/ })).toBeVisible();
-  // ↻ on the tile: another take, same brief, drawn in place.
-  await page.getByRole('button', { name: 'Another take, same brief' }).click();
-  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'generating');
-  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'ready', {
-    timeout: 60_000,
-  });
+  // Nothing sits on the draft's picture, and Home lists no jobs under it (design 1b).
+  await expect(page.getByTestId('draft-tile').getByRole('button')).toHaveCount(0);
+  await expect(page.getByText('In the studio')).toHaveCount(0);
 });

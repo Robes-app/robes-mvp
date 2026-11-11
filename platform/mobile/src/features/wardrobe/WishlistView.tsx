@@ -1,30 +1,89 @@
 import type { Wish } from '@robes/contracts';
 import { wardrobe as copy, ui } from '@robes/copy';
+import { shade } from '@robes/core/colour';
 import { countByCategory, formatPrice, rankCategories } from '@robes/core/wardrobe';
 import { Button, EmptyState, Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
+import { FilterRow } from '@/features/filters/FilterRow';
+import { useWardrobeFilters } from '@/features/filters/use-wardrobe-filters';
 import { errorMessage } from '@/lib/errors';
+import { usePullRefresh } from '@/lib/pull-refresh';
+import { AddPiecesSheet } from './add/AddPiecesSheet';
 import { useWardrobeLayout } from './layout';
-import { BoughtButton, CardRow, type CardStatus, CardTile } from './PieceCard';
-import { CategoryTabs, CountRow } from './WardrobeHeader';
-import { usePromoteWish, useRemoveWish, useWishes } from './wishlist';
+import { CardRow, type CardStatus, CardTile, HeartButton, type RowMeta } from './PieceCard';
+import { CountRow } from './WardrobeHeader';
+import { WardrobeFilterSheet, wearChoicesOf } from './WardrobeView';
+import { useRemoveWish, useWishes } from './wishlist';
 
-function wishStatus(wish: Wish): CardStatus {
-  return { text: copy.card.notYours(formatPrice(wish.price, wish.currency)), warm: true };
+// A wish's row says its price (or that it isn't hers yet) at the right.
+function wishMeta(wish: Wish): RowMeta {
+  const price = formatPrice(wish.price, wish.currency);
+  return price ? { text: price, label: price } : { label: copy.card.notYours(null) };
 }
 
-// Wardrobe › Wishlist: the same tabs, count row and card as the pieces (legacy 809b13e R5).
-// Wishes are added through the Add pieces sheet, opened on the Wishlist (the + on this tab).
+function wishStatus(wish: Wish): CardStatus {
+  return { text: formatPrice(wish.price, wish.currency) ?? copy.card.notYours(null), warm: true };
+}
+
+// A wish under the wardrobe's filters, here on the phone: the list is small and whole. A wish
+// carries no seasons or wear-for yet, so those sections leave it be (plan PR 3 note).
+function wishMatches(
+  wish: Wish,
+  f: { category: string | null; families: readonly string[]; brand: string | null },
+): boolean {
+  if (f.category && wish.category !== f.category) return false;
+  if (f.families.length) {
+    const family = shade(wish.colourShade)?.family;
+    if (!family || !f.families.includes(family)) return false;
+  }
+  if (f.brand && (wish.brand ?? wish.sourceLabel ?? '').toLowerCase() !== f.brand.toLowerCase())
+    return false;
+  return true;
+}
+
+// Wardrobe › Wishlist (Front Door PRD rev 3 §7.2): the same tabs, filter row and 3-up tiles as
+// Owned; a wish shows its price, and the filled heart on its photograph lets it go. The list view
+// keeps Bought and the swipe to remove. Web twin: app/src/components/wardrobe/wishlist.tsx.
 export function WishlistView() {
   const router = useRouter();
-  const { wishes, isPending, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage } =
-    useWishes();
-  const promote = usePromoteWish();
+  // The empty wishlist's door: the Add pieces sheet (PRD rev 3 §7.4) on the wishlist.
+  const [adding, setAdding] = useState(false);
+  const { wishes, isPending, isError, error, refetch, fetchNextPage, hasNextPage } = useWishes();
+  const pull = usePullRefresh(refetch);
   const remove = useRemoveWish();
   const [layout, setLayout] = useWardrobeLayout();
-  const [category, setCategory] = useState<string | null>(null);
+  const filters = useWardrobeFilters();
+  const [sheet, setSheet] = useState(false);
+  const sheetMatched = useMemo(
+    () => wishes.filter((w) => wishMatches(w, { ...filters.state, category: null })),
+    [wishes, filters.state],
+  );
+  const visible = useMemo(
+    () => sheetMatched.filter((w) => wishMatches(w, filters.state)),
+    [sheetMatched, filters.state],
+  );
+  const categories = useMemo(() => {
+    const counts = countByCategory(sheetMatched);
+    return rankCategories(counts).map((c) => ({
+      value: c,
+      label: c,
+      count: counts.find((x) => x.category === c)?.count ?? 0,
+    }));
+  }, [sheetMatched]);
+  // A wish's retailer counts as its brand (PRD §7.1a).
+  const brands = useMemo(
+    () =>
+      [
+        ...new Set(
+          wishes.flatMap((w) => ((w.brand ?? w.sourceLabel) ? [w.brand ?? w.sourceLabel] : [])),
+        ),
+      ]
+        .filter((b): b is string => !!b)
+        .sort((a, b) => a.localeCompare(b, 'en-GB')),
+    [wishes],
+  );
   if (isError) {
     return (
       <EmptyState
@@ -33,78 +92,109 @@ export function WishlistView() {
       />
     );
   }
-  const visible = category ? wishes.filter((w) => w.category === category) : wishes;
   const grid = layout === 'grid';
   return (
     <View className="flex-1">
       {wishes.length > 0 ? (
-        <>
-          <CategoryTabs
-            categories={rankCategories(countByCategory(wishes))}
-            value={category}
-            onChange={setCategory}
+        <View className="px-5 pt-3">
+          <FilterRow
+            sheetCount={filters.sheetCount}
+            onOpenSheet={() => setSheet(true)}
+            seasons={[]}
+            onRemoveSeason={() => undefined}
+            quick={categories}
+            active={filters.state.category ? [filters.state.category] : []}
+            onToggle={filters.setCategory}
+            allCount={sheetMatched.length}
+            onAll={() => filters.setCategory(null)}
+            testID="wishlist-filter-row"
           />
-          <CountRow
-            count={copy.header.wishCount(visible.length)}
-            layout={layout}
-            onLayout={setLayout}
-          />
-        </>
+        </View>
       ) : null}
       <FlatList
         testID="wishlist"
         key={layout}
         data={visible}
         keyExtractor={(w) => w.id}
-        numColumns={grid ? 2 : 1}
-        {...(grid ? { columnWrapperClassName: 'gap-3' } : {})}
-        contentContainerClassName={grid ? 'gap-5 px-6 pb-8' : 'gap-2 px-6 pb-8'}
+        numColumns={grid ? 3 : 1}
+        {...(grid ? { columnWrapperClassName: 'gap-2' } : {})}
+        contentContainerClassName={grid ? 'gap-2 px-5 pt-3 pb-8' : 'gap-[3px] px-5 pt-3 pb-8'}
         keyboardShouldPersistTaps="handled"
         onEndReachedThreshold={0.5}
         onEndReached={() => (hasNextPage ? void fetchNextPage() : undefined)}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
-        }
-        renderItem={({ item }) => {
-          const action = (
-            <BoughtButton
-              label={item.label}
-              busy={promote.isPending && promote.variables?.params.id === item.id}
-              onBought={() => promote.mutate({ params: { id: item.id } })}
-            />
-          );
-          return grid ? (
-            <CardTile piece={item} status={wishStatus(item)} action={action} />
-          ) : (
-            <CardRow
+        refreshControl={<RefreshControl {...pull} />}
+        renderItem={({ item }) =>
+          grid ? (
+            <CardTile
               piece={item}
               status={wishStatus(item)}
-              action={action}
-              removeLabel={copy.wishlist.remove(item.label)}
-              onRemove={() => remove.mutate({ params: { id: item.id } })}
+              compact
+              onOpen={() => router.push({ pathname: '/wish/[id]', params: { id: item.id } })}
+              onImage={
+                <HeartButton
+                  label={copy.wishlist.unwish(item.label)}
+                  onPress={() => remove.mutate({ params: { id: item.id } })}
+                />
+              }
             />
-          );
-        }}
+          ) : (
+            // The shared piece row (canvas 3b): the price, then the rose heart that lets it go.
+            <CardRow
+              piece={item}
+              maker={item.brand ?? item.sourceLabel ?? ''}
+              meta={wishMeta(item)}
+              action={
+                <HeartButton
+                  onRow
+                  label={copy.wishlist.unwish(item.label)}
+                  onPress={() => remove.mutate({ params: { id: item.id } })}
+                />
+              }
+              onOpen={() => router.push({ pathname: '/wish/[id]', params: { id: item.id } })}
+              swipe={{
+                label: copy.wishlist.remove(item.label),
+                onRemove: () => remove.mutate({ params: { id: item.id } }),
+              }}
+            />
+          )
+        }
+        ListHeaderComponent={
+          wishes.length > 0 ? (
+            <View className="-mx-5 -mt-3">
+              <CountRow
+                count={copy.header.wishCount(visible.length)}
+                layout={layout}
+                onLayout={setLayout}
+              />
+            </View>
+          ) : undefined
+        }
         ListEmptyComponent={
           isPending ? undefined : wishes.length === 0 ? (
             <EmptyState
+              icon="heart"
               title={copy.wishlistEmpty.title}
               body={copy.wishlistEmpty.body}
-              action={{
-                label: copy.header.savePiece,
-                onPress: () =>
-                  router.push({ pathname: '/wardrobe/add', params: { to: 'wishlist' } }),
-              }}
+              action={{ label: copy.header.savePiece, onPress: () => setAdding(true) }}
             />
           ) : (
             <View className="items-start gap-3 py-6">
               <Text tone="muted">{copy.filter.wishNothing}</Text>
-              <Button variant="quiet" onPress={() => setCategory(null)}>
+              <Button variant="quiet" onPress={filters.clear}>
                 {copy.filter.showEverything}
               </Button>
             </View>
           )
         }
+      />
+      <AddPiecesSheet open={adding} onClose={() => setAdding(false)} to="wishlist" />
+      <WardrobeFilterSheet
+        open={sheet}
+        onClose={() => setSheet(false)}
+        filters={filters}
+        brands={brands}
+        wearChoices={wearChoicesOf([])}
+        count={visible.length}
       />
     </View>
   );

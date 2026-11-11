@@ -100,57 +100,79 @@ async function choosePhoto(page: Page, label: RegExp | string) {
   await page.getByLabel(label).setInputFiles(PHOTO_PATH);
 }
 
-test('several pieces from one photo, reviewed one at a time (design "Add Piece")', async ({
-  page,
-}) => {
+test('several pieces reviewed together, then added at once (Capture PRD 3c)', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
 
   await page.goto('/wardrobe/add');
   await expect(page.getByRole('heading', { name: 'Add pieces' })).toBeVisible();
-  // The back pill (‹ Wardrobe): in the top bar on a phone, at the head of the page on desktop.
-  // Unscoped, so it finds whichever this width shows (the other is display:none); the desktop nav's
-  // own Wardrobe link carries no chevron, and the dock is hidden on this flow.
-  const back = page
-    .getByRole('link', { name: 'Wardrobe', exact: true })
-    .filter({ has: page.locator('svg') });
-  await expect(back).toBeVisible();
   await choosePhoto(page, 'Camera roll');
-  await expect(page.getByRole('heading', { name: 'Here’s what Robes saw.' })).toBeVisible({
-    timeout: 30_000,
-  });
-  // One header: the title and × beside it — no "Review" eyebrow, no back pill above it.
-  await expect(page.getByText('Review', { exact: true })).toHaveCount(0);
-  await expect(back).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Close' })).toBeVisible();
-  // Three pieces read: a strip of them, the first on the screen.
+  // The list: one row per piece Robes found, under "3 pieces".
+  const list = page.getByTestId('review-list');
+  await expect(list.getByRole('heading', { name: 'Review', exact: true })).toBeVisible();
+  const rows = list.getByTestId('review-row');
+  await expect(rows).toHaveCount(3, { timeout: 30_000 });
+  await expect(list.getByRole('heading', { name: '3 pieces' })).toBeVisible();
   await expect(
-    page.getByRole('navigation', { name: 'Pieces to review' }).getByRole('button'),
-  ).toHaveCount(3);
-  await expect(
-    page.getByRole('button', { name: /^Name\s*Cream long-sleeve t-shirt/ }),
+    list.getByText('Tap a piece to check its details. Remove anything that shouldn’t be here.'),
   ).toBeVisible();
+  const add = page.getByTestId('review-add');
+  await expect(add).toHaveText(/Add 3 to wardrobe/i);
 
-  // Any row opens its drawer; her change rides the filing.
-  await page.getByRole('button', { name: /^Name/ }).click();
+  // A row opens the piece: "Piece 1 of 3", its rows hers to change, Done back to the list.
+  await rows.nth(0).getByRole('button', { name: 'Check Cream long-sleeve t-shirt' }).click();
+  const piece = page.getByTestId('review-piece');
+  await expect(piece.getByRole('heading', { name: 'Piece 1 of 3' })).toBeVisible();
+  await expect(
+    piece.getByText('Seasons and what you wear it for live on the piece’s Wearing tab.'),
+  ).toBeVisible();
+  await piece.getByRole('button', { name: /^Name/ }).click();
   const name = page.getByRole('dialog', { name: 'Name' });
   await name.getByLabel('Name').fill('Cream long-sleeve tee');
   await name.getByRole('button', { name: 'Save' }).click();
-  await page.getByRole('button', { name: 'Add to wardrobe, next piece →' }).click();
+  await piece.getByTestId('review-done').click();
+  // Her edit is on the list.
+  await expect(rows.nth(0)).toContainText('Cream long-sleeve tee');
 
-  // The leggings aren't hers: Not this piece.
-  await expect(page.getByRole('button', { name: /^Name\s*Black leggings/ })).toBeVisible();
-  await page.getByRole('button', { name: 'Not this piece' }).click();
-  // The last piece ends the read: its button says so.
-  await expect(page.getByRole('button', { name: /^Name\s*White running shoes/ })).toBeVisible();
-  await page.getByRole('button', { name: 'Add to wardrobe →' }).click();
+  // The leggings aren't hers: × takes the row off, and the count follows.
+  await rows.nth(1).getByRole('button', { name: 'Remove Black leggings' }).click();
+  await expect(rows).toHaveCount(2);
+  await expect(add).toHaveText(/Add 2 to wardrobe/i);
+  await add.click();
 
-  await expect(page.getByRole('heading', { name: 'Two pieces filed.' })).toBeVisible();
-  await page.getByRole('link', { name: 'See your wardrobe' }).click();
+  // The wardrobe opens on them under the toast; nothing asked in between.
+  await expect(page).toHaveURL(/\/wardrobe$/, { timeout: 15_000 });
+  await expect(page.getByText('2 pieces added to your wardrobe', { exact: true })).toBeVisible();
   const grid = page.getByRole('list', { name: 'Pieces' });
   await expect(grid.getByRole('heading', { name: 'Cream long-sleeve tee' })).toBeVisible();
   await expect(grid.getByRole('heading', { name: 'White running shoes' })).toBeVisible();
   await expect(grid.getByRole('heading', { name: 'Black leggings' })).toHaveCount(0);
+});
+
+test('removing rows: the list, then the one piece, then back to Add pieces', async ({ page }) => {
+  await signIn(page);
+  await declineConsent(page);
+  await page.goto('/wardrobe/add');
+  await choosePhoto(page, 'Camera roll');
+  const rows = page.getByTestId('review-row');
+  await expect(rows).toHaveCount(3, { timeout: 30_000 });
+  await rows
+    .nth(0)
+    .getByRole('button', { name: /^Remove / })
+    .click();
+  await rows
+    .nth(0)
+    .getByRole('button', { name: /^Remove / })
+    .click();
+  // One left: its own page, with the one button to add it.
+  const piece = page.getByTestId('review-piece');
+  await expect(piece.getByRole('heading', { name: 'Review piece' })).toBeVisible();
+  await expect(piece.getByRole('button', { name: /^Name\s*White running shoes/ })).toBeVisible();
+  await expect(page.getByTestId('review-add')).toHaveText(/^Add to wardrobe$/i);
+  // Back with nothing added: the Add pieces sheet, and an empty wardrobe.
+  await piece.getByTestId('review-back').click();
+  await expect(page.getByRole('heading', { name: 'Add pieces' })).toBeVisible();
+  expect((await (await page.request.get('/api/v1/wardrobe/items')).json()).items).toEqual([]);
 });
 
 test('a photo can go to the wishlist instead', async ({ page }) => {
@@ -162,63 +184,14 @@ test('a photo can go to the wishlist instead', async ({ page }) => {
     'true',
   );
   await choosePhoto(page, 'Camera roll');
-  for (const next of [true, true, false]) {
-    await page
-      .getByRole('button', { name: next ? 'Add to wishlist, next piece →' : 'Add to wishlist →' })
-      .click({ timeout: 30_000 });
-  }
-  await expect(page.getByRole('heading', { name: 'Three pieces filed.' })).toBeVisible();
-  await page.getByRole('link', { name: 'See your wishlist' }).click();
+  await expect(page.getByTestId('review-row')).toHaveCount(3, { timeout: 30_000 });
+  await expect(page.getByTestId('review-add')).toHaveText(/Add 3 to wishlist/i);
+  await page.getByTestId('review-add').click();
+  await expect(page).toHaveURL(/\/wardrobe\/wishlist/, { timeout: 15_000 });
+  await expect(page.getByText('3 pieces added to your wishlist', { exact: true })).toBeVisible();
   const wishes = page.getByRole('list', { name: 'Wishlist' });
   await expect(wishes.getByText('Black leggings')).toBeVisible();
   // Nothing reached the wardrobe.
   await page.goto('/wardrobe');
-  await expect(
-    page.getByRole('heading', { name: 'Every look starts with a photograph.' }),
-  ).toBeVisible();
-});
-
-test('a look from a photo', async ({ page }) => {
-  await signIn(page);
-  await declineConsent(page);
-  await ownShoes(page.request);
-
-  await page.goto('/looks/new');
-  await page.getByRole('link', { name: /Start from a photo/ }).click();
-  await choosePhoto(page, /Add a photo/);
-  const cards = page.getByRole('list', { name: 'Pieces in your photo' }).getByRole('listitem');
-  await expect(cards).toHaveCount(3, { timeout: 30_000 });
-  await expect(cards.nth(0)).toContainText('Not in your rack. New?');
-  await expect(cards.nth(2)).toContainText('Your white running shoes?');
-  await expect(page.getByText('3 pieces to confirm before you save.')).toBeVisible();
-  const save = page.getByRole('button', { name: 'Save look' });
-  await expect(save).toBeDisabled();
-
-  // Yes on the match hangs her piece; Leave it out drops the tee; No, find it → it's new.
-  await cards.nth(2).getByRole('button', { name: 'Yes' }).click();
-  await cards.nth(0).getByRole('button', { name: 'Leave it out' }).click();
-  await cards.nth(0).getByRole('button', { name: 'No, find it' }).click();
-  const drawer = page.getByRole('dialog', { name: 'Find the black leggings' });
-  await expect(drawer.getByRole('button', { name: 'Pick the piece it is' })).toBeDisabled();
-  await drawer.getByRole('button', { name: 'None of these — it’s new' }).click();
-
-  const rack = page.getByRole('list', { name: 'Pieces' });
-  await expect(rack.getByText('New · filed on save')).toBeVisible();
-  await expect(rack.getByText('White running shoes')).toBeVisible();
-  await expect(page.getByText('The look · 2 pieces')).toBeVisible();
-  await page.getByLabel('Name this look').fill('Sunday run');
-  await page.getByLabel('Wearing it today, log it worn').check();
-  await save.click();
-
-  await expect(page).toHaveURL(/\/look\//, { timeout: 15_000 });
-  await expect(page.getByRole('heading', { level: 1, name: 'Sunday run' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open Black leggings' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open White running shoes' })).toBeVisible();
-  // Her photo leads the look (Felix 3e: the stack badge counts it), and the wear is logged for today.
-  await expect(page.getByTestId('saved-look-stack')).toContainText('1');
-  const lookId = page.url().split('/look/')[1];
-  const look = await (await page.request.get(`/api/v1/looks/${lookId}`)).json();
-  expect(look).toMatchObject({ timesWorn: 1, name: 'Sunday run' });
-  expect(look.image).not.toBeNull();
-  expect(look).toMatchObject({ record: 'photo' });
+  await expect(page.getByRole('heading', { name: 'Your wardrobe is empty' })).toBeVisible();
 });

@@ -17,6 +17,15 @@ export function todayIn(timezone: string, now = new Date()): string {
   }).format(now);
 }
 
+// One day's entries out of a plan read. The diary's weeks start on Monday, so today is found by
+// its date, never by its place in the page (a Monday-first page put Monday's looks on every day).
+export function entriesOn<T extends { date: string; entries: readonly unknown[] }>(
+  days: readonly T[],
+  date: string,
+): T['entries'] {
+  return days.find((d) => d.date === date)?.entries ?? [];
+}
+
 export function addDays(date: string, n: number): string {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);

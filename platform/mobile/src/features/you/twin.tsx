@@ -4,10 +4,13 @@ import { diary, twin, you } from '@robes/copy';
 import {
   BUST_CUPS,
   chosenTones,
+  lineupOrder,
   readAdj,
   stepTwinFact,
+  TWIN_STATUS_STEP_MS,
   type TwinStep,
   twinFigure,
+  twinStatusIndex,
 } from '@robes/core/avatar';
 import { euShoe, euSize, type FactStep, feetInches, stepFact } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/native';
@@ -32,6 +35,50 @@ import { useDnaMutations } from './dna';
 const copy = you.model;
 const f = twin.facts;
 export type Pick = (input: UpdateModelInput) => void;
+
+const STATUS = twin.twinPage.status;
+
+// What the stage showed when she started waiting, kept until the wait is over: her read and her
+// twin land in steps, and each would otherwise put another picture (a catalog model her new
+// colouring picks, say) in front of her before her twin arrives.
+export function useHeldWhile<T>(value: T, hold: boolean): T {
+  const held = useRef(value);
+  if (!hold) held.current = value;
+  return hold ? held.current : value;
+}
+
+// The status line a redraw with no selfie starts on: "Drawing your model".
+const DRAWING_FROM = 2;
+
+// The stage's status (designs 06–07): a line at a time while her selfie reads and her twin draws,
+// the last one holding until she lands. Null when nothing is happening. Web twin: useTwinStatus
+// in app/src/app/(app)/you/model/twin-parts.tsx.
+export function useTwinStatus(reading: boolean, drawing: boolean): string | null {
+  const busy = reading || drawing;
+  const readingNow = useRef(reading);
+  readingNow.current = reading;
+  const [run, setRun] = useState<{ at: number; fromRead: boolean } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!busy) {
+      setRun(null);
+      return;
+    }
+    setRun({ at: Date.now(), fromRead: readingNow.current });
+    setNow(Date.now());
+    const tick = setInterval(() => setNow(Date.now()), TWIN_STATUS_STEP_MS / 4);
+    return () => clearInterval(tick);
+  }, [busy]);
+  if (!busy) return null;
+  const i = twinStatusIndex({
+    count: STATUS.length,
+    drawingFrom: DRAWING_FROM,
+    startedReading: run ? run.fromRead : reading,
+    reading,
+    elapsedMs: run ? now - run.at : 0,
+  });
+  return STATUS[i] ?? null;
+}
 
 // Polls while her twin or the catalog portrait is being drawn.
 export function useModel() {
@@ -87,10 +134,10 @@ export function Section({ title, children }: { title: string; children: ReactNod
 // R11 (redlines 2026-11-05): 56×70 on the small radius, 6pt apart — five in a row, no scroll.
 const TILE = { width: 56, height: 70 };
 
-// The lineup (plan 2026-11-05 §1.4–1.5): her own model first, once she has one, then the five
-// Robes models; the one her looks stand on is ringed. Choosing a Robes model keeps her selfie and
-// twin on file; choosing herself again hands the stand back. Web twin:
-// app/(app)/you/model/twin-parts.tsx Lineup.
+// The lineup (plan 2026-11-05 §1.4–1.5): her own model, once she has one, and the five Robes
+// models, in a fixed order until she chooses; the one her looks stand on then leads, ringed
+// (lineupOrder). Choosing a Robes model keeps her selfie and twin on file; choosing herself again
+// hands the stand back. Web twin: app/(app)/you/model/twin-parts.tsx Lineup.
 export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pending: boolean }) {
   const faint = useColor('ink-faint');
   const onPlan = useColor('surface-raised');
@@ -146,26 +193,28 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
       accessibilityLabel={twin.twinPage.lineup}
       contentContainerClassName="gap-1.5"
     >
-      {own
-        ? tile(
+      {lineupOrder({ own, chosen: chosen ?? 'own' }).map((slot) => {
+        if (slot === 'own') {
+          return tile(
             'you',
             twin.twinPage.you,
             !onRobes,
             ownImage,
             () => (onRobes ? pick({ preset: null }) : undefined),
             'lineup-you',
-          )
-        : null}
-      {model.robesModels.map((m) =>
-        tile(
+          );
+        }
+        const m = model.robesModels.find((r) => r.n === slot);
+        if (!m) return null;
+        return tile(
           m.id,
           diary.dayOne.modelPick(m.n),
           m.n === chosen,
           m.imageUrl,
           () => (m.n === chosen ? undefined : pick({ preset: m.n })),
           `lineup-${m.n}`,
-        ),
-      )}
+        );
+      })}
     </ScrollView>
   );
 }
@@ -402,7 +451,7 @@ function Stepper({
 }
 
 // The facts drawer (size, never weight): height, size, bust, waist and shoes. Title and fields
-// only; her age and gender are set by their own pills on Body shape (decided 27 Oct).
+// only; her age and gender are set in Style DNA › You (Annie, 7 Nov; were pills on Body shape).
 export function FactsBody({ dna, gender }: { dna: StyleDna; gender: Model['presence'] }) {
   const { update } = useDnaMutations();
   const facts = dna.facts;

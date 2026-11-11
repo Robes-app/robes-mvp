@@ -3,11 +3,10 @@
 import { useApi, useApiMutation } from '@robes/api-client/react';
 import type { GenerateLookInput } from '@robes/contracts';
 import { looks } from '@robes/copy';
-import type { Balance } from '@robes/core/looks';
+import { defaultBalance } from '@robes/core/looks';
 import { Button, ErrorText, Field, Heading, Pill, Skeleton } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
-import { BalanceQuestion } from '@/components/looks/balance-question';
 import { errorCopy } from '@/lib/error-copy';
 
 const copy = looks.stylePiece;
@@ -19,8 +18,6 @@ export function StyleForm() {
   const [pieceId, setPieceId] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [occasion, setOccasion] = useState('');
-  // The balance question waits for her answer before the ask goes (legacy 2026-10-19).
-  const [held, setHeld] = useState(false);
   const start = useApiMutation('looks.generate', {
     onSuccess: ({ jobId }) => router.push(`/looks/style/${jobId}`),
   });
@@ -32,27 +29,17 @@ export function StyleForm() {
       ? { type: 'text', text: text.trim() }
       : null;
 
-  const go = (balance?: Balance) => {
+  // Where the pieces come from follows the Shop toggle's rest (plan 2026-11-09 R1).
+  function submit(event: FormEvent) {
+    event.preventDefault();
     if (!anchor) return;
-    setHeld(false);
     start.mutate({
       input: {
         anchor,
         ...(occasion.trim() ? { occasion: occasion.trim() } : {}),
-        ...(balance ? { balance } : {}),
+        balance: defaultBalance(ready.length),
       },
     });
-  };
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!anchor) return;
-    // Asked once per new look, and only while she has something filed to choose from.
-    if (ready.length > 0 && !held) {
-      setHeld(true);
-      return;
-    }
-    go();
   }
 
   return (
@@ -103,11 +90,10 @@ export function StyleForm() {
         onChange={(e) => setOccasion(e.target.value)}
       />
       {start.isError ? <ErrorText>{errorCopy(start.error)}</ErrorText> : null}
-      {held ? <BalanceQuestion disabled={start.isPending} onPick={(b) => go(b)} /> : null}
       <Button
         variant="primary"
         type="submit"
-        disabled={!anchor || held}
+        disabled={!anchor}
         loading={start.isPending || start.isSuccess}
         loadingLabel={copy.starting}
         className="self-start"

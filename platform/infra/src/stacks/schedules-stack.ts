@@ -70,6 +70,12 @@ export const SCHEDULES: ScheduleSpec[] = [
     description: 'Hourly: discarded look photos, and ones a day old never attached, are deleted',
   },
   {
+    name: 'receipt-photos',
+    expression: scheduler.ScheduleExpression.cron({ minute: '40', ...UTC }),
+    queue: 'maintenance',
+    description: 'Hourly: waiting receipt lines whose photos were never asked of the fetcher',
+  },
+  {
     name: 'batch-poll',
     expression: scheduler.ScheduleExpression.rate(Duration.minutes(5)),
     queue: 'jobs-batch',

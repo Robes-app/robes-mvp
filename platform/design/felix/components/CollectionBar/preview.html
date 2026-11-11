@@ -1,0 +1,26 @@
+<!-- @dsCard group="Navigation" height=420 width=860 subtitle="Lookbook and Wardrobe headers under a glass TopNav" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>CollectionBar — preview</title></head>
+<body>
+<div id="root" style="display:flex;gap:24px;padding:16px;background:var(--cream-300);width:max-content;align-items:flex-start"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+function Bar(p) {
+  var s = React.useState(p.value), f = React.useState('All'), v = React.useState('grid');
+  return h('div', { style: { width: 390, background: 'var(--cream)', borderRadius: 'var(--rad-device)', overflow: 'hidden', paddingBottom: 16 } },
+    h(F.TopNav, { glass: true, title: p.title }),
+    h('div', { style: { padding: '0 20px' } }, h(F.CollectionBar, Object.assign({}, p, { value: s[0], onChange: s[1], filter: f[0], onFilter: f[1], view: v[0], onView: v[1], onAdd: function () {} }))));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h(Bar, { title: 'Lookbook', value: 'saved', addLabel: 'New look',
+    segments: [{ key: 'saved', label: 'Saved', icon: 'bookmark' }, { key: 'sug', label: 'Suggested', icon: 'sparkle' }],
+    filters: [{ label: 'All', count: 5 }, { label: 'Work', count: 3 }, { label: 'Weekend', count: 1 }, { label: 'Evening', count: 0 }, { label: 'Active', count: 1 }],
+    search: { placeholder: 'Search looks' } }),
+  h(Bar, { title: 'Your wardrobe', value: 'owned', addLabel: 'Add pieces',
+    segments: [{ key: 'owned', label: 'Owned', icon: 'wardrobe' }, { key: 'wish', label: 'Wishlist', icon: 'heart' }, { key: 'shop', label: 'Shop', icon: 'bag' }],
+    filters: [{ label: 'All', count: 12 }, { label: 'Tops', count: 2 }, { label: 'Knitwear', count: 1 }, { label: 'Bottoms', count: 2 }, { label: 'Outerwear', count: 2 }, { label: 'Shoes', count: 3 }],
+    search: { placeholder: 'Search your wardrobe' } })));
+</script>
+</body>
+</html>

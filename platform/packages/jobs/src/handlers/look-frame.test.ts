@@ -132,12 +132,22 @@ describe('look_render: Robes’ frame of a look', () => {
   });
 
   it('draws a suggestion’s first frame from its set when it has none', async () => {
-    const { run, generateImage } = setup({ frameAssetId: null });
+    const { run, generateImage } = setup({ frameAssetId: null, status: 'suggested' });
     await run();
     const req = generateImage.mock.calls[0]?.[0];
     expect(req?.capability).toBe('image.secondary');
     expect(req?.prompt).toContain('Look: "Garden party" — Evening.');
     expect(req?.prompt).toContain('The scene: A long lunch in the sun.');
+  });
+
+  // Design 1b: her draft is dressed on her model in the studio, never set in a scene.
+  it('draws her draft’s first frame on her model in the studio', async () => {
+    const { run, generateImage } = setup({ frameAssetId: null });
+    await run();
+    const prompt = generateImage.mock.calls[0]?.[0].prompt ?? '';
+    expect(prompt).toContain('Look: "Garden party" — Evening.');
+    expect(prompt).toContain('clean warm-grey studio backdrop');
+    expect(prompt).not.toContain('A long lunch in the sun');
   });
 
   it('stands down when the rack moved on, and gives the claim back on failure', async () => {
@@ -151,19 +161,19 @@ describe('look_render: Robes’ frame of a look', () => {
 
   it('with no model of her own, the k-th way stands on the k-th Robes model', async () => {
     const cell = vi.fn(async (key: string) =>
-      key === 'w-r2@v1'
+      key === 'w-r2@v2'
         ? {
             id: key,
             status: 'ready',
-            bucketKey: 'catalog/avatar/w-r2@v1.png',
+            bucketKey: 'catalog/avatar/w-r2@v2.png',
             contentType: 'image/png',
           }
         : undefined,
     );
     const { run, generateImage, storage } = setup({ frameAssetId: null }, { cell });
     await run();
-    expect(cell).toHaveBeenCalledWith('w-r2@v1');
-    expect(storage.getObject).toHaveBeenCalledWith('catalog/avatar/w-r2@v1.png');
+    expect(cell).toHaveBeenCalledWith('w-r2@v2');
+    expect(storage.getObject).toHaveBeenCalledWith('catalog/avatar/w-r2@v2.png');
     expect(generateImage.mock.calls[0]?.[0]?.references?.[0]?.mimeType).toBe('image/png');
   });
 
@@ -171,7 +181,7 @@ describe('look_render: Robes’ frame of a look', () => {
     const cell = vi.fn(async () => undefined);
     const { run, generateImage } = setup({ frameAssetId: null }, { cell });
     await run();
-    expect(cell).toHaveBeenCalledWith('w-r2@v1');
+    expect(cell).toHaveBeenCalledWith('w-r2@v2');
     expect(generateImage.mock.calls[0]?.[0]?.references).toHaveLength(1);
   });
 });
@@ -218,13 +228,13 @@ describe('modelReference', () => {
     const d = deps(FRAME, { modelPreset: 4 });
     const chosen = await modelReference(d, USER, { wearer: 'woman', index: 1 });
     expect(chosen.on).toBe('robes');
-    expect(new TextDecoder().decode(chosen.image?.data)).toBe('catalog/avatar/w-r4@v1.png');
+    expect(new TextDecoder().decode(chosen.image?.data)).toBe('catalog/avatar/w-r4@v2.png');
     // None chosen, nothing of her own: the k-th way on the k-th Robes model.
     const kth = await modelReference(deps(null, { filedCellId: null }), USER, {
       wearer: 'man',
       index: 6,
     });
     expect(kth.on).toBe('robes');
-    expect(new TextDecoder().decode(kth.image?.data)).toBe('catalog/avatar/m-r2@v1.png');
+    expect(new TextDecoder().decode(kth.image?.data)).toBe('catalog/avatar/m-r2@v2.png');
   });
 });

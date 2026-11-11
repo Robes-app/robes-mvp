@@ -7,6 +7,7 @@ import {
   type DayPlace,
   FALLBACK_PIECE,
   FEATURE,
+  type FrameSetting,
   MAX_OUTPUT_TOKENS,
   type Mode,
   normalisePieces,
@@ -18,6 +19,8 @@ import {
   type StoredPiece,
   sceneOf,
   VERSION,
+  type WantedPiece,
+  wantedByLabel,
 } from '@robes/ai/prompts/style-piece';
 import { KeyPieceJobInput } from '@robes/contracts';
 import { LANDSCAPES, type PlaceRead, readPlace } from '@robes/core/landscape';
@@ -128,7 +131,18 @@ export const StoredSet = z.object({
     .array(z.object({ pieceId: z.uuid(), label: z.string() }))
     .optional()
     .catch(undefined),
+  // Made as her draft (Describe on Home): its picture stands on her model in the studio.
+  draft: z.boolean().optional().catch(undefined),
 });
+
+// Where a set's look is drawn (style-piece v8): her draft, or a look made as one, on her model in
+// the studio (design 1b); a suggestion in its scene.
+export function frameSetting(
+  status: string,
+  set: Pick<z.infer<typeof StoredSet>, 'draft'> | null,
+): FrameSetting {
+  return status === 'draft' || set?.draft === true ? 'studio' : 'scene';
+}
 
 // The sets Robes already made her, read back as titles and piece names (ALREADY SHOWN).
 const RecentRow = z.object({
@@ -201,7 +215,9 @@ export function specFromWay(
       retailerHint: p.retailerHint,
       pricePoint: p.pricePoint,
       role: role ?? 'canvas',
-      wishlisted: false,
+      // A piece from her wishlist (Shop on, v7) is already hers to find.
+      wishlisted: Boolean(p.wishlistItemId),
+      wishlistItemId: p.wishlistItemId ?? null,
     });
   }
   if (o.anchorPieceId && !pieces.some((x) => x.pieceId === o.anchorPieceId)) {
@@ -238,6 +254,21 @@ function askDetail(steer: Steer, day: DayContext | null = null): Record<string, 
     ...(shown ? { shown } : {}),
     ...(place && (place.landscapes.length || place.wx !== 'today') ? { place } : {}),
   };
+}
+
+// With Shop on (`mix`), a proposal that names a piece on her wishlist by its exact label is that
+// wish (v7): the look's row reads Wishlist and Save never files it twice.
+function markWants(
+  pieces: StoredPiece[],
+  ctx: { wishes?: readonly WantedPiece[] },
+  steer: Steer,
+): StoredPiece[] {
+  if (steer.balance !== 'mix' || !ctx.wishes?.length) return pieces;
+  return pieces.map((p) => {
+    if (p.pieceId) return p;
+    const wish = wantedByLabel(p.name, ctx.wishes);
+    return wish ? { ...p, wishlistItemId: wish.id } : p;
+  });
 }
 
 // Counted on the pieces as they will be stored, so the row says what she was actually shown.
@@ -433,6 +464,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       spec: SuggestedSpec;
       // Her note on the picture (D21): a re-dress keeps it.
       pictureNote?: string | null;
+      setting: FrameSetting;
     },
   ): Promise<boolean> {
     await deps.styling.trackImage({
@@ -585,7 +617,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         const way = {
           ...raw,
           scene: sceneOf(raw),
-          pieces: normalisePieces(raw.pieces, styleCtx.closet),
+          pieces: markWants(normalisePieces(raw.pieces, styleCtx.closet), styleCtx, steer),
         };
         const spec = specFromWay(way, found.look.setIndex ?? 0, {
           anchorPieceId: anchorPiece?.id ?? null,
@@ -616,6 +648,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           styleIcons: styleCtx.styleIcons,
           spec,
           pictureNote: found.look.pictureNote,
+          setting: frameSetting(found.look.status, set.data),
         });
         return { status: 'succeeded' };
       }
@@ -698,7 +731,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       const ways = out.ways.slice(0, count).map((w) => ({
         ...w,
         scene: sceneOf(w),
-        pieces: normalisePieces(w.pieces, styleCtx.closet),
+        pieces: markWants(normalisePieces(w.pieces, styleCtx.closet), styleCtx, steer),
       }));
       const label = fallback ? FALLBACK_PIECE : anchor.label;
       const setId = await deps.styling.createSet(ctx.userId, {
@@ -718,6 +751,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           balance: steer.balance,
           balanceNote: steer.balanceNote,
           ...(around.length ? { around } : {}),
+          ...(draft ? { draft: true } : {}),
           images: [],
           promptVersion: VERSION,
         },
@@ -759,6 +793,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         rack: rackOf(hero.pieces, styleCtx.closet),
         styleIcons: styleCtx.styleIcons,
         spec: heroSpec,
+        setting: draft ? 'studio' : 'scene',
       });
       return { status: landed ? 'succeeded' : 'partial', artifactId: setId };
     },

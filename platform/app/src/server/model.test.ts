@@ -63,7 +63,10 @@ const repos = {
     setRenderJob: vi.fn(async () => {}),
     releaseRender: vi.fn(async () => {}),
   },
-  jobs: { getForUser: vi.fn(async () => undefined) },
+  jobs: {
+    getForUser: vi.fn(async () => undefined),
+    latest: vi.fn(async (): Promise<unknown> => undefined),
+  },
 };
 const LOOK = '55555555-5555-4555-8555-555555555555';
 let look: Record<string, unknown> = { status: 'draft', frameAssetId: null, styling: {} };
@@ -83,9 +86,8 @@ vi.mock('./asset-urls', () => ({
   })),
 }));
 
-const { drawTwin, ensureRobesModels, loadModel, renderOnModel, updateModel } = await import(
-  './model'
-);
+const { drawTwin, drawTwinFromSelfie, ensureRobesModels, loadModel, renderOnModel, updateModel } =
+  await import('./model');
 const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const req = new Request('https://robes.test/api/v1/me/model/twin', { method: 'POST' });
 
@@ -94,8 +96,10 @@ beforeEach(() => {
   row = { ...base };
   look = { status: 'draft', frameAssetId: null, styling: {} };
   repos.model.get.mockImplementation(async () => row);
+  repos.model.savePicks.mockImplementation(async () => {});
   repos.avatarCells.get.mockImplementation(async () => undefined);
   repos.avatarCells.claim.mockImplementation(async () => false);
+  repos.jobs.latest.mockImplementation(async () => undefined);
 });
 
 describe('her twin', () => {
@@ -171,6 +175,82 @@ describe('her twin', () => {
   });
 });
 
+describe('her selfie’s twin, drawn while its colouring is read', () => {
+  const NEW = '66666666-6666-4666-8666-666666666666';
+  const READ = '77777777-7777-4777-8777-777777777777';
+  const selfie = { closeUpAssetId: NEW, readJobId: READ };
+  const keyed = () => twinKey({ ...twinInputsOf(row), closeUpAssetId: NEW });
+
+  it('starts from the new close-up on a job of its own, never the read’s Idempotency-Key', async () => {
+    const ask = new Request('https://robes.test/api/v1/me/style/analyse', {
+      method: 'POST',
+      headers: { 'idempotency-key': '88888888-8888-4888-8888-888888888888' },
+    });
+    const key = await keyed();
+    await drawTwinFromSelfie(USER, ask, selfie);
+    expect(repos.model.claimTwin).toHaveBeenCalledWith(USER, key);
+    expect(createAndEnqueueJob).toHaveBeenCalledWith(
+      USER,
+      {
+        kind: 'avatar_cell',
+        input: { target: 'twin', twinKey: key, early: selfie },
+        quota: { metric: 'generation.image', cost: 1 },
+      },
+      undefined,
+    );
+    expect(startJob).not.toHaveBeenCalled();
+  });
+
+  it('starts nothing for the twin she already has, or a draw already claimed', async () => {
+    row = { ...base, twinAssetId: TWIN, twinKey: await keyed() };
+    await drawTwinFromSelfie(USER, req, selfie);
+    expect(repos.model.claimTwin).not.toHaveBeenCalled();
+    row = { ...base };
+    repos.model.claimTwin.mockResolvedValueOnce(false);
+    await drawTwinFromSelfie(USER, req, selfie);
+    expect(createAndEnqueueJob).not.toHaveBeenCalled();
+  });
+
+  it('draws nothing while her colour read runs: the selfie’s twin is on its way', async () => {
+    const reading = (over: Record<string, unknown> = {}) => ({
+      status: 'running',
+      input: { kind: 'colour', assetId: NEW },
+      createdAt: new Date(),
+      ...over,
+    });
+    repos.jobs.latest.mockResolvedValueOnce(reading());
+    await drawTwin(USER, req);
+    expect(repos.model.claimTwin).not.toHaveBeenCalled();
+    // A read lost long ago, or a silhouette read, holds nothing up.
+    for (const over of [
+      { createdAt: new Date(Date.now() - 6 * 60_000) },
+      { input: { kind: 'silhouette', assetId: NEW } },
+      { status: 'succeeded' },
+    ]) {
+      repos.jobs.latest.mockResolvedValueOnce(reading(over));
+      await drawTwin(USER, req);
+    }
+    expect(repos.model.claimTwin).toHaveBeenCalledTimes(3);
+  });
+
+  it('once the read lands, the ask finds it drawing: nothing new starts, and the selfie wins', async () => {
+    const key = await twinKey(twinInputsOf({ ...base, headshotAssetId: NEW }));
+    row = {
+      ...base,
+      headshotAssetId: NEW,
+      modelPreset: 3,
+      twinDrawKey: key,
+      twinDrawStatus: 'pending',
+      twinDrawAt: new Date(),
+    };
+    repos.model.claimTwin.mockResolvedValueOnce(false);
+    const m = await drawTwin(USER, req);
+    expect(startJob).not.toHaveBeenCalled();
+    expect(repos.model.savePreset).toHaveBeenCalledWith(USER, null);
+    expect(m.twin.status).toBe('pending');
+  });
+});
+
 describe('a Robes model chosen', () => {
   it('is remembered as a pick, never as skin and hair, and its portraits are drawn once', async () => {
     row = { ...base, filedCellId: null };
@@ -180,11 +260,11 @@ describe('a Robes model chosen', () => {
     expect(repos.model.savePicks).not.toHaveBeenCalled();
     expect(repos.model.file).not.toHaveBeenCalled();
     expect(repos.avatarCells.claim.mock.calls.map((c) => (c as unknown[])[0])).toEqual([
-      'w-r1@v1',
-      'w-r2@v1',
-      'w-r3@v1',
-      'w-r4@v1',
-      'w-r5@v1',
+      'w-r1@v2',
+      'w-r2@v2',
+      'w-r3@v2',
+      'w-r4@v2',
+      'w-r5@v2',
     ]);
     expect(startJob).not.toHaveBeenCalled();
   });
@@ -206,10 +286,29 @@ describe('a Robes model chosen', () => {
     expect(repos.model.savePreset).not.toHaveBeenCalled();
   });
 
+  it('moves her to the other wearer’s five when her gender changes, filing and charging nothing', async () => {
+    row = { ...base, filedCellId: null };
+    repos.model.savePicks.mockImplementation(async () => {
+      row = { ...row, genderIdentity: 'man' };
+    });
+    repos.avatarCells.claim.mockResolvedValue(true);
+    await updateModel(USER, req, { presence: 'man' });
+    expect(repos.model.savePicks).toHaveBeenCalledWith(USER, {}, 'man');
+    expect(repos.model.file).not.toHaveBeenCalled();
+    expect(startJob).not.toHaveBeenCalled();
+    expect(repos.avatarCells.claim.mock.calls.map((c) => (c as unknown[])[0])).toEqual([
+      'm-r1@v2',
+      'm-r2@v2',
+      'm-r3@v2',
+      'm-r4@v2',
+      'm-r5@v2',
+    ]);
+  });
+
   it('shows which one, with all five for her wearer', async () => {
     row = { ...base, genderIdentity: 'man', modelPreset: 5, filedCellId: null };
     repos.avatarCells.get.mockImplementation(async (key: string) =>
-      key === 'm-r5@v1' ? readyCell(key) : undefined,
+      key === 'm-r5@v2' ? readyCell(key) : undefined,
     );
     const m = await loadModel(USER);
     expect(m.preset).toBe(5);
@@ -220,9 +319,9 @@ describe('a Robes model chosen', () => {
       ['m-r4', 4, 'none'],
       ['m-r5', 5, 'ready'],
     ]);
-    expect(m.robesModels[4]?.imageUrl).toBe('https://m.test/catalog/avatar/m-r5@v1.png');
+    expect(m.robesModels[4]?.imageUrl).toBe('https://m.test/catalog/avatar/m-r5@v2.png');
     expect(m.stand).toEqual({
-      imageUrl: 'https://m.test/catalog/avatar/m-r5@v1.png',
+      imageUrl: 'https://m.test/catalog/avatar/m-r5@v2.png',
       generic: true,
       on: 'robes',
     });
@@ -235,15 +334,15 @@ describe('the Robes models', () => {
     repos.avatarCells.claim.mockResolvedValue(true);
     await ensureRobesModels(USER);
     expect(repos.avatarCells.claim.mock.calls.map((c) => (c as unknown[])[0])).toEqual([
-      'm-r1@v1',
-      'm-r2@v1',
-      'm-r3@v1',
-      'm-r4@v1',
-      'm-r5@v1',
+      'm-r1@v2',
+      'm-r2@v2',
+      'm-r3@v2',
+      'm-r4@v2',
+      'm-r5@v2',
     ]);
     expect(createAndEnqueueJob).toHaveBeenCalledWith(USER, {
       kind: 'avatar_cell',
-      input: { cellKey: 'm-r1@v1' },
+      input: { cellKey: 'm-r1@v2' },
     });
     expect(startJob).not.toHaveBeenCalled();
   });
@@ -269,7 +368,7 @@ describe('what a new look stands on', () => {
     row = { ...base, filedCellId: null };
     repos.avatarCells.get.mockImplementation(readyCell);
     expect((await loadModel(USER)).stand).toEqual({
-      imageUrl: 'https://m.test/catalog/avatar/w-r1@v1.png',
+      imageUrl: 'https://m.test/catalog/avatar/w-r1@v2.png',
       generic: true,
       on: 'robes',
     });
@@ -290,7 +389,7 @@ describe('what a new look stands on', () => {
     });
     row = { ...base, twinAssetId: TWIN, twinKey: 'k', modelPreset: 2 };
     expect((await loadModel(USER)).stand).toMatchObject({
-      imageUrl: 'https://m.test/catalog/avatar/w-r2@v1.png',
+      imageUrl: 'https://m.test/catalog/avatar/w-r2@v2.png',
       on: 'robes',
     });
   });
@@ -312,11 +411,11 @@ describe('a look on her model', () => {
   it('stands a look on the Robes model while she has none, drawing it first if need be', async () => {
     row = { ...base, filedCellId: null, modelPreset: 4 };
     await expect(renderOnModel(USER, req, LOOK)).rejects.toMatchObject({ code: 'conflict' });
-    expect(repos.avatarCells.claim).toHaveBeenCalledWith('w-r4@v1');
+    expect(repos.avatarCells.claim).toHaveBeenCalledWith('w-r4@v2');
     expect(startJob).not.toHaveBeenCalled();
     repos.avatarCells.get.mockImplementation(readyCell);
     await renderOnModel(USER, req, LOOK);
-    expect((repos.looks.claimRender.mock.calls[0] as unknown[])[2]).toMatch(/^w-r4@v1:/);
+    expect((repos.looks.claimRender.mock.calls[0] as unknown[])[2]).toMatch(/^w-r4@v2:/);
   });
 
   it('stands a look on her twin once drawn, keyed by the twin', async () => {

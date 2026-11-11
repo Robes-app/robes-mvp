@@ -1,5 +1,8 @@
 # Digital twin · Robes models: implementation plan
 
+Update 2026-11-07: the women's five are Annie's chosen portraits, preloaded at style v2
+(`runbooks/robes-models.md`); the lineup leads with the chosen one; gender and age moved from Body
+shape to Style DNA › You, so a Robes model can change wearer.
 Status: plan, 2026-11-05 (Annie + Claude). Not started. Owner: Annie.
 Web (staging.byrobes.com) and native (Expo) land together (CLAUDE.md). Platform only; the legacy
 beta app is untouched.

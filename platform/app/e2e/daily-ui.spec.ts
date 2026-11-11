@@ -40,7 +40,7 @@ test('Style it for today: from Today to four steps, then named into a Look', asy
   await expect(page.getByRole('heading', { level: 1, name: 'Studio to dinner' })).toBeVisible();
 });
 
-test('the daily look page opens by id, and the tray links to it', async ({ page }) => {
+test('the daily look page opens by id', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
   const { jobId } = await (await page.request.post('/api/v1/today/generate', { data: {} })).json();
@@ -54,12 +54,7 @@ test('the daily look page opens by id, and the tray links to it', async ({ page 
     )
     .toBeTruthy();
   const { output } = await (await page.request.get(`/api/v1/jobs/${jobId}`)).json();
-  await page.goto('/');
-  await page
-    .getByRole('region', { name: 'In the studio' })
-    .getByRole('link', { name: /Style it for today/ })
-    .click();
-  await expect(page).toHaveURL(`/today/looks/${output.dailyLookId}`);
+  await page.goto(`/today/looks/${output.dailyLookId}`);
   await expect(page.getByRole('heading', { level: 2, name: 'The anchor' })).toBeVisible();
 });
 

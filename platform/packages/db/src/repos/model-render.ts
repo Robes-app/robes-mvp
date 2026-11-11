@@ -105,5 +105,43 @@ export function modelRenderRepo(db: Db) {
     failTwin(userId: UserId, key: string) {
       return failTwin(db, userId, key);
     },
+
+    // Her selfie's twin landed: she stands on it, over a Robes model she chose (the selfie wins).
+    async standOnTwin(userId: UserId): Promise<void> {
+      await db
+        .updateTable('profiles')
+        .set({ modelPreset: null })
+        .where('id', '=', userId)
+        .execute();
+    },
+
+    // The close-up a twin started early is drawn from: hers, a headshot, and how its render stands.
+    closeUp(userId: UserId, assetId: string) {
+      return db
+        .selectFrom('assets')
+        .select(['status'])
+        .where('userId', '=', userId)
+        .where('id', '=', assetId)
+        .where('kind', '=', 'headshot')
+        .executeTakeFirst();
+    },
+
+    // How her colour read of that close-up ended: an early twin is kept only once the read has
+    // taken the photo as hers ('read'); no face, a failed read or a lost job is 'refused'.
+    async colourRead(userId: UserId, jobId: string): Promise<'reading' | 'read' | 'refused'> {
+      const job = await db
+        .selectFrom('generationJobs')
+        .select([
+          'status',
+          sql<boolean>`coalesce((output ->> 'noSubject')::boolean, false)`.as('noSubject'),
+        ])
+        .where('userId', '=', userId)
+        .where('id', '=', jobId)
+        .where('kind', '=', 'stylenotes_analyse')
+        .executeTakeFirst();
+      if (!job) return 'refused';
+      if (job.status === 'queued' || job.status === 'running') return 'reading';
+      return job.status === 'succeeded' && !job.noSubject ? 'read' : 'refused';
+    },
   };
 }

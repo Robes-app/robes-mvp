@@ -225,12 +225,6 @@ export function AdjustDock({
         <span className="min-w-0 flex-1 truncate font-display text-[17px] font-light italic text-ink-muted">
           {adjust.placeholder}
         </span>
-        {adjust.badge ? (
-          <span className="flex h-[22px] min-w-[22px] items-center justify-center rounded-pill bg-ink px-1.5 font-medium font-sans text-[10px] text-bg">
-            <span aria-hidden>{adjust.badge}</span>
-            <span className="sr-only">{d.behind(adjust.badge)}</span>
-          </span>
-        ) : null}
         <span className="flex size-9 items-center justify-center rounded-pill bg-surface-sunk text-ink">
           <Icon name="forward" size={15} />
         </span>

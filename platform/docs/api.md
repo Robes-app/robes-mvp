@@ -88,7 +88,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `POST /me/location` `{ lat, lon }` → `{ ok }` (10/h/user) | browser geolocation + Nominatim in the client (`dashboard-personalize.js`) | her device position, sent only after she allowed it: rounded to 2 decimals (~1 km), named server-side by Nominatim (rounded coords only, no user id), written to `home_lat`/`home_lon`/`home_city`; an unnamed place keeps her city |
 | `PUT /me/style/palette` (Your colours and Your prints: avoid · love per family, shade and print) | Settings `style_dna.palette` |
 | `GET /me/features` | `_RB_TRIP_HIDDEN`, `?trip=on` | the flagged doors clients show (`trips`, `homeDiary`); flags stay server-side |
-| `GET /me/notifications` · `POST /me/notifications/dismiss` `{ key }` | home's receipts strip and the 7-day nudges mail | the bell (plan 2026-11-02): receipts to review and the last week's unlogged days, computed per read; a dismissed key is kept in `user_ui_state.dismissed` for 30 days |
+| `GET /me/notifications` · `POST /me/notifications/dismiss` `{ key }` or `{ all: true }` | home's receipts strip and the 7-day nudges mail | the bell (plan 2026-11-02): receipts to review and the last week's unlogged days, computed per read; a dismissed key is kept in `user_ui_state.dismissed` for 30 days |
 | `POST /me/onboarding/complete` | client writes `onboarded_at` | server sets |
 | `GET/PATCH /me/preferences` | notification_prefs, avatar_prefs, localStorage state | incl. `user_ui_state` |
 | `POST /me/push-tokens`, `DELETE /me/push-tokens/:id` | — | native |
@@ -109,23 +109,23 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Wardrobe
 | New | Legacy |
 |---|---|
-| `GET /wardrobe/items` (filters incl. `colourFamily`) · `POST` · `PATCH /:id` (incl. `colourShade` / `colourExtra` / `print` / `material`) · `DELETE /:id` (soft, undoable) · `POST /:id/restore` | client REST `wardrobe_items` |
+| `GET /wardrobe/items` (filters: `category`, `seasons[]` with `year_round` for the untagged, `colourFamilies[]`, `wearFor[]`, `brand`; `seasonBand`/`colourFamily` kept for installed builds) · `POST` · `PATCH /:id` (incl. `colourShade` / `colourExtra` / `print` / `material`) · `DELETE /:id` (soft, undoable) · `POST /:id/restore` | client REST `wardrobe_items` |
 | `POST /wardrobe/items/batch` (N uploaded assets → N draft items + analyse jobs) | — (new: batch capture) |
 | `POST /wardrobe/items/:id/photo` `{ assetId }` → `Piece` (Change photo: her uploaded `wardrobe` asset replaces the piece's photograph; no re-read, her fields stay; 404 for an asset or piece that isn't hers; 60/min) | `/api/wardrobe/upload` + client `PATCH wardrobe_items.image_url` |
-| `POST /wardrobe/photo-reads` (one photo → `wardrobe_pieces` job: every piece, its box, crop and match) · `POST /:id/file` (each answered piece filed once, with her edits on any field; `to: 'wardrobe' \| 'wishlist'`, default wardrobe — a wishlist filing takes `add`/`skip` only and is idempotent on the crop) · `POST /:id/look` (new pieces filed, then a look with the photo as its record, optional wear) | `POST /api/wardrobe/pieces` + client writes |
-| `GET /wardrobe/summary` (piece counts per category, for the tabs) | — |
+| `POST /wardrobe/photo-reads` (one photo → `wardrobe_pieces` job: every piece, its box, crop and match) · `POST /:id/file` (each answered piece filed once, with her edits on any field; `to: 'wardrobe' \| 'wishlist'`, default wardrobe — a wishlist filing takes `add`/`skip` only and is idempotent on the crop) · `POST /:id/pieces` `{ index, edits? }` → `Piece` (Capture 1c.8: one piece of the read filed once with her edits, the rest untouched; 60/min) · `POST /:id/look` (new pieces filed, then a look with the photo as its record, optional wear; kept for phone builds from before 10 Nov 2026) | `POST /api/wardrobe/pieces` + client writes |
+| `GET /wardrobe/summary` (takes the same filters; piece counts per category under them for the chips, the unfiltered `total` for the dock badge, her brands and wear-for tags) | — |
 | `POST /wardrobe/analyse` Job | `/api/wardrobe/analyse` |
 | `POST /wardrobe/import-link` Job (fetch worker) | `/api/wardrobe/read-url` |
 | `GET /wardrobe/taxonomy` | `/api/wardrobe/taxonomy` |
 | `GET/POST/PATCH/DELETE /wishlist/items[...]` · `POST /wishlist/items/:id/promote` | client REST `wishlist_items` |
-| `GET /inbox` (forwarded receipts only; `count` = the pieces they hold) · `GET /inbox/:id` (one held entry of any source — Review opens a pasted link here; 404 once decided or for anyone else) · `POST /inbox/:id/decide` · `GET /me/inbox-address` | `wardrobe_inbox` + `/api/inbox/receipt` |
+| `GET /inbox?state=inbox\|added\|discarded` (forwarded receipts only, with the pieces in that state — the Receipts' tabs, PRD rev 3 §7.5; `count` = the pieces waiting, `counts` per state) · `GET /inbox/:id` (one held entry of any source — Review opens a pasted link here; 404 once decided or for anyone else) · `POST /inbox/:id/decide` (each piece decided on its own: the chosen ones file or discard, the rest keep waiting, the row settles once none does; a piece files with its size, category, colour and its read photo). Each line carries `size` and `image` (its product photo, signed like a piece's, once the isolated fetcher has stored and Robes has read it; never the shop's URL) · `GET /me/inbox-address` | `wardrobe_inbox` + `/api/inbox/receipt` |
 | `GET/POST/DELETE /tags[...]` | client REST `tags`, `tag_pieces` |
 
 ### Styling engines (all Jobs)
 | New | Legacy |
 |---|---|
 | `POST /looks/generate` (key-piece styling: three suggestions on the deck) · `POST /looks/prompt` (a new look in her words: three suggestions on the deck, or with `draft: true` — the diary's prompt box, plan 2026-11-03 — ONE draft for the day, in the diary's slot) · `POST /looks/:id/restyle` `{ note? }` (↻ one suggestion; Dress it again on a draft Robes made, `note` = what's not right with it) | `/api/style` (dress-me intent, `refine` + `wayIndex`) |
-| `POST /looks/:id/ask` (the look prompt; the edit is the job's output) | `/api/look/ask` (supersedes `/api/look/refine`) |
+| `POST /looks/:id/ask` (the look prompt; the edit is the job's output; `balance` is the Shop toggle — `owned` keeps the answer to her wardrobe, `mix` lets it reach for her wishlist and new pieces, plan 2026-11-09 R1) | `/api/look/ask` (supersedes `/api/look/refine`) |
 | `POST /looks/:id/frame` `{ note? }` (Robes' frame for the rack as it stands: first open, or re-dressed after an edit; `note` is her picture note, D21, written first and drawn at once) | `/api/avatar/render` frame mode |
 | `POST /today/generate` (daily look; also produced by overnight batch) | `/api/daily` |
 | `POST /travel/plan` · `POST /travel/:id/looks` · `POST /travel/:id/days/:day/restyle` | `/api/travel`, `/api/travel/looks` |
@@ -140,7 +140,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Looks, artifacts, planning
 | New | Legacy |
 |---|---|
-| `GET/POST/PATCH/DELETE /looks[...]` (`?status=saved\|suggested\|draft`, `&anchorPieceId=`) · `POST /looks/:id/save` `{ name?, date? }` (suggested/draft → saved; with `date` it is pinned to that day in the same act) · `GET /looks/sets/:id` (the keep-or-pass deck) | client REST `looks` (+ `status`, `anchor_piece_id`, `set_id`, `styling`), `look_pieces`; the drafts park `rb_lk_draft__<uid>` |
+| `GET/POST/PATCH/DELETE /looks[...]` (`?status=saved\|suggested\|draft`, `&anchorPieceId=`) · `POST /looks/:id/save` `{ name?, date? }` (suggested/draft → saved; with `date` it is pinned to that day in the same act; every proposal not yet on her wishlist is filed there in the same transaction and names its wish, plan 2026-11-09 R1) · `GET /looks/sets/:id` (the keep-or-pass deck) | client REST `looks` (+ `status`, `anchor_piece_id`, `set_id`, `styling`), `look_pieces`; the drafts park `rb_lk_draft__<uid>` |
 | `POST /looks/:id/wears` · `DELETE /wears/:id` | client REST `wears` |
 | `POST /looks/:id/images` `{ assetId }` (a photograph joins the stack, D13) · `DELETE /looks/:id/images/:imageId` · `POST /looks/:id/images/cover` `{ imageId \| null }` (her photograph, or Robes' picture, leads) · `POST /looks/:id/images/robes` `{ hidden }` (Robes' picture hidden or shown, D19; 409 `look_needs_image` when no image would remain) · `POST /looks/:id/photo` (kept: the new photograph joins and leads) | legacy's single look photo |
 | `GET /artifacts?type=` · `GET /artifacts/:id` · `PATCH /artifacts/:id` (title, packed/pins state) · `DELETE` (soft) | client REST `lookbook_items` + localStorage merge |

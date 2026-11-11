@@ -1,7 +1,14 @@
 import { useApiClient } from '@robes/api-client/react';
-import { askChanges, askRack, type Look } from '@robes/contracts';
+import { askChanges, askRack, type Look, type LookAskInput } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
-import { adjustReduce, EMPTY_ADJUST, isWorking, noteShort, threadHistory } from '@robes/core/looks';
+import {
+  adjustReduce,
+  type Balance,
+  EMPTY_ADJUST,
+  isWorking,
+  noteShort,
+  threadHistory,
+} from '@robes/core/looks';
 import { useToast } from '@robes/ui-native';
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { nativeAnalytics } from '@/lib/analytics';
@@ -130,7 +137,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
         : d.adjust,
     // `draw`: the picture is drawn once the answer lands (the drawer's Send and Generate); only a
     // live look writes its rack as it goes, so a saved look's edit still draws on Update.
-    send: (words: string, opts: { draw?: boolean } = {}) => {
+    send: (
+      words: string,
+      opts: { draw?: boolean; balance?: Balance; context?: LookAskInput['context'] } = {},
+    ) => {
       const text = words.trim();
       if (!text || busy) return;
       drawAfter.current = opts.draw === true && look.status === 'draft';
@@ -150,6 +160,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
         text,
         thread: threadHistory(state.thread),
         rack: askRack(editor.rack, look.anchor?.id ?? null),
+        // The Shop toggle (PRD rev 3 §4.6): where the answer may draw its pieces from; and the
+        // day's weather while its chip stands.
+        ...(opts.balance ? { balance: opts.balance } : {}),
+        ...(opts.context ? { context: opts.context } : {}),
       });
     },
     redress: () => {

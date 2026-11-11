@@ -1,7 +1,9 @@
 'use client';
 
+import { useApi } from '@robes/api-client/react';
 import type { Features } from '@robes/contracts';
-import { nav, shell } from '@robes/copy';
+import { lookbook, nav, plan, shell, today, wardrobe } from '@robes/copy';
+import { greetingName } from '@robes/core/home';
 import { Icon } from '@robes/icons/web';
 import {
   Avatar,
@@ -21,6 +23,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { BackLink } from '@/components/back-link';
@@ -42,6 +45,55 @@ import { useDeviceLocation } from './device-location';
 
 const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+
+// The phone bar's serif title on every tab but Home (PRD rev 3 §2.2; the native twin is
+// TabScreen's `title`): from 768 the wordmark and the nav stand instead.
+const TAB_TITLE: Record<string, string> = {
+  '/looks': lookbook.title,
+  '/plan': plan.title,
+  '/wardrobe': wardrobe.title,
+};
+
+// Home's mark on the phone (Front Door canvas 1a, Annie 9 Nov): "Good morning, Annie." centred in
+// the bar on arrival, fading out after a hold, then ROBES fading in centred in its place (0.45s
+// out, 0.6s in from 0.55s after). Once per visit to the app: coming back to Home finds ROBES. The
+// centre stays empty until the greeting is known. The native twin is HomeMark in
+// mobile/src/components/TabScreen.tsx.
+let greeted = false;
+function HomeMark() {
+  const { data } = useApi('today.get');
+  const first = useRef(!greeted).current;
+  const greeting = data ? today.greeting(greetingName(data.firstName), data.hour) : null;
+  const showing = first && greeting !== null;
+  useEffect(() => {
+    if (showing) greeted = true;
+  }, [showing]);
+  if (first && greeting === null) return null;
+  const layer = 'absolute inset-0 flex items-center justify-center';
+  return (
+    <Link
+      href="/"
+      aria-label={nav.today}
+      data-testid="home-mark"
+      className={`absolute inset-y-2 inset-x-[66px] md:hidden ${focus}`}
+    >
+      {showing ? (
+        <span
+          aria-hidden
+          data-testid="home-greeting"
+          className={`${layer} font-display font-light text-2xl text-ink animate-[robes-fade-out_450ms_ease-in_2400ms_forwards]`}
+        >
+          <span className="truncate">{greeting}</span>
+        </span>
+      ) : null}
+      <span
+        className={`${layer} text-ink ${showing ? 'animate-[robes-fade-in_600ms_ease-out_2950ms_both]' : ''}`}
+      >
+        <Wordmark />
+      </span>
+    </Link>
+  );
+}
 
 // A pushed view (the draft look, legacy 2026-10-06 second pass): below 768 the header and the dock
 // stand down while it is open, and its own sticky footer closes the screen.
@@ -93,6 +145,9 @@ export function AppShell({
   useCommandHotkey(toggleCommand);
   useDeviceLocation();
   const current = activeRoot(pathname);
+  // The Wardrobe's badge counts every piece she owns (Front Door PRD rev 3, Q1); none at zero.
+  const summary = useApi('wardrobe.summary');
+  const owned = summary.data?.total ?? 0;
   const inFlow = isFlowPath(pathname) || pushed;
   const { scrolled, minimised, restore } = useScrollChrome(MINIMISES.has(current), pathname);
   const create = useMemo(() => createItems(features), [features]);
@@ -148,7 +203,7 @@ export function AppShell({
         data-scrolled={scrolled ? 'true' : undefined}
         className={`sticky top-0 z-40 box-border h-16 border-hairline border-b-[0.5px] bg-nav-glass backdrop-blur-nav ${pushed && !back ? 'max-md:hidden' : ''}`}
       >
-        <div className="mx-auto flex h-full max-w-5xl items-center gap-2 px-6 md:px-4">
+        <div className="relative mx-auto flex h-full max-w-5xl items-center gap-2 px-6 md:px-4">
           {/* A pushed page's back pill: below 768 it stands where the wordmark sits, one header row;
               from 768 the bar keeps the wordmark and the pill heads the page (beta's #rb-backpill and
               .rb-ret). Both are drawn and CSS picks one, so the server render is final; the other is
@@ -161,10 +216,22 @@ export function AppShell({
           <Link
             href="/"
             aria-label={nav.today}
-            className={`text-ink ${back ? 'max-md:hidden' : ''} ${focus}`}
+            className={`text-ink ${back || TAB_TITLE[current] || current === '/' ? 'max-md:hidden' : ''} ${focus}`}
           >
             <Wordmark />
           </Link>
+          {current === '/' && !back ? <HomeMark /> : null}
+          {/* The tab's serif title, centred on the phone's bar; the page's own h1 names it for
+              assistive tech, so this one is decoration. */}
+          {TAB_TITLE[current] && !back ? (
+            <span
+              aria-hidden
+              data-testid="tab-title"
+              className="pointer-events-none absolute inset-x-0 text-center font-display font-light text-2xl text-ink md:hidden"
+            >
+              {TAB_TITLE[current]}
+            </span>
+          ) : null}
           <nav aria-label={shell.primaryNav} className="ml-6 hidden items-center gap-1 md:flex">
             {/* Beta's top nav: the wordmark is Home; Lookbook · Diary · Wardrobe sit beside it. */}
             {NAV_ITEMS.filter((item) => item.href !== '/').map((item) => (
@@ -245,7 +312,12 @@ export function AppShell({
         ) : (
           <ul className={`flex h-16 items-center rounded-dock border p-1 ${DOCK}`}>
             {NAV_ITEMS.map((item) => (
-              <TabLink key={item.href} item={item} active={current === item.href} />
+              <TabLink
+                key={item.href}
+                item={item}
+                active={current === item.href}
+                badge={item.href === '/wardrobe' ? owned : 0}
+              />
             ))}
           </ul>
         )}
@@ -303,12 +375,23 @@ const DOCK = 'border-dock-line bg-dock-glass backdrop-blur-dock';
 // Felix's dock items: a 20 glyph over the dock-label (9.5/500 at 0.04em), ink-soft; the current one
 // ink with a 24×2 ink bar above the glyph. Labels are authored in sentence case and capitalised
 // for display only.
-function TabLink({ item, active }: { item: (typeof NAV_ITEMS)[number]; active: boolean }) {
+function TabLink({
+  item,
+  active,
+  badge = 0,
+}: {
+  item: (typeof NAV_ITEMS)[number];
+  active: boolean;
+  // The Wardrobe's count of her pieces (Front Door PRD rev 3, Q1): an 18px ink disc at the
+  // glyph's corner, none at zero (plan R11).
+  badge?: number;
+}) {
   return (
     <li className="flex-1">
       <Link
         href={item.href}
         aria-current={active ? 'page' : undefined}
+        aria-label={badge > 0 ? `${item.label}, ${badge}` : undefined}
         className={`relative flex h-14 flex-col items-center justify-center gap-1 rounded-pill font-sans font-medium text-[9.5px] uppercase leading-none tracking-[0.04em] whitespace-nowrap ${
           active ? 'text-ink' : 'text-ink-muted'
         } ${focus}`}
@@ -316,7 +399,17 @@ function TabLink({ item, active }: { item: (typeof NAV_ITEMS)[number]; active: b
         {active ? (
           <span aria-hidden className="absolute top-0.5 h-0.5 w-6 rounded-xs bg-ink" />
         ) : null}
-        <Icon name={item.icon} size={20} />
+        <span className="relative">
+          <Icon name={item.icon} size={20} />
+          {badge > 0 ? (
+            <span
+              aria-hidden
+              className="absolute -top-2 -right-3 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-pill bg-ink px-1 font-sans text-[9.5px] text-bg tracking-normal"
+            >
+              {badge}
+            </span>
+          ) : null}
+        </span>
         {item.label}
       </Link>
     </li>

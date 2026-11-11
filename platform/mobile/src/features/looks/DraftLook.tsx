@@ -1,16 +1,30 @@
 import { useApi, useApiClient } from '@robes/api-client/react';
 import {
   type CreateLookInput,
-  type DiaryDay,
   type Look,
+  type LookAskInput,
   lookStack,
   type Model,
   type Piece,
+  type Wish,
+  wishRow,
 } from '@robes/contracts';
 import { lookbook, looks as looksCopy } from '@robes/copy';
 import { readsAsThey } from '@robes/core/avatar';
-import { type ImageStage, stageChanged, stageFront } from '@robes/core/looks';
-import { shortRange, weatherIcon } from '@robes/core/weather';
+import {
+  type Balance,
+  defaultBalance,
+  type ImageStage,
+  isCaptureRow,
+  type RackRow,
+  type StageCard,
+  stageCards,
+  stageChanged,
+  stageFront,
+  stageInFront,
+} from '@robes/core/looks';
+import type { WardrobeLayout } from '@robes/core/wardrobe';
+import { shortRange } from '@robes/core/weather';
 import { Icon } from '@robes/icons/native';
 import {
   AlertDialog,
@@ -19,33 +33,39 @@ import {
   DrawerHeader,
   EmptyState,
   FINE_EDGE,
+  fonts,
   Image,
   MIN_TOUCH,
-  maxFontSizeMultiplier,
   PrimaryScope,
   Skeleton,
   Tabs,
   Text,
   useColor,
   useToast,
+  useToastLift,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import { type HostInstance, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBareScreen } from '@/components/StackScreen';
 import { pickOne, usePhotoFiling } from '@/features/home/file-photo';
+import { AddPiecesSheet } from '@/features/wardrobe/add/AddPiecesSheet';
+import { LayoutToggle } from '@/features/wardrobe/WardrobeHeader';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { useKeyboardOverlap } from '@/lib/keyboard';
 import { ThreadLines } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
+import { CapturePieces, CaptureRow, NewPieceSheet, RemovedLine } from './CaptureRack';
+import { useCaptureRack } from './capture-rack';
 import { DayContext } from './DayContext';
 import { DiarySheet } from './DiarySheet';
-import { AdjustSheet, DescribeSheet, SheetField } from './DraftSheets';
+import { AdjustSheet, DescribeSheet } from './DraftSheets';
 import { CardPicture, ImageManager } from './ImageManager';
 import { LookDetails } from './LookDetails';
 import { LookPicture } from './LookPicture';
-import { useLookEditor } from './look-editor';
+import { onRackIds, useLookEditor } from './look-editor';
 import { useImageStage } from './look-images';
 import {
   isDraftsFull,
@@ -56,21 +76,27 @@ import {
 } from './look-states';
 import { PieceList } from './PieceList';
 import { type PickerMode, PiecePicker } from './PiecePicker';
+import { RackCard } from './RackCard';
+import { RackGrid } from './RackGrid';
 import { RackRowCard } from './RackRow';
 import { ImageStack, useDressOnOpen } from './SavedLook';
 import { Scanning } from './ScanLine';
 import { SeasonsView } from './SeasonsView';
+import { StylingCard } from './StylingCard';
 import { useRemoveLook } from './saved-looks';
 import { TagsView, useLookDetails } from './TagsView';
 import { WornView } from './WornView';
 
 const copy = lookbook.draftLook;
 const d = lookbook.draft;
+// How long "Look updated." stands (Capture PRD 3.5).
+const UPDATED_MS = 2600;
 const TABS = [lookbook.savedLook.tabs.pieces, lookbook.savedLook.tabs.details] as const;
 type Tab = (typeof TABS)[number];
 
 // `sheet` over the screen that opened it; `page` on a deep link; `saved` is a saved look's own
-// page (Felix 3e: the back disc on the photo, Schedule look at the foot; D17).
+// page (Felix 3e: the back disc on the photo, Schedule look at the foot — Update look in its place
+// while a change waits, PRD §6.1; D17).
 export type DraftPresentation = 'sheet' | 'page' | 'saved';
 export type DraftSheet = 'adjust' | 'describe';
 
@@ -108,6 +134,113 @@ function useSnap(onFiled: (piece: Piece) => void) {
   };
 }
 
+// The Shop toggle's state (Front Door PRD rev 3 §4.6, plan R1): off once she has a wardrobe to
+// style from, on when there is nothing else, until she says otherwise. `owned` is null while
+// the wardrobe's count loads.
+function useShop(owned: number | null): {
+  on: boolean;
+  set: (next: boolean) => void;
+  balance: Balance;
+  // Flipped since the look was last applied (a saved look's Update, PRD §6.1).
+  changed: boolean;
+  settle: () => void;
+} {
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  const [applied, setApplied] = useState<boolean | null>(null);
+  const rest = owned === null ? false : defaultBalance(owned) === 'mix';
+  const on = chosen ?? rest;
+  return {
+    on,
+    set: setChosen,
+    balance: on ? 'mix' : 'owned',
+    changed: chosen !== null && on !== (applied ?? rest),
+    settle: () => setApplied(on),
+  };
+}
+
+// The day's weather for the look prompt, while its chip stands (D22; the ask's context).
+function useAskContext(date: string | null, weatherOff: boolean): LookAskInput['context'] {
+  const today = useApi('today.get', undefined, { enabled: date !== null });
+  if (!date || weatherOff) return undefined;
+  const day = today.data?.diary?.days.find((x) => x.date === date);
+  const wx = day?.weather;
+  if (!wx) return undefined;
+  const city = day.place?.city ?? wx.city ?? '';
+  return { weather: `${shortRange(wx.tempRange)}${city ? ` in ${city}` : ''}`.slice(0, 60) };
+}
+
+// The Rack (PRD §4.6): its heading with the grid | list toggle, the rows or the tiles, and the
+// Rack card under them as the add slot. Before the first piece the card stands alone.
+function Rack({
+  rows,
+  imageOf,
+  layout,
+  onLayout,
+  editing,
+  onEditing,
+  saved,
+  hasWardrobe,
+  onAdd,
+  onOpen,
+  children,
+}: {
+  rows: readonly RackRow[];
+  imageOf: Parameters<typeof RackGrid>[0]['imageOf'];
+  layout: WardrobeLayout;
+  onLayout: (next: WardrobeLayout) => void;
+  // Edit-pieces mode (PRD §6.2, plan R2): the pencil ink-filled, the rows' swap and × out.
+  editing: boolean;
+  onEditing: (next: boolean) => void;
+  // A saved look's add slot is the small hanger under the list (§6.1); a draft keeps the card.
+  saved: boolean;
+  hasWardrobe: boolean;
+  onAdd: () => void;
+  onOpen?: (row: RackRow) => void;
+  // The rows, as RackRowCards.
+  children: ReactNode;
+}) {
+  const ink = useColor('ink');
+  const onInk = useColor('bg');
+  if (rows.length === 0) return <RackCard hasWardrobe={hasWardrobe} onPress={onAdd} />;
+  return (
+    <View className="gap-2.5" testID="the-rack">
+      <View className="h-11 flex-row items-center justify-between gap-3">
+        {/* The canvas's heading (PRD §6.1): "The Rack" in the serif, warm and quiet. */}
+        <Text
+          accessibilityRole="header"
+          className="flex-1 text-ink-faint"
+          style={{ fontFamily: fonts.displayRegular, fontSize: 17, letterSpacing: 0.16 }}
+        >
+          {copy.rack}
+        </Text>
+        <LayoutToggle layout={layout} onLayout={onLayout} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.editPieces}
+          accessibilityState={{ selected: editing }}
+          onPress={() => onEditing(!editing)}
+          testID="rack-pencil"
+          className={`items-center justify-center rounded-pill border ${
+            editing ? 'border-ink bg-ink' : 'border-rule-mid bg-surface-raised'
+          }`}
+          style={{ width: MIN_TOUCH, height: MIN_TOUCH }}
+        >
+          <Icon name="pencil" size={16} color={editing ? onInk : ink} />
+        </Pressable>
+      </View>
+      {layout === 'grid' ? (
+        <>
+          <RackGrid rows={rows} imageOf={imageOf} {...(onOpen ? { onOpen } : {})} />
+          {saved ? <PieceList onAdd={onAdd}>{null}</PieceList> : null}
+        </>
+      ) : (
+        <PieceList {...(saved ? { onAdd } : {})}>{children}</PieceList>
+      )}
+      {saved ? null : <RackCard hasWardrobe={hasWardrobe} onPress={onAdd} testID="rack-card-add" />}
+    </View>
+  );
+}
+
 // The draft look (Felix DraftLook; plan 2026-11-06 D14, D17, D18): ONE component for every draft
 // — from Describe, built by hand, started from a piece — presented as a form sheet over whatever
 // started it (app/looks/draft/[id].tsx), and for a saved look, which edits in place on its own
@@ -122,6 +255,7 @@ export function DraftLook({
   pieceId,
   day,
   images,
+  pick = false,
   schedule,
   presentation,
   onClose,
@@ -132,6 +266,8 @@ export function DraftLook({
   day?: string;
   // Opened from Home's image stack (3k): image mode, Add a photo in focus (D19).
   images?: 'add';
+  // New Look › From pieces (Front Door PRD rev 3 §5.5): a new draft with the piece picker up.
+  pick?: boolean;
   // A saved look opened with the diary up (a draft just saved, `?schedule=1`).
   schedule?: boolean;
   presentation: DraftPresentation;
@@ -153,6 +289,7 @@ export function DraftLook({
       <NewDraft
         {...(pieceId ? { pieceId } : {})}
         {...(day ? { day } : {})}
+        pick={pick}
         presentation={presentation}
         onClose={onClose}
         onCreated={(made) => {
@@ -217,6 +354,9 @@ function Shell({
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  // Style it and Update look ride above the keyboard, never under it.
+  const root = useRef<HostInstance>(null);
+  const keyboard = useKeyboardOverlap(root);
   if (presentation === 'saved') {
     return (
       <SavedShell over={over} footer={footer}>
@@ -225,7 +365,11 @@ function Shell({
     );
   }
   return (
-    <View className="flex-1 bg-bg" style={{ paddingTop: presentation === 'page' ? insets.top : 0 }}>
+    <View
+      ref={root}
+      className="flex-1 bg-bg"
+      style={{ paddingTop: presentation === 'page' ? insets.top : 0, paddingBottom: keyboard }}
+    >
       {presentation === 'page' ? <Bare /> : null}
       <DrawerHeader
         title={title}
@@ -250,7 +394,10 @@ function Shell({
       {footer ? (
         <View
           className="border-hairline bg-bg px-5 pt-3"
-          style={{ borderTopWidth: FINE_EDGE, paddingBottom: Math.max(22, insets.bottom) }}
+          style={{
+            borderTopWidth: FINE_EDGE,
+            paddingBottom: keyboard ? 12 : Math.max(22, insets.bottom),
+          }}
         >
           <PrimaryScope>{footer}</PrimaryScope>
         </View>
@@ -272,6 +419,9 @@ function SavedShell({
   children: ReactNode;
 }) {
   useBareScreen();
+  // The toast rises above the bar while it stands, so an Undo never covers Update look.
+  const [bar, setBar] = useState(0);
+  useToastLift(bar);
   return (
     <View className="flex-1 bg-bg">
       <ScrollView
@@ -287,6 +437,7 @@ function SavedShell({
         <View
           className="absolute inset-x-0 bottom-0 flex-row items-center border-hairline bg-bg px-5 pt-3"
           style={{ borderTopWidth: FINE_EDGE, paddingBottom: 22 }}
+          onLayout={(e) => setBar(e.nativeEvent.layout.height)}
           testID="look-bar"
         >
           <PrimaryScope>{footer}</PrimaryScope>
@@ -310,13 +461,16 @@ function Bare() {
 function NewDraft({
   pieceId,
   day,
+  pick = false,
   presentation,
   onClose,
   onCreated,
 }: {
   pieceId?: string;
-  // Describe on Home (D22): the day the draft is for; Style it makes that day's one draft.
+  // Describe on Home (D22): the day the draft is for; Generate makes that day's one draft.
   day?: string;
+  // From pieces: the picker is already up when the sheet opens.
+  pick?: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
   onCreated: (look: Look) => void;
@@ -326,8 +480,13 @@ function NewDraft({
   const toast = useToast();
   const refresh = useInvalidateLooks();
   const model = useApi('me.model.get');
+  const summary = useApi('wardrobe.summary');
   const control = useColor('border-control');
-  const [picker, setPicker] = useState<PickerMode | null>(null);
+  const owned = summary.data?.total ?? null;
+  const hasWardrobe = owned !== null && owned > 0;
+  const shop = useShop(owned);
+  const [picker, setPicker] = useState<PickerMode | null>(pick ? { add: true } : null);
+  const [adding, setAdding] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [full, setFull] = useState<{ input: CreateLookInput; oldest: string } | null>(null);
@@ -350,8 +509,15 @@ function NewDraft({
       setFull({ input, oldest: drafts?.items.at(-1)?.name ?? lookbook.draftTile.untitled });
     }
   };
-  const start = (pieces: Piece[]) =>
-    void create({ status: 'draft', pieces: pieces.map((p) => ({ pieceId: p.id })) });
+  // The first pieces make the draft; a wish from the picker rides as a proposal already hers.
+  const start = (pieces: Piece[], wishes: Wish[] = []) =>
+    void create({
+      status: 'draft',
+      pieces: pieces.map((p) => ({ pieceId: p.id })),
+      ...(wishes.length
+        ? { proposals: wishes.flatMap((w) => (wishRow(w).proposal ? [wishRow(w).proposal] : [])) }
+        : {}),
+    } as CreateLookInput);
   const snap = useSnap((piece) => start([piece]));
   // "Start a look with it" from a piece: the draft opens with that piece on the rack.
   const started = useRef(false);
@@ -365,7 +531,7 @@ function NewDraft({
   // carries on with it once the diary shows it. Without a day they deal suggestions (the deck).
   const [weatherOff, setWeatherOff] = useState(false);
   const [waiting, setWaiting] = useState(false);
-  // The job behind Style it: if it ends without the day's draft, the wait ends with a word.
+  // The job behind Generate: if it ends without the day's draft, the wait ends with a word.
   const [promptJob, setPromptJob] = useState<string | null>(null);
   useJobResult(
     promptJob,
@@ -404,6 +570,7 @@ function NewDraft({
             prompt: words,
             date: day,
             draft: true,
+            balance: shop.balance,
             ...(place && !weatherOff ? { place } : {}),
             ...(weatherOff ? { weather: false } : {}),
           },
@@ -412,7 +579,9 @@ function NewDraft({
         setWaiting(true);
         return;
       }
-      const { jobId } = await api.call('looks.prompt', { input: { prompt: words } });
+      const { jobId } = await api.call('looks.prompt', {
+        input: { prompt: words, balance: shop.balance },
+      });
       router.replace(`/looks/job/${jobId}`);
     } catch (err) {
       setBusy(false);
@@ -426,6 +595,16 @@ function NewDraft({
       title={copy.title}
       onClose={onClose}
       done={{ label: copy.done, onPress: () => undefined, disabled: true }}
+      footer={
+        <Button
+          onPress={() => void generate()}
+          disabled={prompt.trim().length < 2 || busy}
+          icon="check"
+          testID="draft-generate"
+        >
+          {copy.generate}
+        </Button>
+      }
     >
       <View className="overflow-hidden bg-surface-sunk">
         {stand ? (
@@ -441,10 +620,12 @@ function NewDraft({
         {waiting ? <Scanning line={d.dressing} corner /> : null}
       </View>
       <View className="gap-3 px-5 pt-3">
-        <PieceList rows={0} onAdd={() => setPicker({ add: true })}>
-          {null}
-        </PieceList>
-        <PromptCard
+        <Tabs items={TABS} value={TABS[0]} onChange={() => undefined} testID="draft-tabs" />
+        <RackCard
+          hasWardrobe={hasWardrobe}
+          onPress={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
+        />
+        <StylingCard
           {...(day
             ? {
                 context: (
@@ -452,16 +633,14 @@ function NewDraft({
                 ),
               }
             : {})}
-          placeholder={copy.placeholder}
+          shop={shop.on}
+          onShop={shop.set}
+          placeholders={copy.placeholders}
           value={prompt}
           onChange={setPrompt}
-          chip={{ label: copy.generate, disabled: prompt.trim().length < 2 || busy }}
-          onGenerate={() => void generate()}
+          onSend={() => void generate()}
           busy={busy}
         />
-        <Button variant="quiet" className="self-center" onPress={() => router.push('/looks/photo')}>
-          {copy.startFromPhoto}
-        </Button>
       </View>
       <PiecePicker
         mode={picker}
@@ -469,6 +648,12 @@ function NewDraft({
         onClose={() => setPicker(null)}
         onPick={start}
         onSnap={() => void snap.snap()}
+      />
+      <AddPiecesSheet
+        open={adding}
+        onClose={() => setAdding(false)}
+        onPhoto={() => void snap.snap()}
+        draft
       />
       <AlertDialog
         open={full !== null}
@@ -515,10 +700,24 @@ function DraftBody({
   const remove = useRemoveLook();
   const update = useLookDetails(look);
   const model = useApi('me.model.get');
+  const summary = useApi('wardrobe.summary');
+  const owned = summary.data?.total ?? null;
+  const hasWardrobe = owned !== null && owned > 0;
+  const shop = useShop(owned);
+  const [rackLayout, setRackLayout] = useState<WardrobeLayout>('list');
+  const [editingPieces, setEditingPieces] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [weatherOff, setWeatherOff] = useState(false);
+  const askContext = useAskContext(forDay, weatherOff);
   const adjustRef = useRef<Adjust | null>(null);
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
   const adjust = useAdjust(look, editor, mode === 'edit' ? 'saved' : 'draft');
   adjustRef.current = adjust;
+  // A look from her photograph (Capture PRD 1c): The Rack finds, matches and adds its pieces.
+  const capture = useCaptureRack(look, editor);
+  // A draft from her photograph is the photograph and its rack: no prompt card, no Generate.
+  const captureDraft = capture.on && mode === 'draft';
+  const [newPiece, setNewPiece] = useState<string | null>(null);
   useDressOnOpen(look);
   const save = useSaveLook((saved) => {
     // Saved from home's day: that day shows it as the day's card. Else the saved look opens
@@ -532,12 +731,25 @@ function DraftBody({
   const [subview, setSubview] = useState<'tags' | 'seasons' | 'worn' | null>(null);
   const [diary, setDiary] = useState(schedule);
   // Image mode (D19): opened from Home's + it starts on Add a photo.
-  const [managing, setManaging] = useState(images === 'add');
+  // Image mode (D19): opened from Home's + it starts on Add a photo, and so does the Edit look
+  // sheet, whose picture is the photo strip (Capture PRD 3.1).
+  const stripFirst = images === 'add' || (mode === 'edit' && presentation === 'sheet');
+  const [managing, setManaging] = useState(stripFirst);
   const stack = useImageStage(look);
   const [confirm, setConfirm] = useState<'discard' | 'delete' | null>(null);
   const [prompt, setPrompt] = useState('');
   const rows = editor.rack.rows;
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
+  const pieceOf = (id: string) => piecesById.get(id) ?? capture.pieceOf(id);
+  const imageOf = (row: RackRow) => (row.pieceId ? pieceOf(row.pieceId)?.image : null);
+  // At rest a row opens its piece (PRD §6.1); a proposal has no page yet (PR 6).
+  const openPiece = (row: RackRow) => {
+    if (row.pieceId) router.push({ pathname: '/piece/[id]', params: { id: row.pieceId } });
+  };
+  const sendOpts = {
+    balance: shop.balance,
+    ...(askContext ? { context: askContext } : {}),
+  };
   // A photograph filed from the picker lands where the picker was opened.
   const snapFor = useRef<PickerMode>({ add: true });
   const snap = useSnap((piece) => {
@@ -546,11 +758,18 @@ function DraftBody({
   });
   const busy = adjust.busy || save.isPending || editor.saving || stack.committing;
   const words = prompt.trim();
-  // A saved look's edit: anything not yet applied with Update look (D17, D18, D20).
+  // A saved look's edit: anything not yet applied with Update look (D17, D18). Her photographs
+  // and the cover are not among them: the strip's ✓ keeps them (keepStrip).
   const pending =
-    mode === 'edit' && (editor.dirty || adjust.stale || words.length > 0 || stack.changed);
+    mode === 'edit' && (editor.dirty || adjust.stale || words.length > 0 || shop.changed);
+  // A look from her photograph saves at any point but while its pieces are being found (1c.10).
+  const finding = capture.on && capture.stage === 'finding';
   const canDone =
-    mode === 'draft' ? (rows.length > 0 || look.image !== null) && !busy : !pending && !busy;
+    mode === 'draft'
+      ? (rows.length > 0 || look.image !== null) && !busy && !finding
+      : // A saved look's ✓ is Update look by another name: both wait until something changes
+        // (Capture PRD 3.1, 3.5); × leaves.
+        pending && !busy;
   // Update look: the rack written, then the picture drawn for it. Words still in the field go
   // through the thread first; the write waits for their answer to land on the rack.
   const [applying, setApplying] = useState<'asked' | 'reading' | null>(null);
@@ -560,13 +779,14 @@ function DraftBody({
     if (!(await stack.commit())) return;
     if (editor.dirty) {
       if (!(await editor.update())) return;
-    } else toast.show({ message: lookbook.updated });
+    } else toast.show({ message: lookbook.updated, duration: UPDATED_MS });
+    shop.settle();
     adjust.drawForSave();
   };
   const apply = () => {
     if (mode !== 'edit' || busy || !pending) return;
     if (words && rows.length > 0) {
-      adjust.send(words);
+      adjust.send(words, sendOpts);
       setPrompt('');
       setApplying('asked');
       return;
@@ -587,17 +807,37 @@ function DraftBody({
       // A draft's photographs are kept as it is saved.
       void stack.commit().then((ok) => {
         if (!ok) return;
-        adjust.drawForSave();
+        // Her photograph is the picture: nothing is drawn for a look from it.
+        if (!capture.on) adjust.drawForSave();
         save.mutate({ params: { id: look.id }, input: forDay ? { date: forDay } : {} });
       });
       return;
     }
-    // On a saved look the tick only closes, once nothing waits for Update look (D18).
-    onClose();
+    apply();
+  };
+  // The strip's ✓ (design "Add a photo to a look"): the card in focus goes in front. A saved
+  // look keeps its photographs and cover there and then, never waiting for Update look; a
+  // draft's are kept as it is saved.
+  const keepStrip = (front: StageCard | null) => {
+    const next = front ? stageInFront(stack.stage, front) : stack.stage;
+    if (mode === 'draft') {
+      stack.update(() => next);
+      setManaging(false);
+      return;
+    }
+    void stack.commit(next).then((ok) => {
+      if (ok) setManaging(false);
+    });
   };
   const close = () => {
-    if (mode === 'edit' && !pending) {
+    // A strip left open without its ✓ still asks, so a photo she added is never lost unasked.
+    if (mode === 'edit' && !pending && !stack.changed) {
       onClose();
+      return;
+    }
+    // A photograph she has done nothing with yet is let go without a question (PRD 1c.10).
+    if (captureDraft && !capture.touched && !stack.changed && rows.length === 0) {
+      discard();
       return;
     }
     setConfirm('discard');
@@ -625,21 +865,22 @@ function DraftBody({
   const generate = () => {
     if (busy) return;
     if (words) {
-      adjust.send(words, { draw: true });
+      adjust.send(words, { ...sendOpts, draw: true });
       setPrompt('');
       return;
     }
     if (adjust.stale) adjust.updateModel();
   };
-  // A saved look's words wait for Update look (D17): its card has no chip of its own.
-  const chip =
-    mode === 'edit'
+  // The sticky GENERATE ✓ at the draft's foot (PRD §4.6): her words, or the model drawn again
+  // while the picture is behind. A saved look's words wait for Update look (D17) instead.
+  const generateFoot =
+    mode === 'edit' || captureDraft
       ? null
       : words
-        ? { label: copy.generate, disabled: busy }
+        ? { label: copy.generate, disabled: busy, refresh: false }
         : adjust.stale
           ? { label: d.updateModel(adjust.badge), disabled: busy, refresh: true }
-          : { label: copy.generate, disabled: true };
+          : { label: copy.generate, disabled: true, refresh: false };
   const dialog: { title: string; message: string; actions: AlertDialogAction[] } | null =
     confirm === 'delete'
       ? {
@@ -652,8 +893,18 @@ function DraftBody({
         }
       : confirm === 'discard'
         ? {
-            title: mode === 'edit' ? copy.discardEdit.title : copy.discard.title,
-            message: mode === 'edit' ? copy.discardEdit.body : copy.discard.body,
+            title:
+              mode === 'edit'
+                ? copy.discardEdit.title
+                : captureDraft
+                  ? copy.capture.discard.title
+                  : copy.discard.title,
+            message:
+              mode === 'edit'
+                ? copy.discardEdit.body
+                : captureDraft
+                  ? copy.capture.discard.body
+                  : copy.discard.body,
             actions: [
               { label: copy.discard.discard, variant: 'primary', onPress: discard },
               { label: copy.discard.keep, variant: 'outline', onPress: () => setConfirm(null) },
@@ -663,6 +914,52 @@ function DraftBody({
             ],
           }
         : null;
+  // The rows: a piece found in her photograph and not filed yet is a CaptureRow; every other is
+  // the look's own row (a filed piece of a captured draft opens its piece and shows its wears).
+  const rackRows = rows.map((row) =>
+    isCaptureRow(row) ? (
+      <CaptureRow
+        key={row.key}
+        row={row}
+        look={look}
+        capture={capture}
+        onMatch={() =>
+          setPicker({
+            match: {
+              key: row.key,
+              name: row.name,
+              category: row.category,
+              suggestedId: capture.suggested(row)?.id ?? null,
+            },
+          })
+        }
+        onAdd={() => setNewPiece(row.key)}
+      />
+    ) : (
+      <RackRowCard
+        key={row.key}
+        row={row}
+        image={imageOf(row)}
+        mark={captureDraft ? null : editor.mark(row.key)}
+        styled={editor.rack.styling[row.key]}
+        {...((mode === 'edit' || captureDraft) && row.pieceId
+          ? { wears: pieceOf(row.pieceId)?.wearCount ?? 0 }
+          : {})}
+        {...(row.proposal && editingPieces ? { onWish: () => editor.wish(row.key) } : {})}
+        {...(editingPieces
+          ? {
+              onSwap: () =>
+                setPicker({
+                  swap: { key: row.key, name: row.name, category: row.category },
+                }),
+              onRemove: () => editor.remove(row.key),
+            }
+          : row.pieceId
+            ? { onOpen: () => openPiece(row) }
+            : {})}
+      />
+    ),
+  );
   return (
     <Shell
       presentation={presentation}
@@ -674,14 +971,31 @@ function DraftBody({
         disabled: !canDone,
       }}
       footer={
-        presentation === 'saved' ? (
+        // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
+        // change waits — never both.
+        presentation === 'saved' && !pending ? (
           <Button onPress={() => setDiary(true)} className="flex-1" testID="schedule-look">
             {lookbook.savedLook.schedule}
           </Button>
         ) : mode === 'edit' ? (
           // The Edit look sheet's one accept (3k): she stays to see it land.
-          <Button onPress={apply} disabled={!pending || busy} icon="refresh" testID="update-look">
+          <Button
+            onPress={apply}
+            disabled={!pending || busy}
+            icon="refresh"
+            {...(presentation === 'saved' ? { className: 'flex-1' } : {})}
+            testID="update-look"
+          >
             {copy.update}
+          </Button>
+        ) : generateFoot ? (
+          <Button
+            onPress={generate}
+            disabled={generateFoot.disabled}
+            icon={generateFoot.refresh ? 'refresh' : 'check'}
+            testID="draft-generate"
+          >
+            {generateFoot.label}
           </Button>
         ) : undefined
       }
@@ -722,8 +1036,10 @@ function DraftBody({
           look={look}
           stage={stack.stage}
           onStage={stack.update}
-          onDone={() => setManaging(false)}
-          focusAdd={images === 'add'}
+          onDone={keepStrip}
+          busy={stack.committing}
+          focusAdd={stripFirst}
+          {...(presentation === 'saved' ? { onBack: close } : {})}
         />
       ) : (
         <DraftPhoto
@@ -731,7 +1047,6 @@ function DraftBody({
           model={model.data}
           modelPending={model.isPending}
           stale={adjust.stale}
-          badge={adjust.badge}
           redressing={adjust.busy && !adjust.state.asking}
           chip={snap.reading ? lookbook.figure.reading : null}
           pronoun={pronoun(model.data)}
@@ -746,39 +1061,57 @@ function DraftBody({
         <Tabs items={TABS} value={tab} onChange={setTab} testID="draft-tabs" />
         {tab === TABS[0] ? (
           <View className="gap-3" testID="pieces-tab">
-            <PieceList rows={rows.length} onAdd={() => setPicker({ add: true })}>
-              {rows.map((row) => (
-                <RackRowCard
-                  key={row.key}
-                  row={row}
-                  image={row.pieceId ? piecesById.get(row.pieceId)?.image : null}
-                  mark={editor.mark(row.key)}
-                  styled={editor.rack.styling[row.key]}
-                  {...(row.proposal ? { onWish: () => editor.wish(row.key) } : {})}
-                  onSwap={() =>
-                    setPicker({ swap: { key: row.key, name: row.name, category: row.category } })
-                  }
-                  onRemove={() => editor.remove(row.key)}
-                />
-              ))}
-            </PieceList>
-            <PromptCard
-              context={forDay ? <ContextChip date={forDay} /> : null}
-              thread={<ThreadLines thread={adjust.state.thread} />}
-              placeholder={mode === 'edit' ? copy.editPlaceholder : copy.placeholder}
-              value={prompt}
-              onChange={setPrompt}
-              chip={chip}
-              onGenerate={mode === 'edit' ? apply : generate}
-              {...(adjust.canRedress
-                ? { onDescribe: () => setSheet('describe'), describeLabel: d.redress }
-                : {})}
-              busy={busy}
-            />
-            {mode === 'edit' && presentation === 'saved' && pending ? (
-              // 3e: the small ink pill under the card, once there is something to apply.
-              <UpdatePill onPress={apply} busy={busy} />
-            ) : null}
+            {capture.on && (captureDraft || capture.stage !== 'rack') ? (
+              <CapturePieces look={look} capture={capture}>
+                {rackRows}
+              </CapturePieces>
+            ) : (
+              <>
+                <Rack
+                  rows={rows}
+                  imageOf={imageOf}
+                  layout={rackLayout}
+                  onLayout={setRackLayout}
+                  editing={editingPieces}
+                  onEditing={setEditingPieces}
+                  saved={mode === 'edit'}
+                  hasWardrobe={hasWardrobe}
+                  onAdd={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
+                  onOpen={openPiece}
+                >
+                  {rackRows}
+                </Rack>
+                <RemovedLine capture={capture} />
+              </>
+            )}
+            {captureDraft ? null : (
+              <StylingCard
+                {...(forDay
+                  ? {
+                      context: (
+                        <DayContext
+                          date={forDay}
+                          weatherOff={weatherOff}
+                          onWeatherOff={setWeatherOff}
+                        />
+                      ),
+                    }
+                  : {})}
+                shop={shop.on}
+                onShop={shop.set}
+                thread={<ThreadLines thread={adjust.state.thread} />}
+                {...(mode === 'edit'
+                  ? { placeholder: copy.editPlaceholder }
+                  : { placeholders: copy.placeholders })}
+                value={prompt}
+                onChange={setPrompt}
+                onSend={mode === 'edit' ? apply : generate}
+                {...(adjust.canRedress
+                  ? { onDescribe: () => setSheet('describe'), describeLabel: d.redress }
+                  : {})}
+                busy={busy}
+              />
+            )}
           </View>
         ) : (
           <View className="gap-3">
@@ -790,6 +1123,14 @@ function DraftBody({
               {...(mode === 'edit' ? { onWorn: () => setSubview('worn') } : {})}
               // The Caption is the name (D16).
               onCaption={(name) => update.mutate({ params: { id: look.id }, input: { name } })}
+              {...(mode === 'edit'
+                ? {
+                    photos: {
+                      count: stageCards(lookStack(look), stack.stage).length,
+                      onOpen: () => setManaging(true),
+                    },
+                  }
+                : {})}
             />
             {mode === 'edit' ? (
               // Delete (D9), asked first. Felix keeps both reds off text: the link is ink-soft and
@@ -810,19 +1151,46 @@ function DraftBody({
       </View>
       <PiecePicker
         mode={picker}
-        onRack={rows.flatMap((r) => (r.pieceId ? [r.pieceId] : []))}
+        onRack={onRackIds(rows)}
         onClose={() => setPicker(null)}
-        onPick={(pieces) => {
+        onPick={(pieces, wishes) => {
           if (!picker) return;
           if ('swap' in picker) {
             const [piece] = pieces;
             if (piece) editor.swap(picker.swap.key, piece);
-          } else for (const piece of pieces) editor.add(piece);
+            return;
+          }
+          if ('match' in picker) {
+            const [piece] = pieces;
+            if (piece) capture.match(picker.match.key, piece, 'match');
+            return;
+          }
+          for (const piece of pieces) editor.add(piece);
+          for (const wish of wishes) editor.addWish(wish);
         }}
         onSnap={() => {
-          if (picker) snapFor.current = picker;
+          if (picker && !('match' in picker)) snapFor.current = picker;
           void snap.snap();
         }}
+        {...(picker && 'match' in picker ? { onAddNew: () => setNewPiece(picker.match.key) } : {})}
+      />
+      <NewPieceSheet
+        row={rows.find((r) => r.key === newPiece) ?? null}
+        look={look}
+        capture={capture}
+        onClose={() => setNewPiece(null)}
+        onAdded={(piece) => {
+          if (newPiece) capture.match(newPiece, piece, 'add');
+        }}
+      />
+      <AddPiecesSheet
+        open={adding}
+        onClose={() => setAdding(false)}
+        onPhoto={() => {
+          snapFor.current = { add: true };
+          void snap.snap();
+        }}
+        draft
       />
       <TagsView look={look} open={subview === 'tags'} onBack={() => setSubview(null)} />
       <SeasonsView look={look} open={subview === 'seasons'} onBack={() => setSubview(null)} />
@@ -852,135 +1220,6 @@ function DraftBody({
   );
 }
 
-// The prompt card (Felix DraftLook): `white` on a 0.5pt `rule-mid` edge — the context chip, the
-// thread's lines, the one-line field in the serif and the Generate chip centred under it, at 40%
-// until there is something to generate from. "Dress it again" beside it opens the DescribeSheet.
-function PromptCard({
-  context,
-  thread,
-  placeholder,
-  value,
-  onChange,
-  chip,
-  onGenerate,
-  onDescribe,
-  describeLabel,
-  busy,
-}: {
-  context?: ReactNode;
-  thread?: ReactNode;
-  placeholder: string;
-  value: string;
-  onChange: (v: string) => void;
-  chip: { label: string; disabled: boolean; refresh?: boolean } | null;
-  onGenerate: () => void;
-  onDescribe?: () => void;
-  describeLabel?: string;
-  busy: boolean;
-}) {
-  return (
-    <View
-      accessibilityLabel={copy.thread}
-      testID="prompt-card"
-      className="gap-2 rounded-soft border-rule-mid bg-surface-raised px-1.5 pt-1.5 pb-3"
-      style={{ borderWidth: FINE_EDGE }}
-    >
-      {context ? <View className="flex-row px-1.5 pt-1">{context}</View> : null}
-      {thread}
-      <View className="flex-row items-center pl-2.5">
-        <SheetField
-          label={placeholder}
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          onSend={onGenerate}
-          disabled={busy}
-          autoFocus={false}
-          testID="draft-prompt"
-        />
-      </View>
-      <View className="flex-row items-center justify-center gap-3">
-        {chip ? (
-          <View style={{ opacity: chip.disabled ? 0.4 : 1 }}>
-            <Button
-              variant="chip"
-              onPress={onGenerate}
-              icon={chip.refresh ? 'refresh' : 'check'}
-              testID="draft-generate"
-            >
-              {chip.label}
-            </Button>
-          </View>
-        ) : null}
-        {onDescribe ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={onDescribe}
-            disabled={busy}
-            className="min-h-7 justify-center"
-          >
-            <Text size="caption" tone="muted" style={{ textDecorationLine: 'underline' }}>
-              {describeLabel}
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
-// 3e's Update look ↻: the chip's size in ink, under the prompt card once a change waits (D17).
-// The page's one filled button stays Schedule look; this is the chip-sized accept.
-function UpdatePill({ onPress, busy }: { onPress: () => void; busy: boolean }) {
-  const onInk = useColor('bg');
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={copy.update}
-      accessibilityState={{ disabled: busy }}
-      disabled={busy}
-      onPress={onPress}
-      hitSlop={(MIN_TOUCH - 28) / 2}
-      testID="update-look"
-      className="min-h-7 flex-row items-center justify-center gap-1.5 self-center rounded-pill bg-ink px-4"
-      style={{ opacity: busy ? 0.4 : 1 }}
-    >
-      <Text
-        weight="medium"
-        maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-        className="uppercase text-bg"
-        style={{ fontSize: 9, letterSpacing: 1.44 }}
-      >
-        {copy.update}
-      </Text>
-      <Icon name="refresh" size={11} color={onInk} />
-    </Pressable>
-  );
-}
-
-// The day's place and weather, read from the diary: a passive `warm-100` chip with the pin.
-function ContextChip({ date }: { date: string }) {
-  const today = useApi('today.get');
-  const ink = useColor('ink');
-  const day: DiaryDay | undefined = today.data?.diary?.days.find((x) => x.date === date);
-  const wx = day?.weather;
-  if (!day || !wx) return null;
-  const icon = weatherIcon(wx.code);
-  return (
-    <View
-      testID="draft-context"
-      className="h-7 flex-row items-center gap-1.5 rounded-pill border-selected-line bg-selected px-2.5"
-      style={{ borderWidth: 1 }}
-    >
-      <Icon name="pin" size={11} color={ink} />
-      <Text style={{ fontSize: 11 }}>
-        {copy.context(day.place?.city ?? wx.city ?? '', shortRange(wx.tempRange))}
-      </Text>
-      {icon ? <Icon name={icon} size={11} color={ink} /> : null}
-    </View>
-  );
-}
-
 function ReadingChip() {
   return (
     <View pointerEvents="none" className="absolute inset-x-0 items-center" style={{ top: '44%' }}>
@@ -1003,7 +1242,6 @@ function DraftPhoto({
   model,
   modelPending,
   stale,
-  badge,
   redressing,
   chip,
   pronoun,
@@ -1017,7 +1255,6 @@ function DraftPhoto({
   model: Model | undefined;
   modelPending: boolean;
   stale: boolean;
-  badge: number;
   redressing: boolean;
   chip: string | null;
   pronoun: string;
@@ -1049,6 +1286,8 @@ function DraftPhoto({
     drawing,
   );
   const failed = !drawing && look.onModel === 'failed' && !own;
+  // Adjust model image is for Robes' picture alone (PRD §6.4): never on a photograph of hers.
+  const robesFront = staged ? staged.kind === 'robes' : !own;
   return (
     <View className="overflow-hidden bg-surface-sunk" testID="draft-photo">
       <View
@@ -1103,17 +1342,6 @@ function DraftPhoto({
           <Icon name="back" size={20} color={ink} />
         </Pressable>
       ) : null}
-      {!drawing && stale && badge ? (
-        <View
-          accessibilityLabel={d.behind(badge)}
-          className="absolute h-[22px] min-w-[22px] items-center justify-center rounded-pill bg-ink px-1.5"
-          style={{ top, left: onBack ? 56 : 12 }}
-        >
-          <Text size="caption" className="text-bg" style={{ fontSize: 10 }}>
-            {badge}
-          </Text>
-        </View>
-      ) : null}
       {failed ? (
         <Pressable
           accessibilityRole="button"
@@ -1126,17 +1354,19 @@ function DraftPhoto({
           </Text>
         </Pressable>
       ) : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={lookbook.savedLook.adjust}
-        onPress={onAdjust}
-        hitSlop={10}
-        testID="draft-adjust"
-        className="absolute items-center justify-center rounded-pill bg-veil-soft"
-        style={{ left: 20, bottom: 25, width: 24, height: 24 }}
-      >
-        <Icon name="describe" size={13} color={ink} />
-      </Pressable>
+      {robesFront ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={lookbook.savedLook.adjust}
+          onPress={onAdjust}
+          hitSlop={10}
+          testID="draft-adjust"
+          className="absolute items-center justify-center rounded-pill bg-veil-soft"
+          style={{ left: 20, bottom: 25, width: 24, height: 24 }}
+        >
+          <Icon name="describe" size={13} color={ink} />
+        </Pressable>
+      ) : null}
       <ImageStack look={look} onOpen={onImages} />
     </View>
   );

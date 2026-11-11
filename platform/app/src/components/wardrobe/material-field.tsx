@@ -2,17 +2,13 @@
 
 import { wardrobe } from '@robes/copy';
 import { DEFAULT_MATERIAL_FAMILY, familyOfMaterial, MATERIAL_FAMILIES } from '@robes/core/material';
-import { Icon } from '@robes/icons/web';
-import { pillClasses } from '@robes/ui';
-import { useState } from 'react';
-import { OptionRow, useScrollToChosen } from './colour-field';
+import { FamilyList } from './colour-field';
 
 const copy = wardrobe.material;
 
-// Built like the colour picker (colour-field.tsx): the families as one scrolling row of chips,
-// a hairline, then the family's materials as a list she picks one from. It opens on the family of
-// what is filed (Natural when nothing is), scrolled to it; the chosen chip and row are warm with a
-// check (redline 10). A pick is the answer; "Not sure" files nothing.
+// The material families as a FamilyList (canvas 3b), the same list as the colours without the
+// tiles: it opens on the family of what is filed (Natural when nothing is), a pick is the answer.
+// "Not sure" sits under the card and is the warm one while nothing is filed.
 // The native twin is mobile/src/features/wardrobe/MaterialField.tsx.
 export function MaterialPicker({
   value,
@@ -21,63 +17,33 @@ export function MaterialPicker({
   value: string | null;
   onChange: (next: string | null) => void;
 }) {
-  const home = familyOfMaterial(value)?.id ?? null;
-  const [family, setFamily] = useState(home ?? DEFAULT_MATERIAL_FAMILY);
-  const chips = useScrollToChosen<HTMLUListElement>();
-  const fam = MATERIAL_FAMILIES.find((f) => f.id === family);
   return (
     <div className="flex flex-col gap-4">
-      <ul
-        ref={chips}
-        aria-label={copy.families}
-        className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [scrollbar-width:none]"
+      <FamilyList
+        initial={familyOfMaterial(value)?.id ?? DEFAULT_MATERIAL_FAMILY}
+        itemRole="radio"
+        groups={MATERIAL_FAMILIES.map((f) => ({
+          id: f.id,
+          name: f.name,
+          items: f.materials.map((m) => ({
+            id: m.id,
+            name: m.name,
+            hint: m.hint || null,
+            selected: m.id === value,
+            onPick: () => onChange(m.id),
+          })),
+        }))}
+      />
+      <button
+        type="button"
+        aria-pressed={value === null}
+        onClick={() => onChange(null)}
+        className={`flex min-h-11 w-full items-center justify-center rounded-pill border font-sans text-ink-muted text-sm focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+          value === null ? 'border-selected-line bg-selected' : 'border-rule-mid bg-surface-raised'
+        }`}
       >
-        {MATERIAL_FAMILIES.map((f) => (
-          <li key={f.id} className="shrink-0" data-chosen={f.id === family}>
-            <button
-              type="button"
-              aria-pressed={f.id === family}
-              onClick={() => setFamily(f.id)}
-              className={`${pillClasses({ selected: f.id === family })} whitespace-nowrap`}
-            >
-              {f.id === family ? <Icon name="check" size={16} /> : null}
-              {f.name}
-              {/* Where her material lives, while she is looking at another family. */}
-              {f.id === home && f.id !== family ? (
-                <span aria-hidden className="size-1.5 rounded-pill bg-ink" />
-              ) : null}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div
-        role="radiogroup"
-        aria-label={fam?.name}
-        className="flex flex-col border-hairline border-t pt-2"
-      >
-        {fam?.materials.map((m) => (
-          // Every row is its own tab stop (no arrow-key selection), because a pick commits and
-          // closes the drawer.
-          <OptionRow
-            key={m.id}
-            role="radio"
-            aria-checked={m.id === value}
-            selected={m.id === value}
-            label={m.name}
-            hint={m.hint || null}
-            onClick={() => onChange(m.id)}
-          />
-        ))}
-      </div>
-      {value ? (
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className={`${pillClasses()} w-full justify-center`}
-        >
-          {copy.notSure}
-        </button>
-      ) : null}
+        {copy.notSure}
+      </button>
     </div>
   );
 }

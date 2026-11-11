@@ -1,5 +1,5 @@
 import type { DiaryDay, PlanEntry, Today } from '@robes/contracts';
-import { diary, today as todayCopy, ui } from '@robes/copy';
+import { diary, filters, today as todayCopy, ui } from '@robes/copy';
 import { diaryWindow } from '@robes/core/calendar';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { DiaryHome } from '../src/features/home/DiaryHome';
@@ -129,9 +129,10 @@ test('the drawer’s words are the web’s (lib/diary.ts)', () => {
 test('the strip: 21 cells, today’s page centred, a ring for a plan and a dot for a wear', async () => {
   mockFetch(ROUTES);
   await renderWithApi(<DiaryHome />);
-  expect(await screen.findByText(todayCopy.greeting('Niall', 8))).toBeTruthy();
-  // Today's weather under the greeting, never the selected day's.
+  // The greeting stands in the bar (TabScreen's HomeMark); the page opens on today's weather,
+  // never the selected day's.
   expect(await screen.findByText('Thursday · Dublin · 9–14°C')).toBeTruthy();
+  expect(screen.queryByText(todayCopy.greeting('Niall', 8))).toBeNull();
   expect(screen.getAllByTestId(/^diary-day-/)).toHaveLength(21);
   const todayCell = screen.getByTestId(`diary-day-${DATE}`);
   expect(todayCell.props.accessibilityState).toEqual({ selected: true });
@@ -179,6 +180,11 @@ test('a day with two looks shows the OOTD, then the second look, each with Swap 
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${SECOND_LOOK}?day=${TWO}`);
   await fireEvent.press(card);
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}?day=${TWO}`);
+  // Its image stack opens the Edit look drawer on the Add a photo card, × in reach (Annie, 11 Nov).
+  const [stack] = screen.getAllByTestId('saved-look-stack');
+  if (!stack) throw new Error('no image stack');
+  await fireEvent.press(stack);
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}?day=${TWO}&images=add`);
   // Each look carries Swap and Edit; its name stands under the discs.
   expect(screen.getByRole('button', { name: diary.discs.swapLabel('Weekend navy') })).toBeTruthy();
   expect(screen.getAllByRole('button', { name: /^Swap / })).toHaveLength(2);
@@ -211,21 +217,34 @@ test('an empty day: her model with Capture · Describe · Pick; Pick opens the d
   expect(screen.getByRole('button', { name: diary.discs.describeLabel('Friday') })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: diary.discs.pickLabel('Friday') }));
   expect(await screen.findByTestId('look-picker')).toBeTruthy();
-  expect(await screen.findByTestId('drawer-idle')).toHaveTextContent(diary.drawer.schedule(0));
+  // The ✓ waits grey until her picks change the day (Front Door PRD rev 3 §4.5).
+  const done = await screen.findByRole('button', { name: diary.drawer.done });
+  expect(done.props.accessibilityState).toEqual({ disabled: true });
   expect(screen.getByText(diary.drawer.eyebrow('Friday', 'Fri 2 Oct'))).toBeTruthy();
+  // The question stands once her looks have loaded (the empty drawer has none to ask over).
+  expect(await screen.findByRole('header', { name: diary.log.ahead })).toBeTruthy();
+  // The shared filter row and the search sit under the question.
+  expect(screen.getByTestId('filter-row')).toBeTruthy();
+  expect(screen.getByRole('button', { name: `${filters.all} 1` })).toBeTruthy();
+  expect(screen.getByLabelText(diary.drawer.search)).toBeTruthy();
   expect(await screen.findByText(diary.drawer.wears(2))).toBeTruthy();
-  // One tap readies Schedule 1 Look; a pin follows.
+  // One tap readies Schedule 1 Look on the ✓; a pin follows.
   await fireEvent.press(screen.getByTestId(`drawer-look-${LOOK_ID}`));
+  expect(screen.getByRole('button', { name: diary.drawer.schedule(1) })).toBeTruthy();
+  // A search that matches nothing offers Clear filters, and the pick survives it.
+  await fireEvent.changeText(screen.getByLabelText(diary.drawer.search), 'nothing like this');
+  expect(await screen.findByText(filters.noLooks)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: filters.clear }));
   expect(screen.getByRole('button', { name: diary.drawer.schedule(1) })).toBeTruthy();
 });
 
-test('Capture leaves for the photo flow with the day and the camera opening', async () => {
+test('Capture opens the camera for the day', async () => {
   mockFetch(ROUTES);
   await renderWithApi(<DiaryHome day={EMPTY} />);
   await fireEvent.press(await screen.findByTestId('disc-capture'));
   expect(mockRouter.push).toHaveBeenCalledWith({
     pathname: '/looks/photo',
-    params: { day: EMPTY, start: 'camera' },
+    params: { day: EMPTY },
   });
 });
 
@@ -296,6 +315,21 @@ test('the model stack opens Your model; a pick is remembered', async () => {
   });
   await fireEvent.press(screen.getByRole('radio', { name: diary.dayOne.modelPick(3) }));
   await waitFor(() => expect(picks).toEqual([{ preset: 3 }]));
+});
+
+// Opened with Your model still closing, the selfie chooser left a see-through layer over the
+// whole app on iOS, taking every tap: the selfie camera waits for the picker to be gone.
+test('Use my likeness: the selfie camera opens once Your model has gone', async () => {
+  mockFetch(ROUTES);
+  await renderWithApi(<DiaryHome day={EMPTY} />);
+  await fireEvent.press(await screen.findByRole('button', { name: diary.model.choose }));
+  expect(await screen.findByTestId('model-picker')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: diary.model.own }));
+  expect(mockRouter.push).not.toHaveBeenCalledWith('/you/selfie');
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/you/selfie'), {
+    timeout: 4000,
+  });
+  expect(screen.queryByTestId('model-picker')).toBeNull();
 });
 
 test('once her twin stands, the model stack is gone', async () => {

@@ -8,8 +8,10 @@ import type { Stop, TwinSpec } from './twin';
 export type RobesModelN = 1 | 2 | 3 | 4 | 5;
 export const ROBES_MODEL_NS: readonly RobesModelN[] = [1, 2, 3, 4, 5];
 
-// 1–3 are the three generics as they were (skin, hair; 35, a UK 10); 4 is older, 5 larger. Skin
-// and hair index the swatches. Bumping the style redraws all ten.
+// Annie's five (7 Nov), in her order: two hand-picked catalog portraits (Sand · Ash blonde, Tan ·
+// Espresso), the older model, Porcelain · Caramel, the larger model. Skin and hair index the
+// swatches. v2 is that lineup: the women's portraits are preloaded from the ones she chose
+// (`pnpm migrate:robes-models`), the men's drawn from these facts. Bumping the style redraws all ten.
 export const ROBES_MODELS: readonly {
   n: RobesModelN;
   skin: number;
@@ -18,13 +20,24 @@ export const ROBES_MODELS: readonly {
   sizeUk: number;
   stops: { shoulders: Stop; bust: Stop; hips: Stop };
 }[] = [
-  { n: 1, skin: 4, hair: 1, age: 35, sizeUk: 10, stops: { shoulders: 0, bust: 0, hips: 0 } },
-  { n: 2, skin: 1, hair: 0, age: 35, sizeUk: 10, stops: { shoulders: 0, bust: 0, hips: 0 } },
-  { n: 3, skin: 7, hair: 3, age: 35, sizeUk: 10, stops: { shoulders: 0, bust: 0, hips: 0 } },
-  { n: 4, skin: 6, hair: 5, age: 62, sizeUk: 12, stops: { shoulders: 0, bust: 0, hips: 0 } },
+  { n: 1, skin: 5, hair: 4, age: 35, sizeUk: 10, stops: { shoulders: 0, bust: 0, hips: 0 } },
+  { n: 2, skin: 3, hair: 1, age: 35, sizeUk: 10, stops: { shoulders: 0, bust: 0, hips: 0 } },
+  { n: 3, skin: 6, hair: 5, age: 62, sizeUk: 12, stops: { shoulders: 0, bust: 0, hips: 0 } },
+  { n: 4, skin: 7, hair: 3, age: 35, sizeUk: 10, stops: { shoulders: 0, bust: 0, hips: 0 } },
   { n: 5, skin: 2, hair: 1, age: 35, sizeUk: 18, stops: { shoulders: 0, bust: 1, hips: 1 } },
 ];
-export const ROBES_MODEL_STYLE = 'v1';
+export const ROBES_MODEL_STYLE = 'v2';
+
+// The lineup's order (Annie, 7 Nov): fixed (her own model first once she has one, then the five
+// in order) until she chooses; the one her looks stand on then leads, checked. Home's picker and
+// the model page, web and native, all read it.
+export type LineupSlot = 'own' | RobesModelN;
+export function lineupOrder(s: { own: boolean; chosen: 'own' | number | null }): LineupSlot[] {
+  const fixed: LineupSlot[] = s.own ? ['own', ...ROBES_MODEL_NS] : [...ROBES_MODEL_NS];
+  const lead = fixed.find((slot) => slot === s.chosen);
+  if (lead === undefined) return fixed;
+  return [lead, ...fixed.filter((slot) => slot !== lead)];
+}
 
 export type Wearer = 'woman' | 'man';
 export const isRobesModelN = (v: unknown): v is RobesModelN =>

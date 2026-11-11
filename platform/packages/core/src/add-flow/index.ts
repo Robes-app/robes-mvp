@@ -1,5 +1,4 @@
 import { shadeByName } from '../colour';
-import { cropRegion } from '../photo-pieces';
 import { defaultTagsFor, sheetL1For, WEAR_SEEDS } from '../taxonomy';
 
 // Add a piece, end to end (design "Add Piece — Handoff", 2026-10-26): every way in — the camera,
@@ -12,74 +11,6 @@ export type AddDestination = (typeof ADD_DESTINATIONS)[number];
 
 export function isDestination(value: unknown): value is AddDestination {
   return ADD_DESTINATIONS.includes(value as AddDestination);
-}
-
-// Review's scan: seven steps of 380ms. The line sweeps top to bottom over the first five, one
-// tag pops in per step, and from the sixth the name caption shows and the rows resolve.
-export const SCAN_STEPS = 7;
-export const SCAN_STEP_MS = 380;
-export const SCAN_READY_STEP = 6;
-
-export function scanFrame(step: number): {
-  lineTop: number;
-  lineVisible: boolean;
-  tagsShown: number;
-  ready: boolean;
-} {
-  const s = Math.max(0, Math.min(SCAN_STEPS, Math.floor(step)));
-  return {
-    lineTop: Math.min(s, 5) * 20,
-    lineVisible: s < SCAN_READY_STEP,
-    tagsShown: s,
-    ready: s >= SCAN_READY_STEP,
-  };
-}
-
-// Review's photograph fills a 4:5 frame with the piece's own crop of her photo, centred (cover).
-// In fractions of the frame: width and left of its width, height and top of its height.
-export const SCAN_FRAME_RATIO = 1.25;
-
-export function scanCover(photo: {
-  width: number;
-  height: number;
-  box: { x: number; y: number; w: number; h: number };
-}): { width: number; height: number; left: number; top: number } {
-  const r = cropRegion(photo.box);
-  const ratio = Math.max(1, photo.height) / Math.max(1, photo.width);
-  let w = 1 / r.w;
-  let h = w * ratio;
-  if (h * r.h < SCAN_FRAME_RATIO) {
-    h = SCAN_FRAME_RATIO / r.h;
-    w = h / ratio;
-  }
-  return {
-    width: w,
-    height: h / SCAN_FRAME_RATIO,
-    left: -r.x * w + (1 - r.w * w) / 2,
-    top: (-r.y * h + (SCAN_FRAME_RATIO - r.h * h) / 2) / SCAN_FRAME_RATIO,
-  };
-}
-
-// Where the tags sit on the photo, in percent of its frame, in the order they pop.
-export const TAG_SPOTS: ReadonlyArray<{ x: number; y: number }> = [
-  { x: 6, y: 10 },
-  { x: 62, y: 22 },
-  { x: 8, y: 42 },
-  { x: 60, y: 56 },
-  { x: 6, y: 72 },
-];
-
-// The tags: category · type · brand · colour · name, de-duplicated (case-insensitive), at most
-// one per spot.
-export function scanTags(values: ReadonlyArray<string | null | undefined>): string[] {
-  const out: string[] = [];
-  for (const raw of values) {
-    const v = raw?.trim();
-    if (!v || out.some((t) => t.toLowerCase() === v.toLowerCase())) continue;
-    out.push(v);
-    if (out.length === TAG_SPOTS.length) break;
-  }
-  return out;
 }
 
 // What Review shows on its rows before she has touched anything: Robes' read, with the colour
@@ -121,71 +52,61 @@ export function readDraft(read: ReadValues) {
   };
 }
 
-// The queue Review walks: one entry per piece found, grouped by what files it together (a read
-// job files all its pieces in one call; a link files on its own).
-export type ReviewAnswer = 'pending' | 'add' | 'skip';
-export interface ReviewEntry<E> {
-  key: string;
-  group: string;
-  index: number;
-  answer: ReviewAnswer;
-  edits?: E;
+// ── Review as a list (Capture PRD 3c.3–3c.5, 10 Nov 2026) ───────────────────────────────────
+// Several photographs are reviewed together: a list she removes from and opens a piece out of,
+// then one "Add N to wardrobe". With one piece the list is that piece's own page; with none left
+// she is back at the camera.
+export type ReviewScreen =
+  | { kind: 'camera' }
+  | { kind: 'list'; count: number }
+  // `key` is null while the one photograph is still being read.
+  | { kind: 'single'; key: string | null }
+  | { kind: 'piece'; key: string; at: number; of: number };
+
+export function reviewScreen(s: {
+  // The pieces still on the list, in order.
+  keys: readonly string[];
+  // Photographs whose read has not landed yet (each shows a "Reading the details…" row).
+  reading: number;
+  // The piece she opened from the list, if any.
+  open: string | null;
+}): ReviewScreen {
+  const count = s.keys.length + s.reading;
+  if (count === 0) return { kind: 'camera' };
+  if (count === 1) return { kind: 'single', key: s.keys[0] ?? null };
+  const at = s.open ? s.keys.indexOf(s.open) : -1;
+  if (s.open && at >= 0) return { kind: 'piece', key: s.open, at: at + 1, of: count };
+  return { kind: 'list', count };
 }
 
-// After answering the piece at `from`: the next one still waiting, else the first one waiting
-// anywhere, else null (everything is answered).
-export function nextPending<E>(
-  entries: ReadonlyArray<ReviewEntry<E>>,
-  from: number,
-): number | null {
-  for (let i = from + 1; i < entries.length; i++) if (entries[i]?.answer === 'pending') return i;
-  for (let i = 0; i < Math.min(from, entries.length); i++)
-    if (entries[i]?.answer === 'pending') return i;
-  return null;
-}
-
-// Groups whose every piece is answered and that haven't filed yet: each is one filing call.
-// A group nothing was kept from still files (so its spare crops are let go).
-export function readyGroups<E>(
-  entries: ReadonlyArray<ReviewEntry<E>>,
-  filed: ReadonlySet<string>,
+// "Add N to wardrobe": one filing call per group (a read files all its pieces at once), the
+// pieces she kept added with her edits and the ones she removed skipped, so their crops are let
+// go. A group with nothing kept still files, for the same reason.
+export function bulkGroups<E>(
+  entries: ReadonlyArray<{ key: string; group: string; index: number }>,
+  removed: ReadonlySet<string>,
+  changes: Readonly<Record<string, E | undefined>>,
 ): Array<{
   group: string;
   answers: Array<{ index: number; state: 'add' | 'skip'; edits?: E }>;
 }> {
   const order: string[] = [];
-  const byGroup = new Map<string, ReviewEntry<E>[]>();
+  const byGroup = new Map<string, Array<{ index: number; state: 'add' | 'skip'; edits?: E }>>();
   for (const e of entries) {
-    if (filed.has(e.group)) continue;
     if (!byGroup.has(e.group)) {
       byGroup.set(e.group, []);
       order.push(e.group);
     }
-    byGroup.get(e.group)?.push(e);
+    const edits = changes[e.key];
+    byGroup
+      .get(e.group)
+      ?.push(
+        removed.has(e.key)
+          ? { index: e.index, state: 'skip' }
+          : { index: e.index, state: 'add', ...(edits !== undefined ? { edits } : {}) },
+      );
   }
-  return order.flatMap((group) => {
-    const items = byGroup.get(group) ?? [];
-    if (items.some((e) => e.answer === 'pending')) return [];
-    return [
-      {
-        group,
-        answers: items.map((e) =>
-          e.answer === 'add' && e.edits !== undefined
-            ? { index: e.index, state: 'add' as const, edits: e.edits }
-            : { index: e.index, state: e.answer as 'add' | 'skip' },
-        ),
-      },
-    ];
-  });
-}
-
-export function reviewTally<E>(entries: ReadonlyArray<ReviewEntry<E>>): {
-  kept: number;
-  skipped: number;
-  pending: number;
-} {
-  const n = (a: ReviewAnswer) => entries.filter((e) => e.answer === a).length;
-  return { kept: n('add'), skipped: n('skip'), pending: n('pending') };
+  return order.map((group) => ({ group, answers: byGroup.get(group) ?? [] }));
 }
 
 // What she changed on Review's rows, as the drawers hand it back.

@@ -122,26 +122,32 @@ test('a pushed page’s back pill: in the top bar on a phone, at the head of the
   await page.keyboard.press('Tab');
   await expect(back).toBeFocused();
 
-  // The roots carry no pill at either width.
+  // The roots carry no pill at either width. From 768 the bar keeps the wordmark; on a phone a
+  // tab's serif title stands in its place (PRD rev 3 §2.2) and the page's h1 names it for AT.
   for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/wardrobe');
-    await expect(banner.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    if (width >= 768) {
+      await expect(banner.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    } else {
+      await expect(banner.getByRole('link', { name: 'Home' })).toHaveCount(0);
+      await expect(banner.getByTestId('tab-title')).toHaveText('Your wardrobe');
+    }
     await expect(page.getByRole('link', { name: 'October 2026' })).toHaveCount(0);
   }
-  // Back from the day lands on the Diary, and the wordmark comes back with it.
+  // Back from the day lands on the Diary, and its title comes back with it.
   await page.goto('/plan/2026-10-14');
   await banner.getByRole('link', { name: 'October 2026' }).click();
   await expect(page).toHaveURL(/\/plan$/);
-  await expect(banner.getByRole('link', { name: 'Home' })).toBeVisible();
+  await expect(banner.getByTestId('tab-title')).toHaveText('Diary');
 });
 
 test('every shell route renders its heading', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
   const routes: [string, string | RegExp][] = [
-    ['/wardrobe', 'Wardrobe'],
-    ['/wardrobe/wishlist', 'Wardrobe'],
+    ['/wardrobe', 'Your wardrobe'],
+    ['/wardrobe/wishlist', 'Your wardrobe'],
     ['/wardrobe/inbox', 'Inbox'],
     ['/wardrobe/add', 'Add pieces'],
     ['/wardrobe/link', 'Add from a shop page.'],

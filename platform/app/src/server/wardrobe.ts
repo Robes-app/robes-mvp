@@ -33,6 +33,7 @@ async function toPiece(
     material: row.material,
     colourCheck: (row.itemDna as { colour_check?: unknown } | null)?.colour_check === true,
     materialCheck: (row.itemDna as { material_check?: unknown } | null)?.material_check === true,
+    brandCheck: (row.itemDna as { brand_check?: unknown } | null)?.brand_check === true,
     brand: row.brand,
     notes: row.notes,
     status: row.status,

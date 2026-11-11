@@ -16,20 +16,25 @@ export function SubviewBackIcon() {
 }
 
 // The subview's 56px header on its own: the back control (a Close in a Subview, a link on a page
-// such as Settings), the 9px tracked title centred, a 36px spacer, over a 0.5px rule.
+// such as Settings), the 9px tracked title centred, a 36px spacer, over a 0.5px rule. A page of
+// its own (Settings) reads in the tabs' serif title instead (Annie, 11 Nov).
 export function SubviewHeader({
   title,
   back,
   titleAs: Title = 'h1',
+  serif = false,
 }: {
   title: string;
   back: ReactNode;
   titleAs?: 'h1' | typeof RadixDialog.Title;
+  serif?: boolean;
 }) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-hairline border-b-[0.5px] px-3">
       {back}
-      <Title className="type-label min-w-0 flex-1 truncate text-center text-ink-muted">
+      <Title
+        className={`min-w-0 flex-1 truncate text-center ${serif ? 'font-display font-light text-2xl text-ink' : 'type-label text-ink-muted'}`}
+      >
         {title}
       </Title>
       <span aria-hidden className="w-9 shrink-0" />

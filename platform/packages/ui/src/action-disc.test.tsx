@@ -14,25 +14,6 @@ describe('ActionDisc', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it('opens a photo picker from the disc itself', async () => {
-    const onFile = vi.fn();
-    render(
-      <ActionDisc
-        icon="capture"
-        label="Capture"
-        ariaLabel="Photograph a look"
-        onFile={onFile}
-        accept="image/*"
-        capture="environment"
-      />,
-    );
-    const input = screen.getByLabelText('Photograph a look');
-    expect(input).toHaveAttribute('capture', 'environment');
-    const file = new File(['x'], 'look.jpg', { type: 'image/jpeg' });
-    await userEvent.upload(input, file);
-    expect(onFile).toHaveBeenCalledWith(file);
-  });
-
   it('has no serious accessibility violations', async () => {
     render(
       <main>

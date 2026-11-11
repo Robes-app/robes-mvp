@@ -25,7 +25,10 @@
     "./text": "./src/text.tsx",
     "./toast": "./src/toast.tsx",
     "./command-bar": "./src/command-bar.tsx",
-    "./switch": "./src/switch.tsx"
+    "./switch": "./src/switch.tsx",
+    "./switch-pill": "./src/switch-pill.tsx",
+    "./filter-button": "./src/filter-button.tsx",
+    "./tile-sheet": "./src/tile-sheet.tsx"
   },
   "scripts": {
     "test": "vitest run",

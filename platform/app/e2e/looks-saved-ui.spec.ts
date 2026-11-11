@@ -17,6 +17,9 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await signIn(page);
   await declineConsent(page);
   await makePieces(page, ['Camel coat', 'Straight jeans']);
+  // The pieces were filed behind the page's back, after sign-in had already counted an empty
+  // wardrobe (cached 30s): load afresh so the draft offers Pick from your wardrobe.
+  await page.reload();
 
   // Create › New look is the composer now.
   await page.getByRole('button', { name: 'Create' }).first().click();
@@ -27,13 +30,13 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // The draft drawer (D14) opens over the screen; the first pieces make the draft, the done disc
   // saves it, and the saved look opens with the diary up.
   await expect(page).toHaveURL(/\/looks\/draft\/new$/);
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   const picker = page.getByTestId('piece-picker');
   await picker.getByRole('button', { name: 'Include Camel coat' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Draft look')).toBeVisible();
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   await picker.getByRole('button', { name: 'Include Straight jeans' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();
@@ -191,7 +194,7 @@ test('removing a look can be undone', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Weekend' })).toBeVisible();
 });
 
-test('the image stack (D19, D20): a photograph lands in focus, waits for Update look, and the card in front leads', async ({
+test('the image stack (D19, D20): a photograph lands in focus and the strip’s ✓ keeps it as the cover, never waiting for Update look', async ({
   page,
 }) => {
   await signIn(page);
@@ -227,30 +230,42 @@ test('the image stack (D19, D20): a photograph lands in focus, waits for Update 
   await expect(manager).toBeVisible();
   // One card: the last one left has no ×.
   await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(0);
-  await manager.locator('input[type="file"][aria-label="Add a photo"]').setInputFiles(PHOTO);
+  // Add a photo opens the camera that only adds an image (Capture PRD flow 3). The test browser
+  // has none, so her photos answer; a library photo reads Another, and ADD TO LOOK brings it back.
+  await manager.getByTestId('image-card-add').click();
+  const camera = page.getByTestId('capture-camera');
+  await expect(camera.getByText('Wearing this look? Step back · Head to toe')).toBeVisible();
+  await page.getByTestId('capture-photos-input').setInputFiles(PHOTO);
+  const review = page.getByTestId('capture-review');
+  await expect(review.getByRole('button', { name: 'Another' })).toBeVisible();
+  await review.getByRole('button', { name: 'Add to look' }).click();
+  await expect(review).toHaveCount(0, { timeout: 30_000 });
   // The photograph lands in the frame at once, and now each card has its × — Robes' picture too.
   await expect(manager.getByTestId('image-card-added')).toBeInViewport({ timeout: 30_000 });
   // ✓ straight away, while the strip may still be gliding to the new card: it still leads.
   await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(2);
-  // Nothing is written until Update look (D20).
+  // Nothing is written before the strip's ✓.
   expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).images).toEqual([]);
-  // ✓ leaves the card in view in front; the photo shows it, and Update look keeps it.
+  // ✓ keeps the card in view as the cover there and then (Annie, 11 Nov): the foot stays
+  // Schedule look, with no Update look to ask for.
   await page.getByTestId('image-manager-done').click();
   await expect(manager).toBeHidden();
-  await page.getByTestId('update-look').click();
+  await expect(page.getByTestId('update-look')).toHaveCount(0);
+  await expect(page.getByTestId('schedule-look')).toBeVisible();
   await expect
     .poll(async () => {
       const now = await (await api.get(`/api/v1/looks/${look.id}`)).json();
       return [now.images.length, now.record];
     })
     .toEqual([1, 'photo']);
+  // Adding a photograph never reads its pieces: the rack is as it was, nothing proposed.
+  expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).proposals).toEqual([]);
   await expect(page.getByTestId('saved-look-stack')).toContainText('1');
   // Hiding Robes' picture leaves her photograph as the only card: it keeps no ×.
   await page.getByTestId('saved-look-stack').click();
   await manager.getByRole('button', { name: 'Remove this image · Robes’ picture' }).click();
   await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(0);
   await page.getByTestId('image-manager-done').click();
-  await page.getByTestId('update-look').click();
   await expect
     .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).robesHidden)
     .toBe(true);
@@ -335,6 +350,9 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
   await expect(page.getByRole('button', { name: 'Edit look' })).toHaveCount(0);
   await expect(look3e.getByTestId('update-look')).toHaveCount(0);
   const picker = page.getByTestId('piece-picker');
+  // At rest the rows open their pieces; the pencil shows the swap and × (plan R2).
+  await expect(look3e.getByRole('button', { name: /^Swap / })).toHaveCount(0);
+  await look3e.getByRole('button', { name: 'Edit pieces' }).click();
   await look3e.getByRole('button', { name: /^Swap / }).click();
   await picker.getByRole('button', { name: 'Include Navy coat' }).click();
   await picker.getByRole('button', { name: 'Swap it in' }).click();
@@ -351,9 +369,12 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
   const ask = page.getByRole('alertdialog', { name: 'Discard your changes?' });
   await ask.getByRole('button', { name: 'Keep editing' }).click();
   await expect(look3e.getByTestId(`rack-row-${navy}`)).toBeVisible();
-  // The pill under the prompt card applies it, and she stays on the look.
+  // Update look holds the foot in Schedule look's place while the change waits (PRD §6.1); it
+  // applies the change, she stays on the look, and Schedule look comes back.
+  await expect(look3e.getByRole('button', { name: 'Schedule look' })).toHaveCount(0);
   await look3e.getByTestId('update-look').click();
-  await expect(page.getByText('Updated', { exact: true })).toBeVisible();
+  await expect(page.getByText('Look updated.', { exact: true })).toBeVisible();
+  await expect(look3e.getByRole('button', { name: 'Schedule look' })).toBeVisible();
   await expect
     .poll(async () =>
       (await (await page.request.get(`/api/v1/looks/${look.id}`)).json()).pieces.map(

@@ -110,7 +110,7 @@ export function SettingsPage({
   // No header bar (redlines R1): the page's picture starts under the safe area and the back
   // control floats over it (`title` names the document only).
   bare?: boolean;
-  // Felix's subview header (SettingsView): the back chevron, the tracked title centred, a 56px
+  // Felix's subview header (SettingsView): the back chevron, the serif title centred, a 56px
   // bar over a 0.5px rule; the body pads 20 at the sides.
   subview?: boolean;
   children: ReactNode;
@@ -121,6 +121,7 @@ export function SettingsPage({
         <div className="sticky top-0 z-40 bg-bg">
           <SubviewHeader
             title={title}
+            serif
             back={
               <Link href={back} aria-label={ui.back} className={subviewBackClass}>
                 <SubviewBackIcon />

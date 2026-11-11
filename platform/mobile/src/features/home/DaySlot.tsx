@@ -50,8 +50,6 @@ export function DaySlot({
   justSaved = null,
   model,
   actions,
-  onAnother,
-  anotherBusy = false,
 }: {
   day: DiaryDay;
   today: string;
@@ -61,8 +59,6 @@ export function DaySlot({
   justSaved?: string | null;
   model: Model | undefined;
   actions: DayActions;
-  onAnother: (lookId: string) => void;
-  anotherBusy?: boolean;
 }) {
   const router = useRouter();
   const window = useWindowDimensions();
@@ -103,7 +99,8 @@ export function DaySlot({
               onImage={
                 <>
                   {justSaved === entry.look.id ? <SavedBadge /> : null}
-                  {/* Felix 3k: the image stack opens the Edit look sheet on Add a photo (D19). */}
+                  {/* The image stack opens the Edit look drawer on its Add a photo card (design
+                      "Add a photo to a look", Annie 11 Nov): × always closes it. */}
                   <ImageStack
                     look={entry.look}
                     onOpen={() =>
@@ -141,16 +138,7 @@ export function DaySlot({
             </Text>
           </View>
         ))}
-        {draft ? (
-          <DraftTile
-            draft={draft}
-            day={day}
-            today={today}
-            width={width}
-            onAnother={onAnother}
-            anotherBusy={anotherBusy}
-          />
-        ) : null}
+        {draft ? <DraftTile draft={draft} day={day} today={today} width={width} /> : null}
         <AddPage
           width={width}
           dayWord={dayWord}
@@ -189,6 +177,8 @@ function AddPage({
     >
       <View className="overflow-hidden rounded-tile bg-surface-sunk">
         {portrait ? (
+          // One frame kept across a model change: expo-image's `transition` crossfades the new
+          // portrait over the old (PRD rev 3 §2.6). The web twin keys the <img> and fades it in.
           <Image source={portrait} alt="" aspect="4:5" />
         ) : (
           <Skeleton width="100%" aspectRatio={ASPECTS['4:5']} className="rounded-none" />

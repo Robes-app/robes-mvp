@@ -1,7 +1,7 @@
 import { wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { AccessibilityInfo } from 'react-native';
 import { AddPiecesPanel } from '../src/features/wardrobe/add/AddPiecesPanel';
+import { sitting } from '../src/features/wardrobe/add/flow';
 import { ManualAdd } from '../src/features/wardrobe/add/ManualAdd';
 import { Review } from '../src/features/wardrobe/add/Review';
 import { nativeAnalytics } from '../src/lib/analytics';
@@ -24,8 +24,7 @@ const ENTRY_ID = '99999999-9999-4999-8999-999999999999';
 beforeEach(() => {
   jest.clearAllMocks();
   for (const k of Object.keys(mockParams)) delete mockParams[k];
-  // The scan plays in full at once, so a test answers the piece it sees.
-  jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+  sitting.takeEmptied();
 });
 
 function readPiece(index: number) {
@@ -64,8 +63,9 @@ const READ = {
 
 const SHOT = { uri: 'file:///tmp/a.jpg', width: 800, height: 1000, jobId: JOB_ID };
 
-const fileButton = (to: 'wardrobe' | 'wishlist', next: boolean) =>
-  screen.findByRole('button', { name: add.review.file(to, next) });
+const cap = wardrobe.capture;
+const JOB_B = '77777777-7777-4777-8777-777777777777';
+const SHOT_B = { uri: 'file:///tmp/b.jpg', width: 800, height: 1000, jobId: JOB_B };
 
 test('the sheet carries where the pieces go into every door', async () => {
   await renderWithApi(<AddPiecesPanel />);
@@ -89,14 +89,100 @@ test('the sheet carries where the pieces go into every door', async () => {
   expect(mockRouter.replace).toHaveBeenLastCalledWith('/wardrobe/receipt');
 });
 
-test('Review walks the pieces one at a time and files the read once each is answered', async () => {
+test('the list shows one row per piece, and a row for a photograph still being read', async () => {
+  mockFetch({
+    ...READ,
+    [`GET /jobs/${JOB_B}`]: { ...READ[`GET /jobs/${JOB_ID}`], id: JOB_B, status: 'running' },
+  });
+  await renderWithApi(<Review to="wardrobe" from="camera" shots={[SHOT, SHOT_B]} link={null} />);
+  await waitFor(() => expect(screen.getAllByTestId('review-row')).toHaveLength(2));
+  expect(screen.getByText(cap.review.head(3))).toBeTruthy();
+  expect(screen.getByText(cap.review.sub)).toBeTruthy();
+  expect(screen.getAllByTestId('review-reading')).toHaveLength(1);
+  expect(screen.getByText(cap.review.reading)).toBeTruthy();
+  // Nothing is added while a photograph is still being read.
+  expect(screen.getByTestId('review-add').props.accessibilityState.disabled).toBe(true);
+});
+
+test('removing rows goes list, then the one piece, then back to the camera', async () => {
   const calls = mockFetch(READ);
   await renderWithApi(<Review to="wardrobe" from="camera" shots={[SHOT]} link={null} />);
-  // Two pieces: the first says there is another to come.
-  await fireEvent.press(await fileButton('wardrobe', true));
-  // Nothing files until every piece in the photo is answered.
+  await waitFor(() => expect(screen.getAllByTestId('review-row')).toHaveLength(2));
+  await fireEvent.press(screen.getByRole('button', { name: cap.review.remove('Cream tee') }));
+  // One left: its own page, with the one button to add it.
+  expect(await screen.findByText(cap.review.one)).toBeTruthy();
+  expect(screen.queryByTestId('review-row')).toBeNull();
+  expect(screen.getByRole('button', { name: cap.review.add(1, 'wardrobe') })).toBeTruthy();
+  expect(screen.getByText(cap.review.footnote)).toBeTruthy();
+  // "+ Add another piece" goes back to the camera beneath, the sitting kept.
+  await fireEvent.press(screen.getByTestId('review-another'));
+  expect(mockRouter.back).toHaveBeenCalledTimes(1);
+  expect(sitting.takeEmptied()).toBe(false);
   expect(calls.some((c) => c.path.endsWith('/file'))).toBe(false);
-  await fireEvent.press(await screen.findByRole('button', { name: add.review.notThis }));
+});
+
+test('a piece opened from the list reads "piece k of n" and can be removed there', async () => {
+  mockFetch(READ);
+  await renderWithApi(<Review to="wardrobe" from="camera" shots={[SHOT]} link={null} />);
+  await waitFor(() => expect(screen.getAllByTestId('review-row')).toHaveLength(2));
+  await fireEvent.press(screen.getByRole('button', { name: cap.review.open('Cream tee') }));
+  expect(await screen.findByText(cap.review.of(1, 2))).toBeTruthy();
+  expect(screen.getByRole('button', { name: cap.review.done })).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('review-remove-piece'));
+  // One left: its own page, which adds it or goes back for another.
+  expect(await screen.findByText(cap.review.one)).toBeTruthy();
+  expect(screen.queryByTestId('review-remove-piece')).toBeNull();
+});
+
+test('an edit on a piece shows on the list and rides the filing; Add N files and toasts', async () => {
+  const calls = mockFetch(READ);
+  await renderWithApi(<Review to="wishlist" from="roll" shots={[SHOT]} link={null} />);
+  await waitFor(() => expect(screen.getAllByTestId('review-row')).toHaveLength(2));
+  await fireEvent.press(screen.getByRole('button', { name: cap.review.open('Cream tee') }));
+  await fireEvent.press(
+    await screen.findByRole('button', { name: `${wardrobe.piece.brand}: ${wardrobe.piece.add}` }),
+  );
+  await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.brand), 'Toteme');
+  await act(async () => {
+    await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.saveField }));
+  });
+  await fireEvent.press(screen.getByTestId('review-done'));
+  // Her edit is on the list.
+  await waitFor(() => expect(screen.getAllByTestId('review-row')).toHaveLength(2));
+  expect(screen.getByText(/Toteme/)).toBeTruthy();
+  // Nothing has filed yet.
+  expect(calls.some((c) => c.path.endsWith('/file'))).toBe(false);
+  await act(async () => {
+    await fireEvent.press(screen.getByRole('button', { name: cap.review.add(2, 'wishlist') }));
+  });
+  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/file'))).toBe(true));
+  expect(calls.filter((c) => c.path.endsWith('/file'))).toHaveLength(1);
+  expect(calls.find((c) => c.path.endsWith('/file'))?.body).toEqual({
+    to: 'wishlist',
+    answers: [
+      { index: 0, state: 'add', edits: { brand: 'Toteme', label: 'Cream tee' } },
+      { index: 1, state: 'add', edits: { label: 'Black leggings' } },
+    ],
+  });
+  expect(await screen.findByText(cap.added(2, 'wishlist'))).toBeTruthy();
+  await waitFor(() =>
+    expect(mockRouter.replace).toHaveBeenLastCalledWith('/wardrobe?segment=wishlist'),
+  );
+  expect(track.mock.calls).toEqual([
+    ['pieces_filed', { source: 'photo', n: 2, skipped: 0, to: 'wishlist' }],
+  ]);
+});
+
+test('a removed piece is skipped in the filing, so its crop is let go', async () => {
+  const calls = mockFetch(READ);
+  await renderWithApi(<Review to="wardrobe" from="camera" shots={[SHOT]} link={null} />);
+  await waitFor(() => expect(screen.getAllByTestId('review-row')).toHaveLength(2));
+  await fireEvent.press(screen.getByRole('button', { name: cap.review.remove('Black leggings') }));
+  await act(async () => {
+    await fireEvent.press(
+      await screen.findByRole('button', { name: cap.review.add(1, 'wardrobe') }),
+    );
+  });
   await waitFor(() => expect(calls.some((c) => c.path.endsWith('/file'))).toBe(true));
   expect(calls.find((c) => c.path.endsWith('/file'))?.body).toEqual({
     to: 'wardrobe',
@@ -105,43 +191,13 @@ test('Review walks the pieces one at a time and files the read once each is answ
       { index: 1, state: 'skip' },
     ],
   });
-  expect(await screen.findByText(add.filed.line.wardrobe)).toBeTruthy();
-  expect(track.mock.calls).toEqual([
-    ['piece_answered', { state: 'add', edited: false }],
-    ['piece_answered', { state: 'skip', edited: false }],
-    ['pieces_filed', { source: 'photo', n: 1, skipped: 1, to: 'wardrobe' }],
-    ['wardrobe_added', { source: 'photo', batch_n: 1, batch_i: 1 }],
-  ]);
+  expect(await screen.findByText(cap.added(1, 'wardrobe'))).toBeTruthy();
+  // The camera beneath starts afresh, and the wardrobe takes its place.
+  expect(sitting.takeEmptied()).toBe(true);
+  expect(mockRouter.replace).toHaveBeenLastCalledWith('/wardrobe');
 });
 
-test('a row she changes on Review rides the filing, and the wishlist is the destination', async () => {
-  const calls = mockFetch(READ);
-  await renderWithApi(<Review to="wishlist" from="roll" shots={[SHOT]} link={null} />);
-  await fireEvent.press(
-    await screen.findByRole('button', { name: `${wardrobe.piece.brand}: ${wardrobe.piece.add}` }),
-  );
-  await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.brand), 'Toteme');
-  await act(async () => {
-    await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.saveField }));
-  });
-  await fireEvent.press(await fileButton('wishlist', true));
-  await fireEvent.press(await fileButton('wishlist', false));
-  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/file'))).toBe(true));
-  const body = calls.find((c) => c.path.endsWith('/file'))?.body as {
-    to: string;
-    answers: Array<{ index: number; state: string; edits?: Record<string, unknown> }>;
-  };
-  expect(body.to).toBe('wishlist');
-  expect(body.answers[0]).toEqual({
-    index: 0,
-    state: 'add',
-    edits: { brand: 'Toteme', label: 'Cream tee' },
-  });
-  expect(body.answers[1]).toEqual({ index: 1, state: 'add', edits: { label: 'Black leggings' } });
-  expect(await screen.findByText(add.filed.line.wishlist(2))).toBeTruthy();
-});
-
-test('a link is reviewed like a photo and filed through its Inbox entry', async () => {
+test('a link is reviewed as one piece and filed through its Inbox entry', async () => {
   const calls = mockFetch({
     [`GET /inbox/${ENTRY_ID}`]: {
       id: ENTRY_ID,
@@ -169,16 +225,20 @@ test('a link is reviewed like a photo and filed through its Inbox entry', async 
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<Review to="wardrobe" from={null} shots={[]} link={ENTRY_ID} />);
-  expect(await screen.findByText(add.review.sub.link)).toBeTruthy();
-  // A link has no photograph to retake.
-  expect(screen.queryByRole('button', { name: add.review.retake })).toBeNull();
-  await fireEvent.press(await fileButton('wardrobe', false));
+  expect(await screen.findByText(cap.review.one)).toBeTruthy();
+  // A link has no camera behind it.
+  expect(screen.queryByTestId('review-another')).toBeNull();
+  const add = await screen.findByRole('button', { name: cap.review.add(1, 'wardrobe') });
+  await waitFor(() => expect(add.props.accessibilityState.disabled).toBe(false));
+  await act(async () => {
+    await fireEvent.press(add);
+  });
   await waitFor(() => expect(calls.some((c) => c.path.endsWith('/decide'))).toBe(true));
   expect(calls.find((c) => c.path.endsWith('/decide'))?.body).toEqual({
     action: 'wardrobe',
     itemIndexes: [0],
   });
-  expect(await screen.findByText(add.filed.line.wardrobe)).toBeTruthy();
+  expect(await screen.findByText(cap.added(1, 'wardrobe'))).toBeTruthy();
 });
 
 test('without a photo, the piece waits for a category; nothing files before it', async () => {

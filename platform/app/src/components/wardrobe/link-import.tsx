@@ -20,11 +20,18 @@ const copy = wardrobe.add.link;
 // (chosen on the Add pieces sheet), and "Read the page" pinned at the foot. The isolated fetcher
 // reads the page (SEC-40), then Review opens on the piece — nothing files before it; a page that
 // can't be read keeps her here. Native twin: features/wardrobe/LinkImport.tsx.
-export function LinkImport({ initial: to }: { initial: AddDestination }) {
+export function LinkImport({
+  initial: to,
+  url: given = null,
+}: {
+  initial: AddDestination;
+  // A link pasted on the Add pieces sheet (PRD rev 3 §7.4) arrives here and is read at once.
+  url?: string | null;
+}) {
   const router = useRouter();
   const inputId = useId();
   const field = useRef<HTMLInputElement>(null);
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(given ?? '');
   const [canPaste, setCanPaste] = useState(false);
   const start = useApiMutation('imports.link');
   const { job, connection } = useJob(start.data?.jobId ?? null);
@@ -39,6 +46,12 @@ export function LinkImport({ initial: to }: { initial: AddDestination }) {
   useEffect(() => {
     if (inboxId) router.replace(`/wardrobe/review?to=${to}&link=${inboxId}`);
   }, [inboxId, router, to]);
+  const handed = useRef(false);
+  useEffect(() => {
+    if (!given?.trim() || handed.current) return;
+    handed.current = true;
+    start.mutate({ input: { url: given.trim(), as: to } });
+  }, [given, start, to]);
 
   async function paste() {
     const text = (await navigator.clipboard.readText().catch(() => '')).trim();

@@ -2,10 +2,9 @@ import type { PieceImage } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { nameNoBrand, type RackRow, type RowNote, theName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import { IconButton, Image, Text, useColor } from '@robes/ui-native';
+import { IconButton, Text, useColor } from '@robes/ui-native';
 import { Pressable, View } from 'react-native';
-import { Eyebrow, Name, Status } from '@/features/wardrobe/PieceCard';
-import { renditionUri } from '@/lib/images';
+import { CardRow, type RowMeta } from '@/features/wardrobe/PieceCard';
 
 export type RowMark = RowNote | { kind: 'added' };
 
@@ -38,11 +37,12 @@ function Disc({
   );
 }
 
-// One piece on a look's rack, composed from the wardrobe row's lines (legacy fix 13): Category ·
-// Brand, the name without its brand, then the role (with the price on a piece to find) and the
-// exception ("Not yours yet"). The whole card opens the piece; ♡ saves a piece to find to her
-// wishlist; the hanger swaps it from her wardrobe (Front Door design 3b, plan 2026-11-03 §1.5).
-// A row the prompt changed reads warm with an ink dot at its edge. Web twin: rack-row.tsx.
+// One piece on a look's rack: the shared piece row (CardRow, PRD §6.1) with the look's own say —
+// its role in the small caps, a find's retailer under the name, and at the right the wears behind a
+// calendar (a piece she owns), a wish's price behind a heart, or a piece to find's price behind a
+// bag. At rest the row opens the piece; in pencil mode the hanger swaps it and × takes it off, and
+// ♡ saves a piece to find. A row the prompt changed reads warm with an ink dot at its edge.
+// Web twin: rack-row.tsx.
 export function RackRowCard({
   row,
   image,
@@ -67,90 +67,19 @@ export function RackRowCard({
 }) {
   const brand = row.brand?.trim() || '';
   const name = nameNoBrand(row.name, brand);
-  const uri = renditionUri(image, 52);
   const proposal = row.proposal;
-  const faint = useColor('ink-faint');
-  // The name is already stripped of its brand (nameNoBrand reads "… by Brand" too).
-  const piece = { label: name, category: row.category, categoryL2: row.categoryL2 ?? null, brand };
-  const ctx = [
-    proposal ? (proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours) : null,
-    proposal?.retailerHint || null,
-  ].filter(Boolean);
-  // The role line carries the price of a piece to find ("EXCLAMATION · €180").
-  const status = [row.role ? copy.rack.roles[row.role] : '', proposal?.pricePoint?.trim() || '']
-    .filter(Boolean)
-    .join(' · ');
+  const meta = rackMeta(row, wears);
+  const markText =
+    mark?.kind === 'was'
+      ? copy.rack.swappedIn(theName(mark.name))
+      : mark?.kind === 'back'
+        ? copy.rack.backIn
+        : mark?.kind === 'added'
+          ? copy.rack.added
+          : null;
   const changed = mark?.kind === 'was' || mark?.kind === 'back' || mark?.kind === 'added';
-  return (
-    <Pressable
-      accessibilityRole={onOpen ? 'button' : undefined}
-      accessibilityLabel={onOpen ? copy.rack.open(name) : name}
-      onPress={onOpen}
-      disabled={!onOpen}
-      testID={`rack-row-${row.key}`}
-      // Felix's PieceList row: a 44×55 photo flush left, the lines, then the actions as 32pt
-      // cream discs in 44pt hit areas; the list around it draws the edge and the rules.
-      className={`relative flex-row items-center gap-3 pr-3 ${changed ? 'bg-selected' : ''}`}
-    >
-      {changed ? (
-        <View
-          accessibilityElementsHidden
-          className="absolute size-2 rounded-pill bg-ink"
-          style={{ left: -4, top: '50%', marginTop: -4 }}
-        />
-      ) : null}
-      <View
-        className={`overflow-hidden bg-surface-sunk ${proposal ? 'border border-dashed border-selected-line' : ''}`}
-        style={{ width: 44 }}
-      >
-        {uri ? (
-          <Image source={uri} alt="" aspect="4:5" blurhash={image?.blurhash} />
-        ) : (
-          <View
-            className="items-center justify-center bg-surface-sunk"
-            style={{ aspectRatio: 4 / 5 }}
-          >
-            <Text size="small" tone="muted">
-              {name.charAt(0)}
-            </Text>
-          </View>
-        )}
-      </View>
-      <View className="flex-1 gap-0.5">
-        {/* The piece card's own lines (one anatomy with the wardrobe row; web twin rack-row.tsx):
-            the sheet's eyebrow, the serif name, the role in rose as its status. */}
-        <Eyebrow piece={piece} />
-        <Name piece={piece} />
-        {status ? <Status status={{ text: status, warm: true }} /> : null}
-        {wears !== undefined ? (
-          <Text size="caption" tone="faint">
-            {copy.meta.wears(wears)}
-          </Text>
-        ) : null}
-        {ctx.length ? (
-          <Text size="caption" tone="faint" numberOfLines={1}>
-            {ctx.join(' · ')}
-          </Text>
-        ) : null}
-        {mark?.kind === 'was' ? (
-          <Text size="caption" tone="muted">
-            {copy.rack.swappedIn(theName(mark.name))}
-          </Text>
-        ) : mark?.kind === 'back' ? (
-          <Text size="caption" tone="muted">
-            {copy.rack.backIn}
-          </Text>
-        ) : mark?.kind === 'added' ? (
-          <Text size="caption" tone="muted">
-            {copy.rack.added}
-          </Text>
-        ) : null}
-        {styled ? (
-          <Text size="caption" tone="muted" italic>
-            {styled}
-          </Text>
-        ) : null}
-      </View>
+  const actions =
+    (proposal && onWish) || onSwap || onRemove ? (
       <View className="flex-row items-center">
         {proposal && onWish ? (
           <IconButton
@@ -162,8 +91,61 @@ export function RackRowCard({
         ) : null}
         {onSwap ? <Disc icon="wardrobe" label={copy.rack.swap(name)} onPress={onSwap} /> : null}
         {onRemove ? <Disc icon="close" label={copy.rack.remove(name)} onPress={onRemove} /> : null}
-        {onOpen && !onSwap && !onRemove ? <Icon name="forward" size={16} color={faint} /> : null}
       </View>
-    </Pressable>
+    ) : null;
+  return (
+    <CardRow
+      piece={{
+        id: row.key,
+        label: name,
+        category: row.category,
+        categoryL2: row.categoryL2 ?? null,
+        brand: brand || null,
+        image: image ?? null,
+      }}
+      {...(row.role ? { role: copy.rack.roles[row.role] } : {})}
+      maker={brand || proposal?.retailerHint?.trim() || ''}
+      dashed={!!proposal}
+      meta={meta}
+      action={actions}
+      lines={
+        markText || styled ? (
+          <>
+            {markText ? (
+              <Text numberOfLines={1} tone="muted" style={{ fontSize: 11 }}>
+                {markText}
+              </Text>
+            ) : null}
+            {styled ? (
+              <Text numberOfLines={1} tone="muted" italic style={{ fontSize: 11 }}>
+                {styled}
+              </Text>
+            ) : null}
+          </>
+        ) : null
+      }
+      {...(onOpen && !onSwap && !onRemove ? { onOpen } : {})}
+      openLabel={copy.rack.open(name)}
+      highlight={changed}
+      testID={`rack-row-${row.key}`}
+    />
   );
+}
+
+// The rack row's meta (PRD §6.1, Annie 9 Nov): a wish carries a heart and its price, a piece to
+// find a bag and its price, a piece she owns its wears.
+function rackMeta(row: RackRow, wears: number | undefined): RowMeta | null {
+  const proposal = row.proposal;
+  if (proposal) {
+    const price = proposal.pricePoint?.trim() || '';
+    const said = proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours;
+    return {
+      icon: proposal.wishlisted ? 'heart' : 'bag',
+      ...(price ? { text: price } : {}),
+      label: [said, price].filter(Boolean).join(' · '),
+    };
+  }
+  return wears === undefined
+    ? null
+    : { icon: 'calendar', text: String(wears), label: copy.meta.wears(wears) };
 }

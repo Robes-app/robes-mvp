@@ -79,9 +79,10 @@ export function useShotSession(initial: readonly ReviewShot[] = []) {
     },
     [start],
   );
+  const reset = useCallback(() => setShots([]), []);
   const jobs = useReadJobs(shots.flatMap((s) => (s.jobId ? [s.jobId] : [])));
   const settled = (s: SessionShot) => s.failed || (s.jobId ? isTerminal(jobs.get(s.jobId)) : false);
   const reading = shots.some((s) => !settled(s));
   const found = shots.reduce((n, s) => n + (s.jobId ? piecesIn(jobs.get(s.jobId)) : 0), 0);
-  return { shots, add, jobs, reading, found };
+  return { shots, add, reset, jobs, reading, found };
 }

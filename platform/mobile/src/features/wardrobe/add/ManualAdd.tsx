@@ -25,8 +25,8 @@ import { nativeAnalytics } from '@/lib/analytics';
 import { PICKER_OPTIONS, uploadPhoto } from '../add-pieces';
 import { type PieceField, PieceFieldSheet } from '../PieceFieldSheet';
 import { RecordRows } from '../PieceRows';
+import { Filed } from './Filed';
 import type { AddDestination, ReviewShot } from './flow';
-import { Filed } from './Review';
 
 const copy = wardrobe.add.manual;
 const EMPTY = readDraft({

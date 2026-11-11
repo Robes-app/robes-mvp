@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo, Pressable, Text } from 'react-native';
 import { TOAST_DEFAULT_DURATION, TOAST_MIN_DURATION } from './scale';
-import { type ToastOptions, ToastProvider, useToast } from './Toast';
+import { type ToastOptions, ToastProvider, useToast, useToastLift } from './Toast';
 
 function Trigger({ options }: { options: ToastOptions }) {
   const toast = useToast();
@@ -107,4 +107,24 @@ test('useToast outside the provider fails loudly', async () => {
   const error = jest.spyOn(console, 'error').mockImplementation(() => {});
   await expect(render(<Trigger options={{ message: 'x' }} />)).rejects.toThrow(/ToastProvider/);
   error.mockRestore();
+});
+
+function Bar({ pt }: { pt: number }) {
+  useToastLift(pt);
+  return null;
+}
+
+test('a bar at the foot lifts the toast above it while it stands', async () => {
+  const shown = (bar: boolean) => (
+    <ToastProvider>
+      {bar ? <Bar pt={80} /> : null}
+      <Trigger options={{ message: 'Navy coat is on the look.' }} />
+    </ToastProvider>
+  );
+  const view = await render(shown(true));
+  await fireEvent.press(screen.getByRole('button', { name: 'Remove' }));
+  const frameStyle = () => [screen.getByTestId('toast-frame').props.style].flat(3);
+  expect(frameStyle()).toEqual(expect.arrayContaining([expect.objectContaining({ bottom: 92 })]));
+  await act(async () => view.rerender(shown(false)));
+  expect(frameStyle()).toEqual(expect.arrayContaining([expect.objectContaining({ bottom: 40 })]));
 });

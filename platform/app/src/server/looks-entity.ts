@@ -68,6 +68,8 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
   const imageRows = await repos.looks.imagesFor(userId, ids);
   const renderIds = rows.flatMap((r) => {
     const ids = [r.frameAssetId, r.renderAssetId, r.photoAssetId];
+    // The crops of pieces found in her photograph and not filed yet (Capture PRD 1c.6).
+    for (const p of proposalsOf(r.proposals)) if (p.capture) ids.push(p.capture.cropAssetId);
     return ids.filter((id): id is string => id !== null);
   });
   for (const r of imageRows) renderIds.push(r.assetId);
@@ -193,7 +195,8 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       pictureNote: row.pictureNote,
       frame: row.frameAssetId !== null,
       framePending,
-      composedByRobes: ROBES_SOURCES.has(row.source) || proposals.length > 0,
+      // A piece found in her own photograph is hers to file, never Robes' composition.
+      composedByRobes: ROBES_SOURCES.has(row.source) || proposals.some((p) => !p.capture),
       // A frame look never renders on her model (legacy 2026-10-07).
       onModel: frameRender ? null : (row.renderStatus ?? null),
       pictureStale,
@@ -205,6 +208,12 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
         (row.stoodOn ?? (frameRender ? null : stoodOnOf(row.renderKey))) === 'robes',
       pieces: lookPieces,
       proposals,
+      captureImages: Object.fromEntries(
+        proposals.flatMap((p) => {
+          const crop = p.capture ? usable(p.capture.cropAssetId) : null;
+          return crop ? [[p.key, crop] as const] : [];
+        }),
+      ),
       styling,
       edits: Edits.catch({}).parse(row.edits ?? {}),
       anchor: anchor

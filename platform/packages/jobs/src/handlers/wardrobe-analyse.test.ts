@@ -9,7 +9,16 @@ const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const PIECE = '22222222-2222-4222-8222-222222222222';
 const ASSET = '33333333-3333-4333-8333-333333333333';
 
-function setup(opts: { assetStatus?: string[]; output?: object; aiError?: AiError } = {}) {
+function setup(
+  opts: {
+    assetStatus?: string[];
+    master?: boolean | 'forbidden';
+    output?: object;
+    aiError?: AiError;
+    // The wait for renditions; short by default so the never-ready cases fail fast.
+    assetWaitMs?: number;
+  } = {},
+) {
   const statuses = [...(opts.assetStatus ?? ['ready'])];
   const pieces = {
     forAnalysis: vi.fn(async () => ({
@@ -23,7 +32,16 @@ function setup(opts: { assetStatus?: string[]; output?: object; aiError?: AiErro
     discard: vi.fn(async () => true),
   };
   const ledger = { record: vi.fn(async () => {}) };
-  const storage = { getObject: vi.fn(async () => new Uint8Array([1, 2, 3])) };
+  const storage = {
+    getObject: vi.fn(async () => new Uint8Array([1, 2, 3])),
+    // The master lands before the renditions; by default it isn't there until `ready`.
+    head: vi.fn(async () => {
+      // The worker has no s3:ListBucket, so S3 answers a missing key with 403, not 404.
+      if (opts.master === 'forbidden')
+        throw Object.assign(new Error('Forbidden'), { $metadata: { httpStatusCode: 403 } });
+      return opts.master ? { bytes: 3, contentType: 'image/jpeg' } : null;
+    }),
+  };
   const ai = opts.aiError
     ? {
         name: 'fake' as const,
@@ -38,7 +56,7 @@ function setup(opts: { assetStatus?: string[]; output?: object; aiError?: AiErro
     storage,
     pieces: pieces as never,
     ledger,
-    assetWaitMs: 50,
+    assetWaitMs: opts.assetWaitMs ?? 50,
     pollMs: 5,
   });
   const writeStage = vi.fn(async () => {});
@@ -87,7 +105,20 @@ describe('wardrobe_analyse handler', () => {
       PIECE,
       expect.objectContaining({
         material: 'polyamide',
-        itemDna: expect.objectContaining({ material_check: true, prompt_version: 4 }),
+        itemDna: expect.objectContaining({ material_check: true, prompt_version: 5 }),
+      }),
+    );
+  });
+
+  it("files a brand read from the design with Robes' check on it", async () => {
+    const { run, pieces } = setup({ output: { brand: 'Barbour', brand_check: true } });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(pieces.apply).toHaveBeenCalledWith(
+      USER,
+      PIECE,
+      expect.objectContaining({
+        brand: 'Barbour',
+        itemDna: expect.objectContaining({ brand_check: true }),
       }),
     );
   });
@@ -103,9 +134,38 @@ describe('wardrobe_analyse handler', () => {
   });
 
   it('waits for renditions that are still processing', async () => {
-    const { run, pieces } = setup({ assetStatus: ['pending', 'pending', 'ready'] });
+    // A wait long enough that a slow runner's polls still land inside it (CI, 10 Nov): the photo
+    // turns ready on the third load, so the test never sits through it.
+    const { run, pieces } = setup({
+      assetStatus: ['pending', 'pending', 'ready'],
+      assetWaitMs: 10_000,
+    });
     await expect(run()).resolves.toEqual({ status: 'succeeded' });
     expect(pieces.forAnalysis).toHaveBeenCalledTimes(3);
+  });
+
+  it('reads as soon as the master is stored, without waiting for the renditions', async () => {
+    const { run, pieces, storage } = setup({ assetStatus: ['pending'], master: true });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(pieces.forAnalysis).toHaveBeenCalledTimes(1);
+    expect(storage.head).toHaveBeenCalledWith(`media/${USER}/${ASSET}/master.jpg`);
+  });
+
+  it('never reads a photo whose render failed, even with a master stored', async () => {
+    const { run, pieces } = setup({ assetStatus: ['failed'], master: true });
+    await expect(run()).rejects.toMatchObject({ code: 'unreadable_photo' });
+    expect(pieces.discard).toHaveBeenCalledWith(USER, PIECE);
+  });
+
+  // Staging, 7 Nov: every read failed while the photo rendered, on the 403 for a missing master.
+  it('waits for `ready` when the master check is refused, and never fails on it', async () => {
+    const { run, pieces } = setup({
+      assetStatus: ['pending', 'pending', 'ready'],
+      master: 'forbidden',
+    });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(pieces.forAnalysis).toHaveBeenCalledTimes(3);
+    expect(pieces.discard).not.toHaveBeenCalled();
   });
 
   it('gives up cleanly when the upload never becomes ready', async () => {

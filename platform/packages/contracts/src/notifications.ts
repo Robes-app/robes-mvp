@@ -22,4 +22,9 @@ export type NotificationItem = z.infer<typeof NotificationItem>;
 export const Notifications = z.object({ items: z.array(NotificationItem) });
 export type Notifications = z.infer<typeof Notifications>;
 
-export const DismissNotificationInput = z.object({ key: z.string().trim().min(1).max(80) });
+// One item by its key, or `all`: the sheet's ✓ clears everything it shows (PRD rev 3 §10 12).
+export const DismissNotificationInput = z.union([
+  z.object({ key: z.string().trim().min(1).max(80) }),
+  z.object({ all: z.literal(true) }),
+]);
+export type DismissNotificationInput = z.infer<typeof DismissNotificationInput>;

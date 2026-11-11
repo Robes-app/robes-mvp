@@ -16,9 +16,10 @@ import type { StageUpdate } from '@/components/looks/image-manager';
 import { errorCopy } from './error-copy';
 
 // The image stack she is working (D19, D20): what she added, took out, hid and left in front,
-// held until she accepts the look. `commit` writes it in an order the server's "one image always
-// remains" rule accepts at every step: adds, Robes' picture back, the cover, removals, Robes'
-// picture hidden. Native twin: mobile/src/features/looks/look-images.ts.
+// held until she keeps it (a saved look's on the strip's ✓, a draft's as it is saved). `commit`
+// writes it in an order the server's "one image always remains" rule accepts at every step:
+// adds, Robes' picture back, the cover, removals, Robes' picture hidden. Native twin:
+// mobile/src/features/looks/look-images.ts.
 export function useImageStage(look: Look) {
   const api = useApiClient();
   const toast = useToast();
@@ -33,23 +34,24 @@ export function useImageStage(look: Look) {
     }
   };
 
-  const commit = async (): Promise<boolean> => {
-    if (!changed) return true;
+  // `next` is the stage as it stands now: the strip's ✓ passes the card it has just put in front.
+  const commit = async (next: ImageStage = stage): Promise<boolean> => {
+    if (!stageChanged(base, next)) return true;
     setCommitting(true);
     const params = { id: look.id };
     try {
       let latest = look;
       const idFor = new Map<string, string>();
-      for (const assetId of stage.added) {
+      for (const assetId of next.added) {
         latest = await api.call('looks.images.add', { params, input: { assetId } });
         const img = latest.images.find((i) => i.image.assetId === assetId);
         if (img) idFor.set(assetId, img.id);
       }
-      const hide = stage.robesHidden !== null && stage.robesHidden !== base.robesHidden;
-      if (hide && stage.robesHidden === false) {
+      const hide = next.robesHidden !== null && next.robesHidden !== base.robesHidden;
+      if (hide && next.robesHidden === false) {
         latest = await api.call('looks.images.robes', { params, input: { hidden: false } });
       }
-      const front = stageFront(base, stage);
+      const front = stageFront(base, next);
       if (front && !sameCard(front, base.cover)) {
         const imageId =
           front.kind === 'robes'
@@ -59,10 +61,10 @@ export function useImageStage(look: Look) {
               : (idFor.get(front.assetId) ?? null);
         latest = await api.call('looks.images.cover', { params, input: { imageId } });
       }
-      for (const imageId of stage.removed) {
+      for (const imageId of next.removed) {
         latest = await api.call('looks.images.remove', { params: { id: look.id, imageId } });
       }
-      if (hide && stage.robesHidden === true) {
+      if (hide && next.robesHidden === true) {
         latest = await api.call('looks.images.robes', { params, input: { hidden: true } });
       }
       queryClient.setQueryData(queryKeys.call('looks.get', { params }), latest);

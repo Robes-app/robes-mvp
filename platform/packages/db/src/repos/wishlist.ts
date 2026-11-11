@@ -62,6 +62,29 @@ function withTaxonomy(fields: WishFields): Updateable<WishlistItems> {
   return out;
 }
 
+// One wish written, here or inside another repository's transaction (a look's Save files its
+// proposals, plan 2026-11-09 R1). Robes' category stands unless an L2 decides it (withTaxonomy).
+export function insertWish(
+  db: Db,
+  userId: UserId,
+  wish: WishFields & { label: string; category?: string; imageAssetId?: string | null },
+) {
+  const { category, ...fields } = wish;
+  const values: Insertable<WishlistItems> = {
+    ...(category ? { category } : {}),
+    ...withTaxonomy(fields),
+    userId,
+    label: wish.label,
+    imageAssetId: wish.imageAssetId ?? null,
+    sourceType: wish.sourceUrl ? 'url' : 'photo',
+  };
+  return db
+    .insertInto('wishlistItems')
+    .values(values)
+    .returning(WISH_COLUMNS)
+    .executeTakeFirstOrThrow();
+}
+
 // Wishlist: pieces she wants. Promoted ("I bought this") and deleted wishes leave the list.
 export function wishlistRepo(db: Db) {
   const active = () =>
@@ -92,18 +115,7 @@ export function wishlistRepo(db: Db) {
     },
 
     create(userId: UserId, wish: WishFields & { label: string; imageAssetId?: string | null }) {
-      const values: Insertable<WishlistItems> = {
-        ...withTaxonomy(wish),
-        userId,
-        label: wish.label,
-        imageAssetId: wish.imageAssetId ?? null,
-        sourceType: wish.sourceUrl ? 'url' : 'photo',
-      };
-      return db
-        .insertInto('wishlistItems')
-        .values(values)
-        .returning(WISH_COLUMNS)
-        .executeTakeFirstOrThrow();
+      return insertWish(db, userId, wish);
     },
 
     // Wishes kept from a photo read, each holding its piece's crop. The crop is the piece's

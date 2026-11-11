@@ -1,14 +1,15 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { PlanEntry } from '@robes/contracts';
-import { diary as copy, lookbook } from '@robes/copy';
+import { diary as copy, filters as filterCopy } from '@robes/copy';
 import { weekdayDayMonth, weekdayLong } from '@robes/core/calendar';
-import { lookMatches, lookWearFor, pickerOrder, wearForOptions } from '@robes/core/looks';
+import { lookFacets } from '@robes/core/filters';
+import { pickerOrder } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
+  FINE_EDGE,
   fonts,
-  maxFontSizeMultiplier,
-  Pill,
+  Heading,
   Sheet,
   Skeleton,
   Text,
@@ -17,8 +18,11 @@ import {
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Pressable, Text as RNText, ScrollView, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { FilterRow } from '@/features/filters/FilterRow';
+import { FilterSheet } from '@/features/filters/FilterSheet';
+import { useLookFilters } from '@/features/filters/use-look-filters';
 import {
   dayQuestion,
   dayWordOf,
@@ -29,27 +33,12 @@ import {
 import { errorMessage } from '@/lib/errors';
 import { LookTile } from '../looks/LookTile';
 
-const BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
-type Band = (typeof BANDS)[number];
-
-// A small-caps label: the drawer's YOUR LOOKS row and the Refine card's headings.
-function Caps({ children, warm = false }: { children: string; warm?: boolean }) {
-  return (
-    <RNText
-      maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-      className={`uppercase ${warm ? 'text-accent-warm' : 'text-ink-muted'}`}
-      style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8 }}
-    >
-      {children}
-    </RNText>
-  );
-}
-
-// The drawer (design 3k, plan §1.7): her saved looks for a day, the day's own looks ticked as
-// Scheduled. From Pick Look (`add`) she ticks one or several; from the lookbook icon on the OOTD
-// (`change`) a tap replaces the look. Past days file wears, never pins (the wear is the record);
-// unticking takes a look off the day. One door for the Diary too: the day page's + Add a look.
-// The web twin is app/src/app/(app)/plan/look-picker.tsx.
+// The Pick / Swap sheet (Front Door PRD rev 3 §4.5; design 3k): her saved looks for a day, the
+// day's own looks ticked as Scheduled, the shared filter row and search under the question. From
+// Pick (`add`) and from Swap on a look (`change`) alike she ticks one or several; ✓ applies. Past
+// days file wears, never pins (the wear is the record); unticking takes a look off the day. One
+// door for the Diary too: the day page's + Add a look. The web twin is
+// app/src/app/(app)/plan/look-picker.tsx.
 export function LookPicker({
   date,
   today,
@@ -73,33 +62,28 @@ export function LookPicker({
   const open = date !== null;
   const [picks, setPicks] = useState<string[] | null>(null);
   const [saving, setSaving] = useState(false);
-  const [lastWornFirst, setLastWornFirst] = useState(true);
-  const [refining, setRefining] = useState(false);
-  const [q, setQ] = useState('');
-  const [bands, setBands] = useState<Band[]>([]);
-  const [wear, setWear] = useState<string[]>([]);
+  const [sheet, setSheet] = useState(false);
+  const looks = useApi('looks.list', { input: { limit: 60 } }, { enabled: open });
+  const day = useApi('plan.get', { input: { from: date ?? '', days: 1 } }, { enabled: open });
+  const all = useMemo(() => (looks.data?.items ?? []).map(lookFacets), [looks.data]);
+  const filters = useLookFilters(all);
+  const { clear } = filters;
   useEffect(() => {
     if (open) {
       setPicks(null);
-      setRefining(false);
-      setQ('');
-      setBands([]);
-      setWear([]);
+      setSheet(false);
+      clear();
     }
-  }, [open]);
-  const looks = useApi('looks.list', { input: { limit: 60 } }, { enabled: open });
-  const day = useApi('plan.get', { input: { from: date ?? '', days: 1 } }, { enabled: open });
+  }, [open, clear]);
   const entries: PlanEntry[] = day.data?.days[0]?.entries ?? [];
   const onDay = entries.map((e) => e.look.id);
-  // The day's looks start ticked; her taps move from there.
+  // The day's looks start ticked; her taps move from there. Filtering only changes what shows:
+  // a look ticked before a filter hid it is still applied on ✓.
   const chosen = picks ?? onDay;
   const changed = chosen.length !== onDay.length || chosen.some((id) => !onDay.includes(id));
 
-  const toggle = (id: string) => {
-    const on = chosen.includes(id);
-    if (mode === 'change') setPicks(on ? [] : [id]);
-    else setPicks(on ? chosen.filter((x) => x !== id) : [...chosen, id]);
-  };
+  const toggle = (id: string) =>
+    setPicks(chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id]);
 
   async function apply() {
     if (!date || !changed) return;
@@ -139,41 +123,25 @@ export function LookPicker({
     }
   }
 
-  const all = looks.data?.items ?? [];
-  const filters = (q.trim() ? 1 : 0) + bands.length + wear.length;
-  const wearOpts = wearForOptions(all);
-  const items = pickerOrder(
-    all.filter(
-      (l) =>
-        lookMatches(l, q) &&
-        (!bands.length || bands.includes(l.climateBand as Band)) &&
-        (!wear.length || lookWearFor(l).some((t) => wear.includes(t))),
-    ),
-    lastWornFirst,
-  );
+  const items = pickerOrder(filters.filtered, true);
   const question = date ? dayQuestion(date, today) : '';
   const cta = date
     ? drawerCta({ mode, date, today, picks: chosen.length, changed })
     : { label: '', ready: false };
-  const clearRefine = () => {
-    setQ('');
-    setBands([]);
-    setWear([]);
-  };
+  const eyebrow = date
+    ? copy.drawer.eyebrow(date === today ? copy.today : weekdayLong(date), weekdayDayMonth(date))
+    : '';
   return (
     <Sheet
       open={open}
       onClose={onClose}
-      closeButton
-      title={question}
-      {...(date
-        ? {
-            eyebrow: copy.drawer.eyebrow(
-              date === today ? copy.today : weekdayLong(date),
-              weekdayDayMonth(date),
-            ),
-          }
-        : {})}
+      title={eyebrow}
+      // × · TODAY · MON 2 NOV · ✓: the ✓ is grey until her picks change the day, then ink (PRD §4.5).
+      done={{
+        label: cta.ready ? cta.label : copy.drawer.done,
+        onPress: () => void apply(),
+        disabled: !cta.ready || saving,
+      }}
       // A tall drawer (design 3k): it stands near the top whatever it holds; the grid scrolls.
       className="h-[92%]"
       testID="look-picker"
@@ -203,90 +171,50 @@ export function LookPicker({
         </View>
       ) : (
         <>
-          <View className="flex-row items-center justify-between border-hairline border-b pb-2.5">
-            <Caps warm>{copy.drawer.yourLooks}</Caps>
-            <View className="flex-row items-center gap-2">
-              <Pill
-                size="sm"
-                label={`${copy.drawer.sortLabel}: ${lastWornFirst ? copy.drawer.lastWorn : copy.drawer.firstWorn}`}
-                onPress={() => setLastWornFirst((v) => !v)}
-              >
-                {lastWornFirst ? copy.drawer.lastWorn : copy.drawer.firstWorn}
-              </Pill>
-              <Pill
-                size="sm"
-                selected={refining || filters > 0}
-                onPress={() => setRefining((v) => !v)}
-              >
-                {filters ? copy.drawer.refineOn(filters) : copy.drawer.refine}
-              </Pill>
-            </View>
+          <Heading size="md" className="-mt-2 mb-3.5" style={{ lineHeight: 27.6 }}>
+            {question}
+          </Heading>
+          <FilterRow
+            sheetCount={filters.sheetCount}
+            onOpenSheet={() => setSheet(true)}
+            seasons={filters.state.seasons}
+            onRemoveSeason={filters.toggleSeason}
+            quick={filters.quick}
+            active={filters.state.wearFor}
+            onToggle={filters.toggleWear}
+            allCount={filters.allCount}
+            onAll={filters.clearWear}
+            testID="filter-row"
+          />
+          <View
+            className="mt-3 h-10 flex-row items-center gap-2 rounded-pill border-rule-mid bg-surface-raised px-3.5"
+            style={{ borderWidth: FINE_EDGE }}
+          >
+            <Icon name="search" size={13} color={muted} />
+            <TextInput
+              value={filters.state.query}
+              onChangeText={filters.setQuery}
+              placeholder={copy.drawer.search}
+              placeholderTextColor={faint}
+              accessibilityLabel={copy.drawer.search}
+              className="min-w-0 flex-1 py-0 text-xs"
+              style={{ fontFamily: fonts.sans, color: ink }}
+              testID="look-search"
+            />
           </View>
           <ScrollView
             style={{ flexShrink: 1 }}
             contentContainerClassName="gap-3.5 pt-3.5 pb-4"
             keyboardShouldPersistTaps="handled"
           >
-            {refining ? (
-              <View className="gap-3.5 rounded-soft border border-hairline bg-surface-raised p-3.5">
-                <View className="h-[38px] flex-row items-center gap-2 rounded-pill bg-surface-sunk px-3.5">
-                  <Icon name="search" size={12} color={muted} />
-                  <TextInput
-                    value={q}
-                    onChangeText={setQ}
-                    placeholder={copy.drawer.search}
-                    placeholderTextColor={faint}
-                    accessibilityLabel={copy.drawer.search}
-                    className="min-w-0 flex-1 py-0 text-xs"
-                    style={{ fontFamily: fonts.sans, color: ink }}
-                  />
-                </View>
-                <View className="gap-2">
-                  <Caps>{copy.drawer.season}</Caps>
-                  <View className="flex-row flex-wrap gap-1.5">
-                    {BANDS.map((b) => (
-                      <Pill
-                        key={b}
-                        size="sm"
-                        selected={bands.includes(b)}
-                        onPress={() =>
-                          setBands(bands.includes(b) ? bands.filter((x) => x !== b) : [...bands, b])
-                        }
-                      >
-                        {lookbook.refine.seasons[b]}
-                      </Pill>
-                    ))}
-                  </View>
-                </View>
-                {wearOpts.length ? (
-                  <View className="gap-2">
-                    <Caps>{copy.drawer.wearFor}</Caps>
-                    <View className="flex-row flex-wrap gap-1.5">
-                      {wearOpts.map((t) => (
-                        <Pill
-                          key={t}
-                          size="sm"
-                          selected={wear.includes(t)}
-                          onPress={() =>
-                            setWear(wear.includes(t) ? wear.filter((x) => x !== t) : [...wear, t])
-                          }
-                        >
-                          {t}
-                        </Pill>
-                      ))}
-                    </View>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
             {items.length === 0 ? (
               <View className="flex-row flex-wrap items-center justify-center gap-1 py-6">
                 <Text size="caption" tone="muted">
-                  {copy.drawer.none}
+                  {filterCopy.noLooks}
                 </Text>
-                <Pressable accessibilityRole="button" onPress={clearRefine} hitSlop={8}>
+                <Pressable accessibilityRole="button" onPress={filters.clear} hitSlop={8}>
                   <Text size="caption" className="underline">
-                    {copy.drawer.clear}
+                    {filterCopy.clear}
                   </Text>
                 </Pressable>
               </View>
@@ -322,21 +250,31 @@ export function LookPicker({
               </View>
             )}
           </ScrollView>
-          {cta.ready ? (
-            <Button loading={saving} onPress={() => void apply()}>
-              {cta.label}
-            </Button>
-          ) : (
-            // The foot waits where the button will stand, saying what a tap does.
-            <View
-              className="min-h-12 items-center justify-center rounded-pill border border-rule-mid px-4"
-              testID="drawer-idle"
-            >
-              <Text size="small" tone="muted" className="text-center">
-                {cta.label}
-              </Text>
-            </View>
-          )}
+          <FilterSheet
+            open={sheet}
+            onClose={() => setSheet(false)}
+            sections={[
+              {
+                key: 'season',
+                title: filterCopy.season,
+                options: filters.seasonSection,
+                selected: filters.state.seasons,
+                onToggle: (v) => filters.toggleSeason(v as (typeof filters.state.seasons)[number]),
+              },
+              {
+                key: 'wear',
+                title: filterCopy.wearFor,
+                options: filters.wearSection,
+                selected: filters.state.wearFor,
+                onToggle: filters.toggleWear,
+              },
+            ]}
+            onClear={filters.clear}
+            clearable={filters.active}
+            cta={filterCopy.showLooks(filters.filtered.length)}
+            ctaDisabled={filters.filtered.length === 0}
+            testID="filter-sheet"
+          />
         </>
       )}
     </Sheet>

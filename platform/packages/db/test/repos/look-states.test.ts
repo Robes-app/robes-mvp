@@ -11,7 +11,7 @@ import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 const db = createTestDb();
 const CLAIM = { frameKey: 'k2', jobId: '00000000-0000-4000-8000-000000000000' };
-const { looks, wardrobe, plan, jobs } = createRepositories(db);
+const { looks, wardrobe, plan, jobs, wishlist } = createRepositories(db);
 const system = createSystemRepositories(db);
 let ann: UserId;
 let bea: UserId;
@@ -166,6 +166,24 @@ describe('suggested looks (look states)', () => {
       edits: null,
       styling: { [boots]: 'worn under the hem' },
     });
+    // Saving files the piece Robes proposed to her wishlist, once, and the row names its wish
+    // (Front Door PRD rev 3, plan 2026-11-09 R1).
+    const wishes = (await wishlist.list(ann, { limit: 10 })).items;
+    const mules = wishes.find((w) => w.label === 'Black pointed mules');
+    expect(mules).toMatchObject({
+      brand: 'Toteme',
+      color: 'black',
+      sourceLabel: 'toteme.com',
+      price: '390.00',
+      currency: 'EUR',
+      category: 'Shoes',
+    });
+    expect(saved?.proposals).toEqual([
+      { ...proposal, wishlisted: true, wishlistItemId: mules?.id },
+    ]);
+    expect(wishes.filter((w) => w.label === 'Black pointed mules')).toHaveLength(1);
+    // Nobody else's wishlist gained it.
+    expect((await wishlist.list(bea, { limit: 10 })).items).toEqual([]);
     // A saved look never carries working notes.
     expect(await looks.update(ann, id, { edits: { x: { back: true } } })).toMatchObject({
       edits: null,
@@ -533,5 +551,44 @@ describe('looks ready (the notifier)', () => {
       .execute();
     expect((await state()).ideas[0]).toMatchObject({ readyFrames: 1 });
     await deleteTestUsers(db, owner);
+  });
+});
+
+describe('a look from her photograph (Capture PRD 1c)', () => {
+  const found = {
+    key: 'p-bbbb2222',
+    name: 'Running trainers',
+    category: 'Shoes',
+    color: 'Ash',
+    brand: '',
+    retailerHint: '',
+    pricePoint: '',
+    role: null,
+    wishlisted: false,
+    capture: {
+      readId: '00000000-0000-4000-8000-0000000000aa',
+      index: 2,
+      cropAssetId: '00000000-0000-4000-8000-0000000000bb',
+      material: 'polyester',
+      suggestedPieceId: null,
+    },
+  };
+
+  it('saves with its unfiled pieces left on the look, never filed to her wishlist', async () => {
+    const draft = await looks.create(ann, {
+      name: 'Monday',
+      nameProvisional: true,
+      pieces: [{ pieceId: boots }],
+      proposals: [found],
+      status: 'draft',
+      source: 'capture',
+    });
+    expect(draft).toMatchObject({ status: 'draft', source: 'capture' });
+    const saved = await looks.save(ann, draft.id, {});
+    expect(saved).toMatchObject({ status: 'saved', proposals: [found] });
+    const wishes = (await wishlist.list(ann, { limit: 20 })).items;
+    expect(wishes.some((w) => w.label === 'Running trainers')).toBe(false);
+    // Nobody else can read or save it.
+    expect(await looks.get(bea, draft.id)).toBeUndefined();
   });
 });

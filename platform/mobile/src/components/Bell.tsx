@@ -1,6 +1,6 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { NotificationItem, NotificationKind, Notifications } from '@robes/contracts';
-import { bell as copy, ui } from '@robes/copy';
+import { bell as copy } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import {
   FINE_EDGE,
@@ -32,15 +32,17 @@ export function useNotifications() {
   return useApi('notifications.list', undefined, { staleTime: 60_000 });
 }
 
-// The bell (design 3k, plan §1.12): Felix's 36pt bell beside the avatar, the 17pt glyph at 1.2,
-// a 7pt rose dot while anything waits (D6), and the count in its label; its 44pt hit area reaches
-// past the box. The web twin is app/src/components/shell/bell.tsx.
+// The bell (design 3k, plan §1.12; PRD rev 3 §2.2): Felix's 36pt bell beside the avatar, the 17pt
+// glyph at 1.2, a 7pt rose dot and the count in its label; its 44pt hit area reaches past the box.
+// It stands only while something waits — with nothing new there is no bell (the Settings row
+// still lists Notifications). The web twin is app/src/components/shell/bell.tsx.
 export function Bell() {
   const ink = useColor('ink');
   const muted = useColor('ink-muted');
   const [open, setOpen] = useState(false);
   const { data } = useNotifications();
   const items = data?.items ?? [];
+  if (items.length === 0 && !open) return null;
   return (
     <>
       <Pressable
@@ -77,8 +79,10 @@ export function Bell() {
 
 // Felix's NotificationsSheet: the drawer header (× · Notifications · ✓), then each item as a card
 // — its glyph on a `cream-200` tile, the task in Cormorant 16, where it leads as a tracked line,
-// a › — with a × beside it that dismisses it. Done only closes: nothing is marked read, so a
-// receipt she hasn't reviewed stays (Annie, 6 Nov). Web twin: app/src/components/shell/bell.tsx.
+// a › — with a × beside it that dismisses it. The ✓ clears them all (PRD rev 3 §10 12, over
+// "Done only closes" of 6 Nov); × and the scrim close without touching them. A dismissed receipts
+// line leaves the receipts themselves waiting in the Wardrobe. Web twin:
+// app/src/components/shell/bell.tsx.
 function NotificationsSheet({
   open,
   onClose,
@@ -103,6 +107,14 @@ function NotificationsSheet({
     });
     dismiss.mutate({ input: { key } });
   };
+  // The ✓: every card goes and the sheet closes behind them.
+  const dismissAll = () => {
+    if (items.length > 0) {
+      queryClient.setQueryData(queryKeys.call('notifications.list'), { items: [] });
+      dismiss.mutate({ input: { all: true } });
+    }
+    onClose();
+  };
   // Where each line leads: receipts to the Wardrobe inbox, a diary nudge to that day on home, the
   // overnight look to its page.
   const go = (item: NotificationItem) => {
@@ -116,7 +128,7 @@ function NotificationsSheet({
       open={open}
       onClose={onClose}
       title={copy.title}
-      done={{ label: ui.done, onPress: onClose }}
+      done={{ label: copy.clear, onPress: dismissAll, disabled: items.length === 0 }}
       testID="bell-sheet"
     >
       {items.length === 0 ? (

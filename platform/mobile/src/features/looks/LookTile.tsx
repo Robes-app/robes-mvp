@@ -1,4 +1,5 @@
 import type { Look } from '@robes/contracts';
+import { Icon, type IconName } from '@robes/icons/native';
 import {
   ASPECTS,
   type Aspect,
@@ -8,6 +9,7 @@ import {
   Image,
   maxFontSizeMultiplier,
   Skeleton,
+  useColor,
 } from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { Text as RNText, View } from 'react-native';
@@ -50,6 +52,10 @@ export interface LookTileProps {
   // A small warm chip at the eyebrow's right: Worn ✓ on a day she wore it.
   badge?: string | null;
   meta?: string;
+  // A glyph before the meta (the Lookbook card's calendar, PRD rev 3 §2.4) and a small mark at
+  // the card's bottom right (the bag on a look with pieces to find), each named for a reader.
+  metaIcon?: IconName;
+  mark?: { icon: IconName; label: string } | null;
   // The look's first tag, a small chip between the title and the meta (Look redline 27 Oct).
   tag?: string | null;
   name?: string;
@@ -80,6 +86,8 @@ export function LookTile({
   eyebrowTone = 'faint',
   badge,
   meta,
+  metaIcon,
+  mark,
   tag,
   name,
   italic = false,
@@ -96,6 +104,7 @@ export function LookTile({
 }: LookTileProps) {
   const title = name ?? look.name;
   const ootd = variant === 'ootd';
+  const muted = useColor('ink-muted');
   // Beta's card: white on a hairline (Card), the dashed draft on the fine rule-mid edge.
   const frame = [
     dashed ? 'border-dashed border-rule-mid bg-transparent p-[6px]' : '',
@@ -171,14 +180,18 @@ export function LookTile({
               </View>
             ) : null}
             {meta ? (
-              <RNText
-                numberOfLines={1}
-                maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-                className="text-ink-muted"
-                style={{ fontFamily: fonts.sans, fontSize: 11 }}
-              >
-                {meta}
-              </RNText>
+              <View className="flex-row items-center gap-1.5">
+                {metaIcon ? <Icon name={metaIcon} size={11} color={muted} /> : null}
+                <RNText
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+                  className="min-w-0 flex-1 text-ink-muted"
+                  style={{ fontFamily: fonts.sans, fontSize: 11 }}
+                >
+                  {meta}
+                </RNText>
+                {mark ? <Icon name={mark.icon} size={12} color={muted} label={mark.label} /> : null}
+              </View>
             ) : null}
           </View>
         )}

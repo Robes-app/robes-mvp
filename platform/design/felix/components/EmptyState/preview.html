@@ -1,0 +1,15 @@
+<!-- @dsCard group="Overlays" height=420 width=836 subtitle="First-run Lookbook and Wardrobe" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>EmptyState — preview</title></head>
+<body>
+<div id="root" style="display:flex;gap:24px;padding:16px;background:var(--cream-300);width:max-content"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+var box = { width: 390, height: 380, display: 'flex', flexDirection: 'column', background: 'var(--cream)', borderRadius: 'var(--rad-device)' };
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h('div', { style: box }, h(F.EmptyState, { icon: 'bookmark', title: 'No saved looks yet', message: 'Describe a look, start from a photo or build one from your pieces. Looks you save from Suggested land here too.', action: 'New look' })),
+  h('div', { style: box }, h(F.EmptyState, { icon: 'wardrobe', title: 'Your wardrobe is empty', message: 'Add pieces from a photo, a product link or a receipt. Robes fills in the details for you to review.', action: 'Add pieces' }))));
+</script>
+</body>
+</html>

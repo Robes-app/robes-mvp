@@ -120,7 +120,7 @@ test('an onboarded person who lands on onboarding goes home', async () => {
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
   const router = await app('/onboarding');
-  expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
+  expect(await screen.findByLabelText(/, Niall\.$/)).toBeTruthy();
   expect(router.getPathname()).toBe('/');
 });
 
@@ -150,7 +150,7 @@ test('four tabs in the system tab bar, in beta order, and no Create beside them'
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
   await app();
-  expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
+  expect(await screen.findByLabelText(/, Niall\.$/)).toBeTruthy();
   const tabs = tabItems();
   // Read in sentence case; shown in capitals.
   expect(tabs.map((t) => t.props.tabBarItemAccessibilityLabel)).toEqual([
@@ -178,7 +178,7 @@ test('the bar minimises on scroll over the Lookbook and Wardrobe grids only', as
   const host = () =>
     hostViews((p) => p.tabBarMinimizeBehavior !== undefined)[0]?.props.tabBarMinimizeBehavior;
   await app();
-  await screen.findByText(/, Niall\.$/);
+  await screen.findByLabelText(/, Niall\.$/);
   expect(host()).toBe('never');
   await app('/looks');
   await waitFor(() => expect(host()).toBe('onScrollDown'));
@@ -188,7 +188,7 @@ test('the avatar opens You', async () => {
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
   const router = await app();
-  await screen.findByText(/, Niall\.$/);
+  await screen.findByLabelText(/, Niall\.$/);
   // Every tab is mounted under the system tab bar; Home's bar is the first.
   const [avatar] = screen.getAllByTestId('open-you');
   if (!avatar) throw new Error('no avatar');
@@ -218,7 +218,7 @@ test('a link to a screen that isn’t here says so in one line and goes home', a
   expect(await screen.findByText(shell.notFound.title)).toBeTruthy();
   expect(router.getPathname()).toBe('/looks/nope');
   await fireEvent.press(screen.getByRole('button', { name: shell.notFound.back }));
-  expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
+  expect(await screen.findByLabelText(/, Niall\.$/)).toBeTruthy();
   expect(router.getPathname()).toBe('/');
 });
 

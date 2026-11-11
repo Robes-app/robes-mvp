@@ -10,6 +10,7 @@ import {
   ToastProvider,
   toastDuration,
   useToast,
+  useToastLift,
 } from './toast';
 
 function Trigger({ options }: { options: ToastOptions }) {
@@ -102,5 +103,25 @@ describe('Toast', () => {
     await user.click(screen.getByRole('button', { name: 'Remove' }));
     vi.useRealTimers();
     expect(await seriousViolations()).toEqual([]);
+  });
+});
+
+function Bar({ px }: { px: number }) {
+  useToastLift(px);
+  return null;
+}
+
+describe('a bar at the foot lifts the toasts', () => {
+  it('holds the toasts above the tallest bar while it stands, and lets go when it leaves', () => {
+    const { rerender } = render(
+      <ToastProvider>
+        <Bar px={82} />
+      </ToastProvider>,
+    );
+    // Radix draws the viewport as the list inside the notifications region.
+    const viewport = () => document.body.querySelector('ol');
+    expect(viewport()?.getAttribute('style')).toContain('bottom: 82px');
+    rerender(<ToastProvider>{null}</ToastProvider>);
+    expect(viewport()?.getAttribute('style') ?? '').not.toContain('bottom');
   });
 });

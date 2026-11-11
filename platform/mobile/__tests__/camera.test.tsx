@@ -63,7 +63,8 @@ jest.mock('expo-image-manipulator', () => ({
   },
 }));
 
-const copy = wardrobe.camera;
+const copy = wardrobe.capture.camera;
+const old = wardrobe.camera;
 
 beforeEach(() => {
   mockGranted = true;
@@ -131,8 +132,6 @@ function readPiece(index: number) {
   };
 }
 
-const add = wardrobe.add;
-
 const show = () => renderWithApi(<Camera />);
 
 const shutter = () => screen.getByRole('button', { name: copy.shutter });
@@ -169,32 +168,64 @@ test('downscale resizes an oversized frame to JPEG and leaves one within the cap
   });
 });
 
-test('each shot is read as it is taken; the tray counts, and Review opens on them', async () => {
+test('shots accumulate in one sitting: the counter, the strip and REVIEW n follow', async () => {
   const calls = mockFetch(UPLOAD);
   await show();
-  // Review shows once something has been taken, with how many: "Review 1".
+  // Before the first shot: the hint, no counter, no Review.
+  expect(screen.getByText(copy.hint)).toBeTruthy();
   expect(screen.queryByRole('button', { name: /^Review/ })).toBeNull();
-  const review = () => screen.getByRole('button', { name: add.shots.review(1) });
 
   await act(async () => {
     await fireEvent.press(shutter());
   });
-  await waitFor(() => expect(screen.getByText(add.shots.found(2))).toBeTruthy());
-  expect(calls.filter((c) => c.path.endsWith('/photo-reads'))).toHaveLength(1);
+  await waitFor(() => expect(screen.getByText(copy.ready(1))).toBeTruthy());
+  expect(screen.getByText(copy.next)).toBeTruthy();
+  expect(screen.getAllByTestId('piece-camera-thumb')).toHaveLength(1);
+  await act(async () => {
+    await fireEvent.press(shutter());
+  });
+  await waitFor(() => expect(screen.getByText(copy.ready(2))).toBeTruthy());
+  expect(screen.getAllByTestId('piece-camera-thumb')).toHaveLength(2);
+  await waitFor(() => expect(calls.filter((c) => c.path.endsWith('/photo-reads'))).toHaveLength(2));
   // Nothing files from the camera.
   expect(calls.some((c) => c.path.includes('/file') || c.path.endsWith('/batch'))).toBe(false);
 
-  await fireEvent.press(review());
-  const href = mockRouter.replace.mock.calls.at(-1)?.[0] as {
+  const review = screen.getByRole('button', { name: copy.review(2) });
+  await waitFor(() => expect(review.props.accessibilityState.disabled).toBe(false));
+  await fireEvent.press(review);
+  // Review opens over the camera (a push), so coming back keeps the sitting.
+  const href = mockRouter.push.mock.calls.at(-1)?.[0] as {
     pathname: string;
     params: { to: string; from: string; shots: string };
   };
   expect(href.pathname).toBe('/wardrobe/review');
-  expect(href.params.to).toBe('wardrobe');
+  expect(href.params).toMatchObject({ to: 'wardrobe', from: 'camera' });
   expect(JSON.parse(href.params.shots)).toEqual([
     { uri: 'file:///tmp/small.jpg', width: 1200, height: 1600, jobId: JOB_ID },
+    { uri: 'file:///tmp/small.jpg', width: 1200, height: 1600, jobId: JOB_ID },
   ]);
-  expect(track.mock.calls).toEqual([['camera_opened'], ['camera_filed', { n: 1 }]]);
+  expect(track.mock.calls).toEqual([['camera_opened'], ['camera_filed', { n: 2 }]]);
+});
+
+test('several of her photos join the sitting at once', async () => {
+  const picker = jest.requireMock('expo-image-picker') as {
+    launchImageLibraryAsync: jest.Mock;
+  };
+  picker.launchImageLibraryAsync.mockResolvedValueOnce({
+    canceled: false,
+    assets: [
+      { uri: 'file:///tmp/a.jpg', width: 800, height: 1000 },
+      { uri: 'file:///tmp/b.jpg', width: 800, height: 1000 },
+      { uri: 'file:///tmp/c.jpg', width: 800, height: 1000 },
+    ],
+  });
+  mockFetch(UPLOAD);
+  await show();
+  await act(async () => {
+    await fireEvent.press(screen.getByRole('button', { name: copy.photos }));
+  });
+  await waitFor(() => expect(screen.getByText(copy.ready(3))).toBeTruthy());
+  expect(screen.getByRole('button', { name: copy.review(3) })).toBeTruthy();
 });
 
 test('where the pieces go comes from the Add pieces sheet; the camera has no toggle', async () => {
@@ -206,9 +237,10 @@ test('where the pieces go comes from the Add pieces sheet; the camera has no tog
   await act(async () => {
     await fireEvent.press(shutter());
   });
-  await waitFor(() => expect(screen.getByText(add.shots.found(2))).toBeTruthy());
-  await fireEvent.press(screen.getByRole('button', { name: add.shots.review(1) }));
-  const href = mockRouter.replace.mock.calls.at(-1)?.[0] as { params: { to: string } };
+  const review = await screen.findByRole('button', { name: copy.review(1) });
+  await waitFor(() => expect(review.props.accessibilityState.disabled).toBe(false));
+  await fireEvent.press(review);
+  const href = mockRouter.push.mock.calls.at(-1)?.[0] as { params: { to: string } };
   expect(href.params.to).toBe('wishlist');
 });
 
@@ -227,9 +259,9 @@ test('closing with shots held asks first; with none it just leaves', async () =>
     await fireEvent.press(shutter());
   });
   await fireEvent.press(close());
-  expect(ask).toHaveBeenCalledWith(copy.leave(1), copy.leaveBody, [
-    { text: copy.stay, style: 'cancel' },
-    { text: copy.leaveConfirm, style: 'destructive', onPress: expect.any(Function) },
+  expect(ask).toHaveBeenCalledWith(old.leave(1), old.leaveBody, [
+    { text: old.stay, style: 'cancel' },
+    { text: old.leaveConfirm, style: 'destructive', onPress: expect.any(Function) },
   ]);
   expect(mockRouter.back).not.toHaveBeenCalled();
   // Leaving them is the destructive answer.
@@ -244,9 +276,11 @@ test('a refused camera says so, never a blank viewfinder, and opens Settings', a
   const settings = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
   mockFetch(UPLOAD);
   await show();
-  expect(screen.getByText(copy.unreachable)).toBeTruthy();
+  expect(screen.getByText(copy.denied)).toBeTruthy();
   expect(shutter().props.accessibilityState.disabled).toBe(true);
-  await fireEvent.press(screen.getByRole('button', { name: copy.allow }));
+  // Her photos still work.
+  expect(screen.getByRole('button', { name: copy.photos })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: old.allow }));
   expect(settings).toHaveBeenCalled();
   settings.mockRestore();
 });
