@@ -33,6 +33,7 @@
 <header class="nav">
   <div class="shell nav-row">
     <a class="wordmark" href="/" aria-label="Robes home">Robes</a>
+    <a class="nav-join" href="#waitlist">Join the waitlist</a>
     <span class="stores stores-sm nav-stores">
       <span class="store" role="img" aria-label="Coming soon to the App Store"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg><span class="store-txt"><span class="store-pre">Coming soon to</span><span class="store-name">App Store</span></span></span>
       <span class="store" role="img" aria-label="Coming soon to Google Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a.8.8 0 0 0 1.2.7l12-7.5a.8.8 0 0 0 0-1.4l-12-7.5A.8.8 0 0 0 7 4.5z"/></svg><span class="store-txt"><span class="store-pre">Coming soon to</span><span class="store-name">Google Play</span></span></span>
@@ -44,7 +45,6 @@
 
 <!-- Hero -->
 <section class="hero">
-  <img class="hero-photo" src="/images/site/hero-real-cream-jumper.jpg" alt="Liberty in a mirror selfie, wearing a fringed white jumper" width="1280" height="1707" fetchpriority="high">
   <div class="hero-copy">
     <p class="eyebrow">Your personal stylist</p>
     <h1 class="hero-h">One prompt.<br><i>Dressed for anything.</i></h1>
@@ -62,7 +62,10 @@
       <span class="store" role="img" aria-label="Coming soon to Google Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a.8.8 0 0 0 1.2.7l12-7.5a.8.8 0 0 0 0-1.4l-12-7.5A.8.8 0 0 0 7 4.5z"/></svg><span class="store-txt"><span class="store-pre">Coming soon to</span><span class="store-name">Google Play</span></span></span>
     </span>
   </div>
-  <div class="phone hero-phone"><img src="/images/site/phone-today.jpg" alt="The Robes home screen: today’s look on your Robes model" width="780" height="1688"></div>
+  <div class="hero-visual">
+    <img class="hero-photo" src="/images/site/hero-real-cream-jumper.jpg" alt="Liberty in a mirror selfie, wearing a fringed white jumper" width="1280" height="1707" fetchpriority="high">
+    <div class="phone hero-phone"><img src="/images/site/phone-today.jpg" alt="The Robes home screen: today’s look on your Robes model" width="780" height="1688"></div>
+  </div>
 </section>
 
 <!-- How it works -->
@@ -120,50 +123,6 @@
   </div>
 </section>
 
-<!-- Style a key piece (coming soon) -->
-<section class="keypiece" aria-label="Style a key piece">
-  <div class="shell keypiece-row">
-    <div class="keypiece-copy">
-      <p class="eyebrow eyebrow-soft">Style a key piece</p>
-      <p class="keypiece-q">“Style my Celine sunglasses three ways”</p>
-      <p class="keypiece-t">Style a key piece three ways — coming soon.</p>
-    </div>
-    <div class="keypiece-looks">
-      <img src="/images/site/model-slip-dress.jpg" alt="Robes model in a black slip dress with a yellow bag" loading="lazy">
-      <img src="/images/site/model-lace-top.jpg" alt="Robes model in a white lace top and black satin shorts with black sunglasses" loading="lazy">
-      <img src="/images/site/model-black-coat.jpg" alt="Robes model in a black coat, cream trousers, beanie and round sunglasses" loading="lazy">
-      <span class="pill">Coming soon</span>
-    </div>
-  </div>
-</section>
-
-<!-- Ask Robes -->
-<section class="ask" aria-labelledby="ask-title">
-  <div class="shell ask-grid">
-    <div class="ask-left">
-      <p class="eyebrow eyebrow-mauve">Ask Robes</p>
-      <h2 id="ask-title" class="h2">One prompt.</h2>
-      <div class="ask-pieces" aria-hidden="true">
-        <div style="--r:-4deg"><img src="/images/site/piece-1.jpg" alt="" loading="lazy"></div>
-        <div style="--r:3deg"><img src="/images/site/piece-2.jpg" alt="" loading="lazy"></div>
-        <div style="--r:-2deg"><img src="/images/site/piece-3.jpg" alt="" loading="lazy"></div>
-      </div>
-    </div>
-    <div class="prompt-card" role="img" aria-label="Example prompts typed to Robes: What should I wear today — smart but effortless. Plan my outfits for the week — three office days and a client dinner. Help me pack for a long weekend in Paris. One bag. Build me a summer capsule from what I own, with shopping suggestions for what I’m missing.">
-      <div class="pc-head" aria-hidden="true"><span class="pc-dot"></span><span class="pc-mark">Robes</span></div>
-      <div class="pc-field" aria-hidden="true">
-        <span class="pc-spark">✦</span>
-        <p class="pc-text"><span id="pc-typed">What should I wear today — smart but effortless.</span><span class="caret"></span></p>
-        <span class="pc-send"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></span>
-      </div>
-      <div class="pc-foot" aria-hidden="true">
-        <div class="chips" id="pc-chips"></div>
-        <div class="pc-dots" id="pc-dots"><span class="on"></span><span></span><span></span><span></span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- Your wardrobe -->
 <section class="wardrobe" aria-labelledby="wardrobe-title">
   <div class="wardrobe-inner">
@@ -193,9 +152,9 @@
       <p class="body-soft reallife-sub">See the look on your Robes model first — then wear it out the door.</p>
     </div>
     <div class="pairs">
-      <figure class="pair"><img src="/images/site/model-grey-suit.jpg" alt="Robes model in the grey suit" loading="lazy"><img src="/images/site/real-grey-suit.jpg" alt="The same grey suit look, worn in real life" loading="lazy"></figure>
+      <figure class="pair pair-keep"><img src="/images/site/model-grey-suit.jpg" alt="Robes model in the grey suit" loading="lazy"><img src="/images/site/real-grey-suit.jpg" alt="The same grey suit look, worn in real life" loading="lazy"></figure>
       <figure class="pair"><img src="/images/site/model-slip-dress.jpg" alt="Robes model in the slip dress" loading="lazy"><img src="/images/site/real-slip-dress.jpg" alt="The same slip dress look, worn in real life" loading="lazy"></figure>
-      <figure class="pair"><img src="/images/site/model-gold-jacket.jpg" alt="Robes model in the gold jacket" loading="lazy"><img src="/images/site/real-gold-jacket.jpg" alt="The same gold jacket look, worn in real life" loading="lazy"></figure>
+      <figure class="pair pair-lead"><img src="/images/site/model-gold-jacket.jpg" alt="Robes model in the gold jacket" loading="lazy"><img src="/images/site/real-gold-jacket.jpg" alt="The same gold jacket look, worn in real life" loading="lazy"></figure>
       <figure class="pair"><img src="/images/site/model-qipao.jpg" alt="Robes model in the qipao" loading="lazy"><img src="/images/site/real-qipao.jpg" alt="The same qipao look, worn in real life" loading="lazy"></figure>
       <figure class="pair"><img src="/images/site/model-cream-jumper.jpg" alt="Robes model in the cream jumper" loading="lazy"><img src="/images/site/hero-real-cream-jumper.jpg" alt="The same cream jumper look, worn in real life" loading="lazy"></figure>
       <figure class="pair"><img src="/images/site/model-bomber.jpg" alt="Robes model in the bomber" loading="lazy"><img src="/images/site/real-bomber.jpg" alt="The same bomber look, worn in real life" loading="lazy"></figure>
