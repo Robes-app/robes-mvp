@@ -142,7 +142,7 @@ test('several pieces reviewed together, then added at once (Capture PRD 3c)', as
 
   // The wardrobe opens on them under the toast; nothing asked in between.
   await expect(page).toHaveURL(/\/wardrobe$/, { timeout: 15_000 });
-  await expect(page.getByText('2 pieces added to your wardrobe')).toBeVisible();
+  await expect(page.getByText('2 pieces added to your wardrobe', { exact: true })).toBeVisible();
   const grid = page.getByRole('list', { name: 'Pieces' });
   await expect(grid.getByRole('heading', { name: 'Cream long-sleeve tee' })).toBeVisible();
   await expect(grid.getByRole('heading', { name: 'White running shoes' })).toBeVisible();
@@ -188,7 +188,7 @@ test('a photo can go to the wishlist instead', async ({ page }) => {
   await expect(page.getByTestId('review-add')).toHaveText(/Add 3 to wishlist/i);
   await page.getByTestId('review-add').click();
   await expect(page).toHaveURL(/\/wardrobe\/wishlist/, { timeout: 15_000 });
-  await expect(page.getByText('3 pieces added to your wishlist')).toBeVisible();
+  await expect(page.getByText('3 pieces added to your wishlist', { exact: true })).toBeVisible();
   const wishes = page.getByRole('list', { name: 'Wishlist' });
   await expect(wishes.getByText('Black leggings')).toBeVisible();
   // Nothing reached the wardrobe.

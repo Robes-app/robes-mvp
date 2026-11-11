@@ -50,7 +50,7 @@ test('paste a link from Create, review it, and it files to the wishlist', async 
   expect(await seriousViolations(page)).toEqual([]);
   await page.getByTestId('review-add').click();
   await expect(page).toHaveURL(/\/wardrobe\/wishlist/, { timeout: 15_000 });
-  await expect(page.getByText('1 piece added to your wishlist')).toBeVisible();
+  await expect(page.getByText('1 piece added to your wishlist', { exact: true })).toBeVisible();
   await expect(
     page.getByRole('list', { name: 'Wishlist' }).getByText('Silk slip dress'),
   ).toBeVisible();
