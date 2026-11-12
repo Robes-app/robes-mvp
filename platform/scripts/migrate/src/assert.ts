@@ -54,7 +54,8 @@ actual as (
   union all select 'look_pieces', user_id, count(*) from app.look_pieces
     where look_id in (select id from legacy.looks) group by user_id
   union all select 'wears', user_id, count(*) from app.wears where id in (select id from legacy.wears) group by user_id
-  union all select 'artifacts', user_id, count(*) from app.artifacts where legacy_id is not null group by user_id
+  union all select 'artifacts', user_id, count(*) from app.artifacts
+    where legacy_id is not null and user_id in (select id from legacy.auth_users) group by user_id
   union all select 'planned_days', user_id, count(*) from app.planned_days
     where id in (select id from legacy.planned_days) group by user_id
   union all select 'notifications', user_id, count(*) from app.notifications
