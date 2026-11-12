@@ -14,6 +14,13 @@ describe('css generation', () => {
     expect(css).toContain('--shadow-sheet: 0 18px 40px -14px rgba(32, 32, 33, 0.35);');
     expect(css).toContain('--radius-dock: 24px;');
     expect(css).toContain('--blur-dock: 22px;');
+    expect(css).toContain('--blur-band: 26px;');
+    expect(css).toContain('--blur-sheet: 28px;');
+    expect(css).toContain(
+      '--shadow-card: 0 1px 2px rgba(32, 32, 33, 0.08), 0 4px 10px -4px rgba(32, 32, 33, 0.16);',
+    );
+    expect(css).toContain('--color-rose: #856970;');
+    expect(css).toContain('--color-sage: #757354;');
     expect(css).toContain('--font-display:');
   });
 
@@ -30,6 +37,8 @@ describe('css generation', () => {
     expect(css).toContain('--scrim: rgba(32, 32, 33, 0.55);');
     expect(css).toContain('--warm-line: #C9BCA6;');
     expect(css).toContain('--dock-glass: rgba(255, 255, 255, 0.7);');
+    expect(css).toContain('--band-glass: rgba(244, 239, 229, 0.72);');
+    expect(css).toContain('--sheet-glass: rgba(250, 248, 245, 0.68);');
   });
 
   it('emits a utility per Felix type style', () => {
