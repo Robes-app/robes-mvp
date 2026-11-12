@@ -26,6 +26,15 @@ const repos = {
     ),
   },
   wardrobe: { get: vi.fn(async () => undefined) },
+  // Her model row: what a new picture of her look would stand on (standKey).
+  model: { get: vi.fn(async (): Promise<unknown> => modelRow) },
+};
+let modelRow: unknown = {
+  genderIdentity: 'woman',
+  modelPreset: null,
+  filedCellId: null,
+  twinAssetId: 'twin-asset',
+  twinKey: 'abc',
 };
 vi.mock('./db', () => ({ repos }));
 vi.mock('./media', () => ({ mediaDelivery: {} }));
@@ -83,6 +92,13 @@ const row = (o: Record<string, unknown> = {}) =>
   }) as never;
 
 beforeEach(() => {
+  modelRow = {
+    genderIdentity: 'woman',
+    modelPreset: null,
+    filedCellId: null,
+    twinAssetId: 'twin-asset',
+    twinKey: 'abc',
+  };
   assets.clear();
   repos.looks.imagesFor.mockResolvedValue([]);
 });
@@ -197,6 +213,35 @@ describe('a stale picture', () => {
     expect((await toLooks(USER, [stale], NOW))[0]?.pictureStale).toBe(true);
     // No picture yet: nothing to be stale.
     expect((await toLooks(USER, [row()], NOW))[0]?.pictureStale).toBe(false);
+  });
+
+  it('reads its model stale when the picture stands on a model her looks no longer stand on', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    const hash = rackHash([], {});
+    const render = (renderKey: string) =>
+      row({ renderAssetId: FRAME, renderKey, renderStatus: 'ready', status: 'saved' });
+    const stale = async (r: ReturnType<typeof row>) =>
+      (await toLooks(USER, [r], NOW))[0]?.modelStale;
+    // On her twin as it stands: current.
+    expect(await stale(render(`twin:abc:${hash}`))).toBe(false);
+    // Her twin redrawn since, or a Robes model under it, or her own twin since a Robes model.
+    expect(await stale(render(`twin:old:${hash}`))).toBe(true);
+    expect(await stale(render(`w-r1@v2:${hash}`))).toBe(true);
+    // Her twin deleted: she stands on the first Robes model, and a picture on it is current.
+    modelRow = {
+      genderIdentity: 'woman',
+      modelPreset: null,
+      filedCellId: null,
+      twinAssetId: null,
+      twinKey: null,
+    };
+    expect(await stale(render(`w-r1@v2:${hash}`))).toBe(false);
+    expect(await stale(render(`twin:abc:${hash}`))).toBe(true);
+    // A frame names its rack, not its model; and nothing drawn yet is never stale.
+    expect(
+      await stale(row({ frameAssetId: FRAME, renderKey: 'frame:x', renderStatus: 'ready' })),
+    ).toBe(false);
+    expect(await stale(row())).toBe(false);
   });
 
   // D21: her picture note is part of what the picture shows.

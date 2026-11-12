@@ -1728,8 +1728,21 @@ export const twin = {
     // On a Robes model (plan 2026-11-05, design 3c): the eyebrow on the hero, the one commitment
     // (the camera), and the lineup she chooses from — her own twin first, once drawn.
     robesModel: 'Robes model',
+    createTwin: 'Create your digital twin',
+    // The colouring page's way to a season with no read yet.
     addSelfie: 'Add a selfie',
-    addSelfieSub: 'Create your digital twin.',
+    // Under the lineup once anything of her twin is on file (design "Your model · Delete twin",
+    // 12 Nov): while it is being built the button names the photograph.
+    deleteTwin: {
+      twin: 'Delete my digital twin',
+      twinNote: 'Removes your photograph, model and measurements.',
+      photo: 'Delete my photograph',
+      photoNote: 'Removes your photograph and measurements, and stops your model being built.',
+      title: 'Delete your digital twin?',
+      body: 'Your photograph, model and measurements will be removed. This can’t be undone.',
+      confirm: 'Delete',
+      keep: 'Keep it',
+    },
     // The one way to another selfie: the redraw control on her twin's hero (redlines R15).
     retake: 'Retake selfie to update your twin',
     // The selfie camera, its photo picker and the review (designs 03–05, Annie 10 Nov).

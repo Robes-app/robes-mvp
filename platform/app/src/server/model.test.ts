@@ -39,6 +39,7 @@ const repos = {
     file: vi.fn(async () => {}),
     claimTwin: vi.fn(async () => true),
     failTwin: vi.fn(async () => {}),
+    deleteTwin: vi.fn(async () => {}),
   },
   avatarCells: {
     get: vi.fn(async (_key: string): Promise<unknown> => undefined),
@@ -86,8 +87,15 @@ vi.mock('./asset-urls', () => ({
   })),
 }));
 
-const { drawTwin, drawTwinFromSelfie, ensureRobesModels, loadModel, renderOnModel, updateModel } =
-  await import('./model');
+const {
+  deleteTwin,
+  drawTwin,
+  drawTwinFromSelfie,
+  ensureRobesModels,
+  loadModel,
+  renderOnModel,
+  updateModel,
+} = await import('./model');
 const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const req = new Request('https://robes.test/api/v1/me/model/twin', { method: 'POST' });
 
@@ -347,6 +355,20 @@ describe('the Robes models', () => {
     expect(startJob).not.toHaveBeenCalled();
   });
 
+  it('are drawn when he lands on his model, for an account onboarded before they were', async () => {
+    row = {
+      ...base,
+      genderIdentity: 'man',
+      filedCellId: null,
+      sizeUk: null,
+      headshotAssetId: null,
+    };
+    repos.avatarCells.claim.mockResolvedValue(true);
+    await drawTwin(USER, req);
+    expect(repos.avatarCells.claim).toHaveBeenCalledWith('m-r1@v2');
+    expect(createAndEnqueueJob).toHaveBeenCalledTimes(5);
+  });
+
   it('stands down for an account on her own model, and for a cell already claimed', async () => {
     row = { ...base, filedCellId: 'w-s3-h1-hg' };
     await ensureRobesModels(USER);
@@ -355,6 +377,37 @@ describe('the Robes models', () => {
     repos.avatarCells.claim.mockResolvedValue(false);
     await ensureRobesModels(USER);
     expect(createAndEnqueueJob).not.toHaveBeenCalled();
+  });
+});
+
+describe('her twin, deleted', () => {
+  it('deletes it from her own rows, then stands her looks on a Robes model, drawn if need be', async () => {
+    const after = {
+      ...base,
+      sizeUk: null,
+      bodyType: null,
+      headshotAssetId: null,
+      colourRead: false,
+      silhouetteRead: false,
+      filedCellId: null,
+      avatarPrefs: null,
+    };
+    repos.model.deleteTwin.mockImplementation(async () => {
+      row = after;
+    });
+    repos.avatarCells.claim.mockResolvedValue(true);
+    const model = await deleteTwin(USER, { source: 'ios' });
+    expect(repos.model.deleteTwin).toHaveBeenCalledWith(USER, 'ios');
+    expect(createAndEnqueueJob).toHaveBeenCalledWith(USER, {
+      kind: 'avatar_cell',
+      input: { cellKey: 'w-r1@v2' },
+    });
+    expect(model).toMatchObject({ closeUpUrl: null, stand: { on: 'robes' } });
+    expect(model.twin.imageUrl).toBeNull();
+    // Nothing is left to draw her from, so a visit after never draws a twin again.
+    await drawTwin(USER, req);
+    expect(repos.model.claimTwin).not.toHaveBeenCalled();
+    expect(startJob).not.toHaveBeenCalled();
   });
 });
 

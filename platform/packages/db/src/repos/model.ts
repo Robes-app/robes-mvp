@@ -1,6 +1,8 @@
+import type { ConsentSource } from '@robes/core';
 import type { Presence } from '@robes/core/avatar';
-import { sql } from 'kysely';
+import { type ExpressionBuilder, sql } from 'kysely';
 import type { Db } from '../client';
+import type { DB } from '../database.types';
 import type { UserId } from '../ids';
 
 const STALE_DRAW = sql<Date>`now() - interval '10 minutes'`;
@@ -124,6 +126,123 @@ export function modelRepo(db: Db) {
           }),
         )
         .execute();
+    },
+
+    // Her digital twin, deleted at her ask (Annie, 12 Nov 2026): every close-up and full-length
+    // photo she gave, every twin drawn for her (the one on file and any a redraw replaced), what
+    // Robes read from those photos, and the facts and picks a twin is drawn from. The photos are
+    // marked deleted at once (gone from every read) and the maintenance sweep deletes their files
+    // (staleUploads.dueRemoved). Her looks stay; Robes' pictures of them drawn on her twin go.
+    // Her yes to the twin goes too, so the next selfie asks again. One transaction: the row locks
+    // it takes make a colour read finishing alongside wait, then find its photo gone
+    // (styleAnalysis.saveColour).
+    async deleteTwin(userId: UserId, source: ConsentSource): Promise<void> {
+      await db.transaction().execute(async (trx) => {
+        const drawn = await sql<{ id: string }>`
+          select distinct img ->> 'assetId' as id
+          from app.generation_jobs j,
+            jsonb_array_elements(
+              case when jsonb_typeof(j.output -> 'images') = 'array'
+                then j.output -> 'images' else '[]'::jsonb end
+            ) img
+          where j.user_id = ${userId}
+            and j.kind = 'avatar_cell'
+            and j.input ->> 'target' = 'twin'
+            and img ->> 'assetId' is not null
+          union
+          select twin_asset_id::text from app.avatars
+          where user_id = ${userId} and twin_asset_id is not null`.execute(trx);
+        // Robes' pictures of her looks drawn on her twin carry her face: they go too, and each
+        // look is drawn again on a Robes model when it is next opened (useDressOnOpen). The looks
+        // themselves, her photographs of them and her wears stay.
+        const onTwin = (eb: ExpressionBuilder<DB, 'looks'>) =>
+          eb.or([
+            eb('stoodOn', '=', 'twin'),
+            eb.and([eb('stoodOn', 'is', null), eb('renderKey', 'like', 'twin:%')]),
+          ]);
+        const pictured = await trx
+          .selectFrom('looks')
+          .select(['renderAssetId', 'frameAssetId'])
+          .where('userId', '=', userId)
+          .where(onTwin)
+          .forUpdate()
+          .execute();
+        await trx
+          .updateTable('looks')
+          .set({
+            renderAssetId: null,
+            renderKey: null,
+            renderStatus: null,
+            renderClaimedAt: null,
+            frameAssetId: null,
+            frameKey: null,
+            stoodOn: null,
+          })
+          .where('userId', '=', userId)
+          .where(onTwin)
+          .execute();
+        // A draw on her twin still running lands nowhere (setRender wants its key).
+        await trx
+          .updateTable('looks')
+          .set({ renderKey: null, renderStatus: null, renderClaimedAt: null })
+          .where('userId', '=', userId)
+          .where('renderKey', 'like', 'twin:%')
+          .execute();
+        const twins = [
+          ...drawn.rows.map((r) => r.id),
+          ...pictured.flatMap((l) => [l.renderAssetId, l.frameAssetId]).filter((id) => id !== null),
+        ].map((id) => id.toLowerCase());
+        await trx
+          .updateTable('assets')
+          .set({ status: 'deleted', deletedAt: sql`now()` })
+          .where('userId', '=', userId)
+          .where('deletedAt', 'is', null)
+          .where((eb) =>
+            eb.or([
+              eb('kind', 'in', ['headshot', 'full_length']),
+              ...(twins.length > 0
+                ? [eb.and([eb('kind', '=', 'generated'), eb(sql`id::text`, 'in', twins)])]
+                : []),
+            ]),
+          )
+          .execute();
+        await trx.deleteFrom('avatars').where('userId', '=', userId).execute();
+        await trx
+          .updateTable('styleProfiles')
+          .set({
+            headshotAssetId: null,
+            fullLengthAssetId: null,
+            season: null,
+            undertone: null,
+            contrast: null,
+            colorHarmony: null,
+            colourRender: null,
+            bodyType: null,
+            silhouetteProportions: null,
+            silhouetteRender: null,
+            userOverrides: sql`user_overrides - 'measurements'`,
+          })
+          .where('userId', '=', userId)
+          .execute();
+        await trx
+          .updateTable('profiles')
+          .set({
+            heightCm: null,
+            sizeUk: null,
+            bustBand: null,
+            bustCup: null,
+            bustCm: null,
+            waistCm: null,
+            ageBand: null,
+            avatarPrefs: null,
+          })
+          .where('id', '=', userId)
+          .execute();
+        await trx
+          .insertInto('consents')
+          .values({ userId, kind: 'photo_analysis', granted: false, source })
+          .execute();
+      });
     },
 
     async hasModel(userId: UserId): Promise<boolean> {

@@ -113,10 +113,11 @@ test('You › Your digital twin: on a Robes model the doors are closed; her fact
   await page.goto('/you');
   await page.getByRole('link', { name: 'Your digital twin' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Your digital twin' })).toBeVisible();
-  // On a Robes model (plan 2026-11-05, design 3c): its eyebrow, Add a selfie, the lineup of five,
-  // and no door to Colouring or Body shape.
+  // On a Robes model (plan 2026-11-05, design 3c): its eyebrow, Create your digital twin, the
+  // lineup of five, and no door to Colouring or Body shape. Nothing of hers to delete.
   await expect(page.getByText('Robes model', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add a selfie' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Create your digital twin' })).toBeVisible();
+  await expect(page.getByTestId('twin-delete')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Model \d$/ })).toHaveCount(5);
   await expect(page.getByRole('link', { name: /Colouring/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Model 3' }).click();
@@ -161,4 +162,24 @@ test('You › Your digital twin: on a Robes model the doors are closed; her fact
   // Nothing changed: asking again draws nothing new and answers with the twin on file.
   const again = await (await page.request.post('/api/v1/me/model/twin')).json();
   expect(again.twin).toMatchObject({ status: 'ready', current: true });
+
+  // Delete my digital twin (design "Your model · Delete twin", 12 Nov): one question, Keep it
+  // changes nothing; Delete stands her on a Robes model with her facts and picks gone.
+  await page.getByRole('button', { name: 'Delete my digital twin' }).click();
+  await expect(page.getByRole('alertdialog', { name: 'Delete your digital twin?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Keep it' }).click();
+  await expect(page.getByRole('img', { name: 'Your model' })).toBeVisible();
+  await page.getByRole('button', { name: 'Delete my digital twin' }).click();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Create your digital twin' })).toBeVisible();
+  await expect(page.getByTestId('twin-delete')).toHaveCount(0);
+  const gone = await (await page.request.get('/api/v1/me/model')).json();
+  expect(gone).toMatchObject({ closeUpUrl: null, skinSet: false, stand: { on: 'robes' } });
+  expect(gone.twin.imageUrl).toBeNull();
+  const dna = await (await page.request.get('/api/v1/me/dna')).json();
+  expect(dna.facts.heightCm).toBeNull();
+  // Landing again draws nothing: nothing is left to draw her from.
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Create your digital twin' })).toBeVisible();
+  expect((await (await page.request.get('/api/v1/me/model')).json()).stand.on).toBe('robes');
 });

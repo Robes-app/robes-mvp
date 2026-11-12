@@ -33,7 +33,7 @@ export interface AvatarCellDeps {
       SystemRepositories['modelRender'],
       'model' | 'setTwin' | 'failTwin' | 'closeUp' | 'colourRead' | 'standOnTwin'
     >;
-    styling: Pick<SystemRepositories['styling'], 'createGeneratedAsset'>;
+    styling: Pick<SystemRepositories['styling'], 'createGeneratedAsset' | 'discardGenerated'>;
     // Generated images land as uploads; AWS renders them from the S3 event, dev renders here.
     onGenerated?(key: string): Promise<void>;
     // How long an early twin waits for her close-up's render, then for her colour read (tests).
@@ -132,6 +132,9 @@ export function createAvatarCellHandler(deps: AvatarCellDeps): JobHandler {
       await twin.storage.putObject(key, image.data, { contentType: image.mimeType });
       await twin.onGenerated?.(key);
       const landed = await twin.model.setTwin(ctx.userId, wanted, assetId);
+      // Not hers any more (she deleted her twin, or asked for another meanwhile): its files go
+      // with the maintenance sweep, never kept unheld.
+      if (!landed) await twin.styling.discardGenerated(ctx.userId, assetId);
       // The ask after her read may come once this twin is on file, too late to stand her on it.
       if (landed && early) await twin.model.standOnTwin(ctx.userId);
       await ctx.writeStage('images', { images: [{ idx: 0, status: 'ready', assetId }] });

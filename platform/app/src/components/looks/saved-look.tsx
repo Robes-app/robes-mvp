@@ -3,6 +3,7 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook, looks as looksCopy } from '@robes/copy';
+import { dressOnOpen } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
@@ -13,24 +14,25 @@ const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // Every saved look can be worn by a model: her twin, her filed cell, else a Robes model —
-// `stand`, the one renderOnModel draws on (beta dressed every saved look on open). Called by the
+// `stand`, the one renderOnModel draws on (beta dressed every saved look on open), and a picture
+// on a model she no longer stands on is drawn again on hers. Called by the
 // saved look's page and the Edit look drawer (DraftLook, D17).
 export function useDressOnOpen(look: Look): void {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const me = useApi('me.model.get');
-  const canDress = !!me.data?.stand?.imageUrl && look.pieces.length > 0 && !look.frame;
+  // Her model must be on file to wear it; the rest is dressOnOpen (@robes/core/looks).
+  const canDress = !!me.data?.stand?.imageUrl && dressOnOpen(look);
   const opened = useRef<string | null>(null);
   useEffect(() => {
-    if (!canDress || look.model !== null || look.onModel === 'pending') return;
-    if (look.status !== 'saved' || opened.current === look.id) return;
+    if (!canDress || opened.current === look.id) return;
     opened.current = look.id;
     const key = queryKeys.call('looks.get', { params: { id: look.id } });
     void api
       .call('looks.renderOnModel', { params: { id: look.id } })
       .then(() => queryClient.invalidateQueries({ queryKey: key }))
       .catch(() => undefined);
-  }, [api, canDress, look.id, look.model, look.onModel, look.status, queryClient]);
+  }, [api, canDress, look.id, queryClient]);
 }
 
 // The image-stack badge: three fanned cards (a dashed paper back card, the next photograph at 4°,

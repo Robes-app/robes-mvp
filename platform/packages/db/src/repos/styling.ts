@@ -343,6 +343,19 @@ export function stylingRepo(db: Db) {
       return { ...row, wearFor: tags.map((t) => t.label) };
     },
 
+    // A picture drawn for her that landed too late to be used (she deleted her twin, or asked for
+    // another meanwhile): marked deleted, and the maintenance sweep deletes its files.
+    async discardGenerated(userId: UserId, assetId: string): Promise<void> {
+      await db
+        .updateTable('assets')
+        .set({ status: 'deleted', deletedAt: sql`now()` })
+        .where('userId', '=', userId)
+        .where('id', '=', assetId)
+        .where('kind', '=', 'generated')
+        .where('deletedAt', 'is', null)
+        .execute();
+    },
+
     async createGeneratedAsset(userId: UserId): Promise<string> {
       const row = await db
         .insertInto('assets')

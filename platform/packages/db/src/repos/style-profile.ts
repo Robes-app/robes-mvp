@@ -1,6 +1,7 @@
 import type { Palette } from '@robes/core/colour';
-import { sql } from 'kysely';
+import { type Insertable, sql } from 'kysely';
 import type { Db } from '../client';
+import type { DB } from '../database.types';
 import type { UserId } from '../ids';
 
 const PROFILE_COLUMNS = [
@@ -119,7 +120,7 @@ export function styleAnalysisRepo(db: Db) {
         assetId: string;
         modelVersion: string;
       },
-    ): Promise<void> {
+    ): Promise<boolean> {
       const values = {
         season: v.season,
         undertone: v.undertone,
@@ -129,17 +130,13 @@ export function styleAnalysisRepo(db: Db) {
         headshotAssetId: v.assetId,
         modelVersion: v.modelVersion,
       };
-      await db
-        .insertInto('styleProfiles')
-        .values({ userId, ...values })
-        .onConflict((oc) => oc.column('userId').doUpdateSet(values))
-        .execute();
+      return saveRead(db, userId, v.assetId, values);
     },
 
     async saveSilhouette(
       userId: UserId,
       v: { bodyType: string; dna: unknown; render: unknown; assetId: string; modelVersion: string },
-    ): Promise<void> {
+    ): Promise<boolean> {
       const values = {
         bodyType: v.bodyType,
         silhouetteProportions: JSON.stringify(v.dna),
@@ -147,11 +144,34 @@ export function styleAnalysisRepo(db: Db) {
         fullLengthAssetId: v.assetId,
         modelVersion: v.modelVersion,
       };
-      await db
-        .insertInto('styleProfiles')
-        .values({ userId, ...values })
-        .onConflict((oc) => oc.column('userId').doUpdateSet(values))
-        .execute();
+      return saveRead(db, userId, v.assetId, values);
     },
   };
+}
+
+// A read lands only while its photo is still hers: one she deleted with her twin while it was
+// read (model.deleteTwin) leaves nothing behind. The share lock makes a delete alongside wait.
+async function saveRead(
+  db: Db,
+  userId: UserId,
+  assetId: string,
+  values: Omit<Insertable<DB['styleProfiles']>, 'userId'>,
+): Promise<boolean> {
+  return db.transaction().execute(async (trx) => {
+    const photo = await trx
+      .selectFrom('assets')
+      .select('id')
+      .where('id', '=', assetId)
+      .where('userId', '=', userId)
+      .where('deletedAt', 'is', null)
+      .forShare()
+      .executeTakeFirst();
+    if (!photo) return false;
+    await trx
+      .insertInto('styleProfiles')
+      .values({ userId, ...values })
+      .onConflict((oc) => oc.column('userId').doUpdateSet(values))
+      .execute();
+    return true;
+  });
 }

@@ -298,6 +298,17 @@ export function suggestedLooksRepo(db: Db) {
         .where('id', '=', lookId)
         .where('renderKey', '=', `frame:${frameKey}`)
         .where('deletedAt', 'is', null)
+        // Drawn on her twin: only while she still has one (she may have deleted it meanwhile).
+        .$if(stoodOn === 'twin', (q) =>
+          q.where(({ exists, selectFrom }) =>
+            exists(
+              selectFrom('avatars')
+                .select('avatars.userId')
+                .where('avatars.userId', '=', userId)
+                .where('avatars.twinAssetId', 'is not', null),
+            ),
+          ),
+        )
         .executeTakeFirst();
       return res.numUpdatedRows > 0n;
     },

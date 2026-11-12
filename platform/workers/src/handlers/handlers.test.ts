@@ -163,6 +163,8 @@ describe('maintenance handler', () => {
               return 'discarded';
             },
           ),
+          dueRemoved: vi.fn(async () => []),
+          discardRemoved: vi.fn(async () => 'discarded'),
         },
         jobs: { stale: vi.fn(async () => [JOB_A]) },
         dataExport: {
