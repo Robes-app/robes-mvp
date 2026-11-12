@@ -34,9 +34,9 @@ export interface DialogProps {
   // A Sheet only: where focus lands on open, in place of the first field — a picker whose first
   // control is a search must not raise the phone's keyboard before she has looked.
   initialFocus?: RefObject<HTMLElement | null>;
-  // A Sheet only: Felix's floating sheet — 8px from the left, right and bottom, every corner on
-  // the sheet radius, on a 0.5px `rule-mid` edge, hugging its content, with no ×: the handle,
-  // Escape or a tap on the backdrop closes it.
+  // A Sheet only: Felix's floating sheet — on a 0.5px `rule-mid` edge, hugging its content, with
+  // no ×: the handle, Escape or a tap on the backdrop closes it. Like every sheet it stands on the
+  // bottom edge, its top corners on the sheet radius (Felix, 12 Nov).
   floating?: boolean;
   // The eyebrow's colour: a Sheet's is Felix's rose (the darkened rose for small text).
   eyebrowTone?: TextTone;
@@ -46,8 +46,8 @@ export interface DialogProps {
   // A Sheet only: the drawer header (× · the tracked title · the ink done disc) in place of the
   // handle, the question and the × (Felix NotificationsSheet). `null` keeps the × and a spacer.
   done?: DrawerDone | null;
-  // A Sheet only: the Front Door's glass sheet (PRD rev 3 §2.4, §2.5) — floating 8px from the
-  // edges on the dock radius, cream glass over the dimmed page, with its own header: the × disc
+  // A Sheet only: the Front Door's glass sheet (PRD rev 3 §2.4, §2.5) — on the bottom edge, its
+  // top corners on the dock radius, cream glass over the dimmed page, with its own header: the × disc
   // at the left, a sans title centred, a text action at the right (Clear). The question, eyebrow
   // and corner × are not drawn. Twin of ui-native Sheet `glass`.
   glass?: GlassHeader;
@@ -372,9 +372,9 @@ export function Sheet({
         titleSize="md"
         className={
           glass
-            ? 'inset-x-2 bottom-[calc(8px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl gap-5 overflow-y-auto rounded-dock border-[0.5px] border-rule-mid px-5 pt-3 pb-[26px] shadow-sheet motion-safe:data-[state=open]:animate-sheet-up motion-safe:data-[state=closed]:animate-sheet-down'
+            ? 'inset-x-0 bottom-0 mx-auto max-h-[85dvh] w-full max-w-xl gap-5 overflow-y-auto rounded-t-dock border-x-[0.5px] border-t-[0.5px] border-rule-mid px-5 pt-3 pb-[calc(26px+env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up motion-safe:data-[state=closed]:animate-sheet-down'
             : floating
-              ? 'inset-x-2 bottom-[calc(8px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl overflow-y-auto rounded-sheet border-[0.5px] border-rule-mid px-5 pt-2.5 pb-[26px] shadow-sheet motion-safe:data-[state=open]:animate-sheet-up motion-safe:data-[state=closed]:animate-sheet-down'
+              ? 'inset-x-0 bottom-0 mx-auto max-h-[85dvh] w-full max-w-xl overflow-y-auto rounded-t-sheet border-x-[0.5px] border-t-[0.5px] border-rule-mid px-5 pt-2.5 pb-[calc(26px+env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up motion-safe:data-[state=closed]:animate-sheet-down'
               : 'inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-sheet px-5 pt-2.5 pb-[max(34px,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up motion-safe:data-[state=closed]:animate-sheet-down'
         }
       >

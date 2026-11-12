@@ -38,6 +38,9 @@ export function withoutDiaryEntry(id: string) {
   };
 }
 
+// The content's own foot under the last row (pb-6); the tab bar's height is in contentInset.
+const BOTTOM_PAD = 24;
+
 // Home as the OOTD diary (Felix 3a · 3k, D7): today's weather (the greeting is in the bar), the
 // strip, the selected day — its looks with Swap · Edit, then her model with Capture · Describe ·
 // Pick.
@@ -71,6 +74,14 @@ export function DiaryHome({
   const [choosing, setChoosing] = useState(false);
   const router = useRouter();
   const [drawer, setDrawer] = useState<{ date: string; mode: PickerMode } | null>(null);
+  // Home opens with nothing to scroll (Felix, 12 Nov): the day's slot gets the height left under
+  // the strip, and sizes its page to it.
+  const [viewport, setViewport] = useState<number | null>(null);
+  const [slotTop, setSlotTop] = useState<number | null>(null);
+  const room =
+    viewport !== null && slotTop !== null
+      ? viewport - (tabScroll.contentInset?.bottom ?? 0) - slotTop - BOTTOM_PAD
+      : null;
   // The tab stays mounted: a bell nudge or deep link lands on its day whenever it arrives.
   useEffect(() => {
     if (day) setPicked(day);
@@ -140,9 +151,10 @@ export function DiaryHome({
   return (
     <ScrollView
       {...tabScroll}
-      // 3a/3k pad 120 under the content so the discs' labels, the caption and the pager scroll
-      // clear of the tab bar (redline 7 Nov).
-      contentContainerClassName="gap-6 px-5 pt-[22px] pb-[120px]"
+      // The tab bar is already in contentInset (TabScreen): the content needs only its own foot
+      // under it. Felix, 12 Nov, in place of the 22 on top and the 120 below (redline 7 Nov).
+      contentContainerClassName="gap-6 px-5 pt-3 pb-6"
+      onLayout={(e) => setViewport(e.nativeEvent.layout.height)}
       keyboardShouldPersistTaps="handled"
       testID="diary-home"
       refreshControl={<RefreshControl {...pull} />}
@@ -169,26 +181,29 @@ export function DiaryHome({
         ) : null}
 
         {/* Keyed by the day: a day change starts the pager on its first page (PRD rev 3 §3). */}
-        <DaySlot
-          key={current.date}
-          day={current}
-          today={today}
-          dayWord={dayWord}
-          justSaved={saved}
-          model={model.data}
-          actions={{
-            // Capture opens the camera for the day (Capture PRD 1c): Use photo makes its draft.
-            onCapture: () =>
-              router.push({ pathname: '/looks/photo', params: { day: current.date } }),
-            // Describe opens the Draft look sheet for the day (Felix 3a, D22).
-            onDescribe: past ? null : () => router.push(`/looks/draft/new?day=${current.date}`),
-            onPick: () => setDrawer({ date: current.date, mode: 'add' }),
-            onSwap: () => setDrawer({ date: current.date, mode: 'change' }),
-            onEdit: (entry) => router.push(`/looks/draft/${entry.look.id}?day=${current.date}`),
-            onRemove: remove,
-            onModel: () => setChoosing(true),
-          }}
-        />
+        <View onLayout={(e) => setSlotTop(e.nativeEvent.layout.y)} testID="day-slot-room">
+          <DaySlot
+            key={current.date}
+            room={room}
+            day={current}
+            today={today}
+            dayWord={dayWord}
+            justSaved={saved}
+            model={model.data}
+            actions={{
+              // Capture opens the camera for the day (Capture PRD 1c): Use photo makes its draft.
+              onCapture: () =>
+                router.push({ pathname: '/looks/photo', params: { day: current.date } }),
+              // Describe opens the Draft look sheet for the day (Felix 3a, D22).
+              onDescribe: past ? null : () => router.push(`/looks/draft/new?day=${current.date}`),
+              onPick: () => setDrawer({ date: current.date, mode: 'add' }),
+              onSwap: () => setDrawer({ date: current.date, mode: 'change' }),
+              onEdit: (entry) => router.push(`/looks/draft/${entry.look.id}?day=${current.date}`),
+              onRemove: remove,
+              onModel: () => setChoosing(true),
+            }}
+          />
+        </View>
 
         <ModelPicker open={choosing} model={model.data} onClose={() => setChoosing(false)} />
         <LookPicker

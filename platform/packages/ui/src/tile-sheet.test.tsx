@@ -26,11 +26,16 @@ describe('GlassSheet', () => {
         <p>Season</p>
       </GlassSheet>,
     );
-    expect(screen.getByRole('dialog', { name: 'Filter' })).toHaveClass(
-      'rounded-dock',
+    // On the bottom edge, edge to edge, its top corners on the dock radius (Felix, 12 Nov).
+    const sheet = screen.getByRole('dialog', { name: 'Filter' });
+    expect(sheet).toHaveClass(
+      'rounded-t-dock',
+      'inset-x-0',
+      'bottom-0',
       'bg-veil',
       'backdrop-blur-dock',
     );
+    expect(sheet).not.toHaveClass('rounded-dock', 'inset-x-2');
     await userEvent.click(screen.getByRole('button', { name: 'Clear' }));
     expect(onClear).toHaveBeenCalledTimes(1);
     await userEvent.click(screen.getByRole('button', { name: 'Close' }));

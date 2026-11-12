@@ -78,3 +78,14 @@ export function placeChipLabel(city: string, tempRange: string | null): string {
 export function dayQuestion(date: string, today: string): string {
   return date < today ? copy.log.past : date === today ? copy.log.today : copy.log.ahead;
 }
+
+// Every page of a day is a 4:5 photograph with what stands under it (the discs, a caption, the
+// pager). Native only: the widest a page may stand so all of it fits the room left on the screen,
+// so Home opens with nothing to scroll (Felix, 12 Nov). Until both are measured, the full width.
+export const PHOTO_RATIO = 5 / 4;
+export const MIN_PAGE_WIDTH = 240;
+export function fitPageWidth(full: number, room: number | null, tail: number | null): number {
+  if (room === null || tail === null) return full;
+  const fits = Math.floor((room - tail) / PHOTO_RATIO);
+  return Math.max(Math.min(full, MIN_PAGE_WIDTH), Math.min(full, fits));
+}
