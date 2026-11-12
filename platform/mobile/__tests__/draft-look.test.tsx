@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { DraftLook } from '../src/features/looks/DraftLook';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
-import { mockRouter } from './support/router';
+import { mockNavigation, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
@@ -164,6 +164,20 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
   expect(await screen.findByTestId('styling-card')).toBeTruthy();
   expect(screen.getByTestId('the-rack')).toBeTruthy();
   expect(onClose).not.toHaveBeenCalled();
+});
+
+// Annie and Felix, 12 Nov: the draft sheet's prompt box sat under Style it and would not scroll.
+// The native sheet stretched the body's ScrollView over the whole sheet once it could reach it
+// through views flattened away; the sheet's frame and the body's view stay views of their own.
+test('the draft sheet keeps its ScrollView between its head and its foot', async () => {
+  mockFetch({ ...BASE, 'GET /wardrobe/items': { items: [piece()], nextCursor: null } });
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  expect(await screen.findByTestId('draft-generate')).toBeTruthy();
+  const shell = screen.getByTestId('draft-shell');
+  expect(shell.props.collapsable).toBe(false);
+  const body = screen.getByTestId('draft-look').parent;
+  expect(body?.props.collapsable).toBe(false);
+  expect(body?.parent).toBe(shell);
 });
 
 test('a sixth draft asks to let the oldest go, and only then makes room', async () => {
@@ -426,6 +440,63 @@ test('a saved look opened with `schedule` has the diary up', async () => {
   await renderWithApi(
     <DraftLook id={LOOK_ID} presentation="saved" schedule onClose={() => undefined} />,
   );
+  expect(await screen.findByLabelText(lookbook.diary.prevMonth)).toBeTruthy();
+});
+
+// Annie, 12 Nov: a look built from pieces and saved left her on its page with Back and Schedule
+// look dead. The diary rose while the page was still coming in under the sheet going out, and iOS
+// left a see-through layer over the app. Now the sheet goes at once, and the diary waits.
+test('a draft saved from its sheet leaves it at once for its page, with the diary asked for', async () => {
+  const calls = mockFetch({
+    ...BASE,
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    [`GET /looks/${LOOK_ID}`]: draftOf({
+      pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+    }),
+    [`POST /looks/${LOOK_ID}/save`]: look({ status: 'saved' }),
+    [`POST /looks/${LOOK_ID}/render`]: {
+      jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'queued',
+    },
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  // The title stands over the loading skeleton too: wait for the tick to wake.
+  await waitFor(() =>
+    expect(screen.getByTestId('draft-done').props.accessibilityState.disabled).toBe(false),
+  );
+  await fireEvent.press(screen.getByTestId('draft-done'));
+  await waitFor(() =>
+    expect(mockRouter.replace).toHaveBeenCalledWith(`/look/${LOOK_ID}?schedule=1`),
+  );
+  expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/save'))).toBe(true);
+  // The sheet's slide down is switched off before the replace that removes it.
+  expect(mockNavigation.setOptions).toHaveBeenCalledWith({ animation: 'none' });
+  expect(mockNavigation.setOptions.mock.invocationCallOrder[0]).toBeLessThan(
+    mockRouter.replace.mock.invocationCallOrder[0] ?? 0,
+  );
+});
+
+test('the diary asked for on arrival waits for the page to finish coming in', async () => {
+  mockFetch({
+    ...BASE,
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    [`GET /looks/${LOOK_ID}`]: look(),
+    'GET /plan': { days: [] },
+  });
+  let arrive: ((e: { data: { closing: boolean } }) => void) | null = null;
+  mockNavigation.addListener.mockImplementationOnce((type, listener) => {
+    if (type === 'transitionEnd') arrive = listener;
+    return () => {};
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} presentation="saved" schedule onClose={() => undefined} />,
+  );
+  expect(await screen.findByTestId('schedule-look')).toBeTruthy();
+  expect(screen.queryByLabelText(lookbook.diary.prevMonth)).toBeNull();
+  // The sheet it came from finishing its exit is not this page arriving.
+  await act(async () => arrive?.({ data: { closing: true } }));
+  expect(screen.queryByLabelText(lookbook.diary.prevMonth)).toBeNull();
+  await act(async () => arrive?.({ data: { closing: false } }));
   expect(await screen.findByLabelText(lookbook.diary.prevMonth)).toBeTruthy();
 });
 
