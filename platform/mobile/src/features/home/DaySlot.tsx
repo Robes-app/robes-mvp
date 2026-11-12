@@ -20,6 +20,7 @@ import { Pressable, Text as RNText, ScrollView, useWindowDimensions, View } from
 import { LookTile } from '@/features/looks/LookTile';
 import { ImageStack } from '@/features/looks/SavedLook';
 import { DraftTile } from './DraftTile';
+import { fitPageWidth, PHOTO_RATIO } from './diary';
 import { ModelStack } from './ModelStack';
 
 // The page's own gutter: each page is the content width, one whole page at a time.
@@ -50,6 +51,7 @@ export function DaySlot({
   justSaved = null,
   model,
   actions,
+  room = null,
 }: {
   day: DiaryDay;
   today: string;
@@ -59,18 +61,30 @@ export function DaySlot({
   justSaved?: string | null;
   model: Model | undefined;
   actions: DayActions;
+  // The height the slot may take before Home would scroll (DiaryHome measures it).
+  room?: number | null;
 }) {
   const router = useRouter();
   const window = useWindowDimensions();
+  // What stands under the photograph: the slot's height less the photo's, measured once laid out.
+  const [tail, setTail] = useState<number | null>(null);
   const [page, setPage] = useState(0);
   const ootd = dayOotd(day.entries);
   const looks = ootd ? [ootd, ...day.entries.filter((e) => e !== ootd)] : [];
   const draft = day.date >= today ? day.draft : null;
   const pages = looks.length + (draft ? 1 : 0) + 1;
-  const width = window.width - PAGE * 2;
+  const width = fitPageWidth(window.width - PAGE * 2, room, tail);
   const step = width + PAGE;
+  // A page narrower than the screen stands centred; each snap lands the next one there too.
+  const inset = (window.width - width) / 2;
   return (
-    <View className="gap-4">
+    <View
+      className="gap-4"
+      onLayout={(e) => {
+        const next = Math.round(e.nativeEvent.layout.height - width * PHOTO_RATIO);
+        if (next !== tail) setTail(next);
+      }}
+    >
       <ScrollView
         horizontal
         snapToInterval={step}
@@ -81,7 +95,7 @@ export function DaySlot({
         onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / step))}
         testID="day-slot"
         className="-mx-5"
-        contentContainerStyle={{ paddingHorizontal: PAGE, gap: PAGE }}
+        contentContainerStyle={{ paddingHorizontal: inset, gap: PAGE }}
       >
         {looks.map((entry, i) => (
           <View

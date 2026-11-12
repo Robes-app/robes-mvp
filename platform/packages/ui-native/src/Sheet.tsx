@@ -1,6 +1,5 @@
 import { ui } from '@robes/copy';
 import { Icon, type IconName } from '@robes/icons/native';
-import { shadowNative } from '@robes/tokens';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -43,9 +42,9 @@ export interface SheetProps {
   children?: ReactNode;
   className?: string;
   testID?: string;
-  // Felix's floating sheet: 8pt from the left, right and bottom, every corner on the sheet radius,
-  // on a 0.5pt `rule-mid` edge, hugging its content; the handle, a swipe down or a tap on the
-  // backdrop closes it (no ×).
+  // Felix's floating sheet: hugging its content on a 0.5pt `rule-mid` edge; the handle, a swipe
+  // down or a tap on the backdrop closes it (no ×). Like every sheet it stands on the bottom edge,
+  // its top corners on the sheet radius (Felix, 12 Nov: the 8pt inset read as detached).
   floating?: boolean;
   // The eyebrow's colour: Felix's rose (the darkened rose for small text) by default.
   eyebrowTone?: 'faint' | 'warm';
@@ -56,8 +55,8 @@ export interface SheetProps {
   // question and the × (Felix NotificationsSheet); a swipe down on it still closes. `null` keeps
   // the × with a spacer.
   done?: DrawerHeaderDone | null;
-  // The Front Door's glass sheet (PRD rev 3 §2.4, §2.5): floating 8pt from the edges on the dock
-  // radius, cream glass over the dimmed screen, with its own header — the × disc at the left, a
+  // The Front Door's glass sheet (PRD rev 3 §2.4, §2.5): on the bottom edge, its top corners on
+  // the dock radius, cream glass over the dimmed screen, with its own header — the × disc at the left, a
   // sans title centred, a text action at the right (Clear). The question, eyebrow and × above
   // are not drawn. Twin of web ui dialog.tsx `glass`.
   glass?: GlassHeader;
@@ -87,7 +86,6 @@ const OFFSCREEN = 800;
 const DISMISS_DRAG = 120;
 // Felix's `backdrop` behind every drawer (the token's alpha; it is ink, so opacity carries it).
 const BACKDROP_OPACITY = 0.28;
-const FLOAT_INSET = 8;
 // The PRD's motion (rev 3 §2.6): 0.26s on cubic-bezier(.4, 0, .7, 1), in and out alike.
 const DURATION = 260;
 const EASE = Easing.bezier(0.4, 0, 0.7, 1);
@@ -260,26 +258,27 @@ export function Sheet({
           accessibilityViewIsModal
           className={cx(
             glass
-              ? 'rounded-dock border-rule-mid bg-veil px-5'
+              ? 'rounded-t-dock border-rule-mid bg-veil px-5'
               : floating
-                ? 'rounded-sheet border-rule-mid bg-bg px-5'
+                ? 'rounded-t-sheet border-rule-mid bg-bg px-5'
                 : 'rounded-t-sheet bg-bg px-5',
             className,
           )}
-          // A tall drawer stops short of the status bar and Dynamic Island; its content scrolls.
-          // Its last row (a footer button) sits above the home indicator, never under it.
+          // Every sheet stands on the screen's bottom edge, edge to edge (Felix, 12 Nov). A tall
+          // drawer stops short of the status bar and Dynamic Island; its content scrolls. Its last
+          // row (a footer button) sits above the home indicator, never under it.
           style={[
             {
               maxHeight: SHEET_MAX,
-              paddingBottom: floats ? SHEET_PAD : SHEET_PAD + (keyboard ? 0 : insets.bottom),
+              paddingBottom: SHEET_PAD + (keyboard ? 0 : insets.bottom),
               transform: [{ translateY }],
             },
+            // The fine edge runs over the top and down the sides; the bottom is the screen's.
             floats
               ? {
-                  borderWidth: FINE_EDGE,
-                  marginHorizontal: FLOAT_INSET,
-                  marginBottom: FLOAT_INSET + (keyboard ? 0 : insets.bottom),
-                  ...shadowNative.sheet,
+                  borderTopWidth: FINE_EDGE,
+                  borderLeftWidth: FINE_EDGE,
+                  borderRightWidth: FINE_EDGE,
                 }
               : null,
           ]}

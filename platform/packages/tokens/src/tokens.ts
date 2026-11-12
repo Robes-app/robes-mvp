@@ -261,8 +261,8 @@ export const radius = {
 export const shadow = {
   // A garment row on a look's rack (Front Door canvas, PRD §6.1): each row its own lifted card.
   row: '0 1px 2px rgba(32, 32, 33, 0.08), 0 4px 10px -4px rgba(32, 32, 33, 0.16)',
-  // Action discs on the photo's edge.
-  disc: '0 8px 18px -6px rgba(32, 32, 33, 0.38), 0 1px 3px rgba(32, 32, 33, 0.12)',
+  // Action discs on the photo's edge: a soft lift, never a dark pool (Felix, 12 Nov).
+  disc: '0 4px 10px -4px rgba(32, 32, 33, 0.18), 0 1px 2px rgba(32, 32, 33, 0.08)',
   // White + discs and small floating buttons.
   float: '0 6px 16px -6px rgba(32, 32, 33, 0.30)',
   // Floating sheets and popovers.
@@ -283,7 +283,8 @@ function nativeShadow(y: number, radius: number, opacity: number, elevation: num
 }
 export const shadowNative = {
   row: nativeShadow(2, 5, 0.12, 2),
-  disc: nativeShadow(8, 18, 0.38, 6),
+  // Native has no negative spread, so the disc's lift is lighter still than the web's.
+  disc: nativeShadow(2, 6, 0.12, 3),
   float: nativeShadow(6, 16, 0.3, 6),
   sheet: nativeShadow(18, 40, 0.35, 10),
   modal: nativeShadow(18, 48, 0.28, 12),
