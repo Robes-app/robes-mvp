@@ -456,6 +456,18 @@ describe.skipIf(!legacySchemaPresent())(
       );
     });
 
+    it('carries once a receipt beta holds twice (one email delivered twice)', async () => {
+      const { report } = await rehearse(`
+      insert into public.wardrobe_inbox (id, user_id, retailer, provider_id, status, received_at) values
+        ('99999999-0000-4000-8000-0000000000a1', '${NIALL}', 'Zara', 'msg-twice', 'held', '2026-10-26'),
+        ('99999999-0000-4000-8000-0000000000a2', '${NIALL}', 'Zara', 'msg-twice', 'held', '2026-10-26');`);
+      expect(report.failures).toEqual([]);
+      const kept = await one<{ n: number }>(
+        `select count(*)::int as n from app.wardrobe_inbox where provider_id = 'msg-twice'`,
+      );
+      expect(kept.n).toBe(1);
+    });
+
     it('copes with a legacy database where later migrations never ran', async () => {
       const { extracted, report } = await rehearse(`
       alter table public.wardrobe_items drop column season_band, drop column season_source;
