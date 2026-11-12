@@ -166,6 +166,20 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
   expect(onClose).not.toHaveBeenCalled();
 });
 
+// Annie and Felix, 12 Nov: the draft sheet's prompt box sat under Style it and would not scroll.
+// The native sheet stretched the body's ScrollView over the whole sheet once it could reach it
+// through views flattened away; the sheet's frame and the body's view stay views of their own.
+test('the draft sheet keeps its ScrollView between its head and its foot', async () => {
+  mockFetch({ ...BASE, 'GET /wardrobe/items': { items: [piece()], nextCursor: null } });
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  expect(await screen.findByTestId('draft-generate')).toBeTruthy();
+  const shell = screen.getByTestId('draft-shell');
+  expect(shell.props.collapsable).toBe(false);
+  const body = screen.getByTestId('draft-look').parent;
+  expect(body?.props.collapsable).toBe(false);
+  expect(body?.parent).toBe(shell);
+});
+
 test('a sixth draft asks to let the oldest go, and only then makes room', async () => {
   let posts = 0;
   const calls = mockFetch({

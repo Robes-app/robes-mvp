@@ -63,6 +63,12 @@ test('Add pieces has the sheet head', async () => {
   expect(StyleSheet.flatten(frame?.props.style)).toEqual(
     expect.objectContaining({ paddingBottom: 34 }),
   );
+  // Every view from the sheet's frame down to its ScrollView stays a view of its own, so the native
+  // sheet never takes the ScrollView for its own and stretches it over the head (12 Nov).
+  const body = screen.getByTestId('form-sheet-body');
+  expect(frame?.props.collapsable).toBe(false);
+  expect(body.props.collapsable).toBe(false);
+  expect(body.parent).toBe(frame);
   await fireEvent.press(screen.getByRole('button', { name: ui.close }));
   expect(mockRouter.back).toHaveBeenCalled();
 });

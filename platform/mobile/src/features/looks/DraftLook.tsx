@@ -371,8 +371,11 @@ function Shell({
   return (
     <View
       ref={root}
+      // Never flattened (FormSheetScreen.tsx): the native sheet must not reach the body's ScrollView.
+      collapsable={false}
       className="flex-1 bg-bg"
       style={{ paddingTop: presentation === 'page' ? insets.top : 0, paddingBottom: keyboard }}
+      testID="draft-shell"
     >
       {presentation === 'page' ? <Bare /> : null}
       <DrawerHeader
@@ -383,7 +386,7 @@ function Shell({
         closeTestID="draft-close"
         doneTestID="draft-done"
       />
-      <View className="flex-1">
+      <View collapsable={false} className="flex-1">
         <ScrollView
           automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
