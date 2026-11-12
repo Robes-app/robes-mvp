@@ -299,10 +299,12 @@ export function twinInputsOf(row: TwinSource): TwinInputs {
   };
 }
 
-// Anything to draw her from: a close-up, a fact, a slider or a hand pick. Nothing → the catalog.
+// Anything to draw her from: a close-up, a measurement, a slider or a hand pick. Nothing → the
+// catalog. Her age alone is not: she gives it under Style DNA › You, and it shapes a twin only
+// alongside the rest (so deleting her twin, which keeps it, leaves her on a Robes model).
 export const hasTwinInputs = (i: TwinInputs): boolean =>
   i.closeUpAssetId !== null ||
-  Object.values(i.facts).some((v) => v !== null) ||
+  Object.entries(i.facts).some(([k, v]) => k !== 'ageBand' && v !== null) ||
   isAdjusted(i.adj) ||
   i.skinSet ||
   i.hairSet;

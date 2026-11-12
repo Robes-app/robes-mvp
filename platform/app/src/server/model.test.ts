@@ -391,6 +391,7 @@ describe('her twin, deleted', () => {
       silhouetteRead: false,
       filedCellId: null,
       avatarPrefs: null,
+      ageBand: '35_44' as never,
     };
     repos.model.deleteTwin.mockImplementation(async () => {
       row = after;
@@ -404,7 +405,8 @@ describe('her twin, deleted', () => {
     });
     expect(model).toMatchObject({ closeUpUrl: null, stand: { on: 'robes' } });
     expect(model.twin.imageUrl).toBeNull();
-    // Nothing is left to draw her from, so a visit after never draws a twin again.
+    // Nothing is left to draw her from (her age, which stays, is not enough), so a visit after
+    // never draws a twin again.
     await drawTwin(USER, req);
     expect(repos.model.claimTwin).not.toHaveBeenCalled();
     expect(startJob).not.toHaveBeenCalled();

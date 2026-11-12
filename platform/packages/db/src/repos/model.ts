@@ -130,9 +130,11 @@ export function modelRepo(db: Db) {
 
     // Her digital twin, deleted at her ask (Annie, 12 Nov 2026): every close-up and full-length
     // photo she gave, every twin drawn for her (the one on file and any a redraw replaced), what
-    // Robes read from those photos, and the facts and picks a twin is drawn from. The photos are
-    // marked deleted at once (gone from every read) and the maintenance sweep deletes their files
-    // (staleUploads.dueRemoved). Her looks stay; Robes' pictures of them drawn on her twin go.
+    // Robes read from those photos (her season with them), her measurements and her picks. Her
+    // age band stays: she gives it under Style DNA › You, not for her twin (Annie, 12 Nov). The
+    // photos are marked deleted at once (gone from every read) and the maintenance sweep deletes
+    // their files (staleUploads.dueRemoved). Her looks stay; Robes' pictures of them drawn on her
+    // twin go.
     // Her yes to the twin goes too, so the next selfie asks again. One transaction: the row locks
     // it takes make a colour read finishing alongside wait, then find its photo gone
     // (styleAnalysis.saveColour).
@@ -233,7 +235,6 @@ export function modelRepo(db: Db) {
             bustCup: null,
             bustCm: null,
             waistCm: null,
-            ageBand: null,
             avatarPrefs: null,
           })
           .where('id', '=', userId)

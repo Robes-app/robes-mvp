@@ -19,7 +19,7 @@ export interface LegalDoc {
   contactLead: string;
 }
 
-const lastUpdated = 'Last updated 11 November 2026.';
+const lastUpdated = 'Last updated 12 November 2026.';
 
 const terms: LegalDoc = {
   title: 'Terms of use',
@@ -52,7 +52,7 @@ const terms: LegalDoc = {
     {
       heading: 'Your likeness, your terms',
       body: [
-        'The model Robes creates from your close-up, and every picture of a look rendered on it, is yours. We claim no ownership of either. Your face is used only to show you your own looks — never in our marketing, never shown to anyone else, never used to train anything — unless you ask us to in writing. Remove the close-up and your face leaves the model; delete your account and the model goes with it. Sharing a look is your choice alone: a shared look becomes a page anyone with its link can open. Pictures of your looks are illustrations, not photographs — a piece may not sit on you exactly as it does on the model.',
+        'The model Robes creates from your close-up, and every picture of a look rendered on it, is yours. We claim no ownership of either. Your face is used only to show you your own looks — never in our marketing, never shown to anyone else, never used to train anything — unless you ask us to in writing. Delete your digital twin and your close-up, your model and every picture of a look rendered on it are deleted; delete your account and everything goes with it. Sharing a look is your choice alone: a shared look becomes a page anyone with its link can open. Pictures of your looks are illustrations, not photographs — a piece may not sit on you exactly as it does on the model.',
       ],
     },
     {
@@ -125,7 +125,7 @@ const privacy: LegalDoc = {
     {
       heading: 'Your digital twin',
       body: [
-        'If you add a close-up under Your digital twin, Robes uses it twice. It reads your colouring from it, and it uses it as the reference for your model — a full-length image of you, created from your face in the photograph and from the facts you give (height, size, bust, waist, age). Every look Robes then composes for you is rendered on that model, so the pictures of your looks carry your face. The model image is created by Google Gemini from your close-up and your facts, and it is stored privately on Amazon S3 alongside your wardrobe photographs. Nothing is read from your body in a photograph: your line comes from the facts and the sliders you set, and you can change either at any time. Remove the close-up and the model is redrawn without your face; remove your account and the model goes with it. Your looks are seen by no one else unless you share one: a shared look becomes a page anyone with its link can open, until you turn the link off.',
+        'If you add a close-up under Your digital twin, Robes uses it twice. It reads your colouring from it, and it uses it as the reference for your model — a full-length image of you, created from your face in the photograph and from the facts you give (height, size, bust, waist, age). Every look Robes then composes for you is rendered on that model, so the pictures of your looks carry your face. The model image is created by Google Gemini from your close-up and your facts, and it is stored privately on Amazon S3 alongside your wardrobe photographs. Nothing is read from your body in a photograph: your line comes from the facts and the sliders you set, and you can change either at any time. You can delete your digital twin at any time under You › Your digital twin. That deletes your close-up, your model, the colouring and season read from your close-up, your height, size, bust and waist, and every picture of a look rendered on your model; those looks are drawn again on a Robes model the next time you open them. Your age stays, as it is part of your Style DNA. Deleting your account deletes all of it too. Your looks are seen by no one else unless you share one: a shared look becomes a page anyone with its link can open, until you turn the link off.',
       ],
     },
     {
@@ -150,7 +150,8 @@ const privacy: LegalDoc = {
       heading: 'How long we keep it',
       body: [
         [
-          'Your account, wardrobe, looks, style profile, close-up and model: for as long as your account exists. Something you remove is deleted for good after 30 days, and everything goes when you delete your account.',
+          'Your account, wardrobe, looks and style profile: for as long as your account exists. Something you remove is deleted for good after 30 days, and everything goes when you delete your account.',
+          'Your close-up, your model and the pictures of your looks rendered on it: until you delete your digital twin or your account. Their files are deleted within the hour.',
           'Your location: until you change it or delete your account.',
           'The email you forward: deleted after seven days; its sender and subject are cleared 90 days after you decide on it.',
           'What Robes asked Google Gemini, and its answer: the text is cleared after 30 days. A record that a request was made, with its cost and counts but never your words, is kept for 13 months.',
@@ -166,7 +167,7 @@ const privacy: LegalDoc = {
       body: [
         [
           'Our contract with you covers running Robes: your account, wardrobe, looks, style profile and the emails that are part of the service.',
-          'Your consent covers your close-up and the model drawn from it, your location, usage counts, screen recordings and the optional emails. You give it in the app and can withdraw it there at any time.',
+          'Your consent covers your close-up and the model drawn from it, your location, usage counts, screen recordings and the optional emails. You give it in the app and can withdraw it there at any time; deleting your digital twin withdraws your consent to it.',
           'Our legitimate interest in keeping Robes working, secure and clear covers error reports, rate limits and server logs.',
         ],
       ],
@@ -180,7 +181,7 @@ const privacy: LegalDoc = {
     {
       heading: 'Your choices',
       body: [
-        'The close-up is optional — every step that asks for a photograph can be skipped, and a model can be drawn from your facts alone. You can update or remove wardrobe pieces at any time. Under You › Account you can download everything you have given Robes, and you can delete your account and data; that includes what PostHog holds about you. Email us if you would rather we did it.',
+        'The close-up is optional — every step that asks for a photograph can be skipped, and a model can be drawn from your facts alone. You can delete your digital twin, or update or remove wardrobe pieces, at any time. Under You › Account you can download everything you have given Robes, and you can delete your account and data; that includes what PostHog holds about you. Email us if you would rather we did it.',
       ],
     },
   ],

@@ -4,6 +4,7 @@ import {
   bustCmOf,
   chosenTones,
   effectiveStops,
+  hasTwinInputs,
   isTwinCurrent,
   NO_ADJ,
   stepTwinFact,
@@ -40,6 +41,17 @@ const inputs = (over: Partial<TwinInputs> = {}): TwinInputs => ({
 });
 
 describe('the twin', () => {
+  it('is drawn from a close-up, a measurement, a slider or a pick, never from her age alone', () => {
+    expect(hasTwinInputs(inputs())).toBe(false);
+    // Her age is given under Style DNA › You and stays when she deletes her twin.
+    expect(hasTwinInputs(inputs({ facts: { ...none, ageBand: '35_44' } }))).toBe(false);
+    expect(hasTwinInputs(inputs({ facts: { ...none, ageBand: '35_44', heightCm: 167 } }))).toBe(
+      true,
+    );
+    expect(hasTwinInputs(inputs({ closeUpAssetId: 'c' }))).toBe(true);
+    expect(hasTwinInputs(inputs({ skinSet: true }))).toBe(true);
+  });
+
   it('reads a bra size or a tape as one bust measure', () => {
     expect(bustCmOf({ bustBand: 34, bustCup: 'C', bustCm: null })).toBe(
       Math.round(34 * 2.54 + 3.5 * 2.54),
