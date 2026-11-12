@@ -94,6 +94,14 @@ const CUPS = `('AA','A','B','C','D','DD','E','F','G+')`;
 const CATEGORIES = `('Tops','Bottoms','Dresses','Outerwear','Shoes','Bags','Accessories','Swimwear','Other')`;
 
 export const IDENTITY_SQL = `
+-- Only an account this run creates is filled from legacy below. One she already has (she signed in
+-- on the platform first, or an earlier run brought her over) keeps what it holds: Robes never
+-- overwrites her data (CLAUDE.md). Her legacy rows are still added to it.
+create temp table migrate_new_users on commit drop as
+select u.id from legacy.auth_users u
+where nullif(trim(u.email), '') is not null
+  and not exists (select 1 from app.users x where x.id = u.id or x.email = lower(trim(u.email)));
+
 -- Passwordless now (ADR-020): no hashes move; OAuth identities re-link by email on first sign-in.
 insert into app.users (id, name, email, email_verified, created_at)
 select u.id,
@@ -138,7 +146,7 @@ update app.profiles t set
   created_at = coalesce(p.created_at, t.created_at)
 from legacy.profiles p,
   lateral (select case when jsonb_typeof(p.notification_prefs) = 'object' then p.notification_prefs else '{}'::jsonb end as np) n
-where t.id = p.id;
+where t.id = p.id and t.id in (select id from migrate_new_users);
 
 insert into app.style_profiles (user_id, season, undertone, contrast, body_type, color_harmony,
   silhouette_proportions, colour_render, silhouette_render, user_overrides, headshot_asset_id,
@@ -210,7 +218,7 @@ from legacy.profiles p,
   lateral (select coalesce(coalesce(f.f ->> 'bust_mode', 'bra') <> 'cm' and (f.f ->> 'bust_cup') in ${CUPS}
     and (f.f ->> 'bust_band') ~ '^[0-9]+$' and (f.f ->> 'bust_band')::int between 28 and 46
     and (f.f ->> 'bust_band')::int % 2 = 0, false) as bra) b
-where t.id = p.id and p.style_dna is not null;
+where t.id = p.id and p.style_dna is not null and t.id in (select id from migrate_new_users);
 
 -- The brief's paragraph and colours ride her style profile (the colours as her overrides).
 insert into app.style_profiles (user_id) select p.id from legacy.profiles p join app.users u on u.id = p.id
@@ -229,7 +237,8 @@ update app.style_profiles t set
       union select jsonb_array_elements_text(case when jsonb_typeof(b.b -> 'colours' -> 'rejected') = 'array'
         then b.b -> 'colours' -> 'rejected' else '[]'::jsonb end)) x))
 from legacy.profiles p, lateral (select p.style_dna -> 'brief' as b) b
-where t.user_id = p.id and jsonb_typeof(b.b) = 'object';
+where t.user_id = p.id and jsonb_typeof(b.b) = 'object'
+  and t.user_id in (select id from migrate_new_users);
 
 -- Her colours and prints; a palette she already set on the platform is never overwritten.
 update app.style_profiles t set palette = jsonb_build_object(
@@ -344,6 +353,9 @@ select w.id, w.user_id,
   'ready',
   case when w.hero_position between 1 and 10
     and row_number() over (partition by w.user_id, w.hero_position order by w.created_at, w.id) = 1
+    -- A place on the Hero Rack she has already filled on the platform stays hers.
+    and not exists (select 1 from app.wardrobe_items x where x.user_id = w.user_id
+      and x.hero_position = w.hero_position and x.deleted_at is null and x.id <> w.id)
     then w.hero_position end,
   pg_temp.season_band(w.season_band, w.seasons),
   case when w.season_source in ('inferred', 'user') then w.season_source
