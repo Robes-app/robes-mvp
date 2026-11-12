@@ -51,6 +51,31 @@ export async function sweepStaleUploads(
     afterId = due.at(-1)?.id;
     if (due.length < STALE_UPLOADS_PAGE) break;
   }
+  // Her twin's photos and the twins drawn from them, deleted at her ask (model.deleteTwin): their
+  // files go on the next run, whatever their age.
+  afterId = undefined;
+  for (let page = 0; page < (deps.maxPages ?? 20); page++) {
+    const due = await deps.uploads.dueRemoved({ limit: STALE_UPLOADS_PAGE, afterId });
+    for (const asset of due) {
+      try {
+        const outcome = await deps.uploads.discardRemoved(
+          verifiedUserId(asset.userId),
+          asset.id,
+          (userId, assetId) => deleteAssetObjects(deps.storage, userId, assetId),
+        );
+        if (outcome === 'discarded') deleted++;
+        else kept++;
+      } catch (err) {
+        failed++;
+        deps.logger.warn(
+          { reason: err instanceof Error ? err.message.slice(0, 60) : 'unknown' },
+          'removed_photo_failed',
+        );
+      }
+    }
+    afterId = due.at(-1)?.id;
+    if (due.length < STALE_UPLOADS_PAGE) break;
+  }
   if (deleted || failed) deps.logger.info({ deleted, kept, failed }, 'stale_uploads_swept');
   return { deleted, kept, failed };
 }

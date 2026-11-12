@@ -102,6 +102,18 @@ export function modelRenderRepo(db: Db) {
       return row !== undefined;
     },
 
+    // A twin that landed too late to be hers: marked deleted for the maintenance sweep.
+    async discardTwin(userId: UserId, assetId: string): Promise<void> {
+      await db
+        .updateTable('assets')
+        .set({ status: 'deleted', deletedAt: sql`now()` })
+        .where('userId', '=', userId)
+        .where('id', '=', assetId)
+        .where('kind', '=', 'generated')
+        .where('deletedAt', 'is', null)
+        .execute();
+    },
+
     failTwin(userId: UserId, key: string) {
       return failTwin(db, userId, key);
     },

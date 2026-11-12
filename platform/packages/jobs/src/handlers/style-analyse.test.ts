@@ -21,8 +21,8 @@ function setup(opts: { photoKind?: string; statuses?: string[]; colour?: object 
       kind: opts.photoKind ?? 'headshot',
       status: statuses.length > 1 ? statuses.shift() : statuses[0],
     })),
-    saveColour: vi.fn(async () => {}),
-    saveSilhouette: vi.fn(async () => {}),
+    saveColour: vi.fn(async () => true),
+    saveSilhouette: vi.fn(async () => true),
   };
   const ledger = { record: vi.fn(async () => {}) };
   const storage = { getObject: vi.fn(async () => new Uint8Array([1])) };
@@ -101,6 +101,13 @@ describe('stylenotes_analyse handler', () => {
     await expect(run('colour')).resolves.toEqual({ status: 'partial' });
     expect(profiles.saveColour).not.toHaveBeenCalled();
     expect(writeStage).toHaveBeenCalledWith('text', { styleKind: 'colour', noSubject: true });
+  });
+
+  it('leaves nothing behind when her photo was deleted with her twin while it was read', async () => {
+    const { run, profiles, writeStage } = setup();
+    profiles.saveColour.mockResolvedValueOnce(false);
+    await expect(run('colour')).rejects.toEqual(new JobError('asset_missing'));
+    expect(writeStage).not.toHaveBeenCalled();
   });
 
   it('gives up on a photo that never renders', async () => {

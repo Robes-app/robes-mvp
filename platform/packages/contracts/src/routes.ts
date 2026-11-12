@@ -24,7 +24,7 @@ import {
   SetAdminFlagInput,
 } from './admin';
 import { AuthProviders, EmptyInput, HealthOutput } from './common';
-import { Consents, UpdateConsentsInput } from './consents';
+import { Consents, DeleteTwinInput, UpdateConsentsInput } from './consents';
 import {
   DecideInboxInput,
   ImportLinkInput,
@@ -286,6 +286,16 @@ export const routes = {
     path: '/me/model/twin',
     auth: 'user',
     input: EmptyInput,
+    output: Model,
+  },
+  // Deletes her digital twin: every close-up, every twin drawn, what Robes read from them and the
+  // facts it is drawn from, and her yes to the twin (`source` records where she withdrew it).
+  // Her looks stay. Idempotent: with nothing on file it changes nothing more.
+  'me.model.twin.delete': {
+    method: 'DELETE',
+    path: '/me/model/twin',
+    auth: 'user',
+    input: DeleteTwinInput,
     output: Model,
   },
   // "See it on me": naturally idempotent per model, rack and picture note. `note` (D21) writes her

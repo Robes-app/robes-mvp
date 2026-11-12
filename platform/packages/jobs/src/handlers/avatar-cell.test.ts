@@ -125,6 +125,7 @@ function twinSetup(
       return next ? { ...next } : row ? { ...row } : undefined;
     }),
     setTwin: vi.fn(async () => true),
+    discardTwin: vi.fn(async () => {}),
     failTwin: vi.fn(async () => {}),
     standOnTwin: vi.fn(async () => {}),
     closeUp: vi.fn(async () => ('photo' in early ? early.photo : { status: 'ready' })),
@@ -179,6 +180,15 @@ describe('avatar_cell · her twin', () => {
     expect(model.setTwin).toHaveBeenCalledWith(USER, key, TWIN_ASSET);
     // Asked for by the app, the draw already stood her on it (drawTwin).
     expect(model.standOnTwin).not.toHaveBeenCalled();
+    expect(model.discardTwin).not.toHaveBeenCalled();
+  });
+
+  it('discards a twin that lands after she deleted hers (or asked for another)', async () => {
+    const key = await twinKey(twinInputsOf(her));
+    const { run, model } = twinSetup();
+    model.setTwin.mockResolvedValueOnce(false);
+    await expect(run(key)).resolves.toEqual({ status: 'succeeded' });
+    expect(model.discardTwin).toHaveBeenCalledWith(USER, TWIN_ASSET);
   });
 
   it('draws in words alone when the close-up cannot be read', async () => {

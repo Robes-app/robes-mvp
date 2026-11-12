@@ -26,3 +26,7 @@ export const UpdateConsentsInput = z.object({
     .refine((c) => Object.keys(c).length > 0, 'answer at least one consent'),
 });
 export type UpdateConsentsInput = z.infer<typeof UpdateConsentsInput>;
+
+// Deleting her twin withdraws her yes to it (photo_analysis), recorded from where she asked.
+export const DeleteTwinInput = z.object({ source: UpdateConsentsInput.shape.source });
+export type DeleteTwinInput = z.infer<typeof DeleteTwinInput>;

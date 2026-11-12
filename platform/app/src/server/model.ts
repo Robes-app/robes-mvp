@@ -1,6 +1,7 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
 import {
+  type DeleteTwinInput,
   JobStatus,
   Model,
   type RedrawLookInput,
@@ -272,6 +273,9 @@ export async function updateModel(
 // Draws her twin when what it is drawn from changed since the last (legacy mvTwinSync): asked on
 // leaving a twin screen and on landing on the model, never per tap. One image quota per draw.
 export async function drawTwin(userId: UserId, req: Request): Promise<Model> {
+  // Landing on her model also draws her wearer's Robes models if nobody has yet (an account
+  // onboarded before they were drawn at onboarding).
+  await ensureRobesModels(userId);
   const { row, resolved } = await current(userId);
   const inputs = twinInputsOf(row);
   if (!hasTwinInputs(inputs) || !(await isFlagEnabled('model.portraits'))) return loadModel(userId);
@@ -290,6 +294,14 @@ export async function drawTwin(userId: UserId, req: Request): Promise<Model> {
     if (drawing && row.modelPreset !== null) await repos.model.savePreset(userId, null);
     if (claimed) await startTwin(userId, key, (job) => startJob(userId, req, job));
   }
+  return loadModel(userId);
+}
+
+// Deletes her digital twin (Annie, 12 Nov 2026; repo model.deleteTwin): her looks then stand on
+// a Robes model again, drawn if nobody has yet.
+export async function deleteTwin(userId: UserId, input: DeleteTwinInput): Promise<Model> {
+  await repos.model.deleteTwin(userId, input.source);
+  await ensureRobesModels(userId);
   return loadModel(userId);
 }
 
