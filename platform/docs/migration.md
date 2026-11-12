@@ -89,13 +89,13 @@ export LEGACY_DATABASE_URL='<Robes_p0 admin URL>'           # read with SELECT o
 export TARGET_DATABASE_URL='<staging admin URL>'            # then production's migration role
 export ROBES_MIGRATE_STAGING='<user@host of TARGET_DATABASE_URL>'
 pnpm migrate:extract -- --target=staging --only=a@x.com,b@y.com
-pnpm migrate:transform -- --target=staging
+pnpm migrate:transform -- --target=staging --quiet-arrival   # new accounts arrive with notifications off
 pnpm migrate:assert -- --target=staging                     # exits 1 on any failure
 pnpm migrate:rehost -- --target=staging --dry-run
 pnpm migrate:rehost -- --target=staging --apply --bucket=<staging media bucket>
 ```
 
-Before the production run: confirm point-in-time recovery is on, and decide what the new app emails them (beta goes on emailing them too; the migrated notification settings are beta's).
+Before the production run: confirm point-in-time recovery is on. Beta goes on emailing these people, so run transform with `--quiet-arrival`: the accounts it creates start with every platform notification off, hers to switch on under You › Notifications. An account she already had keeps its own settings.
 
 ## 5. Rollback
 
