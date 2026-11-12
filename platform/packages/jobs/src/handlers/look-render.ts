@@ -37,7 +37,13 @@ export interface LookRenderDeps {
   storage: Pick<MediaStorage, 'getObject' | 'putObject'>;
   styling: Pick<
     SystemRepositories['styling'],
-    'context' | 'dailyContext' | 'anchorPiece' | 'createGeneratedAsset' | 'getSet' | 'modelCellId'
+    | 'context'
+    | 'dailyContext'
+    | 'anchorPiece'
+    | 'createGeneratedAsset'
+    | 'discardGenerated'
+    | 'getSet'
+    | 'modelCellId'
   >;
   // Robes' frame of a suggested look (look states); absent where the runtime doesn't draw them.
   suggested?: Pick<SystemRepositories['suggested'], 'look' | 'setFrame' | 'failFrame'>;
@@ -287,7 +293,11 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       const key = mediaKeys.original(ctx.userId, assetId);
       await deps.storage.putObject(key, image.data, { contentType: image.mimeType });
       await deps.onGenerated?.(key);
-      await model.setRender(ctx.userId, lookId, renderKey, assetId);
+      // Not wanted any more (her model or rack changed, or she deleted her twin): its files go
+      // with the maintenance sweep, never kept unheld.
+      if (!(await model.setRender(ctx.userId, lookId, renderKey, assetId))) {
+        await deps.styling.discardGenerated(ctx.userId, assetId);
+      }
       await ctx.writeStage('images', { images: [{ idx: 0, status: 'ready', assetId }] });
       return { status: 'succeeded' as const };
     } catch (err) {
@@ -459,7 +469,9 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         return fail(err);
       }
     }
-    await suggested.setFrame(ctx.userId, lookId, frameKey, assetId, stoodOn);
+    if (!(await suggested.setFrame(ctx.userId, lookId, frameKey, assetId, stoodOn))) {
+      await deps.styling.discardGenerated(ctx.userId, assetId);
+    }
     await ctx.writeStage('images', { images: [{ idx: 0, status: 'ready', assetId }] });
     return { status: 'succeeded' as const };
   }

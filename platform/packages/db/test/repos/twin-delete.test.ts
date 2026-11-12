@@ -143,12 +143,89 @@ describe('model.deleteTwin', () => {
   it('discards a twin that lands after it, for the sweep', async () => {
     const late = await system.styling.createGeneratedAsset(ann);
     expect(await system.modelRender.setTwin(ann, 'k-late', late)).toBe(false);
-    await system.modelRender.discardTwin(ann, late);
+    await system.styling.discardGenerated(ann, late);
     expect(await deletedAt(late)).toBeInstanceOf(Date);
     // Only her own, and only a generated image.
     const beas = await system.styling.createGeneratedAsset(bea);
-    await system.modelRender.discardTwin(ann, beas);
+    await system.styling.discardGenerated(ann, beas);
     expect(await deletedAt(beas)).toBeNull();
+    const photo = await (async () => {
+      const id = await system.styling.createGeneratedAsset(ann);
+      await db.updateTable('assets').set({ kind: 'look_photo' }).where('id', '=', id).execute();
+      return id;
+    })();
+    await system.styling.discardGenerated(ann, photo);
+    expect(await deletedAt(photo)).toBeNull();
+  });
+
+  it('takes Robes’ pictures of her looks drawn on her twin, and only those', async () => {
+    const coat = (await repos.wardrobe.create(ann, { label: 'Camel coat' })).id;
+    const beaCoat = (await repos.wardrobe.create(bea, { label: 'Navy coat' })).id;
+    const look = async (userId: UserId, pieceId: string, picture: Record<string, unknown>) => {
+      const id = (
+        await repos.looks.create(userId, {
+          name: 'A look',
+          nameProvisional: false,
+          pieces: [{ pieceId }],
+        })
+      ).id;
+      await db.updateTable('looks').set(picture).where('id', '=', id).execute();
+      return id;
+    };
+    const picture = async (userId: UserId, renderKey: string, stoodOn: string | null) => ({
+      renderAssetId: await system.styling.createGeneratedAsset(userId),
+      renderKey,
+      renderStatus: 'ready',
+      stoodOn,
+    });
+    const onTwin = await picture(ann, 'twin:k1:rack', 'twin');
+    const onTwinBefore = await picture(ann, 'twin:k0:rack', null);
+    const onRobes = await picture(ann, 'w-r1@v2:rack', 'robes');
+    const beas = await picture(bea, 'twin:k1:rack', 'twin');
+    const a = await look(ann, coat, onTwin);
+    const b = await look(ann, coat, onTwinBefore);
+    const c = await look(ann, coat, onRobes);
+    // A Robes-model picture with a draw on her twin running over it.
+    const d = await look(ann, coat, { ...(await picture(ann, 'w-r1@v2:rack', 'robes')) });
+    await db
+      .updateTable('looks')
+      .set({ renderKey: 'twin:k1:rack2', renderStatus: 'pending' })
+      .where('id', '=', d)
+      .execute();
+    const e = await look(bea, beaCoat, beas);
+
+    await repos.model.deleteTwin(ann, 'web');
+    const rows = await db
+      .selectFrom('looks')
+      .select(['id', 'renderAssetId', 'renderKey', 'renderStatus', 'stoodOn', 'deletedAt'])
+      .where('id', 'in', [a, b, c, d, e])
+      .execute();
+    const by = new Map(rows.map((r) => [r.id, r]));
+    for (const id of [a, b]) {
+      expect(by.get(id)).toMatchObject({
+        renderAssetId: null,
+        renderKey: null,
+        renderStatus: null,
+        stoodOn: null,
+        deletedAt: null,
+      });
+    }
+    expect(await deletedAt(onTwin.renderAssetId)).toBeInstanceOf(Date);
+    expect(await deletedAt(onTwinBefore.renderAssetId)).toBeInstanceOf(Date);
+    expect(by.get(c)).toMatchObject({ renderAssetId: onRobes.renderAssetId, stoodOn: 'robes' });
+    expect(await deletedAt(onRobes.renderAssetId)).toBeNull();
+    // The draw on her twin lands nowhere; the picture it would have replaced stays.
+    expect(by.get(d)).toMatchObject({ renderKey: null, renderStatus: null, stoodOn: 'robes' });
+    const late = await system.styling.createGeneratedAsset(ann);
+    expect(await system.modelRender.setRender(ann, d, 'twin:k1:rack2', late)).toBe(false);
+    // Bea's look on her own twin is hers.
+    expect(by.get(e)).toMatchObject({ renderAssetId: beas.renderAssetId, stoodOn: 'twin' });
+
+    // A frame drawn on her twin lands only while she has one; one on a Robes model lands.
+    await db.updateTable('looks').set({ renderKey: 'frame:fk' }).where('id', '=', c).execute();
+    const frame = await system.styling.createGeneratedAsset(ann);
+    expect(await system.suggested.setFrame(ann, c, 'fk', frame, 'twin')).toBe(false);
+    expect(await system.suggested.setFrame(ann, c, 'fk', frame, 'robes')).toBe(true);
   });
 });
 

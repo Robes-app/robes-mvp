@@ -21,6 +21,7 @@ import {
   resolveModel,
   robesModelIds,
   SKIN_SWATCHES,
+  standKey,
   standOf,
   type TwinInputs,
   twinInputsOf,
@@ -383,7 +384,7 @@ export async function renderOnModel(
   // Her twin when she stands on it, else the cell she built by hand, else the Robes model she
   // chose or the first (standOf) — a Robes model's portrait drawn once ever.
   const stand = standOf(row);
-  const model = stand.on === 'twin' ? `twin:${row.twinKey}` : catalogKey(stand.cellId);
+  const model = standKey(row);
   if (stand.on !== 'twin') {
     const cell = await repos.avatarCells.get(model);
     if (cell?.status !== 'ready') {

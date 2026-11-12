@@ -2,7 +2,7 @@ import 'server-only';
 import { ApiError } from '@robes/api';
 import { Edits, Look, LookRole, LookStatus, Proposal, Styling } from '@robes/contracts';
 import { looks as copy } from '@robes/copy';
-import { stoodOnOf } from '@robes/core/avatar';
+import { renderModelOf, standKey, stoodOnOf } from '@robes/core/avatar';
 import { frameKey } from '@robes/core/looks';
 import { LookPiecesNotFound, type UserId } from '@robes/db';
 import { z } from 'zod';
@@ -74,14 +74,17 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
   });
   for (const r of imageRows) renderIds.push(r.assetId);
   const anchorIds = [...new Set(rows.flatMap((r) => (r.anchorPieceId ? [r.anchorPieceId] : [])))];
-  const [pieceRows, stats, pinRows, renders, anchorRows, tags] = await Promise.all([
+  const [pieceRows, stats, pinRows, renders, anchorRows, tags, modelRow] = await Promise.all([
     repos.looks.piecesFor(userId, ids),
     repos.looks.wearStats(userId, ids),
     repos.looks.pinnedDays(userId, ids),
     repos.assets.getManyForUser(userId, renderIds),
     Promise.all(anchorIds.map((id) => repos.wardrobe.get(userId, id))),
     repos.looks.tagsFor(userId, ids),
+    repos.model.get(userId),
   ]);
+  // The model a new picture of her look would stand on.
+  const currentModel = modelRow ? standKey(modelRow) : null;
   const [pieces, anchorPieces] = await Promise.all([
     toPieces(userId, pieceRows),
     toPieces(
@@ -200,6 +203,13 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       // A frame look never renders on her model (legacy 2026-10-07).
       onModel: frameRender ? null : (row.renderStatus ?? null),
       pictureStale,
+      modelStale:
+        currentModel !== null &&
+        !frameRender &&
+        row.renderAssetId !== null &&
+        row.renderStatus === 'ready' &&
+        row.renderKey !== null &&
+        renderModelOf(row.renderKey) !== currentModel,
       // The tag follows Robes' picture while it is the one shown: the row's record of what it
       // stood on, else (a render from before the column) its key.
       onRobesModel:

@@ -46,8 +46,13 @@ export function modelRenderRepo(db: Db) {
     // The key names the model it stood on; the row remembers (plan 2026-11-05 §2.4). A fresh
     // picture is shown again; it leads only when she had hidden Robes' picture, else the cover
     // she chose stays in front (D19; Annie, 6 Nov).
-    async setRender(userId: UserId, lookId: string, renderKey: string, assetId: string) {
-      await db
+    async setRender(
+      userId: UserId,
+      lookId: string,
+      renderKey: string,
+      assetId: string,
+    ): Promise<boolean> {
+      const res = await db
         .updateTable('looks')
         .set({
           renderStatus: 'ready',
@@ -62,7 +67,8 @@ export function modelRenderRepo(db: Db) {
         .where('userId', '=', userId)
         .where('id', '=', lookId)
         .where('renderKey', '=', renderKey)
-        .execute();
+        .executeTakeFirst();
+      return res.numUpdatedRows > 0n;
     },
 
     async failRender(userId: UserId, lookId: string, renderKey: string) {
@@ -100,18 +106,6 @@ export function modelRenderRepo(db: Db) {
         .returning('userId')
         .executeTakeFirst();
       return row !== undefined;
-    },
-
-    // A twin that landed too late to be hers: marked deleted for the maintenance sweep.
-    async discardTwin(userId: UserId, assetId: string): Promise<void> {
-      await db
-        .updateTable('assets')
-        .set({ status: 'deleted', deletedAt: sql`now()` })
-        .where('userId', '=', userId)
-        .where('id', '=', assetId)
-        .where('kind', '=', 'generated')
-        .where('deletedAt', 'is', null)
-        .execute();
     },
 
     failTwin(userId: UserId, key: string) {

@@ -57,7 +57,7 @@ function setup(
       bucketKey: `catalog/avatar/${key}.png`,
       contentType: 'image/png',
     })),
-    setRender: vi.fn(async () => {}),
+    setRender: vi.fn(async () => true),
     failRender: vi.fn(async () => {}),
     model: vi.fn(async () => opts.twin),
   };
@@ -65,12 +65,16 @@ function setup(
     getObject: vi.fn(async () => new Uint8Array([1])),
     putObject: vi.fn(async () => {}),
   };
+  const styling = {
+    createGeneratedAsset: vi.fn(async () => NEW_ASSET),
+    discardGenerated: vi.fn(async () => {}),
+  };
   const ai = createFakeProvider();
   const generateImage = vi.spyOn(ai, 'generateImage');
   const handler = createLookRenderHandler({
     ai,
     storage,
-    styling: { createGeneratedAsset: vi.fn(async () => NEW_ASSET) } as never,
+    styling: styling as never,
     frames: {} as never,
     model: model as never,
     ledger: { record: vi.fn(async () => {}) },
@@ -85,7 +89,7 @@ function setup(
       writeStage: vi.fn(async () => {}),
       isCancelled: async () => false,
     });
-  return { run, model, storage, generateImage };
+  return { run, model, storage, generateImage, styling };
 }
 
 describe('look_render on her model', () => {
@@ -99,6 +103,13 @@ describe('look_render on her model', () => {
     expect(req?.prompt).toContain('- IMAGE 2: the Camel coat');
     expect(req?.prompt).toContain('- the Loafers');
     expect(model.setRender).toHaveBeenCalledWith(USER, LOOK, KEY, NEW_ASSET);
+  });
+
+  it('discards a render that lands after her model or rack changed, or she deleted her twin', async () => {
+    const { run, model, styling } = setup();
+    model.setRender.mockResolvedValueOnce(false);
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(styling.discardGenerated).toHaveBeenCalledWith(USER, NEW_ASSET);
   });
 
   it('spends nothing when the render was superseded or there is no model yet', async () => {
@@ -147,6 +158,13 @@ describe('look_render on her model: her picture note', () => {
     expect(prompt).toContain('- IMAGE 2: the Camel coat');
     expect(prompt).toContain('- the Loafers');
     expect(model.setRender).toHaveBeenCalledWith(USER, LOOK, KEY, NEW_ASSET);
+  });
+
+  it('discards a render that lands after her model or rack changed, or she deleted her twin', async () => {
+    const { run, model, styling } = setup();
+    model.setRender.mockResolvedValueOnce(false);
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(styling.discardGenerated).toHaveBeenCalledWith(USER, NEW_ASSET);
   });
 
   it('says nothing of a note when the look has none', async () => {
