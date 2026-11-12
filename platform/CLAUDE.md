@@ -31,6 +31,7 @@ We hold a high bar for code quality and security on every change, however small.
 - **The API is the only path to app data (ADR-019/020).** See "Data access and security" below — read it before touching `db/`, `packages/db`, `packages/auth` or a route.
 - No `dangerouslySetInnerHTML`, no third-party script CDNs, no raw colours (use tokens), no hard-coded user-facing strings (use `@robes/copy`).
 - No PII or prompts in logs. Provider/model errors never reach users.
+- **Robes never deletes her data (owner, 12 Nov 2026).** A migration, backfill or fix adds or copies; it never truncates, drops, resets or overwrites what she has in staging or production. Bringing legacy beta accounts over merges into any account she already has. What she removes herself in the app (a piece, her account) is hers to remove.
 - New personal data (column, table, bucket prefix, log/analytics field or processor) is added to `docs/data-inventory.md` in the same PR (SEC-85). Analytics and client error capture run only after her yes (native asks once after sign-in; the web's switch in You › Privacy starts off); replay loads only after consent (SEC-84); events come from the `@robes/analytics` catalogue.
 - Model IDs only via the registry in `packages/ai`; prompts are versioned modules with evals.
 
