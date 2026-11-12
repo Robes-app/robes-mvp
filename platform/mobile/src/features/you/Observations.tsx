@@ -17,6 +17,7 @@ import { ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { useBriefRead, useDnaMutations } from './dna';
 import { ObservationThumbs } from './ObservationThumbs';
+import { SettingsGroup } from './Settings';
 
 const copy = twin.observations;
 
@@ -73,12 +74,11 @@ export function Observations() {
         )}
       </View>
       {kept.length ? (
-        <View className="gap-2">
-          <Eyebrow>{copy.keptBefore}</Eyebrow>
-          {kept.map((x) => (
+        <SettingsGroup title={copy.keptBefore}>
+          {kept.map((x, i) => (
             <View
               key={x.id}
-              className="flex-row items-center justify-between gap-4 border-b border-hairline py-3"
+              className={`flex-row items-center justify-between gap-4 px-5 py-3 ${i ? 'border-t border-hairline' : ''}`}
             >
               {/* The line runs the full width; what it is and when she kept it sit under it. */}
               <View className="flex-1 gap-0.5">
@@ -104,7 +104,7 @@ export function Observations() {
               />
             </View>
           ))}
-        </View>
+        </SettingsGroup>
       ) : null}
     </ScrollView>
   );
