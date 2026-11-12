@@ -456,6 +456,18 @@ describe.skipIf(!legacySchemaPresent())(
       );
     });
 
+    it('carries once a receipt beta holds twice (one email delivered twice)', async () => {
+      const { report } = await rehearse(`
+      insert into public.wardrobe_inbox (id, user_id, retailer, provider_id, status, received_at) values
+        ('99999999-0000-4000-8000-0000000000a1', '${NIALL}', 'Zara', 'msg-twice', 'held', '2026-10-26'),
+        ('99999999-0000-4000-8000-0000000000a2', '${NIALL}', 'Zara', 'msg-twice', 'held', '2026-10-26');`);
+      expect(report.failures).toEqual([]);
+      const kept = await one<{ n: number }>(
+        `select count(*)::int as n from app.wardrobe_inbox where provider_id = 'msg-twice'`,
+      );
+      expect(kept.n).toBe(1);
+    });
+
     it('copes with a legacy database where later migrations never ran', async () => {
       const { extracted, report } = await rehearse(`
       alter table public.wardrobe_items drop column season_band, drop column season_source;
@@ -572,6 +584,34 @@ describe.skipIf(!legacySchemaPresent())(
         [HERS],
       );
       expect(after.first_name).toBe('Edited');
+    });
+
+    it('a quiet arrival: accounts the run creates start with every notification off', async () => {
+      await recreateDatabase(LEGACY);
+      await buildLegacyFixture(legacyUrl);
+      targetUrl = await recreateTarget(TARGET);
+      // She is already on the platform with her own settings: a quiet arrival is not for her.
+      const HERS = '66666666-6666-4666-8666-666666666666';
+      await withClient(targetUrl, async (c) => {
+        await c.query(`insert into app.users (id, email) values ($1, 'niall@legacy.test')`, [HERS]);
+        await c.query(
+          `update app.profiles set notification_prefs = '{"morningCue": true}' where id = $1`,
+          [HERS],
+        );
+      });
+      await extract(legacyUrl, targetUrl);
+      await transform(targetUrl, { quietArrival: true });
+      const prefs = await withClient(targetUrl, (c) =>
+        c.query<{ id: string; p: Record<string, boolean> }>(
+          'select id::text, notification_prefs as p from app.profiles order by id',
+        ),
+      );
+      const off = { looksReady: false, morningCue: false, nudges: false, receipts: false };
+      expect(Object.fromEntries(prefs.rows.map((r) => [r.id, r.p]))).toEqual({
+        [BEA]: off,
+        [CAT]: off,
+        [HERS]: { morningCue: true },
+      });
     });
 
     it('never refills a migrated profile she has edited on the platform since', async () => {
