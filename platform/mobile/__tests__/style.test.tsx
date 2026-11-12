@@ -1,4 +1,4 @@
-import { twin, you } from '@robes/copy';
+import { firstRun, twin, you } from '@robes/copy';
 import { asSentence } from '@robes/core';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { Observations } from '../src/features/you/Observations';
@@ -36,7 +36,18 @@ const kept = (list: 'loves' | 'avoids' | 'rules', text: string, chip: string | n
   keptAt: '2026-10-01T10:00:00.000Z',
 });
 
-test('Style DNA: a type, a brand from the wall and the investment level save at once', async () => {
+test('Style DNA: one row for her style rules, and no Icons', async () => {
+  mockFetch({ 'GET /me/dna': styleDna() });
+  await renderWithApi(<StyleDna />);
+  expect(
+    await screen.findByRole('button', { name: `${twin.dnaPage.styleRules}, Not yet` }),
+  ).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^Icons/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Hard nos/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Your rules/ })).toBeNull();
+});
+
+test('Style type is onboarding’s photo cards: a heart keeps the type at once', async () => {
   const calls = mockFetch({ 'GET /me/dna': styleDna(), 'PATCH /me/dna': patchEcho });
   await renderWithApi(<StyleDna />);
   await fireEvent.press(
@@ -44,12 +55,13 @@ test('Style DNA: a type, a brand from the wall and the investment level save at 
       name: `${twin.dnaPage.styleType}, ${twin.dnaPage.notYet}`,
     }),
   );
-  await fireEvent.press(screen.getByRole('button', { name: 'Minimal' }));
+  const minimal = firstRun.styles.love('Minimal');
+  await fireEvent.press(screen.getByRole('button', { name: minimal }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ types: ['Minimal'] }),
   );
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Minimal' }).props.accessibilityState).toMatchObject({
+    expect(screen.getByRole('button', { name: minimal }).props.accessibilityState).toMatchObject({
       selected: true,
     }),
   );
@@ -162,22 +174,27 @@ test('Pieces you love shows each starred piece with its photograph', async () =>
   expect(screen.getByRole('button', { name: label })).toBeTruthy();
 });
 
-test('the brand wall adds a house that is not in the pool', async () => {
+test('the brand wall is onboarding’s tiles: a tap keeps a house, the dashed tile adds one', async () => {
   const calls = mockFetch({ 'GET /me/dna': styleDna(), 'PATCH /me/dna': patchEcho });
   await renderWithApi(<StyleDna />);
   await fireEvent.press(
     await screen.findByRole('button', { name: `${twin.dnaPage.brands}, ${twin.dnaPage.notYet}` }),
   );
+  await fireEvent.press(screen.getByRole('button', { name: 'COS' }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ brands: ['COS'] }),
+  );
+  calls.length = 0;
   await fireEvent.changeText(screen.getByLabelText(twin.wall.searchBrands), 'Atelier Nouveau');
   await fireEvent.press(screen.getByRole('button', { name: twin.wall.add('Atelier Nouveau') }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
-      brands: ['Atelier Nouveau'],
+      brands: ['COS', 'Atelier Nouveau'],
     }),
   );
 });
 
-test('a hard-no chip files the line with its chip; a second tap strikes it', async () => {
+test('style rules: Never files a hard-no chip; × strikes it', async () => {
   let dna = styleDna();
   const calls = mockFetch({
     'GET /me/dna': () => dna,
@@ -193,9 +210,12 @@ test('a hard-no chip files the line with its chip; a second tap strikes it', asy
   });
   await renderWithApi(<StyleDna />);
   await fireEvent.press(
-    await screen.findByRole('button', { name: `${twin.dnaPage.avoids}, Not yet` }),
+    await screen.findByRole('button', { name: `${twin.dnaPage.styleRules}, Not yet` }),
   );
-  await fireEvent.press(screen.getByRole('button', { name: 'Heels' }));
+  // Always (her rules) opens first; its chips are the musts.
+  expect(screen.getByRole('button', { name: twin.words.chip('Head covered') })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('tab', { name: twin.words.never }));
+  await fireEvent.press(screen.getByRole('button', { name: twin.words.chip('Heels') }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       list: 'avoids',
@@ -203,9 +223,31 @@ test('a hard-no chip files the line with its chip; a second tap strikes it', asy
       chip: 'Heels',
     }),
   );
+  // A filed chip leaves the chips and joins her lines.
   expect(await screen.findByRole('button', { name: twin.words.strike('Heels') })).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: 'Heels' }));
+  expect(screen.queryByRole('button', { name: twin.words.chip('Heels') })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: twin.words.strike('Heels') }));
   await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
+});
+
+test('style rules: a line typed on Always files as a rule from the + beside it', async () => {
+  const calls = mockFetch({
+    'GET /me/dna': styleDna(),
+    'POST /me/dna/lines': () =>
+      styleDna({ brief: { ...styleDna().brief, rules: [kept('rules', 'Sleeves to the wrist')] } }),
+  });
+  await renderWithApi(<StyleDna />);
+  await fireEvent.press(
+    await screen.findByRole('button', { name: `${twin.dnaPage.styleRules}, Not yet` }),
+  );
+  await fireEvent.changeText(screen.getByLabelText(twin.words.first), 'Sleeves to the wrist');
+  await fireEvent.press(screen.getByRole('button', { name: twin.words.add }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+      list: 'rules',
+      text: 'Sleeves to the wrist',
+    }),
+  );
 });
 
 test('observations: Robes reads when due, then Keep files a line and toasts', async () => {
