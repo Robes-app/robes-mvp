@@ -1944,7 +1944,7 @@ export const twin = {
           ? `From ${pieces} ${pieces === 1 ? 'piece' : 'pieces'} filed`
           : looks
             ? `From ${looks} ${looks === 1 ? 'look' : 'looks'}`
-            : 'From your style type and icons',
+            : 'From your style type',
     colourLine: (lovedIn: readonly string[], rejectedIn: readonly string[]): string => {
       const loved = Array.isArray(lovedIn) ? lovedIn : [];
       const rejected = Array.isArray(rejectedIn) ? rejectedIn : [];

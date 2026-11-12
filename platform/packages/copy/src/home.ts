@@ -49,7 +49,7 @@ export const home = {
       O4: 'Your first look',
     },
     line: {
-      O1: (done: boolean): string => (done ? 'Filed under Style DNA' : 'A brand, an icon, a style'),
+      O1: (done: boolean): string => (done ? 'Filed under Style DNA' : 'A brand, a style'),
       O2: (done: boolean): string => (done ? 'Your model is on file' : 'Two photographs'),
       O3: (n: number): string => (n ? `${Word(n)} ${pieces(n)} filed` : 'Nothing filed yet'),
       O4: (done: boolean): string => (done ? 'Built from your own pieces' : 'From your own pieces'),
@@ -60,11 +60,10 @@ export const home = {
     eyebrow: 'Next · Style DNA',
     title: 'Your style,',
     titleEm: 'in brief.',
-    bodyEmpty:
-      'A few brands, an icon, the styles that feel like you. Every look Robes builds starts there.',
-    body: 'A brand, an icon, a style. Robes dresses you from there.',
+    bodyEmpty: 'A few brands, the styles that feel like you. Every look Robes builds starts there.',
+    body: 'A brand, a style. Robes dresses you from there.',
     one: 'Log your style notes',
-    rows: { brands: 'Brands', icons: 'Icons', styles: 'Styles' },
+    rows: { brands: 'Brands', styles: 'Styles' },
     add: '+ Add',
     finish: 'Finish my style',
   },
