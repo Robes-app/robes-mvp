@@ -152,14 +152,15 @@ Then, in a low-traffic window with the founders available for 48 h:
 
 1. **Legacy read-only**: the legacy server's write routes answer 503 with a banner. *Not built yet*
    — a small legacy change on `beta`/`main` (cutover-readiness §C).
-2. **Wipe the test copy, then the final run** (from `../migration.md` §4 step 2):
+2. **The final run, over what is there** (from `../migration.md` §4 step 2):
    ```bash
-   pnpm migrate:reset -- --target=production --confirm-wipe=<user@host>   # typed again
+   # No wipe: production holds real TestFlight accounts, and migrate:reset refuses production
+   # (docs/migration.md §4 step 2). The copy below is additive.
    pnpm migrate:extract -- --target=production
    pnpm migrate:transform -- --target=production
    pnpm migrate:assert -- --target=production
    ```
-   On a remote target `migrate:reset` refuses a bare `--confirm-wipe`; it needs the `user@host`.
+   `migrate:reset` is for local rehearsals and staging only.
    Re-enable the two paused schedules. Keep the `legacy` copy schema for the week-long rollback window.
 3. **Images**: `pnpm migrate:rehost -- --target=production --apply --bucket=<bucket>`, re-run until
    `failed` is empty. The app shows nothing for a `cloudinary_legacy` asset, so this is before DNS.
