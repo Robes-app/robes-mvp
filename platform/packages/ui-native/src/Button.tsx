@@ -103,8 +103,12 @@ export function Button({
   usePrimaryGuard(filled);
   const onFill = useColor(variant === 'danger' ? 'surface-raised' : 'bg');
   const ink = useColor(variant === 'quiet' || variant === 'chip' ? 'ink-muted' : 'ink');
-  const iconColor = filled ? onFill : ink;
+  const muted = useColor('ink-muted');
   const inactive = disabled || loading;
+  // A waiting primary is the cream-200 pill with an ink-soft label (Annie, 13 Nov; supersedes
+  // the 26 Oct 30% ink). Twin of web ui button-styles.ts.
+  const waiting = variant === 'primary' && inactive;
+  const iconColor = waiting ? muted : filled ? onFill : ink;
   const text = loading ? loadingLabel : children;
 
   return (
@@ -126,16 +130,19 @@ export function Button({
       style={{ minHeight: height[variant], borderWidth: variant === 'outline' ? FINE_EDGE : 0 }}
       className={cx(
         'flex-row items-center justify-center gap-1.5',
-        container[variant],
-        // A waiting primary stays ink at 30% (the one primary button spec); the rest dim to 40%.
-        inactive && (variant === 'primary' ? 'opacity-30' : 'opacity-40'),
+        waiting ? 'rounded-pill bg-surface-sunk px-7' : container[variant],
+        // The rest dim to 40% while they wait.
+        inactive && !waiting && 'opacity-40',
         className,
       )}
     >
       {loading ? <ActivityIndicator size="small" color={iconColor} /> : null}
       <Text
         maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-        className={cx(variant === 'quiet' ? null : 'uppercase', label[variant])}
+        className={cx(
+          variant === 'quiet' ? null : 'uppercase',
+          waiting ? 'text-ink-muted' : label[variant],
+        )}
         style={{ fontFamily: fonts.sansMedium, ...labelType[variant] }}
       >
         {text}

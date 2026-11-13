@@ -185,7 +185,7 @@ MinIO); the unit, DB and native suites and `next build` pass.
 - **Review's reading state**: a falling scan line, three breathing rows, "Robes is *reading* your
   photo…", Cancel; after 20s or an empty read, "Fill it in yourself" opens the manual form with the
   photo attached (a late read still lands).
-- **Chrome**: one primary spec (ink pill, 48pt, 30% ink disabled, pinned at the foot —
+- **Chrome**: one primary spec (ink pill, 48pt, cream-200 fill + ink-soft label while disabled (13 Nov), pinned at the foot —
   `PinnedAction` on both); the web dock stands down on the add routes (`isFlowPath`); the
   destination is chosen once on the Add pieces sheet (the camera's toggle and the link's are gone;
   the link says "Filing to your wardrobe · Change").

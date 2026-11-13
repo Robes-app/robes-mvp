@@ -51,7 +51,8 @@ export function TwinConsent() {
       >
         <ScrollView contentContainerClassName="gap-5 px-5 pt-8 pb-6">
           <View className="gap-1">
-            <Heading size="xl">{copy.title}</Heading>
+            <Eyebrow className="mb-2 text-accent-warm">{copy.eyebrow}</Eyebrow>
+            <Heading size="lg">{copy.title}</Heading>
             <Text italic tone="muted">
               {copy.sub}
             </Text>
@@ -60,7 +61,7 @@ export function TwinConsent() {
             {copy.rows.map(([label, value], i) => (
               <View
                 key={label}
-                className="gap-1 border-rule px-3.5 py-2.5"
+                className="gap-1 border-hairline px-3.5 py-2.5"
                 style={{ borderTopWidth: i === 0 ? 0 : 0.5 }}
               >
                 <Eyebrow>{label}</Eyebrow>
@@ -77,7 +78,7 @@ export function TwinConsent() {
             testID="twin-consent-agree"
           >
             <View
-              className="mt-0.5 size-[18px] items-center justify-center rounded-xs border border-border-control"
+              className="size-5 items-center justify-center rounded-xs border border-border-control bg-surface-raised"
               style={agreed ? { backgroundColor: ink, borderColor: ink } : undefined}
             >
               {agreed ? <Icon name="check" size={12} color={bg} /> : null}
@@ -86,7 +87,7 @@ export function TwinConsent() {
               {copy.agree}{' '}
               <Text
                 size="small"
-                tone="muted"
+                tone="faint"
                 accessibilityRole="link"
                 className="underline"
                 onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.privacy)}
@@ -97,7 +98,10 @@ export function TwinConsent() {
           </Pressable>
           {save.isError ? <ErrorText>{consent.failed}</ErrorText> : null}
         </ScrollView>
-        <View className="flex-row gap-2 border-rule px-5 pt-3 pb-4" style={{ borderTopWidth: 0.5 }}>
+        <View
+          className="flex-row gap-2 border-hairline px-5 pt-3 pb-4"
+          style={{ borderTopWidth: 0.5 }}
+        >
           <View className="flex-1">
             <Button variant="outline" onPress={close}>
               {copy.notNow}

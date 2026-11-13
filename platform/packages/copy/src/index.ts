@@ -1764,11 +1764,12 @@ export const twin = {
     // Her yes before the camera (Annie's "Digital twin consent" artboard, 11 Nov; App Store
     // 5.1.2): it names Google Gemini, and nothing is photographed until the box is ticked.
     consent: {
+      eyebrow: 'Your digital twin',
       title: 'Your twin is you.',
       sub: 'And it’s yours.',
       rows: [
-        ['Collects', 'A close-up and your size facts. Never your weight.'],
-        ['Use', 'Your looks, shown on you. Never slimmed or smoothed.'],
+        ['Collects', 'A close-up and your size facts.'],
+        ['Use', 'Your looks, shown on you.'],
         ['Made by', 'Google Gemini. It may process data outside the EU.'],
         ['Kept', 'Until you delete your twin or your account.'],
         ['Your controls', 'Delete your twin, or your account, any time.'],

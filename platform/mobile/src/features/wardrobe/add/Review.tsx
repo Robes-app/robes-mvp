@@ -480,7 +480,7 @@ function ReviewRow({
   return (
     <View
       testID="review-row"
-      className="flex-row items-center border-rule"
+      className="flex-row items-center border-hairline"
       style={{ minHeight: 76, paddingLeft: 12, paddingRight: 8, borderTopWidth: first ? 0 : 0.5 }}
     >
       <Pressable
@@ -564,7 +564,7 @@ function ReadingRow({ shot, first }: { shot: SessionShot | null; first: boolean 
   return (
     <Animated.View
       testID="review-reading"
-      className="flex-row items-center gap-3.5 border-rule px-3"
+      className="flex-row items-center gap-3.5 border-hairline px-3"
       style={{ minHeight: 76, borderTopWidth: first ? 0 : 0.5, opacity }}
     >
       {shot ? (
