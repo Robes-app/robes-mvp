@@ -3,9 +3,9 @@ import { cn, focusRing } from './cn';
 
 const variants = {
   primary:
-    // The one primary (redline "one primary button spec"): an ink pill, 48pt, at 30% ink while it
-    // waits on her.
-    'min-h-12 bg-ink text-bg hover:opacity-88 disabled:bg-ink/30 disabled:text-bg disabled:opacity-100',
+    // The one primary: an ink pill, 48pt. While it waits on her it is the cream-200 pill with an
+    // ink-soft label (Annie's twin consent design, 13 Nov; supersedes the 26 Oct 30% ink).
+    'min-h-12 bg-ink text-bg hover:opacity-88 disabled:bg-surface-sunk disabled:text-ink-muted disabled:opacity-100',
   // Felix's outline: white on the fine `rule-mid` edge (the label is the cue), 40 tall at 0 20.
   outline:
     'min-h-10 border-[0.5px] border-rule-mid bg-surface-raised text-ink hover:border-ink disabled:opacity-40',

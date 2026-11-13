@@ -95,7 +95,7 @@ const privacy: LegalDoc = {
     {
       heading: 'What we collect',
       body: [
-        'Your email, name and the styling inputs you give us — prompts, wardrobe pieces, any photos you upload (including the optional close-up under Your digital twin), and the facts you give about your size — never your weight. You sign in with a one-time code we email you, or with Apple or Google, so Robes holds no password. We also record in our own database how you use Robes: the pages you open and the actions you take. Robes is for adults: you must be 18 or over, and we do not knowingly hold data about anyone younger.',
+        'Your email, name and the styling inputs you give us — prompts, wardrobe pieces, any photos you upload (including the optional close-up under Your digital twin), and the facts you give about your size. You sign in with a one-time code we email you, or with Apple or Google, so Robes holds no password. We also record in our own database how you use Robes: the pages you open and the actions you take. Robes is for adults: you must be 18 or over, and we do not knowingly hold data about anyone younger.',
       ],
     },
     {
