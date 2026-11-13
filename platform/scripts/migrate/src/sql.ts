@@ -520,6 +520,10 @@ where d.source_type <> 'weekly' and (l.id is not null or a.id is not null)
 on conflict do nothing;
 `;
 
+// The notification kinds the platform's ledger knows. Legacy's `receipt_held` is carried as
+// `receipt`, so the gate (assert.ts) counts both on the legacy side.
+export const CARRIED_NOTIFICATION_KINDS =
+  "'looks_ready','look_waiting','borrowing','five','week_empty','morning','receipt'";
 export const COMMS_SQL = `
 -- The ledger keeps notifier idempotency across the cutover.
 insert into app.notifications (id, user_id, kind, ref, channel, sent_at)
@@ -529,7 +533,7 @@ select n.id, n.user_id,
 from legacy.notifications n
 join app.users u on u.id = n.user_id
 where (case when n.kind = 'receipt_held' then 'receipt' else n.kind end)
-  in ('looks_ready','look_waiting','borrowing','five','week_empty','morning','receipt')
+  in (${CARRIED_NOTIFICATION_KINDS})
 on conflict do nothing;
 
 -- Held receipts copy whole; decided ones keep only their outcome (reference §6.10).
