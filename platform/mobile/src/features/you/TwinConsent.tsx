@@ -1,4 +1,3 @@
-import { queryKeys, useApiMutation } from '@robes/api-client/react';
 import { consent, twin } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import {
@@ -10,14 +9,13 @@ import {
   Text,
   useColor,
 } from '@robes/ui-native';
-import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CONSENT_SOURCE } from '@/lib/analytics';
 import { LEGAL_URLS } from '@/lib/config';
+import { useConsents } from '@/lib/consents';
 import { SettingsGroup } from './Settings';
 
 const copy = twin.twinPage.consent;
@@ -29,13 +27,10 @@ const copy = twin.twinPage.consent;
 export function TwinConsent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const queryClient = useQueryClient();
   const ink = useColor('ink');
   const bg = useColor('bg');
   const [agreed, setAgreed] = useState(false);
-  const save = useApiMutation('me.consents.update', {
-    onSuccess: (next) => queryClient.setQueryData(queryKeys.call('me.consents.get'), next),
-  });
+  const { give, saving, error } = useConsents();
 
   const close = () => {
     if (router.canGoBack()) router.back();
@@ -96,7 +91,7 @@ export function TwinConsent() {
               </Text>
             </Text>
           </Pressable>
-          {save.isError ? <ErrorText>{consent.failed}</ErrorText> : null}
+          {error ? <ErrorText>{consent.failed}</ErrorText> : null}
         </ScrollView>
         <View
           className="flex-row gap-2 border-hairline px-5 pt-3 pb-4"
@@ -110,12 +105,8 @@ export function TwinConsent() {
           <View className="flex-[2]">
             <Button
               disabled={!agreed}
-              loading={save.isPending}
-              onPress={() =>
-                save.mutate({
-                  input: { source: CONSENT_SOURCE, consents: { photo_analysis: true } },
-                })
-              }
+              loading={saving}
+              onPress={() => give({ photo_analysis: true }, { wait: true })}
             >
               {copy.go}
             </Button>

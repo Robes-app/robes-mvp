@@ -10,7 +10,7 @@ import { applyRehost, planRehost } from '../src/rehost';
 import { resetTarget } from '../src/reset';
 import { reverseDelta } from '../src/reverse-delta';
 import { recreateTarget } from '../src/target';
-import { transform } from '../src/transform';
+import { transform, wake } from '../src/transform';
 
 // Own databases, so a test run never clobbers a manual rehearsal (robes_legacy_fixture/robes_migrate).
 // ROBES_DB_NAME namespaces them like the dev/test databases, for parallel worktrees.
@@ -612,6 +612,53 @@ describe.skipIf(!legacySchemaPresent())(
         [CAT]: off,
         [HERS]: { morningCue: true },
       });
+    });
+
+    it('wakes quiet arrivals with their own beta choices, and leaves a changed account alone', async () => {
+      await recreateDatabase(LEGACY);
+      await buildLegacyFixture(legacyUrl);
+      targetUrl = await recreateTarget(TARGET);
+      await extract(legacyUrl, targetUrl);
+      await transform(targetUrl, { quietArrival: true });
+      // Bea turned one thing on herself after she arrived: hers now, whatever beta says.
+      await withClient(targetUrl, (c) =>
+        c.query(
+          `update app.profiles set notification_prefs = notification_prefs || '{"nudges": true}' where id = $1`,
+          [BEA],
+        ),
+      );
+      const expected = await withClient(targetUrl, async (c) => {
+        // What an arrival that was never quiet carries: the copy's own mapping, on a second target.
+        const other = await recreateTarget(`${TARGET}_loud`);
+        await extract(legacyUrl, other);
+        await transform(other);
+        const rows = await withClient(other, (o) =>
+          o.query<{ id: string; p: unknown }>(
+            'select id::text, notification_prefs as p from app.profiles where id = any($1)',
+            [[NIALL, CAT]],
+          ),
+        );
+        await dropDatabase(`${TARGET}_loud`);
+        void c;
+        return Object.fromEntries(rows.rows.map((r) => [r.id, r.p]));
+      });
+      expect(await wake(targetUrl)).toBe(2);
+      const after = await withClient(targetUrl, (c) =>
+        c.query<{ id: string; p: Record<string, boolean> }>(
+          'select id::text, notification_prefs as p from app.profiles',
+        ),
+      );
+      const prefs = Object.fromEntries(after.rows.map((r) => [r.id, r.p]));
+      expect(prefs[NIALL]).toEqual(expected[NIALL]);
+      expect(prefs[CAT]).toEqual(expected[CAT]);
+      expect(prefs[BEA]).toEqual({
+        looksReady: false,
+        morningCue: false,
+        nudges: true,
+        receipts: false,
+      });
+      // Nothing left to wake.
+      expect(await wake(targetUrl)).toBe(0);
     });
 
     it('never refills a migrated profile she has edited on the platform since', async () => {
