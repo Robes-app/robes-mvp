@@ -95,7 +95,7 @@ pnpm migrate:rehost -- --target=staging --dry-run
 pnpm migrate:rehost -- --target=staging --apply --bucket=<staging media bucket>
 ```
 
-Before the production run: confirm point-in-time recovery is on. Beta goes on emailing these people, so run transform with `--quiet-arrival`: the accounts it creates start with every platform notification off, hers to switch on under You › Notifications. An account she already had keeps its own settings.
+Before the production run: confirm point-in-time recovery is on. Beta goes on emailing these people, so run transform with `--quiet-arrival`: the accounts it creates start with every platform notification off, hers to switch on under You › Notifications. An account she already had keeps its own settings. When the old app has stopped emailing (its address now leads to the new app), `pnpm migrate:wake -- --target=production` gives the quiet arrivals their own beta choices; an account changed since is left alone.
 
 ## 5. Rollback
 

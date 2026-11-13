@@ -14,6 +14,7 @@
     "robes-models": "tsx src/cli/robes-models.ts",
     "reverse-delta": "tsx src/cli/reverse-delta.ts",
     "reset": "tsx src/cli/reset.ts",
+    "wake": "tsx src/cli/wake.ts",
     "rehearse": "tsx src/cli/rehearse.ts"
   },
   "dependencies": {

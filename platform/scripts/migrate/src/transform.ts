@@ -2,7 +2,16 @@ import type pg from 'pg';
 import { withClient } from './db';
 import { legacyUuid } from './ids';
 import { type LegacyLookbookRow, reshapeLookbook, shareSnapshot, withAssets } from './lookbook';
-import { COMMS_SQL, IDENTITY_SQL, LOOKS_SQL, PLAN_SQL, SESSION_SQL, WARDROBE_SQL } from './sql';
+import {
+  COMMS_SQL,
+  IDENTITY_SQL,
+  LOOKS_SQL,
+  PLAN_SQL,
+  QUIET_PREFS,
+  SESSION_SQL,
+  WAKE_SQL,
+  WARDROBE_SQL,
+} from './sql';
 
 export type Domain = 'identity' | 'wardrobe' | 'looks' | 'artifacts' | 'plan' | 'comms';
 export interface TransformReport {
@@ -117,9 +126,17 @@ export interface TransformOptions {
 
 // Runs inside the identity transaction, where migrate_new_users (sql.ts) still stands.
 const QUIET_ARRIVAL_SQL = `
-update app.profiles set notification_prefs =
-  '{"looksReady": false, "morningCue": false, "nudges": false, "receipts": false}'::jsonb
+update app.profiles set notification_prefs = ${QUIET_PREFS}
 where id in (select id from migrate_new_users);`;
+
+// After the old app stops emailing: quiet arrivals take their own beta choices (sql.ts WAKE_SQL).
+// Needs the legacy copy in the target (run extract first). Returns how many accounts changed.
+export async function wake(targetUrl: string): Promise<number> {
+  return withClient(targetUrl, async (c) => {
+    const res = (await c.query(WAKE_SQL)) as pg.QueryResult;
+    return res.rowCount ?? 0;
+  });
+}
 
 // legacy.* (extract.ts) → app.*, one transaction per domain, safe to re-run (inserts nothing new).
 export async function transform(

@@ -1,6 +1,6 @@
 import { withPostHogConfig } from '@posthog/nextjs-config';
 import type { NextConfig } from 'next';
-import { legacyRedirects } from './src/lib/legacy-redirects';
+import { hostRedirects, legacyRedirects } from './src/lib/legacy-redirects';
 
 const staticSecurityHeaders = [
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
@@ -49,7 +49,7 @@ const config: NextConfig = {
     '@aws-sdk/client-sqs',
   ],
   async redirects() {
-    return legacyRedirects;
+    return [...hostRedirects, ...legacyRedirects];
   },
   async headers() {
     return [{ source: '/:path*', headers: staticSecurityHeaders }];
