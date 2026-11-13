@@ -574,6 +574,14 @@ export interface Tags {
   userId: string;
 }
 
+export interface TwinArchives {
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  restoredAt: Timestamp | null;
+  snapshot: Json;
+  userId: string;
+}
+
 export interface UsageCounters {
   count: Generated<number>;
   metric: string;
@@ -787,6 +795,7 @@ export interface DB {
   tagLooks: TagLooks;
   tagPieces: TagPieces;
   tags: Tags;
+  twinArchives: TwinArchives;
   usageCounters: UsageCounters;
   users: Users;
   userUiState: UserUiState;

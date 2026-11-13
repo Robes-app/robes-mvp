@@ -109,8 +109,23 @@ async function artifacts(c: pg.Client, report: TransformReport): Promise<number>
   return inserted;
 }
 
+export interface TransformOptions {
+  // People brought across before cutover are still on beta, which goes on emailing them: the
+  // accounts this run creates arrive with every platform notification off, hers to switch on.
+  quietArrival?: boolean;
+}
+
+// Runs inside the identity transaction, where migrate_new_users (sql.ts) still stands.
+const QUIET_ARRIVAL_SQL = `
+update app.profiles set notification_prefs =
+  '{"looksReady": false, "morningCue": false, "nudges": false, "receipts": false}'::jsonb
+where id in (select id from migrate_new_users);`;
+
 // legacy.* (extract.ts) → app.*, one transaction per domain, safe to re-run (inserts nothing new).
-export async function transform(targetUrl: string): Promise<TransformReport> {
+export async function transform(
+  targetUrl: string,
+  options: TransformOptions = {},
+): Promise<TransformReport> {
   const report: TransformReport = {
     inserted: { identity: 0, wardrobe: 0, looks: 0, artifacts: 0, plan: 0, comms: 0 },
     droppedLookbook: [],
@@ -122,7 +137,10 @@ export async function transform(targetUrl: string): Promise<TransformReport> {
     if (legacy.rowCount === 0) throw new Error('no legacy schema in the target: run extract first');
     await c.query(SESSION_SQL);
     const steps: [Domain, () => Promise<number>][] = [
-      ['identity', () => run(c, IDENTITY_SQL)],
+      [
+        'identity',
+        () => run(c, options.quietArrival ? IDENTITY_SQL + QUIET_ARRIVAL_SQL : IDENTITY_SQL),
+      ],
       ['wardrobe', () => run(c, WARDROBE_SQL)],
       ['looks', () => run(c, LOOKS_SQL)],
       ['artifacts', () => artifacts(c, report)],

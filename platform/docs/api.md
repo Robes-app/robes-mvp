@@ -89,7 +89,8 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `PUT /me/style/palette` (Your colours and Your prints: avoid · love per family, shade and print) | Settings `style_dna.palette` |
 | `GET /me/features` | `_RB_TRIP_HIDDEN`, `?trip=on` | the flagged doors clients show (`trips`, `homeDiary`); flags stay server-side |
 | `GET /me/notifications` · `POST /me/notifications/dismiss` `{ key }` or `{ all: true }` | home's receipts strip and the 7-day nudges mail | the bell (plan 2026-11-02): receipts to review and the last week's unlogged days, computed per read; a dismissed key is kept in `user_ui_state.dismissed` for 30 days |
-| `POST /me/onboarding/complete` | client writes `onboarded_at` | server sets |
+| `POST /me/onboarding/complete` | client writes `onboarded_at` | server sets; draws her wearer's five Robes models if nobody has yet |
+| `DELETE /me/model/twin?source=` → `Model` (10/min/user) | — | deletes her digital twin: every close-up and full-length photo, every twin drawn, the colour and silhouette reads, her season, her measurements (not her age band) and model picks; records `photo_analysis` withdrawn; Robes' pictures of her looks drawn on her twin go (redrawn on a Robes model when opened), her looks stay. What it cleared is archived for 30 days (`app.twin_archives`) so it can be put back at her ask (`twin:restore`); the files go with the hourly `stale-uploads` task once those 30 days are up |
 | `GET/PATCH /me/preferences` | notification_prefs, avatar_prefs, localStorage state | incl. `user_ui_state` |
 | `POST /me/push-tokens`, `DELETE /me/push-tokens/:id` | — | native |
 | `POST /me/client-errors` `{ where, name, message, appVersion, analytics }` → `{ ok }` (30/min/user) | — | native: a failure the app met, written to the server log (`client_error`, URLs' queries stripped, no user id); nothing stored |

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { targetUrl } from '../src/db';
+import { refuseProductionWipe } from '../src/reset';
 
 const prod = 'postgresql://postgres.ref:pw@aws-1-eu-west-1.pooler.supabase.com:5432/postgres';
 const id = 'postgres.ref@aws-1-eu-west-1.pooler.supabase.com';
@@ -73,5 +74,13 @@ describe('targetUrl', () => {
     expect(() =>
       targetUrl({ TARGET_DATABASE_URL: prod, ROBES_MIGRATE_PRODUCTION: id }, ['--target=staging']),
     ).toThrow(/ROBES_MIGRATE_STAGING/);
+  });
+});
+
+describe('migrate:reset', () => {
+  test('never wipes production; rehearsals and staging pass', () => {
+    expect(() => refuseProductionWipe('production')).toThrow(/never runs on production/);
+    expect(() => refuseProductionWipe('staging')).not.toThrow();
+    expect(() => refuseProductionWipe(undefined)).not.toThrow();
   });
 });

@@ -3,12 +3,11 @@ import type { Consents, DataExport } from '@robes/contracts';
 import { consent as copy, you } from '@robes/copy';
 import { Button, ErrorText, Text } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { Linking, Platform, ScrollView, View } from 'react-native';
+import { Linking, ScrollView, View } from 'react-native';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { CONSENT_SOURCE as SOURCE } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
 import { SettingsGroup, SettingsToggleRow } from './Settings';
-
-const SOURCE = Platform.OS === 'android' ? 'android' : 'ios';
 
 export function Privacy() {
   const queryClient = useQueryClient();
@@ -33,7 +32,7 @@ export function Privacy() {
           first
           label={copy.analyticsLabel}
           sub={copy.analyticsHint}
-          value={consents.analytics !== false}
+          value={consents.analytics === true}
           // Recordings need usage counts, so turning counts off withdraws both.
           onChange={(v) => void set(v ? { analytics: true } : { analytics: false, replay: false })}
         />
@@ -41,7 +40,7 @@ export function Privacy() {
           label={copy.replayLabel}
           sub={copy.replayHint}
           value={consents.replay === true}
-          disabled={consents.analytics === false}
+          disabled={consents.analytics !== true}
           onChange={(v) => void set({ replay: v })}
         />
       </SettingsGroup>

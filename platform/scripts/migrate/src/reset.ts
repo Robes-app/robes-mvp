@@ -1,5 +1,15 @@
 import { withClient } from './db';
 
+// Production holds real accounts (TestFlight, since Nov 2026), and Robes never deletes her data
+// (CLAUDE.md): there the copy is additive and the wipe refuses, whatever is typed.
+export function refuseProductionWipe(target: string | undefined): void {
+  if (target === 'production') {
+    throw new Error(
+      'migrate:reset never runs on production: it deletes every account there. The copy is additive (docs/migration.md §4).',
+    );
+  }
+}
+
 export interface ResetReport {
   usersRemoved: number;
 }

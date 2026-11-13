@@ -18,13 +18,10 @@ import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Linking, ScrollView, View } from 'react-native';
 import { useNotifications } from '@/components/Bell';
-import { API_URL } from '@/lib/config';
+import { LEGAL_URLS } from '@/lib/config';
 import { useSignOut } from '@/lib/use-sign-out';
 import { useBriefRead } from './dna';
 import { ObservationThumbs } from './ObservationThumbs';
-
-// Legal pages are served by the web app, which shares the API origin.
-export const LEGAL_URLS = { terms: `${API_URL}/legal/terms`, privacy: `${API_URL}/legal/privacy` };
 
 type Tab = 'style' | 'account';
 

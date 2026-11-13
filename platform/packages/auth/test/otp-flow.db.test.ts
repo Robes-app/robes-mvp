@@ -108,3 +108,68 @@ describe('email OTP sign-in', () => {
     expect(await sessionUser(auth, new Headers())).toBeNull();
   });
 });
+
+describe('the App Review account', () => {
+  const review = { email: `Review-${randomUUID()}@test.dev`, code: '424242' };
+  const address = review.email.toLowerCase();
+  const reviewAuth = createAuth({
+    databaseUrl: DATABASE_URL,
+    secret: 'test-secret-at-least-thirty-two-characters-long',
+    baseUrl: BASE,
+    trustedOrigins: [BASE],
+    mailer,
+    production: false,
+    review,
+  });
+  const call = (on: typeof auth, path: string, body: unknown): Promise<Response> =>
+    on.handler(
+      new Request(`${BASE}/api/auth${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: BASE, 'x-forwarded-for': ip },
+        body: JSON.stringify(body),
+      }),
+    );
+  const send = (on: typeof auth, email: string): Promise<Response> =>
+    call(on, '/email-otp/send-verification-otp', { email, type: 'sign-in' });
+
+  it('signs in with its fixed code and is sent no email', async () => {
+    emails.push(address);
+    expect((await send(reviewAuth, review.email)).status).toBe(200);
+    expect(mailer.sent.some((m) => m.to.toLowerCase() === address)).toBe(false);
+
+    const res = await call(reviewAuth, '/sign-in/email-otp', { email: address, otp: review.code });
+    expect(res.status).toBe(200);
+    const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0] ?? '';
+    expect((await sessionUser(reviewAuth, new Headers({ cookie })))?.email).toBe(address);
+  });
+
+  it('gives every other address a random emailed code, never the fixed one', async () => {
+    const email = `otp-${randomUUID()}@test.dev`;
+    emails.push(email);
+    expect((await send(reviewAuth, email)).status).toBe(200);
+    expect(mailer.sent.some((m) => m.to === email)).toBe(true);
+    const res = await call(reviewAuth, '/sign-in/email-otp', { email, otp: review.code });
+    // 1 in a million the random code is the fixed one; the mail check above still holds.
+    expect(res.status).not.toBe(200);
+  });
+
+  it('is an ordinary address where the door is not configured', async () => {
+    expect((await send(auth, address)).status).toBe(200);
+    expect(mailer.sent.some((m) => m.to === address)).toBe(true);
+    const res = await call(auth, '/sign-in/email-otp', { email: address, otp: review.code });
+    expect(res.status).not.toBe(200);
+  });
+
+  it('burns the fixed code after 3 wrong tries, until a new one is asked for', async () => {
+    await send(reviewAuth, address);
+    for (let i = 0; i < 3; i++) {
+      const wrong = await call(reviewAuth, '/sign-in/email-otp', { email: address, otp: '000000' });
+      expect(wrong.status).not.toBe(200);
+    }
+    const spent = await call(reviewAuth, '/sign-in/email-otp', {
+      email: address,
+      otp: review.code,
+    });
+    expect(spent.status).not.toBe(200);
+  });
+});

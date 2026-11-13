@@ -10,6 +10,7 @@ import { ScanLine } from '@/components/looks/scan-line';
 import { SettingsGroup, SettingsRow } from '@/components/settings/settings-chrome';
 import { errorCopy } from '@/lib/error-copy';
 import { useSelfie, useSelfieRead } from '@/lib/use-selfie';
+import { DeleteTwin, hasTwinOnFile } from './delete-twin';
 import {
   Figure,
   Lineup,
@@ -29,10 +30,11 @@ const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // You › Your digital twin (legacy 2026-10-20 redline 3a; plan 2026-11-05 §1.4–1.5; redlines
-// R1–R11, R15–R18 of 2026-11-05). On a Robes model (3c): its portrait as the hero, Add a selfie
-// as the one commitment, then one card holding the lineup and the two doors (closed: Colouring
+// R1–R11, R15–R18 of 2026-11-05). On a Robes model (3c): its portrait as the hero, Create your
+// digital twin as the one commitment, then one card holding the lineup and the two doors (closed: Colouring
 // and Body shape are the twin's). On her own twin (3d): the twin with its redraw control, the
-// doors, and the lineup with her first. Native twin: mobile/src/features/you/Model.tsx.
+// doors, and the lineup with her first; under it, Delete my digital twin (DeleteTwin).
+// Native twin: mobile/src/features/you/Model.tsx.
 // Her picture while she waits for her twin: dimmed and drained of colour under the scan.
 const DIMMED = 'opacity-45 grayscale';
 
@@ -96,11 +98,8 @@ export function ModelView() {
               data-testid="twin-add-selfie"
             >
               <Icon name="camera" size={20} className="shrink-0 text-ink-muted" />
-              <span className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="font-display text-ink text-lg leading-tight">{tw.addSelfie}</span>
-                <span className="font-light font-sans text-ink-muted text-xs leading-snug">
-                  {tw.addSelfieSub}
-                </span>
+              <span className="min-w-0 flex-1 font-display text-ink text-lg leading-tight">
+                {tw.createTwin}
               </span>
               <Icon name="forward" size={16} className="shrink-0 text-ink-muted" />
             </button>
@@ -123,6 +122,11 @@ export function ModelView() {
             <Lineup model={model} pick={pick} pending={pending} />
           </>
         )}
+        {hasTwinOnFile(model) ? (
+          <DeleteTwin
+            building={(read.reading || model.twin.status === 'pending') && !model.twin.imageUrl}
+          />
+        ) : null}
       </div>
     </div>
   );

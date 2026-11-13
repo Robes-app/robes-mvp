@@ -16,6 +16,9 @@ export interface AuthConfig {
   mailer: Mailer;
   apple?: { clientId: string; clientSecret: string; appBundleIdentifier?: string } | undefined;
   google?: { clientId: string; clientSecret: string } | undefined;
+  // App Review cannot read a mailbox, so this one address signs in with a fixed code and is sent
+  // no email. Unset, the door does not exist. The address is a secret too: keep it unguessable.
+  review?: { email: string; code: string } | undefined;
   production: boolean;
 }
 
@@ -60,6 +63,10 @@ const TABLES = {
 } as const;
 
 export function createAuth(config: AuthConfig) {
+  const review = config.review && {
+    email: config.review.email.trim().toLowerCase(),
+    code: config.review.code,
+  };
   const pool = new pg.Pool({
     // Same TLS rules as the app's own pool (Supabase root CA, full verification).
     ...tlsFor(config.databaseUrl),
@@ -121,7 +128,11 @@ export function createAuth(config: AuthConfig) {
         expiresIn: 10 * 60,
         allowedAttempts: 3,
         storeOTP: 'hashed',
+        // Undefined falls back to a random code. Better Auth lowercases the email first.
+        generateOTP: ({ email, type }) =>
+          type === 'sign-in' && email === review?.email ? review.code : undefined,
         async sendVerificationOTP({ email, otp, type }) {
+          if (email === review?.email) return;
           await config.mailer.send(otpEmail(email, otp, type));
         },
       }),

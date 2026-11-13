@@ -19,8 +19,17 @@ const logger = () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() });
 
 type Remove = (userId: string, assetId: string) => Promise<unknown>;
 
-function deps(pages: { id: string; userId: string }[][], outcome = 'discarded') {
+function deps(
+  pages: { id: string; userId: string }[][],
+  outcome = 'discarded',
+  removedPages: { id: string; userId: string }[][] = [],
+) {
   const due = vi.fn(async (_opts: Record<string, unknown>) => pages.shift() ?? []);
+  const dueRemoved = vi.fn(async (_opts: Record<string, unknown>) => removedPages.shift() ?? []);
+  const discardRemoved = vi.fn(async (userId: string, assetId: string, removeFiles: Remove) => {
+    if (outcome === 'discarded') await removeFiles(userId, assetId);
+    return outcome;
+  });
   const discard = vi.fn(
     async (userId: string, assetId: string, _opts: unknown, removeFiles: Remove) => {
       if (outcome === 'discarded') await removeFiles(userId, assetId);
@@ -31,7 +40,12 @@ function deps(pages: { id: string; userId: string }[][], outcome = 'discarded') 
     deleteObject: vi.fn(async (_key: string) => {}),
     deletePrefix: vi.fn(async (_prefix: string) => 3),
   };
-  return { uploads: { due, discard }, storage, logger: logger() };
+  const purgeTwinArchives = vi.fn(async () => 0);
+  return {
+    uploads: { due, discard, dueRemoved, discardRemoved, purgeTwinArchives },
+    storage,
+    logger: logger(),
+  };
 }
 
 describe('sweepStaleUploads', () => {
@@ -77,6 +91,19 @@ describe('sweepStaleUploads', () => {
     d.uploads.discard.mockRejectedValueOnce(new Error('SlowDown'));
     expect(await sweepStaleUploads(d as never)).toEqual({ deleted: 1, kept: 0, failed: 1 });
     expect(d.logger.warn).toHaveBeenCalledWith({ reason: 'SlowDown' }, 'stale_upload_failed');
+  });
+
+  it('deletes the photos and twins she deleted with her twin, whatever their age', async () => {
+    const photo = asset(7);
+    const d = deps([], 'discarded', [[photo]]);
+    expect(await sweepStaleUploads(d as never)).toEqual({ deleted: 1, kept: 0, failed: 0 });
+    expect(d.uploads.dueRemoved).toHaveBeenCalledWith({
+      limit: STALE_UPLOADS_PAGE,
+      afterId: undefined,
+    });
+    expect(d.uploads.discardRemoved).toHaveBeenCalledWith(A, photo.id, expect.any(Function));
+    expect(d.storage.deleteObject).toHaveBeenCalledWith(mediaKeys.original(A, photo.id));
+    expect(d.storage.deletePrefix).toHaveBeenCalledWith(mediaKeys.assetMediaPrefix(A, photo.id));
   });
 
   it('stops at maxPages', async () => {

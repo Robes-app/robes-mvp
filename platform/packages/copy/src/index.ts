@@ -717,6 +717,11 @@ export const consent = {
   privacyTitle: 'Privacy.',
   analyticsLabel: 'Usage counts',
   analyticsHint: 'Which screens you open and what you tap, so Robes can get better.',
+  // Asked once on the phone, after sign-in, while she has given no answer (Annie's words, 11 Nov).
+  askTitle: 'Allow usage counts?',
+  askBody: 'Robes will learn from the screens you open and tap to improve.',
+  askYes: 'Allow',
+  askNo: 'Not now',
   replayLabel: 'Screen recordings',
   replayHint:
     'Recordings of how you move through Robes, with every word, photo and typed answer hidden. Needs usage counts.',
@@ -1723,29 +1728,62 @@ export const twin = {
     // On a Robes model (plan 2026-11-05, design 3c): the eyebrow on the hero, the one commitment
     // (the camera), and the lineup she chooses from — her own twin first, once drawn.
     robesModel: 'Robes model',
-    addSelfie: 'Add a selfie',
-    addSelfieSub: 'Create your digital twin.',
+    createTwin: 'Create your digital twin',
+    // The colouring page's way to a season with no read yet.
+    addSelfie: 'Add a close-up',
+    // Under the lineup once anything of her twin is on file (design "Your model · Delete twin",
+    // 12 Nov): while it is being built the button names the photograph.
+    deleteTwin: {
+      twin: 'Delete my digital twin',
+      twinNote: 'Removes your photograph, model and measurements.',
+      photo: 'Delete my photograph',
+      photoNote: 'Removes your photograph and measurements, and stops your model being built.',
+      title: 'Delete your digital twin?',
+      // A deleted twin can be put back for 30 days, at her ask by email (owner, 13 Nov), so this
+      // no longer says it can't be undone. TODO(founders): Annie's line to rewrite if she wants.
+      body: 'Your photograph, model and measurements will be removed.',
+      confirm: 'Delete',
+      keep: 'Keep it',
+    },
     // The one way to another selfie: the redraw control on her twin's hero (redlines R15).
-    retake: 'Retake selfie to update your twin',
-    // The selfie camera, its photo picker and the review (designs 03–05, Annie 10 Nov).
+    retake: 'Retake close-up to update your twin',
+    // The selfie camera, its photo picker and the review (designs 03–05, Annie 10 Nov). She reads
+    // "close-up" everywhere, as on the consent screen and in the Terms (Annie, 11 Nov).
     selfie: {
-      title: 'Selfie',
+      title: 'Close-up',
       hint: 'Hair back · No glasses · Chin level',
       close: 'Close the camera',
-      shutter: 'Take the selfie',
+      shutter: 'Take the close-up',
       photos: 'Choose from your photos',
       flip: 'Switch camera',
-      review: 'Your selfie',
+      review: 'Your close-up',
       reviewNote: 'Only used to draw your twin',
       retake: 'Retake',
       use: 'Use photo',
+    },
+    // Her yes before the camera (Annie's "Digital twin consent" artboard, 11 Nov; App Store
+    // 5.1.2): it names Google Gemini, and nothing is photographed until the box is ticked.
+    consent: {
+      title: 'Your twin is you.',
+      sub: 'And it’s yours.',
+      rows: [
+        ['Collects', 'A close-up and your size facts. Never your weight.'],
+        ['Use', 'Your looks, shown on you. Never slimmed or smoothed.'],
+        ['Made by', 'Google Gemini. It may process data outside the EU.'],
+        ['Kept', 'Until you delete your twin or your account.'],
+        ['Your controls', 'Delete your twin, or your account, any time.'],
+      ],
+      agree: 'I agree to Robes building my digital twin from my close-up and size facts.',
+      privacy: 'Privacy',
+      notNow: 'Not now',
+      go: 'Take my close-up',
     },
     lineup: 'Choose a model',
     you: 'You',
     // The stage while her selfie reads and her twin draws (designs 06–07), one line at a time;
     // the last holds until her twin lands. A redraw with no selfie starts at the drawing.
     status: [
-      'Reading your selfie',
+      'Reading your close-up',
       'Reading your colouring',
       'Drawing your model',
       'Finishing your twin',
@@ -1758,7 +1796,7 @@ export const twin = {
     twinFailed:
       'Robes couldn’t photograph your model just now. A close-up in daylight, facing the camera, helps.',
     season: 'Your season',
-    addSeason: 'Add a selfie and Robes reads your season.',
+    addSeason: 'Add a close-up and Robes reads your season.',
     colourNotes: 'Full colour notes',
     anotherSeason: 'Another season',
     seasonFailed: 'Robes couldn’t change the reading just now.',
@@ -1772,8 +1810,8 @@ export const twin = {
       return axes && sum ? `${axes} — ${sum}` : axes || sum;
     },
     skinAndHair: 'Skin and hair',
-    skinAndHairRead: 'Read from your selfie. Change by hand.',
-    skinAndHairHand: 'Chosen by hand until a selfie reads.',
+    skinAndHairRead: 'Read from your close-up. Change by hand.',
+    skinAndHairHand: 'Chosen by hand until a close-up reads.',
     yourLine: 'Your line',
     edit: 'Edit',
     proportions: (presence: Presence): string =>
@@ -1833,18 +1871,16 @@ export const twin = {
   },
   dnaPage: {
     title: 'Style DNA',
-    sub: 'What you love, and the lines you dress by.',
     you: 'You',
     taste: 'Your taste',
     words: 'In your words',
     styleType: 'Style type',
     brands: 'Brands',
-    icons: 'Icons',
     pieces: 'Pieces you love',
     investment: 'Investment level',
     loves: 'What works on you',
-    avoids: 'Hard nos',
-    rules: 'Your rules',
+    // Her rules and hard nos, one row and one sheet: Always · Never (Style DNA redesign, 12 Nov).
+    styleRules: 'Your style rules',
     notYet: 'Not yet',
     pickOne: 'Pick one',
     noneStarred: 'None starred',
@@ -1857,40 +1893,15 @@ export const twin = {
   },
   types: {
     title: 'Style type',
-    sub: 'Pick as many as feel like you.',
-    desc: {
-      Minimal: 'Clean lines, few decisions, nothing loud.',
-      Modern: 'Cut for now, worn without fuss.',
-      Classic: 'Tailoring, good shoes, nothing that dates.',
-      Sculptural: 'Architectural cuts. The volume is the point.',
-      Bohemian: 'Loose shapes, print and texture worn together.',
-      Eclectic: 'Nothing matches. It works anyway.',
-      Heritage: 'Collars, knits, a little of the old school.',
-      Utility: 'Workwear roots, pockets, honest hardware.',
-    } as Record<string, string>,
   },
+  // The brand wall: onboarding's wordmark tiles under one search that also adds a house of her own.
   wall: {
     brandsTitle: 'Brands',
-    brandsSub: 'Select 3+ brands you like. This informs your Style DNA.',
-    iconsTitle: 'Icons',
-    iconsSub: 'Whose style runs close to yours? Robes reads the register, not the wardrobe.',
-    searchBrands: 'Search brands',
-    searchIcons: 'Search or type a name',
-    clear: 'Clear',
-    selections: 'Your selections',
-    keptCount: (n: number): string => `${n} kept`,
-    matches: 'Matches',
-    popular: 'Popular among stylists',
-    often: 'Often chosen',
-    tapToKeep: 'Tap a name to keep it',
-    noMatch: 'Nothing in the pool by that name.',
-    allYours: 'Everything here is yours already.',
-    add: (name: string): string => `+ Add “${name}”`,
-    remove: (name: string): string => `Remove ${name}`,
+    searchBrands: 'Search or add a brand',
+    add: (name: string): string => `Add “${name}”`,
   },
   pieces: {
     title: 'The pieces you love',
-    sub: 'Robes reads what they share. It never dresses you in the same one two days running.',
     empty: 'Nothing starred yet. The star on a piece in your wardrobe marks it as one you love.',
     starMore: 'Star more from your wardrobe',
   },
@@ -1905,38 +1916,16 @@ export const twin = {
     } as Record<string, string>,
   },
   words: {
-    loves: {
-      title: 'What works on you',
-      sub: 'Lines Robes dresses toward, every time.',
-      another: 'Another that works',
-      empty: 'Nothing kept so far. Keep a line Robes noticed, or write your own.',
-    },
-    avoids: {
-      title: 'Hard nos',
-      sub: 'Robes never proposes these, whatever the occasion.',
-      another: 'Another no',
-      empty: 'No hard nos so far. Tap a chip, or write whatever Robes should never do.',
-      yours: 'Your nos',
-    },
-    rules: {
-      title: 'Your rules',
-      sub: 'The lines you dress by.',
-      another: 'Another rule',
-      empty: 'No rules so far. The lines you dress by, in your words.',
-      yours: 'Your rules',
-    },
+    loves: { title: 'What works on you', another: 'Another that works' },
+    avoids: { another: 'Another no' },
+    rules: { another: 'Another rule' },
+    // The style rules sheet's tabs: rules are Always, hard nos are Never.
     always: 'Always',
-    alwaysHint: 'Robes keeps these on every look',
     never: 'Never',
-    neverHint: 'whatever the occasion',
-    own: 'Your own',
     first: 'A line of your own',
+    add: 'Add the line',
+    chip: (text: string): string => `Add “${text}”`,
     strike: (text: string): string => `Strike “${text}”`,
-    suggests: 'Robes suggests',
-    suggestsHint: 'From what you’ve never kept',
-    keep: 'Keep',
-    filed: '✓ Filed · Robes reads it from here on',
-    from: (text: string): string => `from “${text}”`,
     // 409 brief_list_full: the server keeps at most BRIEF_KEPT_MAX lines per list.
     full: 'This list is full. Strike a line to make room for a new one.',
   },
@@ -1971,7 +1960,7 @@ export const twin = {
           ? `From ${pieces} ${pieces === 1 ? 'piece' : 'pieces'} filed`
           : looks
             ? `From ${looks} ${looks === 1 ? 'look' : 'looks'}`
-            : 'From your style type and icons',
+            : 'From your style type',
     colourLine: (lovedIn: readonly string[], rejectedIn: readonly string[]): string => {
       const loved = Array.isArray(lovedIn) ? lovedIn : [];
       const rejected = Array.isArray(rejectedIn) ? rejectedIn : [];

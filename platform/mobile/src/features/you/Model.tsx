@@ -23,6 +23,7 @@ import { Pressable, Text as RNText, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScanLine } from '@/features/looks/ScanLine';
 import { errorMessage } from '@/lib/errors';
+import { DeleteTwin, hasTwinOnFile } from './DeleteTwin';
 import { SettingsGroup, SettingsRow } from './Settings';
 import {
   Figure,
@@ -48,10 +49,11 @@ const HEADROOM = 16;
 const BACKDROP = '400%';
 
 // You › Your digital twin (legacy 2026-10-20 redline 3a; plan 2026-11-05 §1.4–1.5; redlines
-// R1–R11, R15–R18 of 2026-11-05). On a Robes model (3c): its portrait as the hero, Add a selfie
-// as the one commitment, then one card holding the lineup and the two doors (closed: Colouring
+// R1–R11, R15–R18 of 2026-11-05). On a Robes model (3c): its portrait as the hero, Create your
+// digital twin as the one commitment, then one card holding the lineup and the two doors (closed: Colouring
 // and Body shape are the twin's). On her own twin (3d): the twin with its redraw control, the
-// doors, and the lineup with her first. Web twin: app/src/app/(app)/you/model/model-view.tsx.
+// doors, and the lineup with her first; under it, Delete my digital twin (DeleteTwin).
+// Web twin: app/src/app/(app)/you/model/model-view.tsx.
 export function Model() {
   const router = useRouter();
   const query = useModel();
@@ -117,21 +119,16 @@ export function Model() {
             {/* R9: the one commitment, a dashed warm row 12pt under the picture. */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${tw.addSelfie}, ${tw.addSelfieSub}`}
+              accessibilityLabel={tw.createTwin}
               onPress={selfie.start}
               className="min-h-[62px] flex-row items-center gap-3.5 rounded-soft border border-warm-line px-4 py-3"
               style={{ borderStyle: 'dashed' }}
               testID="twin-add-selfie"
             >
               <Icon name="camera" size={20} color={muted} />
-              <View className="flex-1 gap-1">
-                <Text style={{ fontFamily: fonts.displayRegular, fontSize: 18 }}>
-                  {tw.addSelfie}
-                </Text>
-                <Text size="caption" tone="muted">
-                  {tw.addSelfieSub}
-                </Text>
-              </View>
+              <Text className="flex-1" style={{ fontFamily: fonts.displayRegular, fontSize: 18 }}>
+                {tw.createTwin}
+              </Text>
               <Icon name="forward" size={16} color={muted} />
             </Pressable>
             {/* R10: one card — the lineup over a hairline, then the doors, which stand closed on a
@@ -155,6 +152,11 @@ export function Model() {
             <Lineup model={model} pick={pick} pending={pending} />
           </>
         )}
+        {hasTwinOnFile(model) ? (
+          <DeleteTwin
+            building={(read.reading || model.twin.status === 'pending') && !model.twin.imageUrl}
+          />
+        ) : null}
       </View>
     </ScrollView>
   );

@@ -74,8 +74,8 @@ register as you go. In order:
 10. **DNS** (no user-facing records yet): `media.byrobes.com` → the CloudFront output, the SES
     DKIM/MAIL FROM/DMARC records, the inbound MX. Keep `app.byrobes.com` private (Vercel
     deployment protection or no DNS) until T-0.
-11. **Legal**: real Terms and Privacy text in the app (currently "On its way"), naming SES, AWS,
-    Vercel, PostHog replay and Gemini.
+11. **Legal**: real Terms and Privacy text in the app (live since 4 Nov, `packages/copy/src/legal.ts`),
+    naming SES, AWS, Vercel, PostHog replay and Gemini.
 
 Then deploy through CI only: run the **`platform-deploy-prod`** workflow (manual, the reviewer
 approves). It migrates with the migration role, deploys `Production/*`, and smoke-tests
@@ -152,14 +152,15 @@ Then, in a low-traffic window with the founders available for 48 h:
 
 1. **Legacy read-only**: the legacy server's write routes answer 503 with a banner. *Not built yet*
    — a small legacy change on `beta`/`main` (cutover-readiness §C).
-2. **Wipe the test copy, then the final run** (from `../migration.md` §4 step 2):
+2. **The final run, over what is there** (from `../migration.md` §4 step 2):
    ```bash
-   pnpm migrate:reset -- --target=production --confirm-wipe=<user@host>   # typed again
+   # No wipe: production holds real TestFlight accounts, and migrate:reset refuses production
+   # (docs/migration.md §4 step 2). The copy below is additive.
    pnpm migrate:extract -- --target=production
    pnpm migrate:transform -- --target=production
    pnpm migrate:assert -- --target=production
    ```
-   On a remote target `migrate:reset` refuses a bare `--confirm-wipe`; it needs the `user@host`.
+   `migrate:reset` is for local rehearsals and staging only.
    Re-enable the two paused schedules. Keep the `legacy` copy schema for the week-long rollback window.
 3. **Images**: `pnpm migrate:rehost -- --target=production --apply --bucket=<bucket>`, re-run until
    `failed` is empty. The app shows nothing for a `cloudinary_legacy` asset, so this is before DNS.

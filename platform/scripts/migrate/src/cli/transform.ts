@@ -1,5 +1,6 @@
 import { transform } from '../transform';
-import { cliTarget, print } from './args';
+import { cliTarget, flag, print } from './args';
 
 // pnpm migrate:transform — legacy.* → app.* in the target; re-running inserts nothing new.
-print(await transform(cliTarget()));
+// `--quiet-arrival`: the accounts this run creates start with every notification off (§4a).
+print(await transform(cliTarget(), { quietArrival: flag('quiet-arrival') !== undefined }));

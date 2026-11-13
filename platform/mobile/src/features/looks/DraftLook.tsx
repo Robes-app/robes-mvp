@@ -52,6 +52,7 @@ import { useBareScreen } from '@/components/StackScreen';
 import { pickOne, usePhotoFiling } from '@/features/home/file-photo';
 import { AddPiecesSheet } from '@/features/wardrobe/add/AddPiecesSheet';
 import { LayoutToggle } from '@/features/wardrobe/WardrobeHeader';
+import { useArrived, useLeaveSheetFor } from '@/lib/arrival';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { useKeyboardOverlap } from '@/lib/keyboard';
@@ -274,6 +275,8 @@ export function DraftLook({
   onClose: () => void;
 }) {
   const router = useRouter();
+  // Heard where the screen mounts: the look may still be loading when the screen settles.
+  const arrived = useArrived();
   const [lookId, setLookId] = useState<string | null>(id === 'new' ? null : id);
   const query = useApi(
     'looks.get',
@@ -319,6 +322,7 @@ export function DraftLook({
       look={query.data}
       forDay={query.data.setId ? query.data.dateHint : (day ?? null)}
       schedule={schedule === true}
+      arrived={arrived}
       {...(images ? { images } : {})}
       presentation={presentation}
       onClose={onClose}
@@ -367,8 +371,11 @@ function Shell({
   return (
     <View
       ref={root}
+      // Never flattened (FormSheetScreen.tsx): the native sheet must not reach the body's ScrollView.
+      collapsable={false}
       className="flex-1 bg-bg"
       style={{ paddingTop: presentation === 'page' ? insets.top : 0, paddingBottom: keyboard }}
+      testID="draft-shell"
     >
       {presentation === 'page' ? <Bare /> : null}
       <DrawerHeader
@@ -379,7 +386,7 @@ function Shell({
         closeTestID="draft-close"
         doneTestID="draft-done"
       />
-      <View className="flex-1">
+      <View collapsable={false} className="flex-1">
         <ScrollView
           automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
@@ -682,6 +689,7 @@ function DraftBody({
   forDay,
   images,
   schedule,
+  arrived,
   presentation,
   onClose,
 }: {
@@ -689,6 +697,8 @@ function DraftBody({
   forDay: string | null;
   images?: 'add';
   schedule: boolean;
+  // The screen has finished coming in (useArrived): no Sheet presents before it.
+  arrived: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
 }) {
@@ -719,17 +729,22 @@ function DraftBody({
   const captureDraft = capture.on && mode === 'draft';
   const [newPiece, setNewPiece] = useState<string | null>(null);
   useDressOnOpen(look);
+  const leaveSheetFor = useLeaveSheetFor();
   const save = useSaveLook((saved) => {
     // Saved from home's day: that day shows it as the day's card. Else the saved look opens
-    // with the diary up, so it can be scheduled in the same breath.
+    // with the diary up, so it can be scheduled in the same breath — the sheet gone first, so
+    // the diary can rise over the page (useLeaveSheetFor).
     if (forDay) router.replace({ pathname: '/', params: { day: forDay, saved: saved.id } });
+    else if (presentation === 'sheet') leaveSheetFor(`/look/${saved.id}?schedule=1`);
     else router.replace(`/look/${saved.id}?schedule=1`);
   });
   const [tab, setTab] = useState<Tab>(TABS[0]);
   const [sheet, setSheet] = useState<DraftSheet | null>(null);
   const [picker, setPicker] = useState<PickerMode | null>(null);
   const [subview, setSubview] = useState<'tags' | 'seasons' | 'worn' | null>(null);
-  const [diary, setDiary] = useState(schedule);
+  // Asked for (`schedule`, Schedule look, Worn's Add a date), it rises once the screen is in.
+  const [diaryAsked, setDiary] = useState(schedule);
+  const diary = diaryAsked && arrived;
   // Image mode (D19): opened from Home's + it starts on Add a photo.
   // Image mode (D19): opened from Home's + it starts on Add a photo, and so does the Edit look
   // sheet, whose picture is the photo strip (Capture PRD 3.1).
