@@ -1,33 +1,30 @@
 import { useApi } from '@robes/api-client/react';
 import type { BriefLine, BriefListName, StyleDna as Dna } from '@robes/contracts';
 import { twin, ui, you } from '@robes/copy';
-import { asSentence } from '@robes/core';
 import { GENDER_IDENTITIES, type Presence } from '@robes/core/avatar';
 import {
   AGE_BANDS,
   ageBandLabel,
   INVESTMENT_LEVELS,
-  iconTag,
   MUST_CHIPS,
   normName,
+  onboardingBrands,
   STYLE_TYPES,
-  type WallKind,
+  type StyleType,
   wallPool,
-  wallRanked,
 } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
   CardSkeleton,
   EmptyState,
-  Eyebrow,
-  Field,
   fonts,
   IconButton,
   Image,
   MIN_TOUCH,
   Pill,
   Sheet,
+  Tabs,
   Text,
   useColor,
 } from '@robes/ui-native';
@@ -36,6 +33,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { BrandsStep, StylesStep } from '../onboarding/Steps';
 import { useDnaMutations } from './dna';
 import { ColoursBody, PrintsBody, paletteSummary, usePalette } from './Palette';
 import { SettingsGroup, SettingsRow } from './Settings';
@@ -48,16 +46,17 @@ type SheetKind =
   | 'age'
   | 'types'
   | 'brands'
-  | 'icons'
   | 'pieces'
   | 'investment'
   | 'colours'
   | 'prints'
-  | BriefListName;
+  | 'loves'
+  | 'styleRules';
 const palette = you.style.palette;
-const WALL_N = 18;
+// A search shows this many houses at most.
+const MATCHES_N = 24;
 
-// A sheet's option row. `radio` (one answer, Investment level): the amount in the serif with lining
+// A sheet's one-answer row (Gender, Age, Investment level): the answer in the serif with lining
 // figures, its line beneath, an 18pt radio at the right; selected is the warm fill. Web twin:
 // app/(app)/you/style/dna-view.tsx Option.
 function Option({
@@ -65,58 +64,50 @@ function Option({
   desc,
   on,
   onPress,
-  radio = false,
 }: {
   name: string;
   desc: string;
   on: boolean;
   onPress: () => void;
-  radio?: boolean;
 }) {
   const ink = useColor('ink');
   return (
     <Pressable
-      accessibilityRole={radio ? 'radio' : 'button'}
+      accessibilityRole="radio"
       accessibilityLabel={name}
-      accessibilityState={radio ? { checked: on } : { selected: on }}
+      accessibilityState={{ checked: on }}
       onPress={onPress}
       style={{ minHeight: MIN_TOUCH }}
       className={`flex-row items-center justify-between gap-4 rounded-crisp border px-4 py-3 ${on ? 'border-selected-line bg-selected' : 'border-hairline'}`}
     >
       <View className="flex-1 gap-0.5">
-        {radio ? (
-          <Text
-            style={{
-              fontFamily: fonts.displayRegular,
-              fontSize: 17,
-              fontVariant: ['lining-nums'],
-            }}
-          >
-            {name}
-          </Text>
-        ) : (
-          <Text>{name}</Text>
-        )}
+        <Text
+          style={{
+            fontFamily: fonts.displayRegular,
+            fontSize: 17,
+            fontVariant: ['lining-nums'],
+          }}
+        >
+          {name}
+        </Text>
         {desc ? (
-          <Text size={radio ? 'caption' : 'small'} tone="muted">
+          <Text size="caption" tone="muted">
             {desc}
           </Text>
         ) : null}
       </View>
-      {radio ? (
-        <View
-          className={`h-[18px] w-[18px] items-center justify-center rounded-full border ${on ? 'border-selected-line bg-surface-raised' : 'border-border-control'}`}
-        >
-          {on ? <Icon name="check" color={ink} size={12} /> : null}
-        </View>
-      ) : on ? (
-        <Icon name="check" color={ink} size={18} />
-      ) : null}
+      <View
+        className={`h-[18px] w-[18px] items-center justify-center rounded-full border ${on ? 'border-selected-line bg-surface-raised' : 'border-border-control'}`}
+      >
+        {on ? <Icon name="check" color={ink} size={12} /> : null}
+      </View>
     </Pressable>
   );
 }
 
-// You › Style DNA (legacy Settings 02): her taste and the lines she dresses by.
+// You › Style DNA (Style DNA redesign, 12 Nov): You, her taste, and the lines she dresses by. Icons
+// are not asked for (MVP); her rules and hard nos are one row. Web twin:
+// app/(app)/you/style/dna-view.tsx.
 export function StyleDna() {
   const query = useApi('me.dna.get');
   const model = useModel();
@@ -127,12 +118,11 @@ export function StyleDna() {
   const dna = query.data;
   const presence = model.data?.presence;
   const age = ageBandLabel(dna.facts.ageBand);
-  const icons = dna.icons.map((i) => i.name);
-  const n = (k: BriefListName) => dna.brief[k].length;
+  const loves = dna.brief.loves.length;
+  const rules = dna.brief.rules.length + dna.brief.avoids.length;
   const level = INVESTMENT_LEVELS.find((l) => l.key === dna.investment);
   // First name and a count, never a list cut mid-word (Settings redline 27 Oct).
   const brands = copy.firstPlus(dna.brands);
-  const iconsValue = copy.firstPlus(icons);
   const coloursValue = paletteSummary(colours, 'colours');
   const printsValue = paletteSummary(colours, 'prints');
   // An empty answer reads "Not yet" in the faint italic (legacy .sp-row .v.none).
@@ -147,9 +137,6 @@ export function StyleDna() {
   );
   return (
     <ScrollView contentContainerClassName="gap-[26px] px-6 pt-6 pb-12">
-      <Text size="caption" tone="muted" className="text-center">
-        {copy.sub}
-      </Text>
       {/* Gender and age set who her looks are drawn on, Robes model or twin alike (Annie, 7 Nov):
           they live here, never behind Body shape, which a Robes model keeps closed. */}
       <SettingsGroup title={copy.you}>
@@ -159,7 +146,6 @@ export function StyleDna() {
       <SettingsGroup title={copy.taste}>
         {row(copy.styleType, copy.firstPlus(dna.types), !dna.types.length, 'types', true)}
         {row(copy.brands, brands, !dna.brands.length, 'brands')}
-        {row(copy.icons, iconsValue, !icons.length, 'icons')}
         <SettingsRow
           label={copy.pieces}
           value={dna.pieces.length ? copy.piecesCount(dna.pieces.length) : copy.noneStarred}
@@ -176,9 +162,8 @@ export function StyleDna() {
         {row(palette.printsTitle, printsValue, printsValue === copy.notYet, 'prints')}
       </SettingsGroup>
       <SettingsGroup title={copy.words}>
-        {row(copy.loves, copy.linesCount(n('loves')), !n('loves'), 'loves', true)}
-        {row(copy.avoids, copy.linesCount(n('avoids')), !n('avoids'), 'avoids')}
-        {row(copy.rules, copy.linesCount(n('rules')), !n('rules'), 'rules')}
+        {row(copy.loves, copy.linesCount(loves), !loves, 'loves', true)}
+        {row(copy.styleRules, copy.linesCount(rules), !rules, 'styleRules')}
       </SettingsGroup>
       <DnaSheet dna={dna} presence={presence} kind={sheet} onClose={() => setSheet(null)} />
     </ScrollView>
@@ -188,16 +173,14 @@ export function StyleDna() {
 const HEAD: Record<SheetKind, [string, string]> = {
   gender: [f.gender, ''],
   age: [f.age, ''],
-  types: [twin.types.title, twin.types.sub],
-  brands: [twin.wall.brandsTitle, twin.wall.brandsSub],
-  icons: [twin.wall.iconsTitle, twin.wall.iconsSub],
-  pieces: [twin.pieces.title, twin.pieces.sub],
+  types: [twin.types.title, ''],
+  brands: [twin.wall.brandsTitle, ''],
+  pieces: [twin.pieces.title, ''],
   investment: [twin.investment.title, twin.investment.sub],
   colours: [palette.coloursTitle, ''],
   prints: [palette.printsTitle, ''],
-  loves: [twin.words.loves.title, twin.words.loves.sub],
-  avoids: [twin.words.avoids.title, twin.words.avoids.sub],
-  rules: [twin.words.rules.title, twin.words.rules.sub],
+  loves: [twin.words.loves.title, ''],
+  styleRules: [copy.styleRules, ''],
 };
 
 function DnaSheet({
@@ -228,71 +211,59 @@ function DnaSheet({
         {sub ? <Text tone="muted">{sub}</Text> : null}
         {kind === 'gender' && presence ? <GenderBody presence={presence} /> : null}
         {kind === 'age' ? <AgeBody dna={dna} /> : null}
-        {kind === 'types' ? <TypesBody dna={dna} /> : null}
-        {kind === 'brands' || kind === 'icons' ? <WallBody dna={dna} kind={kind} /> : null}
+        {kind === 'types' ? <TypesBody dna={dna} presence={presence} /> : null}
+        {kind === 'brands' ? <BrandsBody dna={dna} /> : null}
         {kind === 'pieces' ? <PiecesBody dna={dna} onClose={onClose} /> : null}
         {kind === 'investment' ? <InvestmentBody dna={dna} /> : null}
         {kind === 'colours' ? <ColoursBody /> : null}
         {kind === 'prints' ? <PrintsBody /> : null}
-        {kind === 'loves' || kind === 'avoids' || kind === 'rules' ? (
-          <WordsBody dna={dna} list={kind} />
-        ) : null}
+        {kind === 'loves' ? <LinesBody dna={dna} list="loves" /> : null}
+        {kind === 'styleRules' ? <StyleRulesBody dna={dna} /> : null}
       </ScrollView>
     </Sheet>
   );
 }
 
-type StyleType = (typeof STYLE_TYPES)[number];
-
-function TypesBody({ dna }: { dna: Dna }) {
+// Style type is onboarding's styles step: four photographs per archetype, a heart to keep it.
+function TypesBody({ dna, presence }: { dna: Dna; presence: Presence | undefined }) {
   const { update } = useDnaMutations();
   const current = dna.types.filter((t): t is StyleType => STYLE_TYPES.includes(t as StyleType));
-  return (
-    <View className="gap-2">
-      {STYLE_TYPES.map((name) => (
-        <Option
-          key={name}
-          name={name}
-          desc={twin.types.desc[name] ?? ''}
-          on={current.includes(name)}
-          onPress={() =>
-            update.mutate({
-              input: {
-                types: current.includes(name)
-                  ? current.filter((t) => t !== name)
-                  : [...current, name],
-              },
-            })
-          }
-        />
-      ))}
-    </View>
-  );
+  const toggle = (name: StyleType) =>
+    update.mutate({
+      input: {
+        types: current.includes(name) ? current.filter((t) => t !== name) : [...current, name],
+      },
+    });
+  return <StylesStep identity={presence ?? null} value={current} onToggle={toggle} />;
 }
 
-function WallBody({ dna, kind }: { dna: Dna; kind: WallKind }) {
+// Brands is onboarding's wordmark wall under one search: her houses lead, a search reaches the
+// whole pool, and a name not in it is added from the dashed tile (or return).
+function BrandsBody({ dna }: { dna: Dna }) {
   const { update } = useDnaMutations();
   const ink = useColor('ink');
-  const muted = useColor('ink-muted');
   const faint = useColor('ink-faint');
   const [q, setQ] = useState('');
-  const brands = kind === 'brands';
-  const mine = brands ? dna.brands : dna.icons.map((i) => i.name);
-  const has = (n: string) => mine.some((x) => normName(x) === normName(n));
+  const mine = dna.brands;
+  const same = (a: string, b: string) => normName(a) === normName(b);
+  const has = (n: string) => mine.some((x) => same(x, n));
   const toggle = (name: string) => {
-    const next = has(name) ? mine.filter((x) => normName(x) !== normName(name)) : [...mine, name];
-    update.mutate({ input: brands ? { brands: next } : { icons: next } });
+    update.mutate({
+      input: { brands: has(name) ? mine.filter((x) => !same(x, name)) : [...mine, name] },
+    });
     setQ('');
   };
   const query = normName(q);
-  const pool = wallRanked(kind, dna.types, mine, dna.gender);
-  const matches = query
-    ? pool.filter((n) => normName(n).includes(query)).slice(0, 12)
-    : pool.slice(0, WALL_N);
-  const exact =
-    query && (wallPool(kind, dna.types, dna.gender).some((n) => normName(n) === query) || has(q));
-  const label = (n: string) => (!brands && iconTag(n) ? `${n} · ${iconTag(n)}` : n);
-  const placeholder = brands ? twin.wall.searchBrands : twin.wall.searchIcons;
+  const pool = wallPool('brands', dna.types, dna.gender);
+  const seeded = onboardingBrands(dna.types, dna.gender);
+  const unique = (names: readonly string[]) =>
+    names.filter((n, i) => names.findIndex((x) => same(x, n)) === i);
+  const wall = query
+    ? unique([...mine, ...pool])
+        .filter((n) => normName(n).includes(query))
+        .slice(0, MATCHES_N)
+    : unique([...mine.filter((b) => !seeded.some((s) => same(s, b))), ...seeded]);
+  const exact = query && (pool.some((n) => normName(n) === query) || has(q));
   return (
     <View className="gap-4">
       {/* A 44pt pill with its glyph; the placeholder names it, so no label above (redline). */}
@@ -300,10 +271,10 @@ function WallBody({ dna, kind }: { dna: Dna; kind: WallKind }) {
         className="flex-row items-center gap-2.5 rounded-pill border border-hairline bg-surface-raised px-4"
         style={{ minHeight: MIN_TOUCH }}
       >
-        <Icon name="search" color={muted} size={16} />
+        <Icon name="search" color={faint} size={16} />
         <TextInput
-          accessibilityLabel={placeholder}
-          placeholder={placeholder}
+          accessibilityLabel={twin.wall.searchBrands}
+          placeholder={twin.wall.searchBrands}
           placeholderTextColor={faint}
           value={q}
           onChangeText={setQ}
@@ -314,60 +285,14 @@ function WallBody({ dna, kind }: { dna: Dna; kind: WallKind }) {
           style={{ fontFamily: fonts.sans, color: ink, minHeight: MIN_TOUCH }}
         />
       </View>
-      {mine.length ? (
-        <View className="gap-2">
-          <View className="flex-row items-baseline gap-2">
-            <Eyebrow>{twin.wall.selections}</Eyebrow>
-            <Text italic size="caption" tone="muted">
-              {twin.wall.keptCount(mine.length)}
-            </Text>
-          </View>
-          <View className="flex-row flex-wrap gap-2">
-            {mine.map((n) => (
-              <Pill
-                key={n}
-                selected
-                removable
-                size="sm"
-                label={twin.wall.remove(n)}
-                onPress={() => toggle(n)}
-              >
-                {label(n)}
-              </Pill>
-            ))}
-          </View>
-        </View>
-      ) : null}
-      <View className="gap-2">
-        <View className="flex-row flex-wrap items-baseline gap-2">
-          <Eyebrow>
-            {query ? twin.wall.matches : brands ? twin.wall.popular : twin.wall.often}
-          </Eyebrow>
-          {query ? null : (
-            <Text italic size="caption" tone="muted">
-              {twin.wall.tapToKeep}
-            </Text>
-          )}
-        </View>
-        {matches.length ? (
-          <View className="flex-row flex-wrap gap-2">
-            {matches.map((n) => (
-              <Pill key={n} size="sm" onPress={() => toggle(n)}>
-                {label(n)}
-              </Pill>
-            ))}
-          </View>
-        ) : (
-          <Text size="small" tone="muted">
-            {query ? twin.wall.noMatch : twin.wall.allYours}
-          </Text>
-        )}
-        {query && !exact ? (
-          <Pill size="sm" onPress={() => toggle(q.trim())}>
-            {twin.wall.add(q.trim())}
-          </Pill>
-        ) : null}
-      </View>
+      <BrandsStep
+        wall={wall}
+        value={wall.filter(has)}
+        onToggle={toggle}
+        {...(query && !exact
+          ? { add: { label: twin.wall.add(q.trim()), onPress: () => toggle(q.trim()) } }
+          : {})}
+      />
     </View>
   );
 }
@@ -440,7 +365,6 @@ function GenderBody({ presence }: { presence: Presence }) {
     <View accessibilityRole="radiogroup" accessibilityLabel={f.gender} className="gap-2">
       {GENDER_IDENTITIES.map((g) => (
         <Option
-          radio
           key={g}
           name={f.genderOptions[g]}
           desc=""
@@ -458,7 +382,6 @@ function AgeBody({ dna }: { dna: Dna }) {
     <View accessibilityRole="radiogroup" accessibilityLabel={f.age} className="gap-2">
       {AGE_BANDS.map((a) => (
         <Option
-          radio
           key={a.key}
           name={a.label}
           desc=""
@@ -476,7 +399,6 @@ function InvestmentBody({ dna }: { dna: Dna }) {
     <View className="gap-2">
       {INVESTMENT_LEVELS.map((l) => (
         <Option
-          radio
           key={l.key}
           name={l.label}
           desc={twin.investment.notes[l.key] ?? ''}
@@ -488,14 +410,18 @@ function InvestmentBody({ dna }: { dna: Dna }) {
   );
 }
 
-function WordsBody({ dna, list }: { dna: Dna; list: BriefListName }) {
-  const { addLine, removeLine, keep } = useDnaMutations();
+// Her lines in one white card, each struck with ×, the last row a field that files on return, on +
+// or on leaving it; the chips she hasn't filed sit beneath and file on a tap. Web twin:
+// app/(app)/you/style/dna-view.tsx LinesBody.
+function LinesBody({ dna, list }: { dna: Dna; list: BriefListName }) {
+  const { addLine, removeLine } = useDnaMutations();
+  const ink = useColor('ink');
+  const faint = useColor('ink-faint');
   const [draft, setDraft] = useState('');
-  const words = twin.words[list];
   const rows: BriefLine[] = dna.brief[list];
-  const chips: readonly string[] = list === 'loves' ? [] : MUST_CHIPS[list];
-  const lineFor = (t: string) => rows.find((x) => x.text.toLowerCase() === t.toLowerCase());
-  const suggests = list === 'avoids' ? dna.observations.filter((o) => o.list === 'avoids') : [];
+  const filed = (t: string) => rows.some((x) => x.text.toLowerCase() === t.toLowerCase());
+  const chips = list === 'loves' ? [] : MUST_CHIPS[list].filter((c) => !filed(c));
+  const placeholder = rows.length ? twin.words[list].another : twin.words.first;
   const add = () => {
     const text = draft.trim();
     if (!text) return;
@@ -503,90 +429,83 @@ function WordsBody({ dna, list }: { dna: Dna; list: BriefListName }) {
     setDraft('');
   };
   return (
-    <View className="gap-4">
-      {chips.length ? (
-        <View className="gap-2">
-          <Eyebrow>
-            {list === 'rules'
-              ? `${twin.words.always} · ${twin.words.alwaysHint}`
-              : `${twin.words.never} · ${twin.words.neverHint}`}
-          </Eyebrow>
-          <View className="flex-row flex-wrap gap-2">
-            {chips.map((c) => {
-              const line = lineFor(c);
-              return (
-                <Pill
-                  key={c}
-                  selected={Boolean(line)}
-                  onPress={() =>
-                    line
-                      ? removeLine.mutate({ params: { id: line.id } })
-                      : addLine.mutate({ input: { list, text: c, chip: c } })
-                  }
-                >
-                  {c}
-                </Pill>
-              );
-            })}
-          </View>
-        </View>
-      ) : null}
-      {list !== 'loves' ? (
-        <Eyebrow>{list === 'avoids' ? twin.words.avoids.yours : twin.words.rules.yours}</Eyebrow>
-      ) : null}
-      {rows.length ? (
-        rows.map((x) => (
+    <View className="gap-6">
+      <SettingsGroup>
+        {rows.map((x) => (
           <View
             key={x.id}
-            className="flex-row items-center justify-between gap-3 border-b border-hairline"
+            className="flex-row items-center gap-2 border-hairline border-b py-1.5 pr-2 pl-5"
           >
-            <Text tone={x.source === 'typed' ? 'muted' : 'ink'} className="flex-1">
+            <Text
+              className="flex-1 py-3"
+              style={{ fontFamily: fonts.displayRegular, fontSize: 17 }}
+            >
               {x.text}
             </Text>
             <IconButton
               icon="close"
+              tone="ink-muted"
               label={twin.words.strike(x.text)}
               onPress={() => removeLine.mutate({ params: { id: x.id } })}
             />
           </View>
-        ))
-      ) : (
-        <Text size="small" tone="muted">
-          {words.empty}
-        </Text>
-      )}
-      <Field
-        label={rows.length ? words.another : twin.words.first}
-        value={draft}
-        maxLength={160}
-        onChangeText={setDraft}
-        returnKeyType="done"
-        onSubmitEditing={add}
-        onBlur={add}
-      />
-      {suggests.length ? (
-        <View className="gap-2">
-          <Eyebrow>{`${twin.words.suggests} · ${twin.words.suggestsHint}`}</Eyebrow>
-          {suggests.map((p) => (
-            <View key={p.id} className="flex-row items-center justify-between gap-3">
-              <View className="flex-1">
-                <Text>{p.text}</Text>
-                {p.because ? (
-                  <Text size="small" tone="muted">
-                    {asSentence(p.because)}
-                  </Text>
-                ) : null}
-              </View>
-              <Pill onPress={() => keep.mutate({ params: { id: p.id } })}>{twin.words.keep}</Pill>
+        ))}
+        <View className="min-h-14 flex-row items-center gap-2 py-1.5 pr-2 pl-5">
+          <TextInput
+            accessibilityLabel={placeholder}
+            placeholder={placeholder}
+            placeholderTextColor={faint}
+            value={draft}
+            maxLength={160}
+            onChangeText={setDraft}
+            returnKeyType="done"
+            onSubmitEditing={add}
+            onBlur={add}
+            className="flex-1 text-sm"
+            style={{ fontFamily: fonts.sans, color: ink, minHeight: MIN_TOUCH }}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={twin.words.add}
+            onPress={add}
+            className="items-center justify-center"
+            style={{ width: MIN_TOUCH, height: MIN_TOUCH }}
+          >
+            <View className="h-7 w-7 items-center justify-center rounded-full bg-surface-sunk">
+              <Icon name="plus" color={ink} size={14} />
             </View>
+          </Pressable>
+        </View>
+      </SettingsGroup>
+      {chips.length ? (
+        <View className="flex-row flex-wrap gap-2">
+          {chips.map((c) => (
+            <Pill
+              key={c}
+              label={twin.words.chip(c)}
+              onPress={() => addLine.mutate({ input: { list, text: c, chip: c } })}
+            >
+              {`+ ${c}`}
+            </Pill>
           ))}
         </View>
       ) : null}
-      {rows.length ? (
-        <Text size="small" tone="muted">
-          {twin.words.filed}
-        </Text>
-      ) : null}
+    </View>
+  );
+}
+
+// Your style rules: her rules (Always) and her hard nos (Never) in one sheet, one tab each.
+function StyleRulesBody({ dna }: { dna: Dna }) {
+  const [list, setList] = useState<'rules' | 'avoids'>('rules');
+  const current = list === 'rules' ? twin.words.always : twin.words.never;
+  return (
+    <View className="gap-6">
+      <Tabs
+        items={[twin.words.always, twin.words.never]}
+        value={current}
+        onChange={(item) => setList(item === twin.words.never ? 'avoids' : 'rules')}
+      />
+      <LinesBody key={list} dna={dna} list={list} />
     </View>
   );
 }

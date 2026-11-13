@@ -111,18 +111,33 @@ export function StylesStep({
   );
 }
 
-// 04 Brands (twin: mobile app/onboarding/brands.tsx): each house set as its own wordmark.
+// 04 Brands (twin: mobile app/onboarding/brands.tsx): each house set as its own wordmark. `add`
+// leads the wall with a dashed tile for a house that isn't on it (You › Style DNA › Brands).
 export function BrandsStep({
   wall,
   value,
   onToggle,
+  add,
 }: {
   wall: readonly string[];
   value: readonly string[];
   onToggle: (b: string) => void;
+  add?: { label: string; onClick: () => void };
 }) {
   return (
     <ul className="grid grid-cols-3 gap-1.5">
+      {add ? (
+        <li>
+          <button
+            type="button"
+            onClick={add.onClick}
+            className="flex h-[66px] w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-input border border-selected-line border-dashed bg-surface px-1.5 text-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          >
+            <Icon name="plus" size={14} />
+            <span className="max-w-full truncate font-sans text-[11px]">{add.label}</span>
+          </button>
+        </li>
+      ) : null}
       {wall.map((name) => {
         const on = value.includes(name);
         const m = brandMark(name);

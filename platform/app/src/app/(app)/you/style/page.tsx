@@ -4,7 +4,7 @@ import { DnaView } from './dna-view';
 
 export default function YouStylePage() {
   return (
-    <SettingsPage title={twin.dnaPage.title} back="/you" sub={twin.dnaPage.sub}>
+    <SettingsPage title={twin.dnaPage.title} back="/you">
       <DnaView />
     </SettingsPage>
   );

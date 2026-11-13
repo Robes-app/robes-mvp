@@ -119,7 +119,7 @@ export function AnalyticsSetup(): ReactElement {
     <AlertDialog
       open={consents.data?.analytics === null}
       title={copy.askTitle}
-      message={copy.analyticsHint}
+      message={copy.askBody}
       actions={[
         { label: copy.askYes, variant: 'primary', onPress: () => answer(true) },
         { label: copy.askNo, variant: 'outline', onPress: () => answer(false) },
