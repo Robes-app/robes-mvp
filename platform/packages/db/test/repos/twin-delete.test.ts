@@ -5,20 +5,23 @@ import { createRepositories, createSystemRepositories } from '../../src/repos';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 // Deleting her digital twin (Annie, 12 Nov 2026): every photo she gave for it and every twin drawn
-// from them is marked deleted, what Robes read and the facts it was drawn from are cleared, and the
-// maintenance sweep deletes the files. Nobody else's twin is touched; her looks stay.
+// from them is marked deleted, what Robes read and the facts it was drawn from are cleared. All of
+// it is held for 30 days so a delete made by mistake can be put back (owner, 13 Nov 2026); then
+// the maintenance sweep deletes the files. Nobody else's twin is touched; her looks stay.
 const db = createTestDb();
 const repos = createRepositories(db);
 const system = createSystemRepositories(db);
 let ann: UserId;
 let bea: UserId;
+let cat: UserId;
 
 beforeAll(async () => {
   ann = await createTestUser(db, 'Ann Twin');
   bea = await createTestUser(db, 'Bea Twin');
+  cat = await createTestUser(db, 'Cat Twin');
 });
 afterAll(async () => {
-  await deleteTestUsers(db, ann, bea);
+  await deleteTestUsers(db, ann, bea, cat);
   await db.destroy();
 });
 
@@ -242,7 +245,7 @@ describe('model.deleteTwin', () => {
 });
 
 describe('staleUploads.dueRemoved / discardRemoved (the sweep)', () => {
-  it('deletes what she deleted, files then row, however recent, whatever read it', async () => {
+  it('keeps what she deleted for 30 days, then deletes it, files then row, whatever read it', async () => {
     const closeUp = await photo(ann, 'headshot');
     await db
       .insertInto('generationJobs')
@@ -254,13 +257,77 @@ describe('staleUploads.dueRemoved / discardRemoved (the sweep)', () => {
       })
       .execute();
     await repos.model.deleteTwin(ann, 'web');
+    const files = vi.fn(async () => {});
+    // Inside the 30 days it can still be put back: nothing is due and nothing goes.
+    expect((await system.staleUploads.dueRemoved({ limit: 1000 })).map((a) => a.id)).not.toContain(
+      closeUp,
+    );
+    expect(await system.staleUploads.discardRemoved(ann, closeUp, files)).toBe('held');
+    expect(files).not.toHaveBeenCalled();
+    expect(await deletedAt(closeUp)).toBeInstanceOf(Date);
+
+    await db
+      .updateTable('assets')
+      .set({ deletedAt: sql`now() - interval '31 days'` })
+      .where('id', '=', closeUp)
+      .execute();
     const due = (await system.staleUploads.dueRemoved({ limit: 1000 })).map((a) => a.id);
     expect(due).toContain(closeUp);
-
-    const files = vi.fn(async () => {});
     expect(await system.staleUploads.discardRemoved(ann, closeUp, files)).toBe('discarded');
     expect(files).toHaveBeenCalledWith(ann, closeUp);
     expect(await deletedAt(closeUp)).toBe('gone');
+  });
+
+  it('puts a deleted twin back as it stood, once, at her ask', async () => {
+    const hers = await twinFor(cat);
+    await repos.model.deleteTwin(cat, 'ios');
+    expect((await repos.model.get(cat))?.twinAssetId).toBeNull();
+
+    expect(await system.twinArchives.restore(cat)).toBe(true);
+    for (const id of [hers.closeUp, hers.older, hers.replaced, hers.twin]) {
+      expect(await deletedAt(id)).toBeNull();
+    }
+    expect(await repos.assets.getForUser(cat, hers.closeUp)).toBeDefined();
+    expect(await repos.model.get(cat)).toMatchObject({
+      heightCm: 167,
+      sizeUk: 12,
+      waistCm: 72,
+      ageBand: '35_44',
+      filedCellId: 'w-s2-h1-nt',
+      twinAssetId: hers.twin,
+      headshotAssetId: hers.closeUp,
+      colourRead: true,
+    });
+    expect((await repos.model.get(cat))?.avatarPrefs).toMatchObject({ skin: 2 });
+    expect(await repos.styleProfile.get(cat)).toMatchObject({
+      season: 'Light Summer',
+      undertone: 'Neutral',
+      contrast: 'Low',
+    });
+    // Asking for it back is her yes to the twin again.
+    expect((await repos.consents.current(cat)).photo_analysis).toBe(true);
+    // One archive is one restore.
+    expect(await system.twinArchives.restore(cat)).toBe(false);
+  });
+
+  it('cannot put a twin back after its 30 days, and the sweep removes the archive', async () => {
+    await twinFor(cat);
+    await repos.model.deleteTwin(cat, 'ios');
+    await db
+      .updateTable('twinArchives')
+      .set({ createdAt: sql`now() - interval '31 days'` })
+      .where('userId', '=', cat)
+      .where('restoredAt', 'is', null)
+      .execute();
+    expect(await system.twinArchives.restore(cat)).toBe(false);
+    expect(await system.staleUploads.purgeTwinArchives()).toBeGreaterThanOrEqual(1);
+    const left = await db
+      .selectFrom('twinArchives')
+      .select('id')
+      .where('userId', '=', cat)
+      .where('restoredAt', 'is', null)
+      .execute();
+    expect(left).toEqual([]);
   });
 
   it('never touches a photo nobody deleted, nor one a row still holds', async () => {
@@ -279,7 +346,7 @@ describe('staleUploads.dueRemoved / discardRemoved (the sweep)', () => {
       .execute();
     await db
       .updateTable('assets')
-      .set({ status: 'deleted', deletedAt: sql`now()` })
+      .set({ status: 'deleted', deletedAt: sql`now() - interval '31 days'` })
       .where('id', '=', held)
       .execute();
     expect(await system.staleUploads.discardRemoved(bea, held, files)).toBe('held');

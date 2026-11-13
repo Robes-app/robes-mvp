@@ -33,6 +33,7 @@ import { styleAnalysisRepo, styleProfileRepo } from './style-profile';
 import { stylingRepo } from './styling';
 import { suggestedLooksRepo } from './suggested';
 import { tripsRepo } from './trips';
+import { twinArchivesRepo } from './twin-archives';
 import { uiStateRepo } from './ui-state';
 import { usageRepo } from './usage';
 import { waitlistRepo } from './waitlist';
@@ -102,6 +103,8 @@ export function createSystemRepositories(db: Db) {
     passedPins: passedPinsRepo(db),
     // D20: look photos uploaded and never attached.
     staleUploads: staleUploadsRepo(db),
+    // A deleted twin, held 30 days so it can be put back at her ask.
+    twinArchives: twinArchivesRepo(db),
     pushDelivery: pushDeliveryRepo(db),
     pieces: pieceAnalysisRepo(db),
     // wardrobe_pieces: her photo, her closet and the crops cut from it.

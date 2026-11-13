@@ -3,6 +3,7 @@ import { type RawBuilder, sql } from 'kysely';
 import type { Db } from '../client';
 import type { DB } from '../database.types';
 import type { UserId } from '../ids';
+import { TWIN_ARCHIVE_DAYS, twinArchivesRepo } from './twin-archives';
 import { usageRepo } from './usage';
 
 export type AssetKind =
@@ -332,13 +333,14 @@ export function staleUploadsRepo(db: Db) {
       }
     },
 
-    // Her twin's photos, marked deleted when she deleted it: due at once. Keyset-paged by id.
+    // Her twin's photos, marked deleted when she deleted it: due once the 30 days in which it can
+    // be put back are up (twin-archives.ts). Keyset-paged by id.
     dueRemoved(opts: { limit: number; afterId?: string | undefined }) {
       let q = db
         .selectFrom('assets as a')
         .select(['a.id', 'a.userId'])
         .where('a.kind', 'in', REMOVED_KINDS)
-        .where('a.deletedAt', 'is not', null)
+        .where('a.deletedAt', '<', sql<Date>`now() - make_interval(days => ${TWIN_ARCHIVE_DAYS})`)
         .where('a.userId', 'is not', null)
         .where(unheld({ jobs: false }))
         .orderBy('a.id')
@@ -347,6 +349,9 @@ export function staleUploadsRepo(db: Db) {
       if (opts.afterId) q = q.where('a.id', '>', opts.afterId);
       return q.execute();
     },
+
+    // A deleted twin's archive goes when its photographs do, its 30 days up.
+    purgeTwinArchives: () => twinArchivesRepo(db).purge(),
 
     // As discard: the row goes only while nothing holds it, and a storage failure rolls it back.
     async discardRemoved(
@@ -361,7 +366,11 @@ export function staleUploadsRepo(db: Db) {
             .where('a.id', '=', assetId)
             .where('a.userId', '=', userId)
             .where('a.kind', 'in', REMOVED_KINDS)
-            .where('a.deletedAt', 'is not', null)
+            .where(
+              'a.deletedAt',
+              '<',
+              sql<Date>`now() - make_interval(days => ${TWIN_ARCHIVE_DAYS})`,
+            )
             .where(unheld({ jobs: false }))
             .returning('a.id')
             .executeTakeFirst();

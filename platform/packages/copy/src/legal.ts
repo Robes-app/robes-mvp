@@ -19,7 +19,7 @@ export interface LegalDoc {
   contactLead: string;
 }
 
-const lastUpdated = 'Last updated 12 November 2026.';
+const lastUpdated = 'Last updated 13 November 2026.';
 
 const terms: LegalDoc = {
   title: 'Terms of use',
@@ -151,7 +151,7 @@ const privacy: LegalDoc = {
       body: [
         [
           'Your account, wardrobe, looks and style profile: for as long as your account exists. Something you remove is deleted for good after 30 days, and everything goes when you delete your account.',
-          'Your close-up, your model and the pictures of your looks rendered on it: until you delete your digital twin or your account. Their files are deleted within the hour.',
+          'Your close-up, your model and the pictures of your looks rendered on it: until you delete your digital twin or your account. A twin you delete is set aside, out of use, for 30 days in case it was a mistake — email us in that time and we will put it back — and is then deleted for good.',
           'Your location: until you change it or delete your account.',
           'The email you forward: deleted after seven days; its sender and subject are cleared 90 days after you decide on it.',
           'What Robes asked Google Gemini, and its answer: the text is cleared after 30 days. A record that a request was made, with its cost and counts but never your words, is kept for 13 months.',
