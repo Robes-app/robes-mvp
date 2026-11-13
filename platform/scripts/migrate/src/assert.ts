@@ -3,7 +3,7 @@ import { PATTERN_IDS_SQL, SHADE_IDS_SQL } from '@robes/core/colour-sql';
 import { z } from 'zod';
 import { withClient } from './db';
 import { LEGACY_TYPE_MAP } from './lookbook';
-import { CARRIED_LOOKS, SAVED_LOOKS } from './sql';
+import { CARRIED_LOOKS, CARRIED_NOTIFICATION_KINDS, SAVED_LOOKS } from './sql';
 
 export interface AssertReport {
   ok: boolean;
@@ -40,7 +40,7 @@ with expected as (
         and b.id::text = d.source_id and b.type in (${MAPPED_TYPES}))))
     group by d.user_id
   union all select 'notifications', user_id, count(*) from legacy.notifications
-    where kind in ('looks_ready','look_waiting','borrowing','five','week_empty','morning','receipt','receipt_held')
+    where kind in (${CARRIED_NOTIFICATION_KINDS},'receipt_held')
     group by user_id
   -- One email beta filed twice (same provider id) is one row on the platform, where the id is unique.
   union all select 'wardrobe_inbox', user_id, count(distinct coalesce(provider_id, id::text))
