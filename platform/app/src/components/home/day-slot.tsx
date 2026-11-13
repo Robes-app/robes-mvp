@@ -30,7 +30,7 @@ export interface DayActions {
 
 // The day on home (Felix 3a · 3k, D7): one page per look — the OOTD first, then the others — each
 // the content width on the tile radius, Swap · Edit standing half over its foot and its name
-// beneath; then the draft Robes is making for the day; and last her model with Capture · Describe
+// beneath; then the draft Robes is making for the day; and last her model with Capture · Create
 // · Pick, the way into another look (on an empty day the only page). Pager dots when there is
 // more than one. The native twin is features/home/DaySlot.tsx.
 export function DaySlot({
@@ -158,7 +158,7 @@ function EditDisc({ href, name, testId }: { href: string; name: string; testId?:
 }
 
 // The way into a look: her model on the day's photograph, the model stack at its top left until
-// her twin stands, Capture · Describe · Pick on its foot.
+// her twin stands, Capture · Create · Pick on its foot.
 function AddPage({
   dayWord,
   model,
@@ -205,11 +205,11 @@ function AddPage({
         />
         {actions.onDescribe ? (
           <ActionDisc
-            icon="describe"
-            label={copy.discs.describe}
-            ariaLabel={copy.discs.describeLabel(dayWord)}
+            primary
+            label={copy.discs.create}
+            ariaLabel={copy.discs.createLabel(dayWord)}
             onClick={actions.onDescribe}
-            testId="disc-describe"
+            testId="disc-create"
           />
         ) : null}
         <ActionDisc

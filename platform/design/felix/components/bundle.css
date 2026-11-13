@@ -48,11 +48,15 @@ body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--font-sa
 .fx-day[aria-current="date"] .fx-mark-planned{background:var(--warm-100)}
 
 /* Action disc */
-.fx-discs{display:flex;justify-content:center;gap:12px}
+.fx-discs{display:flex;justify-content:center;align-items:flex-start;gap:28px}
 .fx-disc{display:flex;flex-direction:column;align-items:center;gap:12px;width:72px;cursor:pointer;background:none;border:0;padding:0;font:inherit;-webkit-tap-highlight-color:transparent}
 .fx-disc-face{width:56px;height:56px;border-radius:50%;background:var(--cream-200);color:var(--ink-soft);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-disc);transition:color .15s}
 .fx-disc:hover .fx-disc-face{color:var(--ink)}
 .fx-disc-label{font:500 9px/1 var(--font-sans);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft)}
+.fx-disc-primary{width:80px;margin-top:-10px}
+.fx-disc-primary .fx-disc-face{width:66px;height:66px;background:var(--ink);color:var(--cream);box-shadow:var(--shadow-disc-primary)}
+.fx-disc-primary:hover .fx-disc-face{color:var(--cream)}
+.fx-disc-primary .fx-disc-label{font-weight:600;color:var(--ink)}
 
 /* Buttons */
 .fx-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;cursor:pointer;font:500 10px/1 var(--font-sans);letter-spacing:.22em;text-transform:uppercase;border-radius:var(--rad-pill);transition:opacity .15s,color .15s}

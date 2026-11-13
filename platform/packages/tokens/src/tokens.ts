@@ -263,6 +263,8 @@ export const shadow = {
   row: '0 1px 2px rgba(32, 32, 33, 0.08), 0 4px 10px -4px rgba(32, 32, 33, 0.16)',
   // Action discs on the photo's edge: a soft lift, never a dark pool (Felix, 12 Nov).
   disc: '0 4px 10px -4px rgba(32, 32, 33, 0.18), 0 1px 2px rgba(32, 32, 33, 0.08)',
+  // Home's ink Create disc stands a little further off the photo than its cream neighbours.
+  'disc-primary': '0 8px 18px -6px rgba(32, 32, 33, 0.38), 0 2px 4px rgba(32, 32, 33, 0.12)',
   // White + discs and small floating buttons.
   float: '0 6px 16px -6px rgba(32, 32, 33, 0.30)',
   // Floating sheets and popovers.
@@ -285,6 +287,7 @@ export const shadowNative = {
   row: nativeShadow(2, 5, 0.12, 2),
   // Native has no negative spread, so the disc's lift is lighter still than the web's.
   disc: nativeShadow(2, 6, 0.12, 3),
+  'disc-primary': nativeShadow(5, 12, 0.24, 6),
   float: nativeShadow(6, 16, 0.3, 6),
   sheet: nativeShadow(18, 40, 0.35, 10),
   modal: nativeShadow(18, 48, 0.28, 12),
