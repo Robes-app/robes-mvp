@@ -93,6 +93,25 @@ const CUPS = `('AA','A','B','C','D','DD','E','F','G+')`;
 
 const CATEGORIES = `('Tops','Bottoms','Dresses','Outerwear','Shoes','Bags','Accessories','Swimwear','Other')`;
 
+// Legacy snake_case keys → the NotificationPrefs contract; unknown keys dropped. `n.np` is her
+// legacy notification_prefs as an object.
+const NOTIFICATION_PREFS_FROM_LEGACY = `jsonb_strip_nulls(jsonb_build_object(
+    'looksReady', case when jsonb_typeof(n.np -> 'looks_ready') = 'boolean' then n.np -> 'looks_ready' end,
+    'morningCue', case when jsonb_typeof(n.np -> 'morning') = 'boolean' then n.np -> 'morning' end,
+    'nudges', case when jsonb_typeof(n.np -> 'nudges') = 'boolean' then n.np -> 'nudges' end,
+    'receipts', case when jsonb_typeof(n.np -> 'receipts') = 'boolean' then n.np -> 'receipts' end))`;
+
+// What a quiet arrival sets (transform.ts), and what `wake` looks for.
+export const QUIET_PREFS = `'{"looksReady": false, "morningCue": false, "nudges": false, "receipts": false}'::jsonb`;
+
+// The old app has stopped emailing her (its address now leads here): an account that arrived
+// quiet takes her own choices from beta. One she has changed since, in any way, is left alone.
+export const WAKE_SQL = `
+update app.profiles t set notification_prefs = ${NOTIFICATION_PREFS_FROM_LEGACY}
+from legacy.profiles p,
+  lateral (select case when jsonb_typeof(p.notification_prefs) = 'object' then p.notification_prefs else '{}'::jsonb end as np) n
+where t.id = p.id and t.notification_prefs = ${QUIET_PREFS};`;
+
 export const IDENTITY_SQL = `
 -- Only an account this run creates is filled from legacy below. One she already has (she signed in
 -- on the platform first, or an earlier run brought her over) keeps what it holds: Robes never
@@ -133,12 +152,7 @@ update app.profiles t set
   splurge_categories = coalesce(p.splurge_categories[1:20], '{}'),
   wardrobe_description = left(p.wardrobe_description, 2000),
   instagram_handle = case when ltrim(p.instagram_handle, '@') ~ '^[A-Za-z0-9._]{1,30}$' then ltrim(p.instagram_handle, '@') end,
-  -- Legacy snake_case keys → the NotificationPrefs contract; unknown keys dropped.
-  notification_prefs = jsonb_strip_nulls(jsonb_build_object(
-    'looksReady', case when jsonb_typeof(n.np -> 'looks_ready') = 'boolean' then n.np -> 'looks_ready' end,
-    'morningCue', case when jsonb_typeof(n.np -> 'morning') = 'boolean' then n.np -> 'morning' end,
-    'nudges', case when jsonb_typeof(n.np -> 'nudges') = 'boolean' then n.np -> 'nudges' end,
-    'receipts', case when jsonb_typeof(n.np -> 'receipts') = 'boolean' then n.np -> 'receipts' end)),
+  notification_prefs = ${NOTIFICATION_PREFS_FROM_LEGACY},
   avatar_prefs = case when jsonb_typeof(p.avatar_prefs) = 'object' then p.avatar_prefs end,
   timezone = case when exists (select 1 from pg_timezone_names z where z.name = n.np ->> 'timezone')
     then left(n.np ->> 'timezone', 64) else t.timezone end,
@@ -520,6 +534,10 @@ where d.source_type <> 'weekly' and (l.id is not null or a.id is not null)
 on conflict do nothing;
 `;
 
+// The notification kinds the platform's ledger knows. Legacy's `receipt_held` is carried as
+// `receipt`, so the gate (assert.ts) counts both on the legacy side.
+export const CARRIED_NOTIFICATION_KINDS =
+  "'looks_ready','look_waiting','borrowing','five','week_empty','morning','receipt'";
 export const COMMS_SQL = `
 -- The ledger keeps notifier idempotency across the cutover.
 insert into app.notifications (id, user_id, kind, ref, channel, sent_at)
@@ -529,7 +547,7 @@ select n.id, n.user_id,
 from legacy.notifications n
 join app.users u on u.id = n.user_id
 where (case when n.kind = 'receipt_held' then 'receipt' else n.kind end)
-  in ('looks_ready','look_waiting','borrowing','five','week_empty','morning','receipt')
+  in (${CARRIED_NOTIFICATION_KINDS})
 on conflict do nothing;
 
 -- Held receipts copy whole; decided ones keep only their outcome (reference §6.10).

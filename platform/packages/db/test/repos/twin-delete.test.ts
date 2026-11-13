@@ -2,6 +2,7 @@ import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { UserId } from '../../src/ids';
 import { createRepositories, createSystemRepositories } from '../../src/repos';
+import { TWIN_PROFILE_COLUMNS, TWIN_STYLE_COLUMNS } from '../../src/repos/twin-archives';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 // Deleting her digital twin (Annie, 12 Nov 2026): every photo she gave for it and every twin drawn
@@ -308,6 +309,34 @@ describe('staleUploads.dueRemoved / discardRemoved (the sweep)', () => {
     expect((await repos.consents.current(cat)).photo_analysis).toBe(true);
     // One archive is one restore.
     expect(await system.twinArchives.restore(cat)).toBe(false);
+  });
+
+  it('restores every column the delete clears, exactly as it stood', async () => {
+    const dee = await createTestUser(db, 'Dee Twin');
+    try {
+      await twinFor(dee);
+      // Every column a twin is made of, whatever the lists hold on the day this runs.
+      const made = async () =>
+        (
+          await sql<{ style: unknown; profile: unknown; measurements: unknown }>`
+            select
+              (select to_jsonb(x) from (select ${sql.raw(TWIN_STYLE_COLUMNS.join(', '))}
+                 from app.style_profiles where user_id = ${dee}) x) as style,
+              (select to_jsonb(x) from (select ${sql.raw(TWIN_PROFILE_COLUMNS.join(', '))}
+                 from app.profiles where id = ${dee}) x) as profile,
+              (select user_overrides -> 'measurements' from app.style_profiles
+                 where user_id = ${dee}) as measurements`.execute(db)
+        ).rows[0];
+      const before = await made();
+      await repos.model.deleteTwin(dee, 'web');
+      const cleared = await made();
+      for (const v of Object.values(cleared?.style ?? {})) expect(v).toBeNull();
+      for (const v of Object.values(cleared?.profile ?? {})) expect(v).toBeNull();
+      expect(await system.twinArchives.restore(dee)).toBe(true);
+      expect(await made()).toEqual(before);
+    } finally {
+      await deleteTestUsers(db, dee);
+    }
   });
 
   it('cannot put a twin back after its 30 days, and the sweep removes the archive', async () => {
