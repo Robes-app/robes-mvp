@@ -40,7 +40,12 @@ function deps(
     deleteObject: vi.fn(async (_key: string) => {}),
     deletePrefix: vi.fn(async (_prefix: string) => 3),
   };
-  return { uploads: { due, discard, dueRemoved, discardRemoved }, storage, logger: logger() };
+  const purgeTwinArchives = vi.fn(async () => 0);
+  return {
+    uploads: { due, discard, dueRemoved, discardRemoved, purgeTwinArchives },
+    storage,
+    logger: logger(),
+  };
 }
 
 describe('sweepStaleUploads', () => {

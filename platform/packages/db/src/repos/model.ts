@@ -164,11 +164,69 @@ export function modelRepo(db: Db) {
           ]);
         const pictured = await trx
           .selectFrom('looks')
-          .select(['renderAssetId', 'frameAssetId'])
+          .select([
+            'id',
+            'renderAssetId',
+            'renderKey',
+            'renderStatus',
+            'frameAssetId',
+            'frameKey',
+            'stoodOn',
+          ])
           .where('userId', '=', userId)
           .where(onTwin)
           .forUpdate()
           .execute();
+        const twins = [
+          ...drawn.rows.map((r) => r.id),
+          ...pictured.flatMap((l) => [l.renderAssetId, l.frameAssetId]).filter((id) => id !== null),
+        ].map((id) => id.toLowerCase());
+        const goes = (eb: ExpressionBuilder<DB, 'assets'>) =>
+          eb.or([
+            eb('kind', 'in', ['headshot', 'full_length']),
+            ...(twins.length > 0
+              ? [eb.and([eb('kind', '=', 'generated'), eb(sql`id::text`, 'in', twins)])]
+              : []),
+          ]);
+        const going = await trx
+          .selectFrom('assets')
+          .select(['id', 'status'])
+          .where('userId', '=', userId)
+          .where('deletedAt', 'is', null)
+          .where(goes)
+          .forUpdate()
+          .execute();
+        // Held for 30 days in case she deleted it by mistake (owner, 13 Nov 2026): everything
+        // cleared below, as it stood, so twinArchivesRepo.restore can put it back at her ask. Her
+        // photographs wait the same 30 days (staleUploads.dueRemoved). Nothing reads the archive
+        // but that restore, and the sweep removes it when its days are up.
+        await sql`
+          insert into app.twin_archives (user_id, snapshot)
+          select ${userId}, jsonb_build_object(
+            'assets', ${JSON.stringify(going)}::jsonb,
+            'avatar', (select to_jsonb(a) from app.avatars a where a.user_id = ${userId}),
+            'style', (select to_jsonb(x) from (
+              select s.headshot_asset_id, s.full_length_asset_id, s.season, s.undertone, s.contrast,
+                s.color_harmony, s.colour_render, s.body_type, s.silhouette_proportions,
+                s.silhouette_render, s.user_overrides -> 'measurements' as measurements
+              from app.style_profiles s where s.user_id = ${userId}) x),
+            'profile', (select to_jsonb(x) from (
+              select p.height_cm, p.size_uk, p.bust_band, p.bust_cup, p.bust_cm, p.waist_cm,
+                p.avatar_prefs
+              from app.profiles p where p.id = ${userId}) x),
+            'looks', ${JSON.stringify(
+              pictured.map((l) => ({
+                id: l.id,
+                render_asset_id: l.renderAssetId,
+                render_key: l.renderKey,
+                render_status: l.renderStatus,
+                frame_asset_id: l.frameAssetId,
+                frame_key: l.frameKey,
+                stood_on: l.stoodOn,
+              })),
+            )}::jsonb)
+          where ${going.length > 0}
+            or exists (select 1 from app.avatars a where a.user_id = ${userId})`.execute(trx);
         await trx
           .updateTable('looks')
           .set({
@@ -190,23 +248,12 @@ export function modelRepo(db: Db) {
           .where('userId', '=', userId)
           .where('renderKey', 'like', 'twin:%')
           .execute();
-        const twins = [
-          ...drawn.rows.map((r) => r.id),
-          ...pictured.flatMap((l) => [l.renderAssetId, l.frameAssetId]).filter((id) => id !== null),
-        ].map((id) => id.toLowerCase());
         await trx
           .updateTable('assets')
           .set({ status: 'deleted', deletedAt: sql`now()` })
           .where('userId', '=', userId)
           .where('deletedAt', 'is', null)
-          .where((eb) =>
-            eb.or([
-              eb('kind', 'in', ['headshot', 'full_length']),
-              ...(twins.length > 0
-                ? [eb.and([eb('kind', '=', 'generated'), eb(sql`id::text`, 'in', twins)])]
-                : []),
-            ]),
-          )
+          .where(goes)
           .execute();
         await trx.deleteFrom('avatars').where('userId', '=', userId).execute();
         await trx

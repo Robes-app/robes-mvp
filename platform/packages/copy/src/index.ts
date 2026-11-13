@@ -1739,7 +1739,9 @@ export const twin = {
       photo: 'Delete my photograph',
       photoNote: 'Removes your photograph and measurements, and stops your model being built.',
       title: 'Delete your digital twin?',
-      body: 'Your photograph, model and measurements will be removed. This can’t be undone.',
+      // A deleted twin can be put back for 30 days, at her ask by email (owner, 13 Nov), so this
+      // no longer says it can't be undone. TODO(founders): Annie's line to rewrite if she wants.
+      body: 'Your photograph, model and measurements will be removed.',
       confirm: 'Delete',
       keep: 'Keep it',
     },

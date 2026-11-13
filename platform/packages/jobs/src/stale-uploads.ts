@@ -52,7 +52,8 @@ export async function sweepStaleUploads(
     if (due.length < STALE_UPLOADS_PAGE) break;
   }
   // Her twin's photos and the twins drawn from them, deleted at her ask (model.deleteTwin): their
-  // files go on the next run, whatever their age.
+  // files go once the 30 days in which the twin can be put back are up, with its archive.
+  await deps.uploads.purgeTwinArchives();
   afterId = undefined;
   for (let page = 0; page < (deps.maxPages ?? 20); page++) {
     const due = await deps.uploads.dueRemoved({ limit: STALE_UPLOADS_PAGE, afterId });
