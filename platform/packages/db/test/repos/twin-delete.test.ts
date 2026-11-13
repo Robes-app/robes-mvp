@@ -75,7 +75,12 @@ async function twinFor(userId: UserId) {
     assetId: closeUp,
     modelVersion: 'style.colour.v1',
   });
-  await repos.styleDna.setFacts(userId, { heightCm: 167, sizeUk: 12, waistCm: 72 });
+  await repos.styleDna.setFacts(userId, {
+    heightCm: 167,
+    sizeUk: 12,
+    waistCm: 72,
+    ageBand: '35_44',
+  });
   await repos.model.savePicks(userId, { skin: 2, adj: { shoulders: null, bust: 1, hips: 0 } });
   await repos.model.file(userId, 'w-s2-h1-nt', { source: 'hand' });
   await repos.model.claimTwin(userId, 'k1');
@@ -105,8 +110,15 @@ describe('model.deleteTwin', () => {
       headshotAssetId: null,
       colourRead: false,
       genderIdentity: expect.anything(),
+      // Her age is given under Style DNA › You, not for her twin: it stays.
+      ageBand: '35_44',
     });
-    expect((await repos.styleProfile.get(ann))?.season).toBeNull();
+    // Her season was read from her photograph: it goes with it.
+    expect(await repos.styleProfile.get(ann)).toMatchObject({
+      season: null,
+      undertone: null,
+      contrast: null,
+    });
     expect((await repos.consents.current(ann)).photo_analysis).toBe(false);
 
     // Bea's twin stands untouched.
