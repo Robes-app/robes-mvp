@@ -1,10 +1,12 @@
 import { isLocal, targetId } from '../db';
-import { resetTarget } from '../reset';
+import { refuseProductionWipe, resetTarget } from '../reset';
 import { cliTarget, flag, print } from './args';
 
-// pnpm migrate:reset --confirm-wipe — deletes every user in the target (and all she owns).
-// A remote target also needs --target=production|staging, ROBES_MIGRATE_<TARGET>=<user@host> (db.ts),
-// and the same user@host typed again into the wipe: --confirm-wipe=<user@host>.
+// pnpm migrate:reset --confirm-wipe — deletes every user in the target (and all she owns). Local
+// rehearsals and staging only: production refuses. Staging also needs --target=staging,
+// ROBES_MIGRATE_STAGING=<user@host> (db.ts), and the same user@host typed again into the wipe:
+// --confirm-wipe=<user@host>.
+refuseProductionWipe(flag('target'));
 const target = cliTarget();
 const confirm = flag('confirm-wipe');
 const host = targetId(target);

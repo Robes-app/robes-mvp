@@ -1,9 +1,16 @@
 import type { DiaryDay, PlanEntry, Today } from '@robes/contracts';
 import { diary, filters, today as todayCopy, ui } from '@robes/copy';
 import { diaryWindow } from '@robes/core/calendar';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { DiaryHome } from '../src/features/home/DiaryHome';
-import { dayWordOf, drawerCta, drawerLine, whenWord } from '../src/features/home/diary';
+import {
+  dayWordOf,
+  drawerCta,
+  drawerLine,
+  fitPageWidth,
+  MIN_PAGE_WIDTH,
+  whenWord,
+} from '../src/features/home/diary';
 import { mockFetch, renderWithApi } from './support/api';
 import { LOOK_ID, look, modelData } from './support/fixtures';
 import { mockRouter } from './support/router';
@@ -236,6 +243,42 @@ test('an empty day: her model with Capture · Describe · Pick; Pick opens the d
   expect(await screen.findByText(filters.noLooks)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: filters.clear }));
   expect(screen.getByRole('button', { name: diary.drawer.schedule(1) })).toBeTruthy();
+});
+
+// Felix, 12 Nov: Home opened with a scroll. A page stands full width while it fits the room left
+// under the strip, and narrows (still 4:5, centred) where it would not.
+test('a day’s page keeps its width while it fits, and narrows to the room left where it would not', () => {
+  expect(fitPageWidth(350, null, 60)).toBe(350);
+  expect(fitPageWidth(350, 600, null)).toBe(350);
+  // 350 wide is a 437.5 photograph: with 60 under it, 600 is room enough.
+  expect(fitPageWidth(350, 600, 60)).toBe(350);
+  // 456 of room less 60 under it leaves 396 for the photograph: 316 wide.
+  expect(fitPageWidth(350, 456, 60)).toBe(316);
+  // Never a stamp: a page narrows no further than the floor.
+  expect(fitPageWidth(350, 120, 60)).toBe(MIN_PAGE_WIDTH);
+  expect(fitPageWidth(200, 120, 60)).toBe(200);
+});
+
+test('Home measures the room under the strip and the empty day’s page fits it', async () => {
+  mockFetch({
+    ...ROUTES,
+    'GET /plan': { from: EMPTY, to: EMPTY, days: [{ date: EMPTY, name: null, entries: [] }] },
+  });
+  await renderWithApi(<DiaryHome day={EMPTY} />);
+  const page = await screen.findByTestId('add-page');
+  const full = page.props.style.width;
+  const layout = (height: number, y = 0) => ({
+    nativeEvent: { layout: { x: 0, y, width: full + 40, height } },
+  });
+  await act(async () => {
+    fireEvent(screen.getByTestId('diary-home'), 'layout', layout(600));
+    fireEvent(screen.getByTestId('day-slot-room'), 'layout', layout(0, 120));
+    // The slot: its photograph, and 60 under it.
+    const slot = screen.getByTestId('day-slot').parent;
+    if (slot) fireEvent(slot, 'layout', layout(full * 1.25 + 60));
+  });
+  // 600 less 120 above, 24 below and 60 under the photograph: 396 for a 4:5 photograph.
+  await waitFor(() => expect(screen.getByTestId('add-page').props.style.width).toBe(316));
 });
 
 test('Capture opens the camera for the day', async () => {

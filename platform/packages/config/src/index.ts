@@ -169,6 +169,13 @@ export const appServerEnv = z
       .optional(),
     GOOGLE_CLIENT_ID: optionalSecret,
     GOOGLE_CLIENT_SECRET: optionalSecret,
+    // The App Review account (runbooks/environments.md §3): one unguessable address that signs in
+    // with this fixed code and is sent no email. Both or neither.
+    REVIEW_EMAIL: z.email().optional(),
+    REVIEW_CODE: z
+      .string()
+      .regex(/^\d{6}$/)
+      .optional(),
     MAIL_FROM: z.string().min(3).default('Robes <hello@byrobes.com>'),
     // Local mail catcher; deployed environments send through SES (ADR-021).
     SMTP_URL: z.url().optional(),
@@ -300,6 +307,13 @@ export const appServerEnv = z
         code: 'custom',
         path: ['GOOGLE_CLIENT_SECRET'],
         message: 'Google needs id and secret',
+      });
+    }
+    if (Boolean(env.REVIEW_EMAIL) !== Boolean(env.REVIEW_CODE)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['REVIEW_CODE'],
+        message: 'the review account needs its address and its code',
       });
     }
     if (env.APP_ENV === 'production') {

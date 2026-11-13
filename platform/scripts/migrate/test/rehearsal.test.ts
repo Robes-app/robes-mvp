@@ -456,6 +456,18 @@ describe.skipIf(!legacySchemaPresent())(
       );
     });
 
+    it('carries once a receipt beta holds twice (one email delivered twice)', async () => {
+      const { report } = await rehearse(`
+      insert into public.wardrobe_inbox (id, user_id, retailer, provider_id, status, received_at) values
+        ('99999999-0000-4000-8000-0000000000a1', '${NIALL}', 'Zara', 'msg-twice', 'held', '2026-10-26'),
+        ('99999999-0000-4000-8000-0000000000a2', '${NIALL}', 'Zara', 'msg-twice', 'held', '2026-10-26');`);
+      expect(report.failures).toEqual([]);
+      const kept = await one<{ n: number }>(
+        `select count(*)::int as n from app.wardrobe_inbox where provider_id = 'msg-twice'`,
+      );
+      expect(kept.n).toBe(1);
+    });
+
     it('copes with a legacy database where later migrations never ran', async () => {
       const { extracted, report } = await rehearse(`
       alter table public.wardrobe_items drop column season_band, drop column season_source;
@@ -471,6 +483,149 @@ describe.skipIf(!legacySchemaPresent())(
       );
       expect(jeans).toEqual({ season_band: 'spring_summer', season_source: 'user' });
       expect(legacyTableName('auth.users')).toBe('auth_users');
+    });
+
+    it('copies only the people named, and stops on an address legacy does not know', async () => {
+      await recreateDatabase(LEGACY);
+      await buildLegacyFixture(legacyUrl);
+      targetUrl = await recreateTarget(TARGET);
+      await expect(
+        extract(legacyUrl, targetUrl, { only: ['bea@legacy.test', 'nobody@legacy.test'] }),
+      ).rejects.toThrow('no legacy account for: nobody@legacy.test');
+      // Refused before anything was copied.
+      const copy = await one<{ n: number }>(
+        `select count(*)::int as n from information_schema.schemata where schema_name = 'legacy'`,
+      );
+      expect(copy.n).toBe(0);
+
+      const extracted = await extract(legacyUrl, targetUrl, { only: [' Bea@Legacy.test '] });
+      expect(extracted.tables['auth.users']?.rows).toBe(1);
+      expect(extracted.merged).toBe(0);
+      // Nobody else's rows are in the copy, in any table that names its owner.
+      const others = await withClient(targetUrl, async (c) => {
+        const { rows } = await c.query<{ table_name: string }>(
+          `select table_name from information_schema.columns
+           where table_schema = 'legacy' and column_name = 'user_id'`,
+        );
+        let n = 0;
+        for (const { table_name } of rows) {
+          const r = await c.query<{ n: number }>(
+            `select count(*)::int as n from legacy."${table_name}" where user_id is distinct from $1`,
+            [BEA],
+          );
+          n += r.rows[0]?.n ?? 0;
+        }
+        return n;
+      });
+      expect(others).toBe(0);
+
+      await transform(targetUrl);
+      expect((await assertMigration(targetUrl)).failures).toEqual([]);
+      const users = await withClient(targetUrl, (c) => c.query('select id::text from app.users'));
+      expect(users.rows).toEqual([{ id: BEA }]);
+    });
+
+    it('adds her beta data to the account she already has, and overwrites nothing in it', async () => {
+      await recreateDatabase(LEGACY);
+      await buildLegacyFixture(legacyUrl);
+      targetUrl = await recreateTarget(TARGET);
+      // She signed in on the platform before her beta data came: same email, another id, a name
+      // and a Hero Rack piece of her own.
+      const HERS = '66666666-6666-4666-8666-666666666666';
+      const OWN_PIECE = '77777777-7777-4777-8777-777777777777';
+      await withClient(targetUrl, async (c) => {
+        await c.query(
+          `insert into app.users (id, email, name) values ($1, 'niall@legacy.test', 'N')`,
+          [HERS],
+        );
+        await c.query(`update app.profiles set first_name = 'Chosen' where id = $1`, [HERS]);
+        await c.query(
+          `insert into app.wardrobe_items (id, user_id, label, hero_position) values ($1, $2, 'Her new coat', 1)`,
+          [OWN_PIECE, HERS],
+        );
+      });
+
+      const extracted = await extract(legacyUrl, targetUrl, { only: ['niall@legacy.test'] });
+      expect(extracted.merged).toBe(1);
+      const firstRun = await transform(targetUrl);
+      expect(firstRun.inserted.wardrobe).toBeGreaterThan(0);
+      expect((await assertMigration(targetUrl)).failures).toEqual([]);
+
+      // One account, still the one she had, with what she set in it.
+      const users = await withClient(targetUrl, (c) =>
+        c.query('select id::text, name from app.users'),
+      );
+      expect(users.rows).toEqual([{ id: HERS, name: 'N' }]);
+      const profile = await one<{ first_name: string }>(
+        'select first_name from app.profiles where id = $1',
+        [HERS],
+      );
+      expect(profile.first_name).toBe('Chosen');
+      // Her beta pieces sit beside her own, and her Hero Rack place is still her own piece's.
+      const pieces = await one<{ beta: number; own: number; hero: string }>(
+        `select (select count(*)::int from app.wardrobe_items where user_id = $1 and id in (select id from legacy.wardrobe_items)) as beta,
+                (select count(*)::int from app.wardrobe_items where user_id = $1 and id = $2) as own,
+                (select id::text from app.wardrobe_items where user_id = $1 and hero_position = 1) as hero`,
+        [HERS, OWN_PIECE],
+      );
+      expect(pieces.beta).toBeGreaterThan(0);
+      expect(pieces.own).toBe(1);
+      expect(pieces.hero).toBe(OWN_PIECE);
+
+      // A second run adds nothing and changes nothing she has edited since.
+      await withClient(targetUrl, (c) =>
+        c.query(`update app.profiles set first_name = 'Edited' where id = $1`, [HERS]),
+      );
+      await extract(legacyUrl, targetUrl, { only: ['niall@legacy.test'] });
+      const again = await transform(targetUrl);
+      expect(Object.values(again.inserted).every((n) => n === 0)).toBe(true);
+      const after = await one<{ first_name: string }>(
+        'select first_name from app.profiles where id = $1',
+        [HERS],
+      );
+      expect(after.first_name).toBe('Edited');
+    });
+
+    it('a quiet arrival: accounts the run creates start with every notification off', async () => {
+      await recreateDatabase(LEGACY);
+      await buildLegacyFixture(legacyUrl);
+      targetUrl = await recreateTarget(TARGET);
+      // She is already on the platform with her own settings: a quiet arrival is not for her.
+      const HERS = '66666666-6666-4666-8666-666666666666';
+      await withClient(targetUrl, async (c) => {
+        await c.query(`insert into app.users (id, email) values ($1, 'niall@legacy.test')`, [HERS]);
+        await c.query(
+          `update app.profiles set notification_prefs = '{"morningCue": true}' where id = $1`,
+          [HERS],
+        );
+      });
+      await extract(legacyUrl, targetUrl);
+      await transform(targetUrl, { quietArrival: true });
+      const prefs = await withClient(targetUrl, (c) =>
+        c.query<{ id: string; p: Record<string, boolean> }>(
+          'select id::text, notification_prefs as p from app.profiles order by id',
+        ),
+      );
+      const off = { looksReady: false, morningCue: false, nudges: false, receipts: false };
+      expect(Object.fromEntries(prefs.rows.map((r) => [r.id, r.p]))).toEqual({
+        [BEA]: off,
+        [CAT]: off,
+        [HERS]: { morningCue: true },
+      });
+    });
+
+    it('never refills a migrated profile she has edited on the platform since', async () => {
+      await rehearse();
+      await withClient(targetUrl, (c) =>
+        c.query(`update app.profiles set first_name = 'Renamed' where id = $1`, [NIALL]),
+      );
+      await extract(legacyUrl, targetUrl);
+      await transform(targetUrl);
+      const profile = await one<{ first_name: string }>(
+        'select first_name from app.profiles where id = $1',
+        [NIALL],
+      );
+      expect(profile.first_name).toBe('Renamed');
     });
 
     it('reset wipes a test copy so the cutover run copies the legacy app fresh', async () => {

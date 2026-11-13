@@ -139,6 +139,10 @@ function twinSetup(
     }),
     putObject: vi.fn(async (_key: string) => {}),
   };
+  const styling = {
+    createGeneratedAsset: vi.fn(async () => TWIN_ASSET),
+    discardGenerated: vi.fn(async () => {}),
+  };
   const handler = createAvatarCellHandler({
     ai,
     storage: { putObject: vi.fn(async () => {}) },
@@ -147,7 +151,7 @@ function twinSetup(
     twin: {
       storage,
       model: model as never,
-      styling: { createGeneratedAsset: vi.fn(async () => TWIN_ASSET) },
+      styling,
       waits: { photoMs: 5_000, readMs: early.readMs ?? 5_000, pollMs: 1 },
     },
   });
@@ -160,13 +164,13 @@ function twinSetup(
       writeStage: vi.fn(async () => {}),
       isCancelled: async () => false,
     });
-  return { run, generateImage, model, storage };
+  return { run, generateImage, model, storage, styling };
 }
 
 describe('avatar_cell · her twin', () => {
   it('draws her from her close-up and her line, and lands it on her own row', async () => {
     const key = await twinKey(twinInputsOf(her));
-    const { run, generateImage, model, storage } = twinSetup();
+    const { run, generateImage, model, storage, styling } = twinSetup();
     await expect(run(key)).resolves.toEqual({ status: 'succeeded' });
     const req = generateImage.mock.calls[0]?.[0];
     expect(req?.references).toHaveLength(1);
@@ -179,6 +183,15 @@ describe('avatar_cell · her twin', () => {
     expect(model.setTwin).toHaveBeenCalledWith(USER, key, TWIN_ASSET);
     // Asked for by the app, the draw already stood her on it (drawTwin).
     expect(model.standOnTwin).not.toHaveBeenCalled();
+    expect(styling.discardGenerated).not.toHaveBeenCalled();
+  });
+
+  it('discards a twin that lands after she deleted hers (or asked for another)', async () => {
+    const key = await twinKey(twinInputsOf(her));
+    const { run, model, styling } = twinSetup();
+    model.setTwin.mockResolvedValueOnce(false);
+    await expect(run(key)).resolves.toEqual({ status: 'succeeded' });
+    expect(styling.discardGenerated).toHaveBeenCalledWith(USER, TWIN_ASSET);
   });
 
   it('draws in words alone when the close-up cannot be read', async () => {

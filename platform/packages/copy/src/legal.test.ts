@@ -4,7 +4,7 @@ import { legal } from './legal';
 
 describe('legal docs', () => {
   it('carries the date the text was last updated', () => {
-    expect(legal.lastUpdated).toContain('4 November 2026');
+    expect(legal.lastUpdated).toContain('13 November 2026');
   });
 
   it.each(Object.entries(legal.docs))('%s has real sections, not the placeholder', (_, doc) => {

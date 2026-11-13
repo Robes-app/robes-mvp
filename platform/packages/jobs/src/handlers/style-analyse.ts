@@ -91,7 +91,8 @@ export function createStyleAnalyseHandler(deps: StyleAnalyseDeps): JobHandler {
         const data = await read(ColourOutput, COLOUR_PROMPT);
         if (data.no_face_detected) return noSubject(ctx, kind);
         const { render, dna } = buildColorHarmony(data);
-        await deps.profiles.saveColour(ctx.userId, {
+        // Her photo deleted with her twin while it was read: nothing lands.
+        const saved = await deps.profiles.saveColour(ctx.userId, {
           season: dna.archetype_name,
           undertone: dna.verified_undertone,
           contrast: dna.calculated_contrast,
@@ -100,18 +101,20 @@ export function createStyleAnalyseHandler(deps: StyleAnalyseDeps): JobHandler {
           assetId,
           modelVersion,
         });
+        if (!saved) throw new JobError('asset_missing');
         await ctx.writeStage('text', { styleKind: kind, archetype: dna.archetype_name });
       } else {
         const data = await read(SilhouetteOutput, SILHOUETTE_PROMPT);
         if (data.no_person_detected) return noSubject(ctx, kind);
         const { render, dna } = buildSilhouette(data);
-        await deps.profiles.saveSilhouette(ctx.userId, {
+        const saved = await deps.profiles.saveSilhouette(ctx.userId, {
           bodyType: dna.body_type,
           dna,
           render,
           assetId,
           modelVersion,
         });
+        if (!saved) throw new JobError('asset_missing');
         await ctx.writeStage('text', { styleKind: kind, archetype: dna.body_type });
       }
       return { status: 'succeeded' };

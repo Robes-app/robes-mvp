@@ -132,19 +132,39 @@ function markFont(m: BrandMark): string {
 }
 
 // 04 Brands (twin: BrandsStep): each house set as its own wordmark, on one line (the few too
-// long for it stack on purpose), in ink whether chosen or not.
+// long for it stack on purpose), in ink whether chosen or not. `add` leads the wall with a dashed
+// tile for a house that isn't on it (You › Style DNA › Brands).
 export function BrandsStep({
   wall,
   value,
   onToggle,
+  add,
 }: {
   wall: readonly string[];
   value: readonly string[];
   onToggle: (b: string) => void;
+  add?: { label: string; onPress: () => void };
 }) {
   const ink = useColor('ink');
   return (
     <View className="flex-row flex-wrap gap-1.5">
+      {add ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={add.label}
+          onPress={add.onPress}
+          className="h-[66px] basis-[31%] grow items-center justify-center gap-1 overflow-hidden rounded-input border border-selected-line border-dashed bg-surface px-1.5"
+        >
+          <Icon name="plus" size={14} color={ink} />
+          <RNText
+            maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+            numberOfLines={1}
+            style={{ color: ink, fontFamily: fonts.sans, fontSize: 11 }}
+          >
+            {add.label}
+          </RNText>
+        </Pressable>
+      ) : null}
       {wall.map((name) => {
         const on = value.includes(name);
         const m = brandMark(name);

@@ -19,6 +19,12 @@ export const FORM_SHEET: {
   sheetCornerRadius: 22,
 };
 
+// A form sheet's own frame must never be flattened away. react-native-screens looks for a ScrollView
+// among the sheet's top views and, finding it third (after a head), stretches it over the whole
+// sheet: over the head and under the foot, so the draft's prompt box sat under Style it and would
+// not scroll (Annie, Felix, 12 Nov). Every view between the sheet and its ScrollView carries
+// `collapsable={false}`, so the ScrollView keeps the frame our layout gives it.
+
 // The draft look's sheet (Felix DraftLook, D14): the same bottom-edge presentation at full height,
 // 24pt under the top edge, so it stands over whatever started it. Twin of the web Drawer.
 export const DRAFT_SHEET: typeof FORM_SHEET = { ...FORM_SHEET, sheetAllowedDetents: [1] };
@@ -30,7 +36,7 @@ export function FormSheetScreen({ title, children }: { title: string; children: 
   const router = useRouter();
   const insets = useSafeAreaInsets();
   return (
-    <View className="flex-1 bg-bg" style={{ paddingBottom: insets.bottom }}>
+    <View collapsable={false} className="flex-1 bg-bg" style={{ paddingBottom: insets.bottom }}>
       <View aria-hidden className="mt-2 h-1 w-9 self-center rounded-pill bg-rule-mid" />
       <View className="h-11 flex-row items-center px-3">
         <IconButton icon="close" label={ui.close} onPress={() => router.back()} />
@@ -39,7 +45,9 @@ export function FormSheetScreen({ title, children }: { title: string; children: 
         </Heading>
         <View className="w-11" />
       </View>
-      <View className="flex-1">{children}</View>
+      <View collapsable={false} className="flex-1" testID="form-sheet-body">
+        {children}
+      </View>
     </View>
   );
 }

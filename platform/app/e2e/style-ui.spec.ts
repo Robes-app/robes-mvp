@@ -29,12 +29,17 @@ test('a close-up reads her colouring; on Colouring, she picks the season next do
     'false',
   );
   await expect(page.getByText('Your close-up')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Add a selfie' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add a close-up' })).toBeVisible();
   // The selfie camera (designs 03–05): her photos a tap away, then the review. No camera here,
   // so the viewfinder says so and her photos still work. Use photo reads her colouring and lands
   // on Your digital twin while the read runs; then Colouring shows the season.
-  await page.getByRole('button', { name: 'Add a selfie' }).click();
+  await page.getByRole('button', { name: 'Add a close-up' }).click();
   await expect(page).toHaveURL(/\/you\/selfie$/);
+  // Her yes comes first (App Store 5.1.2): the camera opens only once the box is ticked.
+  await expect(page.getByTestId('twin-consent')).toContainText('Google Gemini');
+  await expect(page.getByRole('button', { name: 'Take my close-up' })).toBeDisabled();
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Take my close-up' }).click();
   await expect(page.getByText('Hair back · No glasses · Chin level')).toBeVisible();
   await page.getByTestId('selfie-photos-input').setInputFiles(PHOTO);
   await expect(page.getByTestId('selfie-review')).toBeVisible();

@@ -144,6 +144,35 @@ test('its last row sits above the home indicator, and rides the keyboard without
   jest.restoreAllMocks();
 });
 
+// Felix, 12 Nov: the floating and glass sheets stood 8pt off the sides and bottom and read as
+// detached. Every sheet stands on the bottom edge, edge to edge, its top corners rounded, its last
+// row above the home indicator.
+test.each([
+  ['floating', { floating: true }],
+  ['glass', { glass: { title: 'Add pieces' } }],
+])('a %s sheet stands on the bottom edge', async (_, variant) => {
+  await render(
+    <SafeAreaProvider
+      initialMetrics={{
+        frame: { x: 0, y: 0, width: 390, height: 844 },
+        insets: { top: 47, left: 0, right: 0, bottom: 34 },
+      }}
+    >
+      <Sheet open onClose={() => {}} {...variant}>
+        <Text>Anchored</Text>
+      </Sheet>
+    </SafeAreaProvider>,
+  );
+  expect(await screen.findByText('Anchored')).toBeTruthy();
+  const style = panelStyle('Anchored');
+  expect(style).toEqual(expect.objectContaining({ paddingBottom: 24 + 34 }));
+  expect(style?.borderBottomWidth).toBeUndefined();
+  expect(style?.marginHorizontal).toBeUndefined();
+  expect(style?.marginBottom).toBeUndefined();
+  expect(style?.borderWidth).toBeUndefined();
+  expect(style?.shadowOpacity).toBeUndefined();
+});
+
 test('without a home indicator it keeps its own padding', async () => {
   await render(
     <Sheet open onClose={() => {}}>

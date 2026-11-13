@@ -235,6 +235,10 @@ export const Look = z.object({
   // The picture was drawn for another rack than the one on the look now (plan 2026-11-03 §1.4):
   // the draft reads stale until she asks for the model again, or saves. Defaulted for older servers.
   pictureStale: z.boolean().default(false),
+  // Robes' picture was drawn on a model other than the one her looks stand on now (her twin
+  // created, redrawn or deleted, or another Robes model chosen): opening the look draws it again
+  // on her model (useDressOnOpen). Defaulted for older servers.
+  modelStale: z.boolean().default(false),
   // Robes' picture stands on a Robes model, not on her (plan 2026-11-05 §2.4): the look wears the
   // `Robes model` tag. Read from what the picture was drawn on, never from her account.
   onRobesModel: z.boolean().default(false),

@@ -3,6 +3,13 @@
 Update 2026-11-07: the women's five are Annie's chosen portraits, preloaded at style v2
 (`runbooks/robes-models.md`); the lineup leads with the chosen one; gender and age moved from Body
 shape to Style DNA › You, so a Robes model can change wearer.
+Update 2026-11-12: the camera row reads *Create your digital twin* alone, and **Delete my digital
+twin** sits under the lineup once anything of hers is on file (design "Your model · Delete twin";
+`DeleteTwin` web/native, `DELETE /me/model/twin`, `model.deleteTwin`). Her wearer's five are
+drawn at onboarding and on landing on her model, so a man's lineup is never empty. A saved look
+whose picture stands on a model she no longer stands on (`Look.modelStale`) is drawn again on hers
+when opened (`dressOnOpen`, `@robes/core/looks`); lists keep the picture until then. Deleting her
+twin takes the pictures drawn on it at once.
 Status: plan, 2026-11-05 (Annie + Claude). Not started. Owner: Annie.
 Web (staging.byrobes.com) and native (Expo) land together (CLAUDE.md). Platform only; the legacy
 beta app is untouched.

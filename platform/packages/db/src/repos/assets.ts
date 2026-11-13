@@ -3,6 +3,7 @@ import { type RawBuilder, sql } from 'kysely';
 import type { Db } from '../client';
 import type { DB } from '../database.types';
 import type { UserId } from '../ids';
+import { TWIN_ARCHIVE_DAYS, twinArchivesRepo } from './twin-archives';
 import { usageRepo } from './usage';
 
 export type AssetKind =
@@ -68,7 +69,9 @@ const snake = (name: string) => name.replace(/[A-Z]/g, (c) => `_${c.toLowerCase(
 // True while nothing holds asset `a` (callers alias app.assets as `a`): no column above, no job
 // that was handed it (a photo read's input and output), no idea's frame. One `not exists` per
 // place, so Postgres can anti-join them.
-function unheld(): RawBuilder<boolean> {
+// A photo she deleted outright (her twin's, REMOVED_KINDS) is held by rows alone: the jobs that
+// read or drew it are history, and must not keep its files.
+function unheld(opts: { jobs: boolean } = { jobs: true }): RawBuilder<boolean> {
   const checks = Object.entries(ASSET_ID_COLUMNS).map(([ref, scope]) => {
     const [table, column] = ref.split('.').map(snake) as [string, string];
     const col = sql.id('r', column);
@@ -80,6 +83,7 @@ function unheld(): RawBuilder<boolean> {
           : sql`${col} = a.id`;
     return sql`not exists (select 1 from ${sql.id('app', table)} r where ${match})`;
   });
+  if (!opts.jobs) return sql<boolean>`(${sql.join(checks, sql` and `)})`;
   checks.push(
     sql`not exists (select 1 from app.generation_jobs r where r.user_id = a.user_id and a.id::text in (lower(r.input ->> 'assetId'), lower(r.output ->> 'assetId')))`,
     sql`not exists (select 1 from app.artifacts r where r.user_id = a.user_id and r.data -> 'images' @> jsonb_build_array(jsonb_build_object('assetId', a.id::text)))`,
@@ -89,6 +93,8 @@ function unheld(): RawBuilder<boolean> {
 
 // Only a look photo is ever discarded (D20: picked in image mode, never accepted).
 const DISCARDABLE = 'look_photo';
+// What deleting her twin marks deleted (model.deleteTwin): her photos and the twins drawn from them.
+const REMOVED_KINDS = ['headshot', 'full_length', 'generated'] as const;
 
 export type DiscardOutcome = 'discarded' | 'held' | 'not_found';
 // Removes the asset's files; runs once its row is deleted, before the deletion commits.
@@ -322,6 +328,57 @@ export function staleUploadsRepo(db: Db) {
         });
       } catch (err) {
         // 23503: a foreign key still points at it. unheld() should have caught it first.
+        if ((err as { code?: string }).code === '23503') return 'held';
+        throw err;
+      }
+    },
+
+    // Her twin's photos, marked deleted when she deleted it: due once the 30 days in which it can
+    // be put back are up (twin-archives.ts). Keyset-paged by id.
+    dueRemoved(opts: { limit: number; afterId?: string | undefined }) {
+      let q = db
+        .selectFrom('assets as a')
+        .select(['a.id', 'a.userId'])
+        .where('a.kind', 'in', REMOVED_KINDS)
+        .where('a.deletedAt', '<', sql<Date>`now() - make_interval(days => ${TWIN_ARCHIVE_DAYS})`)
+        .where('a.userId', 'is not', null)
+        .where(unheld({ jobs: false }))
+        .orderBy('a.id')
+        .limit(opts.limit)
+        .$narrowType<{ userId: string }>();
+      if (opts.afterId) q = q.where('a.id', '>', opts.afterId);
+      return q.execute();
+    },
+
+    // A deleted twin's archive goes when its photographs do, its 30 days up.
+    purgeTwinArchives: () => twinArchivesRepo(db).purge(),
+
+    // As discard: the row goes only while nothing holds it, and a storage failure rolls it back.
+    async discardRemoved(
+      userId: UserId,
+      assetId: string,
+      removeFiles: RemoveAssetFiles,
+    ): Promise<DiscardOutcome> {
+      try {
+        return await db.transaction().execute(async (trx) => {
+          const gone = await trx
+            .deleteFrom('assets as a')
+            .where('a.id', '=', assetId)
+            .where('a.userId', '=', userId)
+            .where('a.kind', 'in', REMOVED_KINDS)
+            .where(
+              'a.deletedAt',
+              '<',
+              sql<Date>`now() - make_interval(days => ${TWIN_ARCHIVE_DAYS})`,
+            )
+            .where(unheld({ jobs: false }))
+            .returning('a.id')
+            .executeTakeFirst();
+          if (!gone) return 'held';
+          await removeFiles(userId, assetId);
+          return 'discarded';
+        });
+      } catch (err) {
         if ((err as { code?: string }).code === '23503') return 'held';
         throw err;
       }

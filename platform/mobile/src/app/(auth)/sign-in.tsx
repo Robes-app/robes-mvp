@@ -1,5 +1,5 @@
 import { useApi } from '@robes/api-client/react';
-import { auth as copy } from '@robes/copy';
+import { auth as copy, you } from '@robes/copy';
 import {
   Button,
   ErrorText,
@@ -12,9 +12,11 @@ import {
   Wordmark,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { authClient } from '@/lib/auth-client';
+import { LEGAL_URLS } from '@/lib/config';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -28,6 +30,9 @@ export default function SignIn() {
   const [socialError, setSocialError] = useState(false);
   // The server says which providers it runs; until it answers (or if it can't), email only.
   const { data: providers } = useApi('public.authProviders');
+  // App Store 4.8: an iPhone offers Google only beside Sign in with Apple.
+  const apple = providers?.apple === true;
+  const google = providers?.google === true && (apple || Platform.OS !== 'ios');
 
   async function sendCode() {
     if (!EMAIL.test(email.trim())) return setError(copy.invalidEmail);
@@ -95,15 +100,15 @@ export default function SignIn() {
               <Text size="small" tone="muted" className="-mt-2 text-center">
                 {copy.noPassword}
               </Text>
-              {providers?.apple || providers?.google ? (
+              {apple || google ? (
                 <View className="gap-3">
                   <Eyebrow className="text-center">{copy.or}</Eyebrow>
-                  {providers.apple ? (
+                  {apple ? (
                     <Button variant="outline" onPress={() => social('apple')}>
                       {copy.apple}
                     </Button>
                   ) : null}
-                  {providers.google ? (
+                  {google ? (
                     <Button variant="outline" onPress={() => social('google')}>
                       {copy.google}
                     </Button>
@@ -111,6 +116,27 @@ export default function SignIn() {
                   {socialError ? <ErrorText size="small">{copy.socialFailed}</ErrorText> : null}
                 </View>
               ) : null}
+              <Text size="caption" tone="faint" className="text-center">
+                {copy.legal.lead}{' '}
+                <Text
+                  size="caption"
+                  accessibilityRole="link"
+                  className="underline"
+                  onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.terms)}
+                >
+                  {you.legal.terms}
+                </Text>{' '}
+                {copy.legal.and}{' '}
+                <Text
+                  size="caption"
+                  accessibilityRole="link"
+                  className="underline"
+                  onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.privacy)}
+                >
+                  {you.legal.privacyNotice}
+                </Text>
+                {copy.legal.end}
+              </Text>
             </>
           ) : (
             <>

@@ -113,6 +113,15 @@ export function standOf(s: StandSource): Stand {
   return { on: 'robes', cellId: robesModelId(wearerOf(s.genderIdentity), chosen), n: chosen };
 }
 
+// The model a render is keyed on (`${model}:${rack}`): her twin's key, or the catalog cell's. A
+// new render stands on it (renderOnModel); a picture keyed on another is behind her model.
+export function standKey(s: StandSource): string {
+  const stand = standOf(s);
+  return stand.on === 'twin' ? `twin:${s.twinKey}` : catalogKey(stand.cellId);
+}
+export const renderModelOf = (renderKey: string): string =>
+  renderKey.slice(0, renderKey.lastIndexOf(':'));
+
 // What a look's picture stood on, read from its render key (plan 2026-11-05 §2.4): a twin, a
 // hand-built cell, or a Robes model (the five, or the three legacy generic cells). A frame's key
 // names its rack, not its model, so a frame answers null here and is recorded when it lands.

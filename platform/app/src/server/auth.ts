@@ -22,6 +22,10 @@ export const auth = createAuth({
     env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
       ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
       : undefined,
+  review:
+    env.REVIEW_EMAIL && env.REVIEW_CODE
+      ? { email: env.REVIEW_EMAIL, code: env.REVIEW_CODE }
+      : undefined,
 });
 
 export const socialProviders = {

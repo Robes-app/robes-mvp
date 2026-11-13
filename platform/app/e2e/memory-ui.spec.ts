@@ -70,22 +70,34 @@ test('Style DNA: her types, a brand, the investment level, a hard no and a fact'
   await expect(page.getByRole('heading', { level: 1, name: 'Style DNA' })).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
 
+  // One row for her rules and hard nos; Icons are not asked for (Style DNA redesign, 12 Nov).
+  await expect(page.getByRole('button', { name: /^Icons/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Hard nos/ })).toHaveCount(0);
+
+  // Style type is onboarding's photo cards: the heart keeps a type.
   await page.getByRole('button', { name: /^Style type/ }).click();
   const types = page.getByRole('dialog', { name: 'Style type' });
-  await types.getByRole('button', { name: /^Minimal/ }).click();
-  await expect(types.getByRole('button', { name: /^Minimal/ })).toHaveAttribute(
+  await types.getByRole('button', { name: 'Love Minimal' }).click();
+  await expect(types.getByRole('button', { name: 'Love Minimal' })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
   await page.keyboard.press('Escape');
 
+  // Brands is onboarding's wordmark wall under one search that also adds her own house.
   await page.getByRole('button', { name: /^Brands/ }).click();
   const brands = page.getByRole('dialog', { name: 'Brands' });
-  // Her type's houses lead the pool (a woman's Minimal: COS, Lemaire, Studio Nicholson, Jil Sander).
+  // Her type's houses lead the wall (a woman's Minimal: COS, Lemaire, Studio Nicholson, Jil Sander).
   await brands.getByRole('button', { name: 'Lemaire', exact: true }).click();
-  await brands.getByLabel('Search brands').fill('Atelier Nouveau');
-  await brands.getByRole('button', { name: '+ Add “Atelier Nouveau”' }).click();
-  await expect(brands.getByRole('button', { name: 'Remove Atelier Nouveau' })).toBeVisible();
+  await expect(brands.getByRole('button', { name: 'Lemaire', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await brands.getByLabel('Search or add a brand').fill('Atelier Nouveau');
+  await brands.getByRole('button', { name: 'Add “Atelier Nouveau”' }).click();
+  await expect(
+    brands.getByRole('button', { name: 'Atelier Nouveau', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
   // The row reads the first name and a count, never a list cut mid-word.
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: /^Brands.*Lemaire \+1/ })).toBeVisible();
@@ -101,18 +113,17 @@ test('Style DNA: her types, a brand, the investment level, a hard no and a fact'
   await level.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByRole('button', { name: /^Investment level.*€500–1,500/ })).toBeVisible();
 
-  await page.getByRole('button', { name: /^Hard nos/ }).click();
-  const nos = page.getByRole('dialog', { name: 'Hard nos' });
-  await nos.getByRole('button', { name: 'Heels', exact: true }).click();
-  await expect(nos.getByRole('button', { name: 'Heels', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await nos.getByLabel('Another no').fill('Nothing sheer');
-  await nos.getByLabel('Another no').press('Enter');
-  await expect(nos.getByRole('button', { name: 'Strike “Nothing sheer”' })).toBeVisible();
+  // Your style rules: Always (her rules) and Never (her hard nos), one sheet.
+  await page.getByRole('button', { name: /^Your style rules/ }).click();
+  const rules = page.getByRole('dialog', { name: 'Your style rules' });
+  await rules.getByRole('tab', { name: 'Never' }).click();
+  await rules.getByRole('button', { name: 'Add “Heels”' }).click();
+  await expect(rules.getByRole('button', { name: 'Strike “Heels”' })).toBeVisible();
+  await rules.getByLabel('Another no').fill('Nothing sheer');
+  await rules.getByLabel('Another no').press('Enter');
+  await expect(rules.getByRole('button', { name: 'Strike “Nothing sheer”' })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: /^Hard nos.*2 lines/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Your style rules.*2 lines/ })).toBeVisible();
 
   await page.goto('/you/model/body');
   await page.getByRole('button', { name: 'The facts' }).click();

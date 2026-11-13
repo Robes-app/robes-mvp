@@ -42,7 +42,9 @@ with expected as (
   union all select 'notifications', user_id, count(*) from legacy.notifications
     where kind in ('looks_ready','look_waiting','borrowing','five','week_empty','morning','receipt','receipt_held')
     group by user_id
-  union all select 'wardrobe_inbox', user_id, count(*) from legacy.wardrobe_inbox group by user_id
+  -- One email beta filed twice (same provider id) is one row on the platform, where the id is unique.
+  union all select 'wardrobe_inbox', user_id, count(distinct coalesce(provider_id, id::text))
+    from legacy.wardrobe_inbox group by user_id
 ),
 actual as (
   select 'users' as domain, id as user_id, 1 as n from app.users where id in (select id from legacy.auth_users)
@@ -54,7 +56,8 @@ actual as (
   union all select 'look_pieces', user_id, count(*) from app.look_pieces
     where look_id in (select id from legacy.looks) group by user_id
   union all select 'wears', user_id, count(*) from app.wears where id in (select id from legacy.wears) group by user_id
-  union all select 'artifacts', user_id, count(*) from app.artifacts where legacy_id is not null group by user_id
+  union all select 'artifacts', user_id, count(*) from app.artifacts
+    where legacy_id is not null and user_id in (select id from legacy.auth_users) group by user_id
   union all select 'planned_days', user_id, count(*) from app.planned_days
     where id in (select id from legacy.planned_days) group by user_id
   union all select 'notifications', user_id, count(*) from app.notifications
