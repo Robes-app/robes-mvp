@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { CONSENT_SOURCE } from '@/lib/analytics';
+import { CONSENT_SOURCE } from '@/lib/consents';
 import { errorMessage } from '@/lib/errors';
 import { READ_PARAM } from './use-selfie';
 
