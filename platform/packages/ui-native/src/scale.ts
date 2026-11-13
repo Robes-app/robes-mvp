@@ -14,6 +14,8 @@ export const fonts = {
   sans: 'Inter_300Light',
   sansRegular: 'Inter_400Regular',
   sansMedium: 'Inter_500Medium',
+  // Only home's Create disc label (Felix ActionDisc primary).
+  sansSemiBold: 'Inter_600SemiBold',
   display: 'Cormorant_300Light',
   displayRegular: 'Cormorant_400Regular',
   displayItalic: 'Cormorant_300Light_Italic',

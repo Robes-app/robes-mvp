@@ -344,12 +344,12 @@ export const diary = {
   // The discs on the day's photo (Felix ActionDisc, design 3a · 3k): into a look, or onto one.
   discs: {
     capture: 'Capture',
-    describe: 'Describe',
+    create: 'Create',
     pick: 'Pick',
     swap: 'Swap',
     edit: 'Edit',
     captureLabel: (day: string): string => `Photograph a look for ${day}`,
-    describeLabel: (day: string): string => `Describe a look for ${day}`,
+    createLabel: (day: string): string => `Create a look for ${day}`,
     pickLabel: (day: string): string => `Pick a look for ${day}`,
     swapLabel: (name: string): string => `Swap ${name} for another look`,
     editLabel: (name: string): string => `Edit ${name}`,

@@ -6,7 +6,12 @@ import {
   Cormorant_400Regular,
   Cormorant_400Regular_Italic,
 } from '@expo-google-fonts/cormorant';
-import { Inter_300Light, Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
+import {
+  Inter_300Light,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+} from '@expo-google-fonts/inter';
 import { ApiClientProvider } from '@robes/api-client/react';
 import { ToastProvider } from '@robes/ui-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -31,6 +36,7 @@ export default function RootLayout() {
     Inter_300Light,
     Inter_400Regular,
     Inter_500Medium,
+    Inter_600SemiBold,
   });
   const [queryClient] = useState(
     () => new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } }),

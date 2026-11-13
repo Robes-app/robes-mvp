@@ -25,7 +25,8 @@ export function PrimaryScope({ children }: { children: ReactNode }) {
 export const DOUBLE_PRIMARY_WARNING =
   '[@robes/ui-native] Two primary Buttons are mounted on one screen. Keep one filled button per screen (UX-26).';
 
-function usePrimaryGuard(active: boolean) {
+// Every filled ink control counts here: the primary Button, a danger fill, home's Create disc.
+export function usePrimaryGuard(active: boolean) {
   const scope = useContext(PrimaryScopeContext);
   useEffect(() => {
     if (!active || !__DEV__) return;

@@ -204,12 +204,12 @@ test('a day with two looks shows the OOTD, then the second look, each with Swap 
   // Three pages (two looks, then the way into another): the pager shows.
   expect(screen.getByTestId('day-pager', { includeHiddenElements: true })).toBeTruthy();
   expect(screen.getByTestId('add-page').props.accessibilityLabel).toBe(diary.discs.add);
-  // Describe opens the Draft look sheet for the selected day (3a, D22).
-  await fireEvent.press(screen.getByTestId('disc-describe'));
+  // Create opens the Draft look sheet for the selected day (3a, D22).
+  await fireEvent.press(screen.getByTestId('disc-create'));
   expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/new?day=${TWO}`);
 });
 
-test('an empty day: her model with Capture · Describe · Pick; Pick opens the drawer', async () => {
+test('an empty day: her model with Capture · Create · Pick; Pick opens the drawer', async () => {
   mockFetch({
     ...ROUTES,
     'GET /looks': { items: [look()], nextCursor: null },
@@ -221,7 +221,7 @@ test('an empty day: her model with Capture · Describe · Pick; Pick opens the d
   // One page: no pager.
   expect(screen.queryByTestId('day-pager', { includeHiddenElements: true })).toBeNull();
   expect(screen.getByRole('button', { name: diary.discs.captureLabel('Friday') })).toBeTruthy();
-  expect(screen.getByRole('button', { name: diary.discs.describeLabel('Friday') })).toBeTruthy();
+  expect(screen.getByRole('button', { name: diary.discs.createLabel('Friday') })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: diary.discs.pickLabel('Friday') }));
   expect(await screen.findByTestId('look-picker')).toBeTruthy();
   // The ✓ waits grey until her picks change the day (Front Door PRD rev 3 §4.5).
@@ -388,12 +388,12 @@ test('once her twin stands, the model stack is gone', async () => {
   await waitFor(() => expect(screen.queryByTestId('model-stack')).toBeNull());
 });
 
-test('a day gone by keeps Capture and Pick, without Describe', async () => {
+test('a day gone by keeps Capture and Pick, without Create', async () => {
   mockFetch(ROUTES);
   await renderWithApi(<DiaryHome day={PAST} />);
   // The worn look's page, then the way into another.
   expect(await screen.findByTestId('ootd-card')).toBeTruthy();
   expect(screen.getByTestId('disc-capture')).toBeTruthy();
   expect(screen.getByTestId('disc-pick')).toBeTruthy();
-  expect(screen.queryByTestId('disc-describe')).toBeNull();
+  expect(screen.queryByTestId('disc-create')).toBeNull();
 });
