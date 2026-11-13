@@ -60,3 +60,17 @@ export const legacyRedirects: Redirect[] = MAP.map(([source, destination, has]) 
   permanent: false,
   ...(has ? { has } : {}),
 }));
+
+// The old beta address now leads to the app (owner, 13 Nov 2026: beta, app and TestFlight are one
+// production). Sessions and sign-in live on the app's own host, so every request that arrives on
+// beta.byrobes.com goes there first, path and query kept; the rules above then send an old path to
+// its new home. Temporary, like them, while pointing the address back at the old app is the way
+// back. It matches that host only: staging and previews never see it.
+export const hostRedirects: Redirect[] = [
+  {
+    source: '/:path*',
+    has: [{ type: 'host', value: 'beta.byrobes.com' }],
+    destination: 'https://app.byrobes.com/:path*',
+    permanent: false,
+  },
+];

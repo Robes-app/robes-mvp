@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { getPathMatch } from 'next/dist/shared/lib/router/utils/path-match';
 import { matchHas } from 'next/dist/shared/lib/router/utils/prepare-destination';
 import { describe, expect, it } from 'vitest';
-import { legacyRedirects } from './legacy-redirects';
+import { hostRedirects, legacyRedirects } from './legacy-redirects';
 
 // Resolves a legacy URL the way Next does: first matching source + `has`, params filled in.
 function resolve(url: string): string | null {
@@ -89,6 +89,17 @@ describe('legacy redirects', () => {
   ])('leaves %s to the new app', (path) => {
     expect(resolve(path)).toBeNull();
     expect(pageExists(path)).toBe(true);
+  });
+
+  it('sends the old beta address to the app, path kept, and no other host', () => {
+    expect(hostRedirects).toEqual([
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'beta.byrobes.com' }],
+        destination: 'https://app.byrobes.com/:path*',
+        permanent: false,
+      },
+    ]);
   });
 
   it('points every redirect at a page that exists, and none is permanent yet', () => {
