@@ -717,9 +717,9 @@ export const consent = {
   privacyTitle: 'Privacy.',
   analyticsLabel: 'Usage counts',
   analyticsHint: 'Which screens you open and what you tap, so Robes can get better.',
-  // Asked once on the phone, after sign-in, while she has given no answer (11 Nov). The message
-  // is the hint above. TODO(founders): the title and the two buttons are a draft.
+  // Asked once on the phone, after sign-in, while she has given no answer (Annie's words, 11 Nov).
   askTitle: 'Allow usage counts?',
+  askBody: 'Robes will learn from the screens you open and tap to improve.',
   askYes: 'Allow',
   askNo: 'Not now',
   replayLabel: 'Screen recordings',
@@ -1730,7 +1730,7 @@ export const twin = {
     robesModel: 'Robes model',
     createTwin: 'Create your digital twin',
     // The colouring page's way to a season with no read yet.
-    addSelfie: 'Add a selfie',
+    addSelfie: 'Add a close-up',
     // Under the lineup once anything of her twin is on file (design "Your model · Delete twin",
     // 12 Nov): while it is being built the button names the photograph.
     deleteTwin: {
@@ -1744,16 +1744,17 @@ export const twin = {
       keep: 'Keep it',
     },
     // The one way to another selfie: the redraw control on her twin's hero (redlines R15).
-    retake: 'Retake selfie to update your twin',
-    // The selfie camera, its photo picker and the review (designs 03–05, Annie 10 Nov).
+    retake: 'Retake close-up to update your twin',
+    // The selfie camera, its photo picker and the review (designs 03–05, Annie 10 Nov). She reads
+    // "close-up" everywhere, as on the consent screen and in the Terms (Annie, 11 Nov).
     selfie: {
-      title: 'Selfie',
+      title: 'Close-up',
       hint: 'Hair back · No glasses · Chin level',
       close: 'Close the camera',
-      shutter: 'Take the selfie',
+      shutter: 'Take the close-up',
       photos: 'Choose from your photos',
       flip: 'Switch camera',
-      review: 'Your selfie',
+      review: 'Your close-up',
       reviewNote: 'Only used to draw your twin',
       retake: 'Retake',
       use: 'Use photo',
@@ -1780,7 +1781,7 @@ export const twin = {
     // The stage while her selfie reads and her twin draws (designs 06–07), one line at a time;
     // the last holds until her twin lands. A redraw with no selfie starts at the drawing.
     status: [
-      'Reading your selfie',
+      'Reading your close-up',
       'Reading your colouring',
       'Drawing your model',
       'Finishing your twin',
@@ -1793,7 +1794,7 @@ export const twin = {
     twinFailed:
       'Robes couldn’t photograph your model just now. A close-up in daylight, facing the camera, helps.',
     season: 'Your season',
-    addSeason: 'Add a selfie and Robes reads your season.',
+    addSeason: 'Add a close-up and Robes reads your season.',
     colourNotes: 'Full colour notes',
     anotherSeason: 'Another season',
     seasonFailed: 'Robes couldn’t change the reading just now.',
@@ -1807,8 +1808,8 @@ export const twin = {
       return axes && sum ? `${axes} — ${sum}` : axes || sum;
     },
     skinAndHair: 'Skin and hair',
-    skinAndHairRead: 'Read from your selfie. Change by hand.',
-    skinAndHairHand: 'Chosen by hand until a selfie reads.',
+    skinAndHairRead: 'Read from your close-up. Change by hand.',
+    skinAndHairHand: 'Chosen by hand until a close-up reads.',
     yourLine: 'Your line',
     edit: 'Edit',
     proportions: (presence: Presence): string =>
