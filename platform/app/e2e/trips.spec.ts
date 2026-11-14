@@ -84,7 +84,7 @@ test.describe('with trips on', () => {
 
     await page.goto('/plan');
     await expect(page.getByRole('link', { name: 'Golden Hour' }).first()).toBeVisible();
-    await page.getByRole('radio', { name: 'Month' }).click();
+    await page.getByRole('tab', { name: 'Month' }).click();
     await expect(page.getByRole('button', { name: 'Next month' })).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
   });

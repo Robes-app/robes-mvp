@@ -156,10 +156,12 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await expect(page).toHaveURL(new RegExp(`/plan/${tomorrow}$`));
   expect(await seriousViolations(page)).toEqual([]);
   // The day keeps its own title (beta): unnamed, it invites a name rather than borrowing the look's.
-  await page.getByRole('button', { name: 'Name the day', exact: true }).click();
-  await page.getByLabel('Name the day').fill('Gallery opening');
-  await page.getByLabel('Name the day').press('Enter');
-  await expect(page.getByRole('heading', { level: 1, name: 'Gallery opening' })).toBeVisible();
+  // Its name is the field itself (design 14 Nov): no pencil to open it.
+  const dayName = page.getByRole('textbox', { name: 'Name the day' });
+  await expect(dayName).toHaveValue('');
+  await dayName.fill('Gallery opening');
+  await dayName.press('Enter');
+  await expect(dayName).toHaveValue('Gallery opening');
   await expect
     .poll(async () => {
       const plan = await (await page.request.get(`/api/v1/plan?from=${tomorrow}&days=1`)).json();
@@ -167,10 +169,11 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     })
     .toBe('Gallery opening');
 
-  await page.getByRole('button', { name: `Take ${name} off the day` }).click();
-  await expect(page.getByRole('link', { name })).toBeHidden();
+  // The day is Home's day card: × on the look's page takes it off the day.
+  await page.getByRole('button', { name: new RegExp(`^Take ${name} off `) }).click();
+  await expect(page.getByRole('link', { name: `Open ${name}` })).toBeHidden();
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(page.getByRole('link', { name })).toBeVisible();
+  await expect(page.getByRole('link', { name: `Open ${name}` })).toBeVisible();
 
   await page.goto('/looks');
   await expect(page.getByRole('link', { name })).toBeVisible();

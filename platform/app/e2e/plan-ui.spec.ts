@@ -56,8 +56,8 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   await picker.getByRole('button', { name: /Dinner/ }).click();
   await picker.getByRole('button', { name: 'Schedule 2 Looks' }).click();
   await expect(page.getByText(/^2 looks added to /).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: /Office/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Dinner/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open Office' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open Dinner' })).toBeVisible();
   // Each look is a page of the day with Swap · Edit, as on Home; the pager counts them.
   await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'look');
   await expect(page.getByTestId('ootd-swap')).toBeVisible();
@@ -182,10 +182,10 @@ test('the diary list says Worn, keeps its view, and the drawer reads every wear'
   );
 
   // Month is kept across a reload, headed Mon to Sun from the one table.
-  await page.getByRole('radio', { name: 'Month' }).click();
+  await page.getByRole('tab', { name: 'Month' }).click();
   await expect(page.getByRole('button', { name: 'Next month' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('radio', { name: 'Month' })).toBeChecked();
+  await expect(page.getByRole('tab', { name: 'Month' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Wed', { exact: true })).toBeVisible();
 
   // The drawer: a day last month she wore it (not its last wear) is already recorded…
