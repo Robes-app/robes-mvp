@@ -208,4 +208,35 @@ describe('look_ask handler (the look prompt)', () => {
     await expect(run('hi', { lookId: TROUSER })).rejects.toMatchObject({ code: 'not_found' });
     await expect(run('')).rejects.toMatchObject({ code: 'invalid_input' });
   });
+
+  it('a tapped reason is a clear instruction: the look changes, a question follows, memory keeps it', async () => {
+    const { run, answer, generateJson, lookPrompt } = setup();
+    // No words: the reasons alone are the ask (look prompt PRD F10, F11).
+    await run('', { reasons: ['dressy', 'colours'] });
+    const system = generateJson.mock.calls[0]?.[0].system ?? '';
+    expect(system).toContain(
+      'SHE TAPPED WHAT IS NOT RIGHT WITH THIS LOOK: it is too dressy; the colours are not right.',
+    );
+    expect(generateJson.mock.calls[0]?.[0].user).toContain('She typed nothing');
+    const result = answer() as { intent: string; swaps: unknown[]; followUp?: string };
+    expect(result.intent).toBe('swap');
+    expect(result.swaps).toHaveLength(1);
+    expect(result.followUp).toBe('How does the change look?');
+    expect(lookPrompt.remember).toHaveBeenCalledWith(
+      USER,
+      expect.objectContaining({ body: 'it is too dressy · the colours are not right' }),
+    );
+    // With her words, both ride into memory, the reasons first.
+    await run('nothing black', { reasons: ['colours'] });
+    expect(lookPrompt.remember).toHaveBeenLastCalledWith(
+      USER,
+      expect.objectContaining({ body: 'the colours are not right · nothing black' }),
+    );
+  });
+
+  it('refuses an ask that says nothing: no words and no reason', async () => {
+    const { run } = setup();
+    await expect(run('')).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(run('', { reasons: [] })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
 });

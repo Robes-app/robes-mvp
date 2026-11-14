@@ -333,6 +333,131 @@ test('a look drawn on her own twin wears no tag, whatever her account says', asy
   expect(screen.queryByRole('button', { name: lookbook.deck.robesModelLabel })).toBeNull();
 });
 
+// The feedback thread (look prompt PRD F): once a change lands Robes asks its one question; a
+// thumbs down opens the reasons, and what she taps stands for her words on the next send.
+test('after a change Robes asks; a thumbs down opens the reasons this look can have', async () => {
+  const draft = look({
+    status: 'draft',
+    pieces: [{ piece: piece(), slot: null, role: 'anchor' }],
+    proposals: [mules],
+  });
+  const swapped = {
+    intent: 'swap',
+    reply: 'Done. The dark jean is on the look now.',
+    swaps: [
+      {
+        key: 'p-aaaa1111',
+        to: { pieceId: JEAN, name: 'Dark straight jean', category: 'Bottoms', brand: null },
+      },
+    ],
+    back: [],
+    backAll: false,
+    styled: [],
+    draft: '',
+    rule: '',
+    noticed: false,
+  };
+  const calls = mockFetch({
+    'GET /me': ME,
+    [`GET /looks/${LOOK_ID}`]: draft,
+    [`POST /looks/${LOOK_ID}/ask`]: { jobId: JOB_ID, status: 'queued' },
+    [`GET /jobs/${JOB_ID}`]: job({ ask: swapped }),
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...draft,
+      ...JSON.parse(String(init.body)),
+      proposals: [],
+    }),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' },
+    'GET /looks': byStatus({}),
+  });
+  const fb = lookbook.draftLook.feedback;
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  // No question before Robes has changed anything.
+  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'swap the mules');
+  expect(screen.queryByTestId('look-feedback')).toBeNull();
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  // The change lands, and Robes asks once: "How about now?" (F19).
+  expect(await screen.findByText(fb.again)).toBeTruthy();
+  expect(screen.queryByTestId('feedback-reasons')).toBeNull();
+  // A thumbs down opens the reasons; the other thumb dims and takes no second answer (F5, F7).
+  await fireEvent.press(screen.getByTestId('thumb-down'));
+  expect(screen.getByText(fb.change)).toBeTruthy();
+  expect(screen.getByTestId('thumb-down').props.accessibilityState.selected).toBe(true);
+  expect(screen.getByTestId('thumb-up').props.accessibilityState.disabled).toBe(true);
+  // This draft is for no day, so it carries no weather to be wrong for (F14); and Robes did not
+  // make it from a brief, so there is nothing to restyle from (F13).
+  expect(screen.queryByTestId('reason-weather')).toBeNull();
+  expect(screen.queryByTestId('reason-restyle')).toBeNull();
+  // A reason picked stands first with its ×, and the send stands ready on it alone (F10); the
+  // send itself waits for the picture this change asked for.
+  await fireEvent.press(screen.getByTestId('reason-dressy'));
+  expect(screen.getByTestId('reason-dressy').props.accessibilityState.selected).toBe(true);
+  expect(screen.getByTestId('reason-dressy').props.accessibilityLabel).toBe(
+    fb.remove(fb.reasons.dressy.label),
+  );
+  expect(calls.filter((c) => c.path.endsWith('/ask'))).toHaveLength(1);
+  // Counts and enums only: never her words.
+  expect(nativeAnalytics.track).toHaveBeenCalledWith('look_feedback', {
+    surface: 'draft',
+    verdict: 'down',
+  });
+});
+
+test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
+  const draft = look({
+    status: 'draft',
+    pieces: [{ piece: piece(), slot: null, role: 'anchor' }],
+    proposals: [mules],
+  });
+  const calls = mockFetch({
+    'GET /me': ME,
+    [`GET /looks/${LOOK_ID}`]: draft,
+    [`POST /looks/${LOOK_ID}/ask`]: { jobId: JOB_ID, status: 'queued' },
+    [`GET /jobs/${JOB_ID}`]: job({
+      ask: {
+        intent: 'swap',
+        reply: 'Done.',
+        swaps: [
+          {
+            key: 'p-aaaa1111',
+            to: { pieceId: JEAN, name: 'Dark straight jean', category: 'Bottoms', brand: null },
+          },
+        ],
+        back: [],
+        backAll: false,
+        styled: [],
+        draft: '',
+        rule: '',
+        noticed: false,
+      },
+    }),
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...draft,
+      ...JSON.parse(String(init.body)),
+      proposals: [],
+    }),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' },
+    'GET /looks': byStatus({}),
+  });
+  const fb = lookbook.draftLook.feedback;
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'swap the mules');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  expect(await screen.findByText(fb.again)).toBeTruthy();
+  const before = calls.length;
+  await fireEvent.press(screen.getByTestId('thumb-up'));
+  // The prompt closes: to its one line while the picture is still drawing, then to the sparkle
+  // (look prompt PRD F6, F23). Either opens it again.
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  await fireEvent.press(screen.getByTestId('prompt-pill'));
+  expect(screen.getByTestId('thumb-up').props.accessibilityState.selected).toBe(true);
+  expect(screen.queryByTestId('feedback-reasons')).toBeNull();
+  // One answer per question.
+  await fireEvent.press(screen.getByTestId('thumb-down'));
+  expect(screen.queryByTestId('feedback-reasons')).toBeNull();
+  expect(calls.slice(before).some((c) => c.method !== 'GET')).toBe(false);
+});
+
 test('the look prompt lands a swap on a draft and remembers what it replaced', async () => {
   const draft = look({
     status: 'draft',

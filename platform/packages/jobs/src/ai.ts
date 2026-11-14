@@ -48,6 +48,7 @@ const FAKE_FIXTURES: Record<string, FakeFixture> = {
       closetSize: (/HER WARDROBE[^\n]*/.exec(req.system)?.[0].match(/\[\d+\] /g) ?? []).length,
       refine: req.user.includes('HER ADJUSTMENT'),
       dressMe: req.system.includes('She is dressing for a real day'),
+      one: req.system.includes('ONE WAY ONLY'),
     }),
   [lookAsk.FEATURE]: (req) => lookAsk.fakeOutput(req.system, req.user),
 };

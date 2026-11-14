@@ -62,7 +62,7 @@ import { useArrived, useLeaveSheetFor } from '@/lib/arrival';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { useKeyboardOverlap } from '@/lib/keyboard';
-import { ThreadLines } from './AdjustDock';
+import { Feedback, ThreadLines } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
 import { CapturePieces, CaptureRow, NewPieceSheet, RemovedLine } from './CaptureRack';
 import { useCaptureRack } from './capture-rack';
@@ -89,7 +89,7 @@ import { RackRowCard } from './RackRow';
 import { ImageStack, useDressOnOpen } from './SavedLook';
 import { Scanning } from './ScanLine';
 import { SeasonsView } from './SeasonsView';
-import { StylingCard } from './StylingCard';
+import { type DockState, PromptDock, StylingCard } from './StylingCard';
 import { useRemoveLook } from './saved-looks';
 import { TagsView, useLookDetails } from './TagsView';
 import { WornView } from './WornView';
@@ -322,6 +322,8 @@ export function DraftLook({
   // Heard where the screen mounts: the look may still be loading when the screen settles.
   const arrived = useArrived();
   const [lookId, setLookId] = useState<string | null>(id === 'new' ? null : id);
+  // Her words, when Robes made this draft from them just now: they head its thread.
+  const [brief, setBrief] = useState<{ words: string; occasion?: string } | null>(null);
   const query = useApi(
     'looks.get',
     { params: { id: lookId ?? '' } },
@@ -339,7 +341,8 @@ export function DraftLook({
         pick={pick}
         presentation={presentation}
         onClose={onClose}
-        onCreated={(made) => {
+        onCreated={(made, from) => {
+          if (from) setBrief(from);
           setLookId(made.id);
           // The draft carries on under its own address, in the same sheet.
           router.setParams({ id: made.id });
@@ -368,6 +371,7 @@ export function DraftLook({
       schedule={schedule === true}
       arrived={arrived}
       {...(images ? { images } : {})}
+      {...(brief ? { brief } : {})}
       presentation={presentation}
       onClose={onClose}
     />
@@ -473,8 +477,11 @@ function SavedShell({
   // The toast rises above the bar while it stands, so an Undo never covers Update look.
   const [bar, setBar] = useState(0);
   useToastLift(bar);
+  // The bar holds the prompt box (look prompt PRD F23): it rides above the keyboard.
+  const root = useRef<HostInstance>(null);
+  const keyboard = useKeyboardOverlap(root);
   return (
-    <View className="flex-1 bg-bg">
+    <View ref={root} className="flex-1 bg-bg">
       <ScrollView
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
@@ -487,7 +494,7 @@ function SavedShell({
       {footer ? (
         <View
           className="absolute inset-x-0 bottom-0 flex-row items-center border-hairline bg-bg px-5 pt-3"
-          style={{ borderTopWidth: FINE_EDGE, paddingBottom: 22 }}
+          style={{ borderTopWidth: FINE_EDGE, paddingBottom: keyboard ? 12 : 22, bottom: keyboard }}
           onLayout={(e) => setBar(e.nativeEvent.layout.height)}
           testID="look-bar"
         >
@@ -524,9 +531,9 @@ function NewDraft({
   pick?: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
-  onCreated: (look: Look) => void;
+  // `from`: her brief, and the occasion Robes read in it, when Robes made the draft from it.
+  onCreated: (look: Look, from?: { words: string; occasion?: string }) => void;
 }) {
-  const router = useRouter();
   const api = useApiClient();
   const toast = useToast();
   const refresh = useInvalidateLooks();
@@ -579,17 +586,18 @@ function NewDraft({
       void create({ status: 'draft', pieces: [{ pieceId }], anchorPieceId: pieceId });
     }
   });
-  // Words for a day make ONE draft for it (plan 2026-11-03), dressed in the job; the sheet
-  // carries on with it once the diary shows it. Without a day they deal suggestions (the deck).
+  // Her words make ONE draft (plan 2026-11-03; look prompt PRD D6, D9), for the day when there is
+  // one and for no day when there is not, dressed in the job; the sheet carries on with it as
+  // soon as the job has made it. A prompt never deals suggestions to the deck.
   const [weatherOff, setWeatherOff] = useState(false);
   const [waiting, setWaiting] = useState(false);
-  // The job behind Generate: if it ends without the day's draft, the wait ends with a word.
   const [promptJob, setPromptJob] = useState<string | null>(null);
-  useJobResult(
+  // The job ended without a draft: the wait ends with a word.
+  const followed = useJobResult(
     promptJob,
     useCallback(
       (job) => {
-        if (job.status === 'succeeded' || job.status === 'partial') return;
+        if (job.output?.lookIds?.[0]) return;
         setPromptJob(null);
         setWaiting(false);
         setBusy(false);
@@ -598,18 +606,30 @@ function NewDraft({
       [toast],
     ),
   );
-  const diary = useApi('today.get', undefined, {
-    enabled: waiting,
-    refetchInterval: waiting ? 2_000 : false,
-  });
-  const dayDraft = waiting
-    ? (diary.data?.diary?.days.find((x) => x.date === day)?.draft?.look ?? null)
-    : null;
+  const madeId = followed?.output?.lookIds?.[0] ?? null;
+  const occasion = followed?.output?.occasion;
+  // The draft the job made opens here, once.
+  const opening = useRef(false);
   useEffect(() => {
-    if (!dayDraft) return;
-    setWaiting(false);
-    onCreated(dayDraft);
+    if (!madeId || opening.current) return;
+    opening.current = true;
+    void api
+      .call('looks.get', { params: { id: madeId } })
+      .then((made) => {
+        setWaiting(false);
+        refresh();
+        onCreated(made, { words: prompt.trim(), ...(occasion ? { occasion } : {}) });
+      })
+      .catch((err) => {
+        opening.current = false;
+        setPromptJob(null);
+        setWaiting(false);
+        setBusy(false);
+        toast.show({ message: errorMessage(err) });
+      });
   });
+  // The day's place, for the brief.
+  const diary = useApi('today.get', undefined, { enabled: day !== undefined });
   const generate = async () => {
     const words = prompt.trim();
     if (words.length < 2 || busy) return;
@@ -622,28 +642,22 @@ function NewDraft({
         ok,
       });
     try {
-      if (day) {
-        const place = diary.data?.diary?.days.find((x) => x.date === day)?.place ?? null;
-        const { jobId } = await api.call('looks.prompt', {
-          input: {
-            prompt: words,
-            date: day,
-            draft: true,
-            balance: src.balance,
-            ...(place && !weatherOff ? { place } : {}),
-            ...(weatherOff ? { weather: false } : {}),
-          },
-        });
-        sent(true);
-        setPromptJob(jobId);
-        setWaiting(true);
-        return;
-      }
+      const place = day
+        ? (diary.data?.diary?.days.find((x) => x.date === day)?.place ?? null)
+        : null;
       const { jobId } = await api.call('looks.prompt', {
-        input: { prompt: words, balance: src.balance },
+        input: {
+          prompt: words,
+          ...(day ? { date: day } : {}),
+          draft: true,
+          balance: src.balance,
+          ...(place && !weatherOff ? { place } : {}),
+          ...(day && weatherOff ? { weather: false } : {}),
+        },
       });
       sent(true);
-      router.replace(`/looks/job/${jobId}`);
+      setPromptJob(jobId);
+      setWaiting(true);
     } catch (err) {
       sent(false);
       setBusy(false);
@@ -657,6 +671,29 @@ function NewDraft({
       title={copy.title}
       onClose={onClose}
       done={{ label: copy.done, onPress: () => undefined, disabled: true }}
+      // The prompt box stands at the foot, in thumb reach from the start (look prompt PRD F23).
+      footer={
+        <StylingCard
+          {...(day
+            ? {
+                context: (
+                  <DayContext date={day} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
+                ),
+              }
+            : {})}
+          sources={src.sources}
+          onSource={(which) =>
+            which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
+          }
+          wardrobeEmpty={src.empty}
+          placeholders={copy.placeholders}
+          value={prompt}
+          onChange={setPrompt}
+          onSend={() => void generate()}
+          emptySend="blur"
+          busy={busy}
+        />
+      }
     >
       <View className="overflow-hidden bg-surface-sunk">
         {stand ? (
@@ -676,26 +713,6 @@ function NewDraft({
         <RackCard
           hasWardrobe={hasWardrobe}
           onPress={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
-        />
-        <StylingCard
-          {...(day
-            ? {
-                context: (
-                  <DayContext date={day} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
-                ),
-              }
-            : {})}
-          sources={src.sources}
-          onSource={(which) =>
-            which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
-          }
-          wardrobeEmpty={src.empty}
-          placeholders={copy.placeholders}
-          value={prompt}
-          onChange={setPrompt}
-          onSend={() => void generate()}
-          sendWhenEmpty
-          busy={busy}
         />
       </View>
       <EmptyWardrobeSheet
@@ -742,6 +759,7 @@ function DraftBody({
   look,
   forDay,
   images,
+  brief,
   schedule,
   arrived,
   presentation,
@@ -750,6 +768,9 @@ function DraftBody({
   look: Look;
   forDay: string | null;
   images?: 'add';
+  // Her words, when Robes made this draft from them just now (the draft's first send), and the
+  // occasion Robes read in them.
+  brief?: { words: string; occasion?: string };
   schedule: boolean;
   // The screen has finished coming in (useArrived): no Sheet presents before it.
   arrived: boolean;
@@ -780,6 +801,26 @@ function DraftBody({
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
   const adjust = useAdjust(look, editor, mode === 'edit' ? 'saved' : 'draft');
   adjustRef.current = adjust;
+  // Robes asks its one question about the look it just made (look prompt PRD F1, F3).
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!brief || opened.current) return;
+    opened.current = true;
+    adjust.opened(brief.words, brief.occasion);
+  });
+  const fb = copy.feedback;
+  // What she tapped after a thumbs down stands for her words (F10).
+  const picked = adjust.state.reasons.length > 0 || adjust.state.restyle;
+  const lastReason = adjust.state.reasons.at(-1);
+  const feedbackHint = adjust.state.restyle
+    ? fb.restyle.example
+    : lastReason
+      ? fb.reasons[lastReason].example
+      : adjust.state.verdict === 'down'
+        ? fb.placeholderDown
+        : adjust.state.verdict === 'ask'
+          ? fb.placeholder
+          : null;
   // A look from her photograph (Capture PRD 1c): The Rack finds, matches and adds its pieces.
   const capture = useCaptureRack(look, editor);
   // A draft from her photograph is the photograph and its rack: no prompt card, no Generate.
@@ -935,8 +976,14 @@ function DraftBody({
   // The box's send (look prompt PRD P2): her words go through the thread and the picture is drawn
   // once the rack is answered.
   const generate = () => {
-    if (busy || !words) return;
+    if (busy || (!words && !picked)) return;
     adjust.send(words, { ...sendOpts, draw: true });
+    setPrompt('');
+  };
+  // A saved look's send asks, and the change waits for Update look (F22).
+  const ask = () => {
+    if (busy || (!words && !picked) || rows.length === 0) return;
+    adjust.send(words, sendOpts);
     setPrompt('');
   };
   // "Update the model · N" keeps its place at the draft's foot while the picture is behind: it is
@@ -1021,6 +1068,103 @@ function DraftBody({
       />
     ),
   );
+  // The prompt box stands at the look's foot (look prompt PRD F23): open on a draft, behind the
+  // sparkle on a saved look until she asks for it. Minimised it is one line; a thumbs up closes
+  // it down to the sparkle (F6).
+  const verdict = adjust.state.verdict;
+  const [dockOpen, setDockOpen] = useState(mode === 'draft');
+  useEffect(() => {
+    if (verdict === 'up') setDockOpen(false);
+  }, [verdict]);
+  const hasThread = adjust.state.thread.length > 0 || adjust.state.question !== null;
+  const lastLine = adjust.state.thread.at(-1);
+  const dockState: DockState = dockOpen
+    ? 'open'
+    : mode === 'edit' || (verdict === 'up' && !busy)
+      ? 'spark'
+      : 'pill';
+  const dock = captureDraft ? null : (
+    <PromptDock
+      state={dockState}
+      head={mode === 'edit' || hasThread}
+      line={
+        lastLine?.who === 'work'
+          ? lastLine.text
+          : verdict === 'down'
+            ? fb.change
+            : (adjust.state.question ?? copy.dock.rest)
+      }
+      working={lastLine?.who === 'work'}
+      onOpen={() => setDockOpen(true)}
+      onMinimise={() => setDockOpen(false)}
+    >
+      <StylingCard
+        {...(forDay && mode === 'draft'
+          ? {
+              context: (
+                <DayContext date={forDay} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
+              ),
+            }
+          : {})}
+        sources={src.sources}
+        onSource={(which) =>
+          which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
+        }
+        wardrobeEmpty={src.empty}
+        thread={
+          <>
+            <ThreadLines thread={adjust.state.thread} compact />
+            <Feedback
+              adjust={adjust}
+              weather={askContext !== undefined}
+              canRestyle={mode === 'draft' && adjust.canRedress}
+            />
+          </>
+        }
+        {...(feedbackHint
+          ? { placeholder: feedbackHint }
+          : mode === 'edit'
+            ? { placeholder: copy.savedPlaceholder }
+            : { placeholders: copy.placeholders })}
+        {...(picked
+          ? { emptySend: 'send' as const }
+          : mode === 'draft'
+            ? { emptySend: 'blur' as const }
+            : {})}
+        value={prompt}
+        onChange={setPrompt}
+        onSend={mode === 'edit' ? ask : generate}
+        {...(adjust.canRedress
+          ? { onDescribe: () => setSheet('describe'), describeLabel: d.redress }
+          : {})}
+        busy={busy}
+      />
+    </PromptDock>
+  );
+  const footButton =
+    // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
+    // change waits — never both.
+    presentation === 'saved' && !pending ? (
+      <Button onPress={() => setDiary(true)} testID="schedule-look">
+        {lookbook.savedLook.schedule}
+      </Button>
+    ) : mode === 'edit' ? (
+      // The Edit look sheet's one accept (3k): she stays to see it land.
+      <Button onPress={apply} disabled={!pending || busy} icon="refresh" testID="update-look">
+        {copy.update}
+      </Button>
+    ) : modelFoot ? (
+      <Button onPress={adjust.updateModel} disabled={busy} icon="refresh" testID="update-model">
+        {d.updateModel(adjust.badge)}
+      </Button>
+    ) : undefined;
+  const foot =
+    dock || footButton ? (
+      <View className="w-full gap-3">
+        {dock}
+        {footButton}
+      </View>
+    ) : null;
   return (
     <Shell
       presentation={presentation}
@@ -1031,30 +1175,7 @@ function DraftBody({
         onPress: done,
         disabled: !canDone,
       }}
-      footer={
-        // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
-        // change waits — never both.
-        presentation === 'saved' && !pending ? (
-          <Button onPress={() => setDiary(true)} className="flex-1" testID="schedule-look">
-            {lookbook.savedLook.schedule}
-          </Button>
-        ) : mode === 'edit' ? (
-          // The Edit look sheet's one accept (3k): she stays to see it land.
-          <Button
-            onPress={apply}
-            disabled={!pending || busy}
-            icon="refresh"
-            {...(presentation === 'saved' ? { className: 'flex-1' } : {})}
-            testID="update-look"
-          >
-            {copy.update}
-          </Button>
-        ) : modelFoot ? (
-          <Button onPress={adjust.updateModel} disabled={busy} icon="refresh" testID="update-model">
-            {d.updateModel(adjust.badge)}
-          </Button>
-        ) : undefined
-      }
+      {...(foot ? { footer: foot } : {})}
       over={
         <>
           <AdjustSheet
@@ -1139,37 +1260,6 @@ function DraftBody({
                 </Rack>
                 <RemovedLine capture={capture} />
               </>
-            )}
-            {captureDraft ? null : (
-              <StylingCard
-                {...(forDay && mode === 'draft'
-                  ? {
-                      context: (
-                        <DayContext
-                          date={forDay}
-                          weatherOff={weatherOff}
-                          onWeatherOff={setWeatherOff}
-                        />
-                      ),
-                    }
-                  : {})}
-                sources={src.sources}
-                onSource={(which) =>
-                  which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
-                }
-                wardrobeEmpty={src.empty}
-                thread={<ThreadLines thread={adjust.state.thread} />}
-                {...(mode === 'edit'
-                  ? { placeholder: copy.savedPlaceholder }
-                  : { placeholders: copy.placeholders, sendWhenEmpty: true })}
-                value={prompt}
-                onChange={setPrompt}
-                onSend={mode === 'edit' ? apply : generate}
-                {...(adjust.canRedress
-                  ? { onDescribe: () => setSheet('describe'), describeLabel: d.redress }
-                  : {})}
-                busy={busy}
-              />
             )}
           </View>
         ) : (

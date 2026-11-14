@@ -12,6 +12,7 @@ import {
   type Mode,
   normalisePieces,
   Output,
+  occasionOf,
   placeLine,
   type RecentSet,
   type Refine,
@@ -653,8 +654,9 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         return { status: 'succeeded' };
       }
 
-      // A piece, or her words for a day. From the prompt box (plan 2026-11-03) her words make ONE
-      // look, minted as her draft for the day; the piece door still deals three suggestions.
+      // A piece, or her words. From the prompt box (plan 2026-11-03; look prompt PRD D6) her words
+      // make ONE look, minted as her draft — for the day when she named one, for no day when she
+      // did not; the piece door still deals three suggestions.
       const prompted = 'mode' in input && input.mode === 'prompt';
       const draft = prompted && input.draft === true;
       const count = draft ? 1 : WAYS;
@@ -716,7 +718,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
 
       const out = await generate(
         ctx,
-        buildSystem(styleCtx, mode, steer, day?.place?.read ?? null),
+        // Her words make one look (look prompt PRD D6): one way is asked for, not three.
+        buildSystem(styleCtx, mode, steer, day?.place?.read ?? null, { one: draft }),
         buildUser(ask, { hasPhoto: Boolean(photo) }),
         photo,
         askDetail(steer, day),
@@ -774,7 +777,16 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
             { status: draft ? 'draft' : 'suggested' },
           )
         : [];
-      await ctx.writeStage('text', { setId, lookIds, fallback, wearer, ways });
+      // The occasion in her brief, for Robes' one question about the look (F3, F4).
+      const occasion = draft ? occasionOf(out) : '';
+      await ctx.writeStage('text', {
+        setId,
+        lookIds,
+        fallback,
+        wearer,
+        ways,
+        ...(occasion ? { occasion } : {}),
+      });
 
       // Only the first frame is drawn now; the others when she reaches them (UX-09).
       const [hero] = ways;

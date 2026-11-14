@@ -1,7 +1,7 @@
 import { lookbook as copy } from '@robes/copy';
-import { ASK_MAX_CHARS, type ThreadLine } from '@robes/core/looks';
-import { Icon } from '@robes/icons/native';
-import { fonts, IconButton, Text, useColor } from '@robes/ui-native';
+import { ASK_MAX_CHARS, openReasons, type ThreadLine } from '@robes/core/looks';
+import { Icon, type IconName } from '@robes/icons/native';
+import { fonts, IconButton, MIN_TOUCH, Text, useColor } from '@robes/ui-native';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, type ScrollViewInstance, TextInput, View } from 'react-native';
 import { nativeAnalytics } from '@/lib/analytics';
@@ -19,9 +19,12 @@ function Sparkle({ working = false }: { working?: boolean }) {
 // the sparkle, a filed rule as a caption. Web twin: components/looks/adjust-dock.tsx.
 export function ThreadLines({
   thread,
+  compact = false,
   testID,
 }: {
   thread: readonly ThreadLine[];
+  // In the prompt's dock the thread keeps to a few lines, so the box stays in reach.
+  compact?: boolean;
   testID?: string;
 }) {
   const scroll = useRef<ScrollViewInstance>(null);
@@ -32,7 +35,7 @@ export function ThreadLines({
   return (
     <ScrollView
       ref={scroll}
-      style={{ maxHeight: 256 }}
+      style={{ maxHeight: compact ? 144 : 256 }}
       contentContainerClassName="gap-3 px-1.5"
       testID={testID ?? 'adjust-thread'}
       accessibilityLiveRegion="polite"
@@ -60,6 +63,187 @@ export function ThreadLines({
         ),
       )}
     </ScrollView>
+  );
+}
+
+const fb = copy.draftLook.feedback;
+const THUMB = 32;
+const CHIP = 32;
+
+function Thumb({
+  icon,
+  label,
+  verdict,
+  mine,
+  onPress,
+  testID,
+}: {
+  icon: IconName;
+  label: string;
+  // The open question's answer so far, and whether this thumb is it.
+  verdict: 'ask' | 'up' | 'down';
+  mine: boolean;
+  onPress: () => void;
+  testID: string;
+}) {
+  const ink = useColor('ink');
+  const muted = useColor('ink-muted');
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: mine, disabled: verdict !== 'ask' }}
+      onPress={onPress}
+      testID={testID}
+      className="items-center justify-center"
+      style={{
+        minWidth: MIN_TOUCH,
+        minHeight: MIN_TOUCH,
+        marginHorizontal: -(MIN_TOUCH - THUMB) / 2,
+        opacity: verdict !== 'ask' && !mine ? 0.35 : 1,
+      }}
+    >
+      <View
+        className={`items-center justify-center rounded-pill ${
+          mine ? 'border-selected-line bg-selected' : 'border-rule-mid'
+        }`}
+        style={{ width: THUMB, height: THUMB, borderWidth: 1 }}
+      >
+        <Icon name={icon} size={15} color={mine ? ink : muted} />
+      </View>
+    </Pressable>
+  );
+}
+
+function ReasonChip({
+  label,
+  on,
+  restyle = false,
+  onPress,
+  testID,
+}: {
+  label: string;
+  on: boolean;
+  restyle?: boolean;
+  onPress: () => void;
+  testID: string;
+}) {
+  const ink = useColor('ink');
+  const muted = useColor('ink-muted');
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={on ? fb.remove(label) : label}
+      accessibilityState={{ selected: on }}
+      onPress={onPress}
+      testID={testID}
+      className="justify-center"
+      style={{ minHeight: MIN_TOUCH, marginVertical: -(MIN_TOUCH - CHIP) / 2 }}
+    >
+      <View
+        className={`flex-row items-center gap-1.5 rounded-pill px-3 ${
+          on
+            ? 'border-selected-line bg-selected'
+            : restyle
+              ? 'border-transparent bg-surface-sunk'
+              : 'border-rule-mid bg-surface-raised'
+        }`}
+        style={{ height: CHIP, borderWidth: 1 }}
+      >
+        {restyle ? <Icon name="refresh" size={11} color={on ? ink : muted} /> : null}
+        <Text size="caption" {...(on ? {} : { tone: 'muted' as const })}>
+          {label}
+        </Text>
+        {on ? <Icon name="close" size={10} color={ink} /> : null}
+      </View>
+    </Pressable>
+  );
+}
+
+// Robes' one question about the look as it stands (look prompt PRD F3–F8): two thumbs answer it;
+// after a thumbs down, what to change — up to three reasons, each picked one standing first with
+// its ×, or Restyle it all alone on a draft Robes made. A thumbs up ends it there. Web twin:
+// components/looks/adjust-dock.tsx.
+export function Feedback({
+  adjust,
+  weather,
+  canRestyle,
+}: {
+  adjust: Pick<Adjust, 'state' | 'thumb' | 'reason' | 'restyleAll'>;
+  // The look carries a weather (a draft for a day, its chip standing): F14.
+  weather: boolean;
+  canRestyle: boolean;
+}) {
+  const { question, verdict, reasons, restyle } = adjust.state;
+  if (!question || !verdict) return null;
+  const serif = { fontFamily: fonts.display, fontSize: 17, lineHeight: 22 };
+  return (
+    <View className="gap-3 px-1.5 pt-1" testID="look-feedback">
+      <View className="flex-row items-center gap-3">
+        <Text accessibilityLiveRegion="polite" className="flex-1" style={serif}>
+          {question}
+        </Text>
+        <Thumb
+          icon="thumbsUp"
+          label={fb.up}
+          verdict={verdict}
+          mine={verdict === 'up'}
+          onPress={() => adjust.thumb('up')}
+          testID="thumb-up"
+        />
+        <Thumb
+          icon="thumbsDown"
+          label={fb.down}
+          verdict={verdict}
+          mine={verdict === 'down'}
+          onPress={() => adjust.thumb('down')}
+          testID="thumb-down"
+        />
+      </View>
+      {verdict === 'down' ? (
+        <>
+          <Text style={serif}>{fb.change}</Text>
+          <View className="flex-row flex-wrap gap-2" testID="feedback-reasons">
+            {reasons.map((r) => (
+              <ReasonChip
+                key={r}
+                label={fb.reasons[r].label}
+                on
+                onPress={() => adjust.reason(r)}
+                testID={`reason-${r}`}
+              />
+            ))}
+            {restyle ? (
+              <ReasonChip
+                label={fb.restyle.label}
+                on
+                restyle
+                onPress={adjust.restyleAll}
+                testID="reason-restyle"
+              />
+            ) : null}
+            {openReasons(adjust.state, { weather }).map((r) => (
+              <ReasonChip
+                key={r}
+                label={fb.reasons[r].label}
+                on={false}
+                onPress={() => adjust.reason(r)}
+                testID={`reason-${r}`}
+              />
+            ))}
+            {canRestyle && !restyle ? (
+              <ReasonChip
+                label={fb.restyle.label}
+                on={false}
+                restyle
+                onPress={adjust.restyleAll}
+                testID="reason-restyle"
+              />
+            ) : null}
+          </View>
+        </>
+      ) : null}
+    </View>
   );
 }
 

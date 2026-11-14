@@ -122,6 +122,7 @@ const BASE = {
 
 beforeEach(() => jest.clearAllMocks());
 
+const MADE_JOB = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const draftOf = (overrides: Parameters<typeof look>[0] = {}) =>
   look({ status: 'draft', timesWorn: 0, lastWornOn: null, ...overrides });
 
@@ -587,12 +588,12 @@ test('an empty wardrobe: Add your pieces on the card, Shop the one source, new p
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
       prompt: 'Gallery opening',
+      draft: true,
       balance: 'new',
     }),
   );
-  expect(mockRouter.replace).toHaveBeenCalledWith(
-    '/looks/job/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-  );
+  // Her words never deal three looks to the deck (look prompt PRD D6, D9).
+  expect(mockRouter.replace).not.toHaveBeenCalled();
 });
 
 test('a tap on Wardrobe while it is empty says so and offers the way in', async () => {
@@ -629,9 +630,81 @@ test('with a wardrobe it is the one source; Shop beside it is a mix, Shop alone 
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
       prompt: 'Gallery opening',
+      draft: true,
       balance: 'mix',
     }),
   );
+});
+
+// One draft for every prompt, with or without a day (look prompt PRD D6, D9, F1, F3): the job's
+// look opens in the same sheet, her words head its thread, and Robes asks about the occasion.
+test('her words with no day make one draft in the same sheet, and Robes asks about the occasion', async () => {
+  const made = draftOf({
+    pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+  });
+  const calls = mockFetch({
+    ...BASE,
+    'POST /looks/prompt': { jobId: MADE_JOB, status: 'queued' },
+    [`GET /jobs/${MADE_JOB}`]: {
+      id: MADE_JOB,
+      kind: 'key_piece',
+      status: 'succeeded',
+      stage: 'done',
+      output: { lookIds: [LOOK_ID], occasion: 'brunch' },
+      error: null,
+      cancelRequested: false,
+      createdAt: '2026-11-06T09:00:00.000Z',
+      updatedAt: '2026-11-06T09:00:05.000Z',
+      finishedAt: '2026-11-06T09:00:05.000Z',
+    },
+    [`GET /looks/${LOOK_ID}`]: made,
+  });
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'relaxed weekend brunch');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
+      prompt: 'relaxed weekend brunch',
+      draft: true,
+      balance: 'owned',
+    }),
+  );
+  await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
+  expect(mockRouter.replace).not.toHaveBeenCalled();
+  const fb = copy.feedback;
+  expect(await screen.findByText(fb.questionFor('brunch'))).toBeTruthy();
+  expect(screen.getByText('relaxed weekend brunch')).toBeTruthy();
+  // The question is open: two thumbs, and the box offers to take a change instead.
+  expect(screen.getByTestId('thumb-up').props.accessibilityState.disabled).toBe(false);
+  expect(screen.getByLabelText(fb.placeholder)).toBeTruthy();
+});
+
+test('with no occasion in her brief, Robes asks the plain question', async () => {
+  mockFetch({
+    ...BASE,
+    'POST /looks/prompt': { jobId: MADE_JOB, status: 'queued' },
+    [`GET /jobs/${MADE_JOB}`]: {
+      id: MADE_JOB,
+      kind: 'key_piece',
+      status: 'succeeded',
+      stage: 'done',
+      output: { lookIds: [LOOK_ID] },
+      error: null,
+      cancelRequested: false,
+      createdAt: '2026-11-06T09:00:00.000Z',
+      updatedAt: '2026-11-06T09:00:05.000Z',
+      finishedAt: '2026-11-06T09:00:05.000Z',
+    },
+    [`GET /looks/${LOOK_ID}`]: draftOf({
+      pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+    }),
+  });
+  await renderWithApi(
+    <DraftLook id="new" day="2026-11-06" presentation="sheet" onClose={() => undefined} />,
+  );
+  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'something easy');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  expect(await screen.findByText(copy.feedback.question)).toBeTruthy();
 });
 
 test('turning Wardrobe off, the only source, turns Shop on: new pieces only', async () => {
@@ -650,6 +723,7 @@ test('turning Wardrobe off, the only source, turns Shop on: new pieces only', as
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
       prompt: 'Gallery opening',
+      draft: true,
       balance: 'new',
     }),
   );

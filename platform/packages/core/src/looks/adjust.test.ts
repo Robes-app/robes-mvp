@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { adjustReduce, EMPTY_ADJUST, isWorking, threadHistory } from './adjust';
+import {
+  type AdjustEvent,
+  adjustReduce,
+  EMPTY_ADJUST,
+  feedbackBubble,
+  isWorking,
+  openReasons,
+  threadHistory,
+} from './adjust';
 import { ASK_THREAD_MAX } from './index';
 
 describe('the adjust thread', () => {
@@ -57,5 +65,89 @@ describe('the adjust thread', () => {
     expect(history).toHaveLength(ASK_THREAD_MAX);
     expect(history.every((l) => l.who === 'her')).toBe(true);
     expect(history.at(-1)?.text).toBe(`ask ${ASK_THREAD_MAX + 1}`);
+  });
+});
+
+describe('the question about a look', () => {
+  const run = (events: AdjustEvent[]) => events.reduce(adjustReduce, EMPTY_ADJUST);
+  const asked: AdjustEvent[] = [
+    { type: 'her', text: 'relaxed weekend brunch' },
+    { type: 'question', text: 'How is this look?' },
+  ];
+
+  it('stands apart from the thread, leaves a work line standing, and waits for one thumb', () => {
+    const s = run(asked);
+    expect(s.question).toBe('How is this look?');
+    expect(s.verdict).toBe('ask');
+    expect(s.thread.map((l) => l.text)).toEqual(['relaxed weekend brunch']);
+    // The picture may still be drawing when Robes asks: its line stays.
+    const drawing = run([
+      { type: 'work', text: 'Dressing it…' },
+      { type: 'question', text: 'How about now?' },
+    ]);
+    expect(isWorking(drawing)).toBe(true);
+    // One answer per question: a second thumb changes nothing.
+    const up = run([...asked, { type: 'up' }, { type: 'down' }]);
+    expect(up.verdict).toBe('up');
+  });
+
+  it('takes up to three reasons after a thumbs down; a tap on a picked one clears it', () => {
+    let s = run([...asked, { type: 'reason', reason: 'dressy' }]);
+    // No reasons before the thumb.
+    expect(s.reasons).toEqual([]);
+    s = run([
+      ...asked,
+      { type: 'down' },
+      { type: 'reason', reason: 'dressy' },
+      { type: 'reason', reason: 'colours' },
+      { type: 'reason', reason: 'fit' },
+      { type: 'reason', reason: 'piece' },
+    ]);
+    expect(s.reasons).toEqual(['dressy', 'colours', 'fit']);
+    expect(openReasons(s, { weather: true })).toEqual([]);
+    s = adjustReduce(s, { type: 'reason', reason: 'colours' });
+    expect(s.reasons).toEqual(['dressy', 'fit']);
+    expect(openReasons(s, { weather: true })).toEqual(['casual', 'colours', 'piece', 'weather']);
+    // A look with no weather never offers it (a saved look; the weather left out).
+    expect(openReasons(s, { weather: false })).toEqual(['casual', 'colours', 'piece']);
+  });
+
+  it('keeps Restyle it all alone: it clears the reasons, and a reason clears it', () => {
+    let s = run([...asked, { type: 'down' }, { type: 'reason', reason: 'dressy' }]);
+    s = adjustReduce(s, { type: 'restyle' });
+    expect(s.restyle).toBe(true);
+    expect(s.reasons).toEqual([]);
+    expect(openReasons(s, { weather: true })).toEqual([]);
+    s = adjustReduce(s, { type: 'reason', reason: 'fit' });
+    expect(s.restyle).toBe(false);
+    expect(s.reasons).toEqual(['fit']);
+  });
+
+  it('closes when she sends, thumb or no thumb, and joins the thread above her line', () => {
+    const s = run([...asked, { type: 'her', text: 'swap the trainers for boots' }]);
+    expect(s.question).toBeNull();
+    expect(s.verdict).toBeNull();
+    expect(s.thread.map((l) => [l.who, l.text])).toEqual([
+      ['her', 'relaxed weekend brunch'],
+      ['robes', 'How is this look?'],
+      ['her', 'swap the trainers for boots'],
+    ]);
+    expect(new Set(s.thread.map((l) => l.id)).size).toBe(3);
+    const picked = run([
+      ...asked,
+      { type: 'down' },
+      { type: 'reason', reason: 'dressy' },
+      { type: 'her', text: 'Too dressy' },
+    ]);
+    expect(picked.reasons).toEqual([]);
+    expect(picked.restyle).toBe(false);
+  });
+
+  it('writes her choice as one bubble: what she tapped, then her words in quotes', () => {
+    expect(feedbackBubble(['Too dressy', 'The colours'], '')).toBe('Too dressy · The colours');
+    expect(feedbackBubble(['The colours'], ' less matching ')).toBe(
+      'The colours · “less matching”',
+    );
+    expect(feedbackBubble([], 'swap the trainers for boots')).toBe('swap the trainers for boots');
   });
 });
