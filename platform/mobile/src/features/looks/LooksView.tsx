@@ -28,7 +28,6 @@ import { TabScreen } from '@/components/TabScreen';
 import { FilterRow } from '@/features/filters/FilterRow';
 import { FilterSheet } from '@/features/filters/FilterSheet';
 import { useLookFilters } from '@/features/filters/use-look-filters';
-import { NewLookBox } from '@/features/home/HomeBox';
 import { errorMessage } from '@/lib/errors';
 import { usePullRefresh } from '@/lib/pull-refresh';
 import { DiarySheet } from './DiarySheet';
@@ -225,10 +224,18 @@ export function LooksView() {
                     />
                   )
                 ) : (
-                  <View className="gap-4">
-                    <EmptyState title={copy.suggestedEmpty.title} body={copy.suggestedEmpty.body} />
-                    <NewLookBox />
-                  </View>
+                  // Her words open the draft look sheet like every prompt (look prompt PRD D9): New
+                  // look is the way in, never a second prompt box.
+                  <EmptyState
+                    title={copy.suggestedEmpty.title}
+                    body={copy.suggestedEmpty.body}
+                    action={{
+                      label: `+ ${copy.newLook}`,
+                      variant: 'primary',
+                      onPress: () => setNewLook(true),
+                    }}
+                    testID="suggested-empty"
+                  />
                 )
               }
             />

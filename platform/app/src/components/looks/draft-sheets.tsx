@@ -1,16 +1,14 @@
 'use client';
 
-import type { PieceImage as PieceImageData } from '@robes/contracts';
 import { lookbook } from '@robes/copy';
 import { ASK_MAX_CHARS } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
-import { imageSources } from '@/lib/image';
 
 const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// Felix's floating sheet shell (AdjustSheet, DescribeSheet): a cream card 8px from the drawer's
+// Felix's floating sheet shell (the AdjustSheet): a cream card 8px from the drawer's
 // sides and bottom on a 0.5px `rule-mid` edge, sheet corners and shadow, sliding up over 0.3s,
 // with a 40px header — the 9px tracked title and a 36px `cream-200` close disc. A tap on the
 // body behind it, or Escape, closes it. Native twin: mobile/src/features/looks/DraftSheets.tsx.
@@ -173,109 +171,6 @@ export function AdjustSheet({
             <Icon name="forward" size={15} />
           )}
         </button>
-      </div>
-    </FloatingSheet>
-  );
-}
-
-export interface DescribePiece {
-  key: string;
-  name: string;
-  image: PieceImageData | null | undefined;
-}
-
-// Felix's DescribeSheet ("Describe changes"): her sentence re-writes the look, keeping the pieces
-// in its chip row — the count chip opens to one chip per piece, each with × to drop it from the
-// prompt — and sends through the thread's Dress it again.
-export function DescribeSheet({
-  open,
-  pieces,
-  sending,
-  onRemovePiece,
-  onSend,
-  onClose,
-}: {
-  open: boolean;
-  pieces: readonly DescribePiece[];
-  sending: boolean;
-  onRemovePiece: (key: string) => void;
-  onSend: (text: string) => void;
-  onClose: () => void;
-}) {
-  const copy = lookbook.draftLook.describeSheet;
-  const [text, setText] = useState('');
-  const [expanded, setExpanded] = useState(false);
-  if (!open) return null;
-  const send = () => {
-    const words = text.trim();
-    if (!words || sending) return;
-    onSend(words);
-    setText('');
-  };
-  const chip =
-    'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill border px-2.5 font-sans text-[11px] text-ink';
-  return (
-    <FloatingSheet title={copy.title} onClose={onClose} testId="describe-sheet">
-      <div className="mt-4 flex flex-col gap-2.5 rounded-sheet bg-surface-raised px-1.5 pt-2.5 pb-1.5">
-        <div className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none]">
-          <button
-            type="button"
-            aria-expanded={expanded}
-            aria-label={expanded ? copy.hide : copy.show}
-            onClick={() => setExpanded((e) => !e)}
-            className={`${chip} ${pieces.length ? 'border-selected-line bg-selected' : 'border-rule-mid bg-surface-raised'} ${focus}`}
-          >
-            <Icon name="wardrobe" size={12} />
-            {copy.pieces(pieces.length)}
-            <span aria-hidden className="w-5 text-center text-ink-muted">
-              {expanded ? '‹' : '›'}
-            </span>
-          </button>
-          {expanded
-            ? pieces.map((p) => {
-                const src = p.image ? imageSources(p.image.renditions)?.src : undefined;
-                return (
-                  <span key={p.key} className={`${chip} border-selected-line bg-selected pl-1`}>
-                    <span
-                      aria-hidden
-                      className="size-5 shrink-0 rounded-pill bg-surface-sunk bg-center bg-cover"
-                      style={src ? { backgroundImage: `url(${JSON.stringify(src)})` } : undefined}
-                    />
-                    {p.name}
-                    <button
-                      type="button"
-                      aria-label={copy.remove(p.name)}
-                      onClick={() => onRemovePiece(p.key)}
-                      className={`relative flex size-4 items-center justify-center rounded-pill text-ink-muted after:absolute after:-inset-2 after:content-[''] hover:text-ink ${focus}`}
-                    >
-                      <Icon name="close" size={10} />
-                    </button>
-                  </span>
-                );
-              })
-            : null}
-        </div>
-        <div className="flex h-12 items-center gap-2 pl-2.5">
-          <SheetField
-            label={copy.title}
-            placeholder={copy.placeholder}
-            value={text}
-            onChange={setText}
-            onSend={send}
-            disabled={sending}
-            className="py-3"
-            testId="describe-sheet-field"
-          />
-          <button
-            type="button"
-            aria-label={copy.send}
-            onClick={send}
-            disabled={sending || !text.trim()}
-            className={`flex size-10 shrink-0 items-center justify-center rounded-pill bg-surface-sunk text-ink disabled:opacity-40 ${focus}`}
-          >
-            <Icon name="forward" size={15} />
-          </button>
-        </div>
       </div>
     </FloatingSheet>
   );

@@ -3,7 +3,6 @@ import {
   type AskEdit,
   anchorName,
   applyAsk,
-  askDateFrom,
   askWhen,
   changedKeys,
   deckReduce,
@@ -23,7 +22,6 @@ import {
   noteShort,
   orderRack,
   pickerOrder,
-  pieceNoun,
   pinnedFor,
   priceFromPoint,
   type RackRow,
@@ -203,30 +201,9 @@ describe('the rack', () => {
   });
 });
 
-describe('a day read out of her words', () => {
+describe('the day of an ask', () => {
   // 2026-10-15 is a Thursday.
   const today = '2026-10-15';
-  it.each([
-    ['dinner tonight', '2026-10-15'],
-    ['what to wear tomorrow', '2026-10-16'],
-    ['Style me for dinner on saturday night', '2026-10-17'],
-    ['thursday lunch', '2026-10-15'],
-    ['next friday', '2026-10-23'],
-    ['the weekend', '2026-10-17'],
-    ['next week', '2026-10-19'],
-    ['17 Oct', '2026-10-17'],
-    ['October 30th', '2026-10-30'],
-    ['2 jan', '2027-01-02'],
-    ['2026-11-01', '2026-11-01'],
-  ])('%s → %s', (text, iso) => expect(askDateFrom(text, today)).toBe(iso));
-
-  it('places nothing it cannot read, and never a day gone by', () => {
-    expect(askDateFrom('something chic', today)).toBeNull();
-    expect(askDateFrom('sat brunch', today)).toBeNull();
-    expect(askDateFrom('1 Oct', today)).toBeNull();
-    expect(askDateFrom('2026-10-01', today)).toBeNull();
-  });
-
   it('says when, and reads the forecast', () => {
     expect(askWhen('2026-10-16', today)).toEqual({ kind: 'tomorrow' });
     expect(askWhen('2026-10-17', today)).toEqual({ kind: 'weekday', weekday: 6 });
@@ -310,20 +287,6 @@ describe('the Saved tab’s sort', () => {
   });
   it('lists the menu in beta’s order: Last worn, Newest, Name', () => {
     expect(SORTS).toEqual(['lastWorn', 'newest', 'name']);
-  });
-});
-
-describe('pieceNoun', () => {
-  it('reads the last word of the name, plural when it ends in a plain s', () => {
-    expect(pieceNoun('Light wash wide-leg jeans')).toEqual({ word: 'jeans', plural: true });
-    expect(pieceNoun('Acid green cropped jumper')).toEqual({ word: 'jumper', plural: false });
-    expect(pieceNoun('Silk dress')).toEqual({ word: 'dress', plural: false });
-    expect(pieceNoun('Cream long-sleeve t-shirt')).toEqual({ word: 't-shirt', plural: false });
-  });
-  it('falls back to this piece when the name tells nothing', () => {
-    expect(pieceNoun('')).toEqual({ word: 'piece', plural: false });
-    expect(pieceNoun(null)).toEqual({ word: 'piece', plural: false });
-    expect(pieceNoun('New')).toEqual({ word: 'piece', plural: false });
   });
 });
 

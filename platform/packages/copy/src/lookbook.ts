@@ -410,15 +410,6 @@ export const lookbook = {
       placeholder: 'e.g: sleeves rolled up…',
       send: 'Send',
     },
-    describeSheet: {
-      title: 'Describe changes',
-      placeholder: 'e.g: more casual…',
-      send: 'Send',
-      pieces: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
-      show: 'Show the pieces',
-      hide: 'Hide the pieces',
-      remove: (name: string): string => `Remove ${name} from the prompt`,
-    },
     // The piece picker (Felix WardrobePicker): the wardrobe grid as a subview; its search, pills
     // and Photograph one read home's flyout copy.
     picker: {
@@ -674,11 +665,9 @@ export const lookbook = {
   // The look prompt: one box on every look.
   prompt: {
     doorLook: 'Change this look…',
-    doorNew: 'Where to, and how should it feel?',
     doorAfter: 'Anything else, or put something back…',
     doorDraft: 'Change this draft…',
     busyChange: 'Changing the look…',
-    busyRead: 'Reading it…',
     busyNote: 'Noting it…',
     doneNone: 'Nothing has changed yet, so there’s nothing to put back.',
     noticed: 'Waiting under Robes noticed — keep it there and it becomes a rule.',
@@ -686,7 +675,6 @@ export const lookbook = {
     send: 'Send',
     fold: 'Close',
     label: (name: string): string => `Change ${name}`,
-    newLabel: 'A new look',
     failed: 'Robes couldn’t read that just now. Try again.',
   },
   // F8: a verdict on a suggestion lands in her memory; "not quite" lets it go.

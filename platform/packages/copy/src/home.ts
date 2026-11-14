@@ -38,7 +38,6 @@ export const home = {
     [weekday, city, temp].filter(Boolean).join(' · '),
   metaSpoken: (condition: string | null, meta: string): string =>
     [condition, meta].filter(Boolean).join(' · '),
-  doorDay: (day: string): string => `Dress ${day}…`,
   later: 'Later',
   map: {
     title: 'Getting to know you',
@@ -134,32 +133,6 @@ export const home = {
   lookEyebrow: 'Look',
   aroundYour: (piece: string): string => `Around your ${piece}`,
   fromPrompt: 'From your prompt',
-  // The + inside the box (legacy HomePrompt 2026-10-15): a piece by photograph or from the
-  // wardrobe sits inside the box above her words, and Send is three looks around it.
-  plus: {
-    label: 'Add a piece',
-    camera: 'Take a picture',
-    cameraHint: 'Lay it flat, in good light.',
-    upload: 'Upload a photo',
-    uploadHint: 'A flat lay, or you wearing it.',
-    wardrobe: 'From your wardrobe',
-    wardrobeHint: 'Anything already filed.',
-    remove: 'Remove piece',
-    reading: 'Reading the piece…',
-    readingSub: 'Robes will file it to your wardrobe',
-    // "Style these jeans for…" / "Style this jumper for…"
-    styleFor: (noun: { word: string; plural: boolean }): string =>
-      `Style ${noun.plural ? 'these' : 'this'} ${noun.word} for…`,
-    inWardrobe: (category: string): string => `${category} · in your wardrobe`,
-    filedTo: (category: string): string => `${category} · filed to your wardrobe`,
-    notFiled: 'Not filed yet — the looks still run',
-    nothingFound: 'Robes couldn’t see a piece to file — the looks still run',
-    filing: 'Filing it to your wardrobe…',
-    placeholder: 'Where to? Optional',
-    emptyWardrobe: 'Nothing catalogued yet — take a picture of the piece instead',
-    pickTitle: 'From your wardrobe',
-    newPiece: 'New piece',
-  },
 } as const;
 
 // Onboarding, splash to home (handoff 30 Oct): name, identity, styles, brands, colours. Identity

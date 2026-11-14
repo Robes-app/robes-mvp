@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as v8 from './v8';
-import { buildSystem, fakeOutput, Output, occasionOf, VERSION } from './v9';
+import { buildSystem, buildUser, fakeOutput, Output, occasionOf, VERSION } from './v9';
 
 const ctx: Parameters<typeof buildSystem>[0] = {
   firstName: null,
@@ -52,5 +52,26 @@ describe('style-piece v9 — one look for her words, and its occasion', () => {
     });
     expect(one.ways).toHaveLength(1);
     expect(occasionOf(one)).toBe('dinner');
+  });
+
+  it('carries the words typed beside a piece into the styling call, fenced', () => {
+    const piece = {
+      mode: 'piece' as const,
+      anchor: { type: 'piece' as const, label: 'Camel coat' },
+    };
+    const plain = buildUser(piece, { hasPhoto: false });
+    expect(plain).toBe(v8.buildUser(piece, { hasPhoto: false }));
+    // Until v9 these words reached the picture and never the styling call.
+    expect(plain).not.toContain('a gallery opening');
+    const said = buildUser(piece, { hasPhoto: false, occasion: ' a gallery opening ' });
+    expect(said.startsWith(plain)).toBe(true);
+    expect(said).toContain(
+      'What the looks are for, in her words: <user_input>\na gallery opening\n</user_input>',
+    );
+    // Her words for a day already are the brief: nothing is added to that turn.
+    const day = { mode: 'dress-me' as const, prompt: 'dinner', day: null };
+    expect(buildUser(day, { hasPhoto: false, occasion: 'dinner' })).toBe(
+      v8.buildUser(day, { hasPhoto: false }),
+    );
   });
 });

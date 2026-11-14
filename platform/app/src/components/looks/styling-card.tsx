@@ -41,8 +41,6 @@ export function StylingCard({
   onChange,
   onSend,
   emptySend,
-  onDescribe,
-  describeLabel,
   busy,
 }: {
   context?: ReactNode;
@@ -61,8 +59,6 @@ export function StylingCard({
   // field lets go (D5). `send`: she tapped what to change, which stands for her words (F10).
   // Unset: a saved look's send waits for her words (L3).
   emptySend?: 'blur' | 'send';
-  onDescribe?: () => void;
-  describeLabel?: string;
   busy: boolean;
 }) {
   const turning = useTurningPlaceholder(placeholders ?? [], value.length === 0 && !placeholder);
@@ -144,16 +140,6 @@ export function StylingCard({
         <ErrorText size="caption" className="pb-2" data-testid="prompt-too-long">
           {copy.tooLong(ASK_MAX_CHARS)}
         </ErrorText>
-      ) : null}
-      {onDescribe ? (
-        <button
-          type="button"
-          onClick={onDescribe}
-          disabled={busy}
-          className={`min-h-7 self-start pb-1 font-sans text-[11px] text-ink-muted underline underline-offset-4 hover:text-ink disabled:text-ink-faint ${focus}`}
-        >
-          {describeLabel}
-        </button>
       ) : null}
     </section>
   );

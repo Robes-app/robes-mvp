@@ -435,6 +435,14 @@ describe('key_piece handler (suggested looks)', () => {
     );
   });
 
+  it('sends the words typed beside a piece to the styling call, not only the picture', async () => {
+    const { run, generateJson } = setup();
+    await run({ anchor: { type: 'piece', pieceId: PIECE }, occasion: 'a gallery opening' });
+    expect(generateJson.mock.calls[0]?.[0].user).toContain(
+      'What the looks are for, in her words: <user_input>\na gallery opening\n</user_input>',
+    );
+  });
+
   it('the piece door still asks for three ways and names no occasion', async () => {
     const { run, generateJson, writeStage } = setup();
     await run({ anchor: { type: 'piece', pieceId: PIECE } });

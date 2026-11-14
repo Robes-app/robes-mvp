@@ -10,7 +10,6 @@ import { useMemo, useState } from 'react';
 import { FilterRow } from '@/components/filters/filter-row';
 import { FilterSheet } from '@/components/filters/filter-sheet';
 import { useLookFilters } from '@/components/filters/use-look-filters';
-import { NewLookBox } from '@/components/home/home-box';
 import { errorCopy } from '@/lib/error-copy';
 import { useLetGo, useLooksByStatus, useRestyle, useSaveLook } from '@/lib/look-states';
 import { DiarySheet } from './diary-sheet';
@@ -146,10 +145,17 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
             />
           )
         ) : (
-          <div className="flex flex-col gap-4">
-            <EmptyState title={copy.suggestedEmpty.title} body={copy.suggestedEmpty.body} />
-            <NewLookBox />
-          </div>
+          // Her words open the draft look drawer like every prompt (look prompt PRD D9): New look
+          // is the way in, never a second prompt box.
+          <EmptyState
+            title={copy.suggestedEmpty.title}
+            body={copy.suggestedEmpty.body}
+            action={
+              <Button variant="primary" onClick={() => setNewLook(true)}>
+                + {copy.newLook}
+              </Button>
+            }
+          />
         )
       ) : (
         <ul aria-label={copy.tabs[tab]} className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">

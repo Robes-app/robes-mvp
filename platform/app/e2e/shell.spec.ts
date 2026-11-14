@@ -207,9 +207,10 @@ test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
     'Style a piece',
     'New look',
   ]);
-  // Ask Robes is the new-look box itself, leading the sheet (beta's sparkle).
-  await expect(sheet.getByTestId('home-box')).toBeVisible();
-  await expect(sheet.getByPlaceholder('Where to, and how should it feel?')).toBeVisible();
+  // No prompt box leads the sheet: her words open the draft look drawer, from New look (look
+  // prompt PRD D9).
+  await expect(sheet.getByTestId('home-box')).toHaveCount(0);
+  await expect(sheet.getByRole('textbox')).toHaveCount(0);
 });
 
 test('P0 routes have no serious accessibility violations', async ({ page }) => {
