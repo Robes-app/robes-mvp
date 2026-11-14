@@ -389,10 +389,10 @@ test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
   expect(await screen.findByText(fb.again)).toBeTruthy();
   const before = calls.length;
   await fireEvent.press(screen.getByTestId('thumb-up'));
-  // The prompt closes: to its one line while the picture is still drawing, then to the sparkle
+  // The prompt closes: to its closed bar while the picture is still drawing, then to the sparkle
   // (look prompt PRD F6, F23). Either opens it again.
   await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
-  await fireEvent.press(screen.getByTestId('prompt-pill'));
+  await fireEvent.press(screen.getByTestId('prompt-expand'));
   expect(screen.getByTestId('thumb-up').props.accessibilityState.selected).toBe(true);
   expect(screen.queryByTestId('feedback-reasons')).toBeNull();
   // One answer per question.
@@ -442,7 +442,9 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
   const field = await screen.findByTestId('draft-prompt');
   await fireEvent.changeText(field, 'swap the mules for my dark jean');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  expect(await screen.findByText('Done. The dark jean is on the look now.')).toBeTruthy();
+  // The change is seen on the rack, not told (redline 14 Nov): Robes only asks.
+  expect(await screen.findByText(lookbook.draftLook.feedback.again)).toBeTruthy();
+  expect(screen.queryByText('Done. The dark jean is on the look now.')).toBeNull();
   const ask = calls.find((c) => c.path.endsWith('/ask'))?.body as {
     rack: unknown[];
     surface: string;

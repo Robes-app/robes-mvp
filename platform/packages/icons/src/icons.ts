@@ -158,6 +158,12 @@ export const ICONS = {
   // suggestion; the Wardrobe's Shop tab and the mark on a look with pieces still to find.
   bookmark: ['M7 4h10v16l-5-3.5L7 20z'],
   bag: ['M5 11h14v9.5H5z', 'M9 11C9 6.5 10.3 4 12 4s3 2.5 3 7'],
+  // The prompt box's Shop source (redline 14 Nov): a shopping bag seen three-quarter on.
+  shop: [
+    'M8 9.5V6.9C8 5.3 9 4.2 10.25 4.2S12.5 5.3 12.5 6.9V9.5',
+    'M5.5 9.5H14.6V20.4H5.5Z',
+    'M14.6 9.5L17.3 10.5L18.1 20.4H14.6',
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export type IconName = keyof typeof ICONS;

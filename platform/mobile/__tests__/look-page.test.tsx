@@ -5,7 +5,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { LookScreen } from '../src/features/looks/LookScreen';
 import { localDate, nextDays } from '../src/features/looks/saved-looks';
 import { nativeAnalytics } from '../src/lib/analytics';
-import { mockFetch, renderWithApi } from './support/api';
+import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { LOOK_ID, look, modelData, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
 
@@ -284,8 +284,13 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjus
   expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
   expect(screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') })).toBeTruthy();
   expect(screen.queryByRole('button', { name: lookbook.savedLook.edit })).toBeNull();
-  // The prompt stands behind the sparkle at the look's foot (look prompt PRD F23). Opened, the
-  // box reads "add matching shoes…" with its send waiting for her words (L3); nothing waits yet.
+  // No header: the back disc rides the photo, Schedule look holds the foot.
+  expect(screen.queryByTestId('draft-close')).toBeNull();
+  expect(screen.getByTestId('saved-look-back')).toBeTruthy();
+  expect(screen.getByTestId('schedule-look')).toBeTruthy();
+  // The prompt stands behind the sparkle at the look's foot (look prompt PRD F23). Opened, it is
+  // a sheet over the greyed look and the look's button steps away (redline 14 Nov, pins 23, 25);
+  // the box reads "add matching shoes…" with its send waiting for her words (L3).
   expect(screen.queryByTestId('draft-prompt')).toBeNull();
   await fireEvent.press(screen.getByTestId('prompt-spark'));
   expect(screen.getByText(lookbook.draftLook.dock.title)).toBeTruthy();
@@ -293,9 +298,11 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjus
   expect(screen.getByTestId('prompt-send').props.accessibilityState.disabled).toBe(true);
   expect(screen.queryByTestId('update-model')).toBeNull();
   expect(screen.queryByTestId('update-look')).toBeNull();
-  // No header: the back disc rides the photo, Schedule look holds the foot.
-  expect(screen.queryByTestId('draft-close')).toBeNull();
-  expect(screen.getByTestId('saved-look-back')).toBeTruthy();
+  expect(screen.queryByTestId('schedule-look')).toBeNull();
+  // A tap on the scrim closes it: the sparkle and Schedule look are back.
+  await fireEvent.press(screen.getByTestId('prompt-scrim'));
+  expect(screen.queryByTestId('draft-prompt')).toBeNull();
+  expect(screen.getByTestId('prompt-spark')).toBeTruthy();
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
   // The adjust disc opens the AdjustSheet over the look — never the draft sheet.
   await fireEvent.press(screen.getByTestId('draft-adjust'));
@@ -356,7 +363,7 @@ test('Discard drops the unapplied change and leaves; nothing is written', async 
   expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
 });
 
-test('words typed wait for Update look, which sends them and writes the answered rack', async () => {
+test('words sent from a saved look’s prompt are answered on the rack and kept, with no Update look', async () => {
   const calls = mockFetch({
     ...editRoutes(twoPieces()),
     [`POST /looks/${LOOK_ID}/ask`]: { jobId: ASK_JOB, status: 'queued' },
@@ -388,19 +395,22 @@ test('words typed wait for Update look, which sends them and writes the answered
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByTestId('prompt-spark'));
   await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'collar up on the coat');
-  // Typed words are a change waiting too: the pill shows; nothing is sent until it is pressed.
-  expect(screen.getByTestId('update-look')).toBeTruthy();
+  // Typed words raise no button (redline 14 Nov, pin 25): the prompt's own send is the way.
+  expect(screen.queryByTestId('update-look')).toBeNull();
   expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
-  await fireEvent.press(screen.getByTestId('update-look'));
+  await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/ask'))?.body).toMatchObject({
       text: 'collar up on the coat',
       surface: 'saved',
     }),
   );
-  expect(await screen.findByText('Collar up.')).toBeTruthy();
-  // The write waits for the answer to land on the rack.
+  // The write follows the answer onto the rack with no button pressed, and Robes does not say
+  // what it did: the change is seen, and it only asks.
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(screen.queryByText('Collar up.')).toBeNull();
+  expect(screen.getByText(lookbook.draftLook.feedback.again)).toBeTruthy();
+  expect(screen.queryByTestId('update-look')).toBeNull();
   expect(calls.findIndex((c) => c.path.endsWith('/ask'))).toBeLessThan(
     calls.findIndex((c) => c.method === 'PATCH'),
   );
@@ -410,7 +420,7 @@ test('words typed wait for Update look, which sends them and writes the answered
 
 // The feedback thread on a saved look (look prompt PRD F3, F11, F13–F15, F22): the box's send
 // asks, Robes asks about the change it made, and what she taps next rides the following send.
-// Nothing is written until Update look.
+// What Robes changes is kept as it lands (redline 14 Nov, pin 25): no Update look.
 test('a saved look: the send asks, Robes asks about the change, reasons ride the next send', async () => {
   const styled = {
     intent: 'styled',
@@ -426,6 +436,9 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   };
   const calls = mockFetch({
     ...editRoutes(twoPieces()),
+    // The picture's drawing is not this test's subject, and a send waits for a picture being
+    // drawn: its request is refused here, so the prompt is free again at once.
+    [`POST /looks/${LOOK_ID}/render`]: errorReply(503, 'unavailable'),
     [`POST /looks/${LOOK_ID}/ask`]: { jobId: ASK_JOB, status: 'queued' },
     [`GET /jobs/${ASK_JOB}`]: {
       id: ASK_JOB,
@@ -449,10 +462,20 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   // Robes' own question about the change it made (F3).
   expect(await screen.findByText('How does the collar look?')).toBeTruthy();
   expect(asks()).toHaveLength(1);
-  // The change waits for Update look: asked, never written (F22).
-  expect(screen.getByTestId('update-look')).toBeTruthy();
-  expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+  // The change is kept as it lands, with no button and no line saying so.
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(screen.queryByTestId('update-look')).toBeNull();
+  expect(screen.queryByText('Collar up.')).toBeNull();
+  // Minimised while Robes is asking, the prompt is its closed bar with the question and the
+  // thumbs on it (pins 17, 19, 20), and the look's button is back under it.
+  await fireEvent.press(screen.getByTestId('prompt-minimise'));
+  expect(screen.queryByTestId('draft-prompt')).toBeNull();
+  expect(screen.getByTestId('prompt-pill')).toBeTruthy();
+  expect(screen.getByText('How does the collar look?')).toBeTruthy();
+  expect(screen.getByTestId('thumb-up')).toBeTruthy();
+  // A thumbs down on the bar opens the sheet on what to change.
   await fireEvent.press(screen.getByTestId('thumb-down'));
+  expect(await screen.findByTestId('draft-prompt')).toBeTruthy();
   expect(screen.getByText(fb.change)).toBeTruthy();
   // A saved look carries no weather and is never restyled whole (F13, F14).
   expect(screen.queryByTestId('reason-weather')).toBeNull();
@@ -478,21 +501,20 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
     text: '',
     reasons: ['dressy', 'colours'],
   });
-  // Her choice is one bubble (F17), and still nothing is written.
+  // Her choice is one bubble (F17).
   expect(
     await screen.findByText(`${fb.reasons.dressy.label} · ${fb.reasons.colours.label}`),
   ).toBeTruthy();
-  expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+  expect(screen.queryByTestId('update-look')).toBeNull();
   expect(nativeAnalytics.track).toHaveBeenCalledWith('look_feedback_sent', {
     surface: 'saved',
     reason: 'several',
     has_text: false,
     action: 'adjust',
   });
-  // Minimised, a saved look's prompt goes back behind the sparkle (F23).
-  await fireEvent.press(screen.getByTestId('prompt-minimise'));
+  // The scrim closes the sheet (pin 23).
+  await fireEvent.press(screen.getByTestId('prompt-scrim'));
   expect(screen.queryByTestId('draft-prompt')).toBeNull();
-  expect(screen.getByTestId('prompt-spark')).toBeTruthy();
 });
 
 // Adjust model image is for Robes' picture alone (PRD §6.4): a look whose record is her own
@@ -511,8 +533,9 @@ test('the adjust disc is not on a photograph of hers', async () => {
   expect(screen.queryByTestId('draft-adjust')).toBeNull();
 });
 
-// The sources on a saved look (PRD §6.1): a changed source counts as a change and enables Update.
-test('flipping Shop on a saved look waits for Update look', async () => {
+// The sources on a saved look are the prompt's own setting (redline 14 Nov, pin 25): flipping one
+// raises no Update look; it rides the next send.
+test('flipping Shop on a saved look raises no Update look', async () => {
   mockFetch({
     ...editRoutes(twoPieces()),
     'GET /wardrobe/summary': { total: 2, categories: [] },
@@ -523,9 +546,12 @@ test('flipping Shop on a saved look waits for Update look', async () => {
   await waitFor(() => expect(toggle.props.accessibilityState.checked).toBe(false));
   expect(screen.queryByTestId('update-look')).toBeNull();
   await fireEvent.press(toggle);
-  expect(screen.getByTestId('update-look')).toBeTruthy();
-  await fireEvent.press(screen.getByTestId('source-shop'));
-  await waitFor(() => expect(screen.queryByTestId('update-look')).toBeNull());
+  await waitFor(() =>
+    expect(screen.getByTestId('source-shop').props.accessibilityState.checked).toBe(true),
+  );
+  expect(screen.queryByTestId('update-look')).toBeNull();
+  await fireEvent.press(screen.getByTestId('prompt-minimise'));
+  expect(screen.getByTestId('schedule-look')).toBeTruthy();
 });
 
 test('the photo strip on the look’s page keeps its back disc, so she can always leave', async () => {

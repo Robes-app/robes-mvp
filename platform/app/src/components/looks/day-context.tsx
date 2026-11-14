@@ -16,11 +16,38 @@ const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const chip =
   'inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-pill border px-2.5 font-sans text-[11px]';
-// The Front Door's weather chip (PRD rev 3 §4.6): the deep rose fill with a cream label; out, an
-// outline chip on the warm line offers it back.
-const warm = `${chip} border-accent-warm bg-accent-warm text-surface-raised`;
+// The day's place and weather in the prompt box (redline 14 Nov, pin 3): the sunk cream inside
+// the umber ring with an ink label; out, an outline chip on the warm line offers it back.
+const warm = `${chip} border-token-line bg-surface-sunk font-light text-ink`;
 const quiet = `${chip} border-warm-line bg-transparent text-ink`;
 const WEATHER_STALE_MS = 15 * 60_000;
+
+// Once her brief is sent the place and weather it went with stand under her first line
+// (redline 14 Nov, pins 7 and 13): the pin, the city, the sky and the range, small and faint.
+export function DayMeta({ date }: { date: string }) {
+  const today = useApi('today.get');
+  const day = today.data?.diary?.days.find((x) => x.date === date);
+  const city = day?.place?.city ?? day?.weather?.city ?? null;
+  if (!day || !city) return null;
+  const wx = day.weather;
+  const icon = weatherIcon(wx?.code);
+  return (
+    <p
+      className="flex items-center gap-1 font-light font-sans text-[11px] text-ink-faint"
+      data-testid="her-meta"
+    >
+      <Icon name="pin" size={10} />
+      {city}
+      {wx ? (
+        <>
+          <span aria-hidden>·</span>
+          {icon ? <Icon name={icon} size={10} /> : null}
+          {shortRange(wx.tempRange)}
+        </>
+      ) : null}
+    </p>
+  );
+}
 
 // The day's context in the draft drawer (Front Door PRD rev 3 §4.6: "📍 Dublin · ☁ 9–13° ×" in
 // rose): where she is that day and its range. The place decides the weather (root CLAUDE.md), so
@@ -94,7 +121,7 @@ export function DayContext({
             {city}
             {wx ? (
               <>
-                <span aria-hidden className="text-surface-raised/70">
+                <span aria-hidden className="text-ink-muted">
                   ·
                 </span>
                 {icon ? <Icon name={icon} size={11} /> : null}
@@ -107,7 +134,7 @@ export function DayContext({
             aria-label={copy.weatherOut}
             title={copy.weatherOut}
             onClick={() => onWeatherOff(true)}
-            className={`flex size-5 items-center justify-center rounded-pill text-surface-raised ${focus}`}
+            className={`flex size-5 items-center justify-center rounded-pill text-ink ${focus}`}
           >
             <Icon name="close" size={11} />
           </button>

@@ -19,7 +19,7 @@ function Harness() {
   );
 }
 
-test('is a switch that names each state and wears the selected tokens when on', async () => {
+test('is a switch that names each state and wears the sunk fill on the umber ring when on', async () => {
   await render(<Harness />);
   const sw = screen.getByRole('switch', { name: OFF });
   expect(sw.props.accessibilityState).toEqual({ checked: false, disabled: false });
@@ -27,7 +27,7 @@ test('is a switch that names each state and wears the selected tokens when on', 
   expect(screen.getByTestId('shop-disc').props.className).toContain('border-warm-line');
   await fireEvent.press(sw);
   expect(screen.getByRole('switch', { name: ON }).props.accessibilityState.checked).toBe(true);
-  expect(screen.getByTestId('shop-disc').props.className).toContain('bg-selected');
+  expect(screen.getByTestId('shop-disc').props.className).toContain('bg-surface-sunk');
 });
 
 test('stays pressable while faded, so a tap can say why it is off', async () => {

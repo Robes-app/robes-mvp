@@ -141,11 +141,9 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   const field = page.getByTestId('draft-prompt');
   await field.fill('swap the trouser for the dark straight jean');
   await field.press('Enter');
-  await expect(
-    page.getByText('Done. The change is on the look now.', { exact: false }),
-  ).toBeVisible({
-    timeout: 30_000,
-  });
+  // The change is seen on the rack, never told (redline 14 Nov): Robes only asks about it.
+  await expect(page.getByText(/^How does (it|the change) look/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Done.', { exact: false })).toHaveCount(0);
   await expect(page.getByText('Swapped in · was the white wide-leg trouser')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open Dark straight jean' })).toBeVisible();
 

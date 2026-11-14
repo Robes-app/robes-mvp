@@ -15,7 +15,7 @@
     "./prompts/style-brief": "./src/prompts/style-brief/v2.ts",
     "./prompts/wardrobe-pieces": "./src/prompts/wardrobe-pieces/v3.ts",
     "./prompts/style-piece/v2": "./src/prompts/style-piece/v2.ts",
-    "./prompts/look-ask": "./src/prompts/look-ask/v2.ts"
+    "./prompts/look-ask": "./src/prompts/look-ask/v3.ts"
   },
   "scripts": {
     "test": "vitest run",

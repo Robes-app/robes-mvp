@@ -22,7 +22,7 @@ export interface IconToggleProps {
 const DISC = 28;
 
 // The prompt's source toggles (look prompt PRD S1, P7, P8): a 28pt disc with one glyph inside a
-// 44pt target. On: the selected fill on the selected-line edge. Off: clear on the warm line. Twin
+// 44pt target. On: the sunk cream on the umber ring. Off: clear on the warm line (redline 14 Nov). Twin
 // of web ui icon-toggle.tsx.
 export function IconToggle({
   icon,
@@ -36,7 +36,7 @@ export function IconToggle({
   testID,
 }: IconToggleProps) {
   const ink = useColor('ink');
-  const muted = useColor('ink-muted');
+  const muted = useColor('ink-faint');
   return (
     <Pressable
       accessibilityRole="switch"
@@ -57,7 +57,7 @@ export function IconToggle({
         testID={testID ? `${testID}-disc` : undefined}
         className={cx(
           'items-center justify-center rounded-pill',
-          checked ? 'border-selected-line bg-selected' : 'border-warm-line',
+          checked ? 'border-token-line bg-surface-sunk' : 'border-warm-line',
         )}
         style={{ width: DISC, height: DISC, borderWidth: 1 }}
       >

@@ -89,6 +89,7 @@ export function SheetField({
   disabled,
   autoFocus = true,
   hardLimit = true,
+  faintHint = false,
   minHeight = 52,
   testID,
 }: {
@@ -101,11 +102,13 @@ export function SheetField({
   autoFocus?: boolean;
   // The prompt box lets her run past the limit and says so (look prompt PRD P4); the sheets cut.
   hardLimit?: boolean;
+  // The prompt box's resting line is the lighter `placeholder` grey (redline 14 Nov, pin 9).
+  faintHint?: boolean;
   minHeight?: number;
   testID: string;
 }) {
   const ink = useColor('ink');
-  const faint = useColor('ink-faint');
+  const faint = useColor(faintHint ? 'placeholder' : 'ink-faint');
   return (
     <TextInput
       accessibilityLabel={label}

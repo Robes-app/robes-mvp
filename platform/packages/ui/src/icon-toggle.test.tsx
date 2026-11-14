@@ -16,7 +16,7 @@ function Harness({ initial = false }: { initial?: boolean }) {
 }
 
 describe('IconToggle', () => {
-  it('is a switch that names each state and wears the selected tokens when on', async () => {
+  it('is a switch that names each state and wears the sunk fill on the umber ring when on', async () => {
     render(<Harness />);
     const sw = screen.getByRole('switch', { name: OFF });
     expect(sw).not.toBeChecked();
@@ -25,7 +25,7 @@ describe('IconToggle', () => {
     await userEvent.click(sw);
     const on = screen.getByRole('switch', { name: ON });
     expect(on).toBeChecked();
-    expect(on).toHaveClass('bg-selected', 'border-selected-line', 'text-ink');
+    expect(on).toHaveClass('bg-surface-sunk', 'border-token-line', 'text-ink');
   });
 
   it('stays pressable while faded, so a tap can say why it is off', async () => {
