@@ -1,23 +1,16 @@
 'use client';
 
-import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
-import type { DiaryDay, PlanEntry, Today } from '@robes/contracts';
-import { diary as copy, home as homeCopy, today as todayCopy, wardrobe } from '@robes/copy';
+import { queryKeys, useApi } from '@robes/api-client/react';
+import type { DiaryDay, Today } from '@robes/contracts';
+import { home as homeCopy, today as todayCopy } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
 import { greetingName } from '@robes/core/home';
 import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/web';
-import { useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { LookPicker } from '@/app/(app)/plan/look-picker';
-import { LookCapture } from '@/components/capture/look-capture';
-import { dayWordOf, type PickerMode } from '@/lib/diary';
-import { errorCopy } from '@/lib/error-copy';
-import { DaySlot } from './day-slot';
+import { DayCard } from './day-card';
 import { DiaryStrip } from './diary-strip';
-import { ModelPicker } from './model-picker';
 
 // The draft Robes is making for a day (plan 2026-11-03): read every 2 s. Home shows no tray of
 // jobs (design 1b).
@@ -40,9 +33,8 @@ export function withoutDiaryEntry(id: string) {
 }
 
 // Home as the OOTD diary (Felix 3a · 3k, D7): the greeting and today's weather, the strip, the
-// selected day — its looks with Swap · Edit, then her model with Capture · Describe · Pick.
-// Describe opens the Draft look drawer for the day (D22); Home holds no prompt box. Alerts live
-// behind the bell. The
+// selected day as its `DayCard` — its looks with Swap · Edit, then her model with Capture ·
+// Create · Pick. Home holds no prompt box; alerts live behind the bell. The
 // native twin is mobile/src/features/home/DiaryHome.tsx.
 export function DiaryHome({
   initial,
@@ -54,9 +46,7 @@ export function DiaryHome({
   // The look just saved from its draft (`?saved=`): its card says so for the visit.
   saved?: string | null;
 }) {
-  const api = useApiClient();
   const queryClient = useQueryClient();
-  const toast = useToast();
   useState(() => queryClient.setQueryData(queryKeys.call('today.get'), initial));
   const { data = initial } = useApi('today.get', undefined, {
     initialData: initial,
@@ -73,12 +63,6 @@ export function DiaryHome({
   const diary = data.diary;
   const inWindow = day && diary?.days.some((d) => d.date === day) ? day : today;
   const [selected, setSelected] = useState(inWindow);
-  // The model her looks stand on: the photograph on the day's last page, and the picker's ticks.
-  const model = useApi('me.model.get');
-  const [choosing, setChoosing] = useState(false);
-  const [capturing, setCapturing] = useState(false);
-  const router = useRouter();
-  const [drawer, setDrawer] = useState<{ date: string; mode: PickerMode } | null>(null);
   const current: DiaryDay = diary?.days.find((d) => d.date === selected) ??
     diary?.days.find((d) => d.date === today) ?? {
       date: today,
@@ -88,41 +72,8 @@ export function DiaryHome({
       entries: [],
       draft: null,
     };
-  const past = current.date < today;
-  const dayWord = dayWordOf(current.date, today);
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
-
-  // × on the OOTD: a planned look is unpinned, a worn one has its wear taken back; both undo.
-  const remove = (entry: PlanEntry) => {
-    queryClient.setQueryData(queryKeys.call('today.get'), withoutDiaryEntry(entry.id));
-    const date = current.date;
-    const call = entry.worn
-      ? api.call('looks.unwear', { params: { id: entry.look.id, date } })
-      : api.call('plan.unpin', { params: { id: entry.id } });
-    void call
-      .then(() =>
-        toast({
-          message: copy.slot.removed,
-          action: {
-            label: wardrobe.undo,
-            onAction: () =>
-              void (
-                entry.worn
-                  ? api.call('looks.wear', {
-                      params: { id: entry.look.id },
-                      input: { wornOn: date },
-                    })
-                  : api.call('plan.restore', { params: { id: entry.id } })
-              )
-                .then(refresh)
-                .catch((err) => toast({ message: errorCopy(err) })),
-          },
-        }),
-      )
-      .catch((err) => toast({ message: errorCopy(err) }))
-      .finally(refresh);
-  };
 
   const wx = weather.data;
   const wxIcon = weatherIcon(wx?.code);
@@ -160,33 +111,15 @@ export function DiaryHome({
       ) : null}
 
       {/* Keyed by the day: a day change starts the pager on its first page (PRD rev 3 §3). */}
-      <DaySlot
+      <DayCard
         key={current.date}
         day={current}
         today={today}
-        dayWord={dayWord}
         justSaved={saved}
-        model={model.data}
-        actions={{
-          // Capture opens the camera over Home (Capture PRD 1c): Use photo makes the day's draft.
-          onCapture: () => setCapturing(true),
-          // Describe opens the Draft look drawer for the day (Felix 3a, D22).
-          onDescribe: past ? null : () => router.push(`/looks/draft/new?day=${current.date}`),
-          onPick: () => setDrawer({ date: current.date, mode: 'add' }),
-          onSwap: () => setDrawer({ date: current.date, mode: 'change' }),
-          onRemove: remove,
-          onModel: () => setChoosing(true),
-        }}
-      />
-
-      <LookCapture open={capturing} day={current.date} onClose={() => setCapturing(false)} />
-      <ModelPicker open={choosing} model={model.data} onClose={() => setChoosing(false)} />
-      <LookPicker
-        date={drawer?.date ?? null}
-        today={today}
-        mode={drawer?.mode ?? 'add'}
-        onClose={() => setDrawer(null)}
-        onChanged={refresh}
+        forget={(id) =>
+          queryClient.setQueryData(queryKeys.call('today.get'), withoutDiaryEntry(id))
+        }
+        refresh={refresh}
       />
     </div>
   );

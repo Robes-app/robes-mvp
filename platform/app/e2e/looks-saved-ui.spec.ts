@@ -114,9 +114,9 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // own title.
   await record.getByRole('link', { name: `Open ${longToday}` }).click();
   await expect(page).toHaveURL(new RegExp(`/plan/${todayLocal}`));
-  await expect(page.getByTestId('day-ootd')).toBeVisible();
-  await expect(page.getByRole('heading', { level: 1, name: 'Name the day' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Add a look/ })).toBeVisible();
+  await expect(page.getByTestId('ootd-card')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Name the day' })).toHaveValue('');
+  await expect(page.getByTestId('disc-pick')).toBeVisible();
   await page.goBack();
   // Taken off the record from its own row, in the Worn subview.
   await page.getByRole('tab', { name: 'Details' }).click();

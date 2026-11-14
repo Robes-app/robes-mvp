@@ -122,6 +122,7 @@ import {
   DailyItemParams,
   DailyLook,
   DailyLookParams,
+  DayCard,
   HomeLater,
   HomeLaterInput,
   SaveDailyLookInput,
@@ -1020,6 +1021,15 @@ export const routes = {
     params: PlanDayParams,
     input: SetOotdInput,
     output: PinnedEntries,
+  },
+  // One day as the Diary's day card draws it: Home's day, for any date.
+  'plan.day': {
+    method: 'GET',
+    path: '/plan/days/:date',
+    auth: 'user',
+    params: PlanDayParams,
+    input: EmptyInput,
+    output: DayCard,
   },
   // Where she is on a day (the prompt's place chip); null clears it back to home.
   'plan.place': {

@@ -18,6 +18,11 @@ const rangeFor = createRangeWeather();
 // back as the diary home shows them (plan 2026-11-02).
 const FORECAST_DAYS = 15;
 
+// A day the weather can be read for: the diary home's window back, the forecast's reach ahead.
+export function inForecast(date: string, today: string): boolean {
+  return date >= diaryWindow(today).from && date <= addDays(today, FORECAST_DAYS);
+}
+
 // The weather line (legacy H0 and the day page): her home city's weather for today — live, the
 // temperature and conditions now (beta's current=…) — or the asked date's forecast, or null.
 export async function loadTodayWeather(
@@ -28,9 +33,7 @@ export async function loadTodayWeather(
   const profile = await repos.profiles.get(userId);
   if (!profile) throw new ApiError('not_found');
   const today = todayIn(profile.timezone, now);
-  if (asked && (asked < diaryWindow(today).from || asked > addDays(today, FORECAST_DAYS))) {
-    return null;
-  }
+  if (asked && !inForecast(asked, today)) return null;
   const date = asked ?? today;
   const place = {
     city: profile.homeCity,
