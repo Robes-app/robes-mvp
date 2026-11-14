@@ -323,7 +323,7 @@ export function DraftLook({
   const arrived = useArrived();
   const [lookId, setLookId] = useState<string | null>(id === 'new' ? null : id);
   // Her words, when Robes made this draft from them just now: they head its thread.
-  const [brief, setBrief] = useState<string | null>(null);
+  const [brief, setBrief] = useState<{ words: string; occasion?: string } | null>(null);
   const query = useApi(
     'looks.get',
     { params: { id: lookId ?? '' } },
@@ -341,8 +341,8 @@ export function DraftLook({
         pick={pick}
         presentation={presentation}
         onClose={onClose}
-        onCreated={(made, words) => {
-          if (words) setBrief(words);
+        onCreated={(made, from) => {
+          if (from) setBrief(from);
           setLookId(made.id);
           // The draft carries on under its own address, in the same sheet.
           router.setParams({ id: made.id });
@@ -528,10 +528,9 @@ function NewDraft({
   pick?: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
-  // `words`: her brief, when Robes made the draft from it.
-  onCreated: (look: Look, words?: string) => void;
+  // `from`: her brief, and the occasion Robes read in it, when Robes made the draft from it.
+  onCreated: (look: Look, from?: { words: string; occasion?: string }) => void;
 }) {
-  const router = useRouter();
   const api = useApiClient();
   const toast = useToast();
   const refresh = useInvalidateLooks();
@@ -584,17 +583,18 @@ function NewDraft({
       void create({ status: 'draft', pieces: [{ pieceId }], anchorPieceId: pieceId });
     }
   });
-  // Words for a day make ONE draft for it (plan 2026-11-03), dressed in the job; the sheet
-  // carries on with it once the diary shows it. Without a day they deal suggestions (the deck).
+  // Her words make ONE draft (plan 2026-11-03; look prompt PRD D6, D9), for the day when there is
+  // one and for no day when there is not, dressed in the job; the sheet carries on with it as
+  // soon as the job has made it. A prompt never deals suggestions to the deck.
   const [weatherOff, setWeatherOff] = useState(false);
   const [waiting, setWaiting] = useState(false);
-  // The job behind Generate: if it ends without the day's draft, the wait ends with a word.
   const [promptJob, setPromptJob] = useState<string | null>(null);
-  useJobResult(
+  // The job ended without a draft: the wait ends with a word.
+  const followed = useJobResult(
     promptJob,
     useCallback(
       (job) => {
-        if (job.status === 'succeeded' || job.status === 'partial') return;
+        if (job.output?.lookIds?.[0]) return;
         setPromptJob(null);
         setWaiting(false);
         setBusy(false);
@@ -603,18 +603,30 @@ function NewDraft({
       [toast],
     ),
   );
-  const diary = useApi('today.get', undefined, {
-    enabled: waiting,
-    refetchInterval: waiting ? 2_000 : false,
-  });
-  const dayDraft = waiting
-    ? (diary.data?.diary?.days.find((x) => x.date === day)?.draft?.look ?? null)
-    : null;
+  const madeId = followed?.output?.lookIds?.[0] ?? null;
+  const occasion = followed?.output?.occasion;
+  // The draft the job made opens here, once.
+  const opening = useRef(false);
   useEffect(() => {
-    if (!dayDraft) return;
-    setWaiting(false);
-    onCreated(dayDraft, prompt.trim());
+    if (!madeId || opening.current) return;
+    opening.current = true;
+    void api
+      .call('looks.get', { params: { id: madeId } })
+      .then((made) => {
+        setWaiting(false);
+        refresh();
+        onCreated(made, { words: prompt.trim(), ...(occasion ? { occasion } : {}) });
+      })
+      .catch((err) => {
+        opening.current = false;
+        setPromptJob(null);
+        setWaiting(false);
+        setBusy(false);
+        toast.show({ message: errorMessage(err) });
+      });
   });
+  // The day's place, for the brief.
+  const diary = useApi('today.get', undefined, { enabled: day !== undefined });
   const generate = async () => {
     const words = prompt.trim();
     if (words.length < 2 || busy) return;
@@ -627,28 +639,22 @@ function NewDraft({
         ok,
       });
     try {
-      if (day) {
-        const place = diary.data?.diary?.days.find((x) => x.date === day)?.place ?? null;
-        const { jobId } = await api.call('looks.prompt', {
-          input: {
-            prompt: words,
-            date: day,
-            draft: true,
-            balance: src.balance,
-            ...(place && !weatherOff ? { place } : {}),
-            ...(weatherOff ? { weather: false } : {}),
-          },
-        });
-        sent(true);
-        setPromptJob(jobId);
-        setWaiting(true);
-        return;
-      }
+      const place = day
+        ? (diary.data?.diary?.days.find((x) => x.date === day)?.place ?? null)
+        : null;
       const { jobId } = await api.call('looks.prompt', {
-        input: { prompt: words, balance: src.balance },
+        input: {
+          prompt: words,
+          ...(day ? { date: day } : {}),
+          draft: true,
+          balance: src.balance,
+          ...(place && !weatherOff ? { place } : {}),
+          ...(day && weatherOff ? { weather: false } : {}),
+        },
       });
       sent(true);
-      router.replace(`/looks/job/${jobId}`);
+      setPromptJob(jobId);
+      setWaiting(true);
     } catch (err) {
       sent(false);
       setBusy(false);
@@ -756,8 +762,9 @@ function DraftBody({
   look: Look;
   forDay: string | null;
   images?: 'add';
-  // Her words, when Robes made this draft from them just now (the draft's first send).
-  brief?: string;
+  // Her words, when Robes made this draft from them just now (the draft's first send), and the
+  // occasion Robes read in them.
+  brief?: { words: string; occasion?: string };
   schedule: boolean;
   // The screen has finished coming in (useArrived): no Sheet presents before it.
   arrived: boolean;
@@ -793,7 +800,7 @@ function DraftBody({
   useEffect(() => {
     if (!brief || opened.current) return;
     opened.current = true;
-    adjust.opened(brief);
+    adjust.opened(brief.words, brief.occasion);
   });
   const fb = copy.feedback;
   // What she tapped after a thumbs down stands for her words (F10).

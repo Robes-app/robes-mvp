@@ -27,6 +27,8 @@ export const JobOutput = z.object({
   // The suggested looks a key_piece job minted (the keep-or-pass deck), or the one ↻ re-wrote.
   setId: z.uuid().optional(),
   lookIds: z.array(z.uuid()).optional(),
+  // key_piece from her words: the occasion in her brief, a word or two, for Robes' question.
+  occasion: z.string().max(24).optional(),
   // look_ask: the edit her words came back as.
   ask: LookAskResult.optional(),
   // wardrobe_analyse

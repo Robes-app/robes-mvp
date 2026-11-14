@@ -162,7 +162,7 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       expect.objectContaining({
         title: 'Camel coat',
-        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 8 }),
+        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 9 }),
       }),
     );
     const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
@@ -410,6 +410,40 @@ describe('key_piece handler (suggested looks)', () => {
     const prompt = generateImage.mock.calls[0]?.[0].prompt ?? '';
     expect(prompt).toContain('clean warm-grey studio backdrop');
     expect(prompt).not.toContain('real setting');
+  });
+
+  it('her words make one look with or without a day: one way asked for, its occasion named', async () => {
+    const ai = createFakeProvider({
+      'looks.style_piece': () => ({ ...fake(), occasion: 'The Office' }),
+    });
+    const { run, suggested, writeStage, generateJson } = setup(ai);
+    // No day: still one draft, for no day (look prompt PRD D6).
+    await expect(
+      run({ mode: 'prompt', draft: true, prompt: 'the office, then drinks' }),
+    ).resolves.toEqual({ status: 'succeeded', artifactId: SET });
+    const system = generateJson.mock.calls[0]?.[0].system ?? '';
+    expect(system).toContain('ONE WAY ONLY');
+    expect(system).toContain('THE OCCASION — also return "occasion"');
+    const [, , specs, , opts] = suggested.mintSet.mock.calls[0] ?? [];
+    expect((specs as unknown[]).length).toBe(1);
+    expect((specs as ReturnType<typeof specFromWay>[])[0]?.dateHint).toBeNull();
+    expect(opts).toEqual({ status: 'draft' });
+    // The occasion rides the job's output, a word or two, for Robes' question (F3).
+    expect(writeStage).toHaveBeenCalledWith(
+      'text',
+      expect.objectContaining({ lookIds: ['l0'], occasion: 'the office' }),
+    );
+  });
+
+  it('the piece door still asks for three ways and names no occasion', async () => {
+    const { run, generateJson, writeStage } = setup();
+    await run({ anchor: { type: 'piece', pieceId: PIECE } });
+    expect(generateJson.mock.calls[0]?.[0].system).not.toContain('ONE WAY ONLY');
+    expect(
+      (writeStage.mock.calls as unknown as [string, Record<string, unknown>][]).some(
+        ([stage, out]) => stage === 'text' && 'occasion' in out,
+      ),
+    ).toBe(false);
   });
 
   it('dresses a draft again from the same brief, with what she said is not right', async () => {

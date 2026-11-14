@@ -240,10 +240,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     restyleAll: () => dispatch({ type: 'restyle' }),
     // Robes made this look from her brief just now (the draft's first send): her words head the
     // thread and Robes asks its one question (F1, F3).
-    opened: (words: string) => {
+    opened: (words: string, occasion?: string) => {
       brief.current = words;
       dispatch({ type: 'her', text: words });
-      dispatch({ type: 'question', text: fb.question });
+      dispatch({ type: 'question', text: occasion ? fb.questionFor(occasion) : fb.question });
     },
     // The option under the thread: with changes pending it draws the model instead.
     redress: () => {

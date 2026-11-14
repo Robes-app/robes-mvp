@@ -261,6 +261,8 @@ export const lookbook = {
     // that stands while Robes changes it.
     feedback: {
       question: 'How is this look?',
+      // With the occasion Robes read in her brief (F3); the plain question when it read none.
+      questionFor: (occasion: string): string => `How does this feel for ${occasion}?`,
       again: 'How about now?',
       up: 'Love it',
       down: 'Not quite',
