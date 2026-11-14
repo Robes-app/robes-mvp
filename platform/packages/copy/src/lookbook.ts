@@ -255,6 +255,61 @@ export const lookbook = {
         off: 'Shop is off: no wishlist or new pieces added',
       },
     },
+    // The feedback thread (look prompt PRD F): Robes asks one question per returned look, two
+    // thumbs answer it, and after a thumbs down she taps what to change — up to three reasons, or
+    // Restyle it all alone. Each reason carries the example its placeholder shows and the line
+    // that stands while Robes changes it.
+    feedback: {
+      question: 'How is this look?',
+      again: 'How about now?',
+      up: 'Love it',
+      down: 'Not quite',
+      change: 'What should I change?',
+      whichPiece: 'Which piece?',
+      placeholder: 'Or tell Robes what to change…',
+      placeholderDown: 'Or tell Robes what you need…',
+      reasons: {
+        dressy: {
+          label: 'Too dressy',
+          example: 'swap the heels for trainers…',
+          work: 'Changing how dressy it is, keeping the rest…',
+        },
+        casual: {
+          label: 'Too casual',
+          example: 'make it a bit more polished…',
+          work: 'Changing how casual it is, keeping the rest…',
+        },
+        colours: {
+          label: 'The colours',
+          example: 'I hate matching, give the coat some contrast…',
+          work: 'Changing the colours, keeping the rest…',
+        },
+        fit: {
+          label: 'Fit or shape',
+          example: 'something less boxy on top…',
+          work: 'Changing the fit, keeping the rest…',
+        },
+        piece: {
+          label: 'A piece I don’t like',
+          example: 'lose the bag…',
+          work: 'Changing that piece, keeping the rest…',
+        },
+        weather: {
+          label: 'Not for the weather',
+          example: 'it’ll rain, add a proper coat…',
+          work: 'Changing it for the weather, keeping the rest…',
+        },
+      },
+      // More than one reason, or her words alone after a thumbs down.
+      adjusting: 'Adjusting this look…',
+      restyle: {
+        label: 'Restyle it all',
+        example: 'try something with more colour…',
+        work: (brief: string): string =>
+          brief ? `Starting fresh from “${brief}”…` : 'Starting fresh…',
+      },
+      remove: (label: string): string => `Remove ${label}`,
+    },
     // A tap on Wardrobe while she owns nothing (S3).
     emptyWardrobe: { title: 'Your wardrobe is empty', add: 'Add pieces' },
     // The Rack card before the first piece (PRD §4.6): with a wardrobe it opens the picker; empty

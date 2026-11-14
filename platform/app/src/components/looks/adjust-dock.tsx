@@ -1,8 +1,8 @@
 'use client';
 
 import { lookbook as copy } from '@robes/copy';
-import { ASK_MAX_CHARS, type ThreadLine } from '@robes/core/looks';
-import { Icon } from '@robes/icons/web';
+import { ASK_MAX_CHARS, openReasons, type ThreadLine } from '@robes/core/looks';
+import { Icon, type IconName } from '@robes/icons/web';
 import { IconButton, Text } from '@robes/ui';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import type { Adjust } from '@/lib/adjust';
@@ -78,6 +78,156 @@ export function ThreadLines({
       )}
       <div ref={end} />
     </section>
+  );
+}
+
+const fb = copy.draftLook.feedback;
+const chip =
+  "relative inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-pill border px-3 font-sans text-[12px] after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']";
+const chipOff = `${chip} border-rule-mid bg-surface-raised text-ink-muted hover:text-ink`;
+const chipOn = `${chip} border-selected-line bg-selected text-ink`;
+
+function Thumb({
+  icon,
+  label,
+  verdict,
+  mine,
+  onPress,
+  testId,
+}: {
+  icon: IconName;
+  label: string;
+  // The open question's answer so far, and whether this thumb is it.
+  verdict: 'ask' | 'up' | 'down';
+  mine: boolean;
+  onPress: () => void;
+  testId: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      aria-pressed={mine}
+      aria-disabled={verdict !== 'ask'}
+      onClick={onPress}
+      data-testid={testId}
+      className={`relative flex size-8 shrink-0 items-center justify-center rounded-pill border after:absolute after:-inset-1.5 after:content-[''] ${
+        mine ? 'border-selected-line bg-selected text-ink' : 'border-rule-mid text-ink-muted'
+      } ${verdict !== 'ask' && !mine ? 'opacity-35' : ''} ${verdict === 'ask' ? '' : 'cursor-default'} ${focus}`}
+    >
+      <Icon name={icon} size={15} />
+    </button>
+  );
+}
+
+// Robes' one question about the look as it stands (look prompt PRD F3–F8): two thumbs answer it;
+// after a thumbs down, what to change — up to three reasons, each picked one standing first with
+// its ×, or Restyle it all alone on a draft Robes made. A thumbs up ends it there. Native twin:
+// mobile/src/features/looks/AdjustDock.tsx.
+export function Feedback({
+  adjust,
+  weather,
+  canRestyle,
+}: {
+  adjust: Pick<Adjust, 'state' | 'thumb' | 'reason' | 'restyleAll'>;
+  // The look carries a weather (a draft for a day, its chip standing): F14.
+  weather: boolean;
+  canRestyle: boolean;
+}) {
+  const { question, verdict, reasons, restyle } = adjust.state;
+  if (!question || !verdict) return null;
+  return (
+    <div className="flex flex-col gap-3 px-1.5 pt-1" data-testid="look-feedback">
+      <div className="flex items-center gap-3">
+        <Text role="status" className="flex-1 font-display text-[17px] leading-snug">
+          {question}
+        </Text>
+        <Thumb
+          icon="thumbsUp"
+          label={fb.up}
+          verdict={verdict}
+          mine={verdict === 'up'}
+          onPress={() => adjust.thumb('up')}
+          testId="thumb-up"
+        />
+        <Thumb
+          icon="thumbsDown"
+          label={fb.down}
+          verdict={verdict}
+          mine={verdict === 'down'}
+          onPress={() => adjust.thumb('down')}
+          testId="thumb-down"
+        />
+      </div>
+      {verdict === 'down' ? (
+        <>
+          <Text id="feedback-change" className="font-display text-[17px] leading-snug">
+            {fb.change}
+          </Text>
+          {/* biome-ignore lint/a11y/useSemanticElements: a group of toggles, not a form fieldset */}
+          <div
+            role="group"
+            aria-labelledby="feedback-change"
+            className="flex flex-wrap gap-2"
+            data-testid="feedback-reasons"
+          >
+            {reasons.map((r) => (
+              <button
+                key={r}
+                type="button"
+                aria-pressed
+                aria-label={fb.remove(fb.reasons[r].label)}
+                onClick={() => adjust.reason(r)}
+                data-testid={`reason-${r}`}
+                className={`${chipOn} ${focus}`}
+              >
+                {fb.reasons[r].label}
+                <Icon name="close" size={10} />
+              </button>
+            ))}
+            {restyle ? (
+              <button
+                type="button"
+                aria-pressed
+                aria-label={fb.remove(fb.restyle.label)}
+                onClick={adjust.restyleAll}
+                data-testid="reason-restyle"
+                className={`${chipOn} ${focus}`}
+              >
+                <Icon name="refresh" size={11} />
+                {fb.restyle.label}
+                <Icon name="close" size={10} />
+              </button>
+            ) : null}
+            {openReasons(adjust.state, { weather }).map((r) => (
+              <button
+                key={r}
+                type="button"
+                aria-pressed={false}
+                onClick={() => adjust.reason(r)}
+                data-testid={`reason-${r}`}
+                className={`${chipOff} ${focus}`}
+              >
+                {fb.reasons[r].label}
+              </button>
+            ))}
+            {canRestyle && !restyle ? (
+              <button
+                type="button"
+                aria-pressed={false}
+                onClick={adjust.restyleAll}
+                data-testid="reason-restyle"
+                className={`${chip} border-transparent bg-surface-sunk text-ink-muted hover:text-ink ${focus}`}
+              >
+                <Icon name="refresh" size={11} />
+                {fb.restyle.label}
+              </button>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }
 

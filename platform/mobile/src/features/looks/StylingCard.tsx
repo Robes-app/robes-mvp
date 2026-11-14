@@ -38,7 +38,7 @@ export function StylingCard({
   value,
   onChange,
   onSend,
-  sendWhenEmpty = false,
+  emptySend,
   onDescribe,
   describeLabel,
   busy,
@@ -55,9 +55,10 @@ export function StylingCard({
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
-  // A draft's send stays ready on an empty field; pressed empty it sends nothing and the
-  // keyboard goes (D5). A saved look's waits for her words (L3).
-  sendWhenEmpty?: boolean;
+  // What a send does on an empty field. `blur`: a draft's send stays ready, sends nothing and the
+  // keyboard goes (D5). `send`: she tapped what to change, which stands for her words (F10).
+  // Unset: a saved look's send waits for her words (L3).
+  emptySend?: 'blur' | 'send';
   onDescribe?: () => void;
   describeLabel?: string;
   busy: boolean;
@@ -67,10 +68,10 @@ export function StylingCard({
   const onInk = useColor('bg');
   const words = value.trim();
   const tooLong = words.length > ASK_MAX_CHARS;
-  const ready = !busy && !tooLong && (words.length > 0 || sendWhenEmpty);
+  const ready = !busy && !tooLong && (words.length > 0 || emptySend !== undefined);
   const send = () => {
     if (!ready) return;
-    if (!words) {
+    if (!words && emptySend === 'blur') {
       Keyboard.dismiss();
       return;
     }

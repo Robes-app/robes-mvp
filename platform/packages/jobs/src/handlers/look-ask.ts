@@ -7,6 +7,7 @@ import {
   MAX_OUTPUT_TOKENS,
   normaliseAnswer,
   Output,
+  REASONS,
   TEMPERATURE,
 } from '@robes/ai/prompts/look-ask';
 import { LookAskJobInput, type LookAskResult } from '@robes/contracts';
@@ -132,6 +133,8 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
         rack: rows.map((r) => r.row),
         context: input.context ?? null,
         thread: input.thread,
+        // What she tapped after a thumbs down (look prompt PRD F11): the aspects to change.
+        ...(input.reasons?.length ? { reasons: input.reasons } : {}),
       };
       let out: Output;
       try {
@@ -231,13 +234,18 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
         draft: answer.draft,
         rule: answer.rule,
         noticed: false,
+        ...(answer.followUp ? { followUp: answer.followUp } : {}),
       };
       // Every line she sends is a verdict on the look: it lands in her memory (legacy k:'ask').
       await deps.lookPrompt.remember(ctx.userId, {
         kind: 'ask',
         surface: input.surface,
         subject: found.look.name.slice(0, 120),
-        body: input.text.slice(0, 240),
+        // What she tapped rides in front of her words, in plain words.
+        body: [...(input.reasons ?? []).map((r) => REASONS[r]), input.text]
+          .filter(Boolean)
+          .join(' · ')
+          .slice(0, 240),
         lookId: input.lookId,
       });
       // Her rule waits under Robes noticed; it is a rule only once she keeps it (legacy 2026-10-13).

@@ -5,9 +5,11 @@ import { askChanges, askRack, type Look, type LookAskInput } from '@robes/contra
 import { lookbook as copy } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import {
+  type AskReason,
   adjustReduce,
   type Balance,
   EMPTY_ADJUST,
+  feedbackBubble,
   isWorking,
   noteShort,
   threadHistory,
@@ -25,6 +27,7 @@ type Editor = Pick<ReturnType<typeof useLookEditor>, 'rack' | 'answer' | 'redraw
 
 // A picture asked for and never seen to land is let go of after this long.
 const DRAW_TIMEOUT_MS = 120_000;
+const fb = copy.draftLook.feedback;
 
 // Working a look through the prompt (Front Door design 3b, plan 2026-11-03 §1.4): the same on
 // home's box and on the look's page. Her words edit the rack at once through the look prompt and
@@ -38,6 +41,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const { track } = useAnalytics().analytics;
   const [state, dispatch] = useReducer(adjustReduce, EMPTY_ADJUST);
   const d = copy.draft;
+  // Her brief, when Robes made this look from her words: Restyle it all starts fresh from it.
+  const brief = useRef('');
 
   // A send that asked to draw once answered, and the draw it calls (defined further down).
   const drawAfter = useRef(false);
@@ -49,11 +54,20 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     if (result.noticed) dispatch({ type: 'filed', text: copy.prompt.noticed });
     const slots = result.swaps.length + result.back.length + result.styled.length;
     if (slots) track('look_prompt_applied', { surface, intent: result.intent, slots });
-    if (askChanges(result)) editor.answer(result);
-    // The drawer's Send and Generate draw the picture once the rack is answered (D14).
+    const changed = askChanges(result);
+    if (changed) editor.answer(result);
+    // The drawer's send draws the picture once the rack is answered (D14).
     if (drawAfter.current) {
       drawAfter.current = false;
-      if (askChanges(result)) draw.current();
+      if (changed) draw.current();
+    }
+    // Robes asks once per returned look (look prompt PRD F3, F19): about the change on a saved
+    // look, "How about now?" on a draft. After the draw's own lines, so it stays open.
+    if (changed) {
+      dispatch({
+        type: 'question',
+        text: surface === 'saved' ? result.followUp || fb.question : fb.again,
+      });
     }
   });
   const askFailed = useRef(ask.reading);
@@ -73,8 +87,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     if (!ended && redressing.connection !== 'unavailable') return;
     setRedressJob(null);
     dispatch({ type: 'settle' });
-    if (job?.status === 'succeeded' || job?.status === 'partial') dispatch({ type: 'drawn' });
-    else toast({ message: copy.swapFailed });
+    if (job?.status === 'succeeded' || job?.status === 'partial') {
+      dispatch({ type: 'drawn' });
+      dispatch({ type: 'question', text: fb.again });
+    } else toast({ message: copy.swapFailed });
     refresh();
   }, [redressJob, redressing.job, redressing.connection, refresh, toast]);
 
@@ -157,9 +173,34 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       opts: { draw?: boolean; balance?: Balance; context?: LookAskInput['context'] } = {},
     ) => {
       const text = words.trim();
-      if (!text || busy) return;
+      // What she tapped after a thumbs down rides with her words, or stands for them (F10, F11).
+      const { reasons, restyle: afresh } = state;
+      if ((!text && reasons.length === 0 && !afresh) || busy) return;
+      // "A piece I don't like" with no piece named: Robes asks which, rather than guess (F15).
+      if (!text && reasons.includes('piece')) {
+        dispatch({ type: 'robes', text: fb.whichPiece });
+        return;
+      }
       drawAfter.current = opts.draw === true && look.status === 'draft';
-      dispatch({ type: 'her', text });
+      const labels = afresh ? [fb.restyle.label] : reasons.map((r) => fb.reasons[r].label);
+      const fromThumb = state.verdict === 'down';
+      const report = (action: 'adjust' | 'restyle') => {
+        if (!fromThumb) return;
+        track('look_feedback_sent', {
+          surface,
+          reason: reasons.length > 1 ? 'several' : (reasons[0] ?? 'none'),
+          has_text: text.length > 0,
+          action,
+        });
+      };
+      dispatch({ type: 'her', text: feedbackBubble(labels, text) });
+      // Restyle it all (F12): a new look from the same brief, her words as the note.
+      if (afresh) {
+        report('restyle');
+        dispatch({ type: 'work', text: fb.restyle.work(brief.current) });
+        restyle(text || null);
+        return;
+      }
       if (state.asking) {
         dispatch({ type: 'answered' });
         dispatch({ type: 'robes', text: d.thanks });
@@ -168,18 +209,41 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
         return;
       }
       if (editor.rack.rows.length === 0) return;
+      report('adjust');
       track('look_prompt_sent', { surface, chars: text.length, from_draft: false });
-      dispatch({ type: 'work', text: d.reading });
+      const only = reasons.length === 1 ? reasons[0] : undefined;
+      dispatch({
+        type: 'work',
+        text: only ? fb.reasons[only].work : fromThumb ? fb.adjusting : d.reading,
+      });
       ask.send({
         surface,
         text,
+        ...(reasons.length ? { reasons } : {}),
         thread: threadHistory(state.thread),
         rack: askRack(editor.rack, look.anchor?.id ?? null),
-        // The Shop toggle (PRD rev 3 §4.6): where the answer may draw its pieces from; and the
-        // day's weather while its chip stands.
+        // The prompt's sources (look prompt PRD S5): where the answer may draw its pieces from;
+        // and the day's weather while its chip stands.
         ...(opts.balance ? { balance: opts.balance } : {}),
         ...(opts.context ? { context: opts.context } : {}),
       });
+    },
+    // Her thumb on Robes' question (F5, F6, F7). A thumbs up ends it there: nothing is saved
+    // and nothing is filed. A thumbs down opens the reasons. She can answer while the picture is
+    // still being drawn; a send waits for it.
+    thumb: (verdict: 'up' | 'down') => {
+      if (state.verdict !== 'ask') return;
+      track('look_feedback', { surface, verdict });
+      dispatch({ type: verdict });
+    },
+    reason: (reason: AskReason) => dispatch({ type: 'reason', reason }),
+    restyleAll: () => dispatch({ type: 'restyle' }),
+    // Robes made this look from her brief just now (the draft's first send): her words head the
+    // thread and Robes asks its one question (F1, F3).
+    opened: (words: string) => {
+      brief.current = words;
+      dispatch({ type: 'her', text: words });
+      dispatch({ type: 'question', text: fb.question });
     },
     // The option under the thread: with changes pending it draws the model instead.
     redress: () => {

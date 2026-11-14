@@ -1,6 +1,8 @@
 import {
   ASK_MAX_CHARS,
   ASK_RACK_MAX,
+  ASK_REASONS,
+  ASK_REASONS_MAX,
   ASK_THREAD_MAX,
   BALANCE_NOTE_MAX,
   BALANCES,
@@ -437,9 +439,15 @@ const AskRackRow = z.object({
   was: z.string().trim().max(120).nullable().default(null),
   styled: z.string().trim().max(120).nullable().default(null),
 });
-export const LookAskInput = z.object({
+// Her ask says something: her words, or at least one reason she tapped (look prompt PRD F10).
+const askSaysSomething = (v: { text: string; reasons?: readonly string[] | undefined }) =>
+  v.text.length > 0 || (v.reasons?.length ?? 0) > 0;
+const LookAskFields = z.object({
   surface: AskSurface,
-  text: z.string().trim().min(1).max(ASK_MAX_CHARS),
+  text: z.string().trim().max(ASK_MAX_CHARS),
+  // What she tapped after a thumbs down (F8, F11): the aspects to change, the rest kept. Her
+  // words may ride with them or be left out.
+  reasons: z.array(z.enum(ASK_REASONS)).max(ASK_REASONS_MAX).optional(),
   // The exchange while the box is open; never stored anywhere but this job.
   thread: z
     .array(z.object({ who: z.enum(['her', 'robes']), text: z.string().trim().max(400) }))
@@ -458,8 +466,11 @@ export const LookAskInput = z.object({
     })
     .optional(),
 });
+export const LookAskInput = LookAskFields.refine(askSaysSomething, { path: ['text'] });
 export type LookAskInput = z.infer<typeof LookAskInput>;
-export const LookAskJobInput = LookAskInput.extend({ lookId: z.uuid() });
+export const LookAskJobInput = LookAskFields.extend({ lookId: z.uuid() }).refine(askSaysSomething, {
+  path: ['text'],
+});
 
 export const AskIntent = z.enum(['swap', 'back', 'rule', 'styled', 'clarify', 'draft', 'none']);
 export const AskTarget = z.union([
@@ -497,6 +508,9 @@ export const LookAskResult = z.object({
   // A rule in her voice; it waits under Robes noticed (`noticed` true when it was added).
   rule: z.string(),
   noticed: z.boolean(),
+  // Robes' one question about the change it made ("How do the new shoes look?", F3); absent
+  // from an older worker's answer, and the client falls back to its own.
+  followUp: z.string().max(120).optional(),
 });
 export type LookAskResult = z.infer<typeof LookAskResult>;
 

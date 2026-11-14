@@ -62,7 +62,7 @@ import { onRackIds, useLookEditor } from '@/lib/look-editor';
 import { useImageStage } from '@/lib/look-images';
 import { isDraftsFull, useLetGo, useRefreshLooks, useSaveLook } from '@/lib/look-states';
 import { useJob } from '@/lib/use-job';
-import { ThreadLines } from './adjust-dock';
+import { Feedback, ThreadLines } from './adjust-dock';
 import { CapturePieces, CaptureRow, NewPieceSheet, RemovedLine } from './capture-rack';
 import { DayContext } from './day-context';
 import { DiarySheet } from './diary-sheet';
@@ -287,6 +287,8 @@ export function DraftLook({
   onClose: () => void;
 }) {
   const [lookId, setLookId] = useState<string | null>(id === 'new' ? null : id);
+  // Her words, when Robes made this draft from them just now: they head its thread.
+  const [brief, setBrief] = useState<string | null>(null);
   const query = useApi(
     'looks.get',
     { params: { id: lookId ?? '' } },
@@ -309,7 +311,8 @@ export function DraftLook({
         pick={pick}
         presentation={presentation}
         onClose={onClose}
-        onCreated={(made) => {
+        onCreated={(made, words) => {
+          if (words) setBrief(words);
           setLookId(made.id);
           // The draft carries on under its own address, without leaving the drawer.
           if (typeof window !== 'undefined') {
@@ -342,6 +345,7 @@ export function DraftLook({
       forDay={query.data.setId ? query.data.dateHint : (day ?? null)}
       schedule={schedule === true}
       {...(images ? { images } : {})}
+      {...(brief ? { brief } : {})}
       presentation={presentation}
       onClose={onClose}
     />
@@ -500,7 +504,8 @@ function NewDraft({
   pick?: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
-  onCreated: (look: Look) => void;
+  // `words`: her brief, when Robes made the draft from it.
+  onCreated: (look: Look, words?: string) => void;
 }) {
   const router = useRouter();
   const api = useApiClient();
@@ -588,7 +593,7 @@ function NewDraft({
   useEffect(() => {
     if (!dayDraft) return;
     setWaiting(false);
-    onCreated(dayDraft);
+    onCreated(dayDraft, prompt.trim());
   });
   const generate = async () => {
     const words = prompt.trim();
@@ -683,7 +688,7 @@ function NewDraft({
           value={prompt}
           onChange={setPrompt}
           onSend={() => void generate()}
-          sendWhenEmpty
+          emptySend="blur"
           busy={busy}
         />
       </div>
@@ -731,6 +736,7 @@ function DraftBody({
   look,
   forDay,
   images,
+  brief,
   schedule,
   presentation,
   onClose,
@@ -738,6 +744,8 @@ function DraftBody({
   look: Look;
   forDay: string | null;
   images?: 'add';
+  // Her words, when Robes made this draft from them just now (the draft's first send).
+  brief?: string;
   schedule: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
@@ -766,6 +774,26 @@ function DraftBody({
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
   const adjust = useAdjust(look, editor, mode === 'edit' ? 'saved' : 'draft');
   adjustRef.current = adjust;
+  // Robes asks its one question about the look it just made (look prompt PRD F1, F3).
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!brief || opened.current) return;
+    opened.current = true;
+    adjust.opened(brief);
+  });
+  const fb = copy.feedback;
+  // What she tapped after a thumbs down stands for her words (F10).
+  const picked = adjust.state.reasons.length > 0 || adjust.state.restyle;
+  const lastReason = adjust.state.reasons.at(-1);
+  const feedbackHint = adjust.state.restyle
+    ? fb.restyle.example
+    : lastReason
+      ? fb.reasons[lastReason].example
+      : adjust.state.verdict === 'down'
+        ? fb.placeholderDown
+        : adjust.state.verdict === 'ask'
+          ? fb.placeholder
+          : null;
   // A look from her photograph (Capture PRD 1c): The Rack finds, matches and adds its pieces.
   const capture = useCaptureRack(look, editor);
   // A draft from her photograph is the photograph and its rack: no prompt card, no Generate.
@@ -927,8 +955,14 @@ function DraftBody({
   // The box's send (look prompt PRD P2): her words go through the thread and the picture is drawn
   // once the rack is answered.
   const generate = () => {
-    if (busy || !words) return;
+    if (busy || (!words && !picked)) return;
     adjust.send(words, { ...sendOpts, draw: true });
+    setPrompt('');
+  };
+  // A saved look's send asks, and the change waits for Update look (F22).
+  const ask = () => {
+    if (busy || (!words && !picked) || rows.length === 0) return;
+    adjust.send(words, sendOpts);
     setPrompt('');
   };
   // "Update the model · N" keeps its place at the draft's foot while the picture is behind: it is
@@ -1175,13 +1209,29 @@ function DraftBody({
                   which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
                 }
                 wardrobeEmpty={src.empty}
-                thread={<ThreadLines thread={adjust.state.thread} />}
-                {...(mode === 'edit'
-                  ? { placeholder: copy.savedPlaceholder }
-                  : { placeholders: copy.placeholders, sendWhenEmpty: true })}
+                thread={
+                  <>
+                    <ThreadLines thread={adjust.state.thread} />
+                    <Feedback
+                      adjust={adjust}
+                      weather={askContext !== undefined}
+                      canRestyle={mode === 'draft' && adjust.canRedress}
+                    />
+                  </>
+                }
+                {...(feedbackHint
+                  ? { placeholder: feedbackHint }
+                  : mode === 'edit'
+                    ? { placeholder: copy.savedPlaceholder }
+                    : { placeholders: copy.placeholders })}
+                {...(picked
+                  ? { emptySend: 'send' as const }
+                  : mode === 'draft'
+                    ? { emptySend: 'blur' as const }
+                    : {})}
                 value={prompt}
                 onChange={setPrompt}
-                onSend={mode === 'edit' ? apply : generate}
+                onSend={mode === 'edit' ? ask : generate}
                 {...(adjust.canRedress
                   ? { onDescribe: () => setSheet('describe'), describeLabel: d.redress }
                   : {})}
