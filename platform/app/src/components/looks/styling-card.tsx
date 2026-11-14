@@ -1,8 +1,10 @@
 'use client';
 
 import { lookbook } from '@robes/copy';
-import { SwitchPill } from '@robes/ui';
-import { type ReactNode, useEffect, useState } from 'react';
+import { ASK_MAX_CHARS, type Source, type Sources } from '@robes/core/looks';
+import { Icon } from '@robes/icons/web';
+import { ErrorText, IconToggle } from '@robes/ui';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { SheetField } from './draft-sheets';
 
 const copy = lookbook.draftLook;
@@ -21,73 +23,127 @@ export function useTurningPlaceholder(lines: readonly string[], on: boolean): st
   return lines[i % lines.length] ?? '';
 }
 
-// The styling card (Front Door PRD rev 3 §4.6, §6.1): white on the fine rule, radius 12, no
-// heading. The context row — the day's weather chip at the left, the Shop toggle at the right —
-// then the thread's lines and the borderless 52px prompt row with its turning placeholder. The
-// draft and the saved look share it; what the field sends is the parent's (Generate, Update
-// look). Native twin: mobile/src/features/looks/StylingCard.tsx.
+// The prompt box (look prompt PRD P1–P8, S1, D1): white on the fine rule, radius 12, no heading.
+// The top row holds the two sources — Wardrobe, then Shop — and, on a draft for a day, a hairline
+// and the day's place and weather. Then the thread's lines, and the borderless prompt row with
+// the round send inside it. The draft and the saved look share it; what a send does is the
+// parent's (the brief, the thread, Update look). Native twin:
+// mobile/src/features/looks/StylingCard.tsx.
 export function StylingCard({
   context,
-  shop,
-  onShop,
+  sources,
+  onSource,
+  wardrobeEmpty,
   thread,
   placeholder,
   placeholders,
   value,
   onChange,
   onSend,
+  sendWhenEmpty = false,
   onDescribe,
   describeLabel,
   busy,
 }: {
   context?: ReactNode;
-  shop: boolean;
-  onShop: (next: boolean) => void;
+  sources: Sources;
+  onSource: (which: Source) => void;
+  // She owns nothing: Wardrobe is drawn faded, and a tap on it says why (S3).
+  wardrobeEmpty: boolean;
   thread?: ReactNode;
-  // One placeholder (a saved look's "more casual…"), or the turning set of the draft.
+  // One placeholder (a saved look's "add matching shoes…"), or the turning set of the draft.
   placeholder?: string;
   placeholders?: readonly string[];
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
+  // A draft's send stays ready on an empty field; pressed empty it sends nothing and the field
+  // lets go (D5). A saved look's waits for her words (L3).
+  sendWhenEmpty?: boolean;
   onDescribe?: () => void;
   describeLabel?: string;
   busy: boolean;
 }) {
   const turning = useTurningPlaceholder(placeholders ?? [], value.length === 0 && !placeholder);
   const hint = placeholder ?? turning ?? copy.placeholder;
+  const row = useRef<HTMLDivElement>(null);
+  const words = value.trim();
+  const tooLong = words.length > ASK_MAX_CHARS;
+  const ready = !busy && !tooLong && (words.length > 0 || sendWhenEmpty);
+  const send = () => {
+    if (!ready) return;
+    if (!words) {
+      row.current?.querySelector('textarea')?.blur();
+      return;
+    }
+    onSend();
+  };
   return (
     <section
       aria-label={copy.thread}
       data-testid="styling-card"
       className="flex flex-col gap-1 rounded-card border-[0.5px] border-rule-mid bg-surface-raised px-3 pt-3 pb-1"
     >
-      <div className="flex min-h-7 items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1">{context}</div>
-        <SwitchPill
-          icon="bag"
-          label={copy.shop.label}
-          checked={shop}
-          onChange={onShop}
-          hintOn={copy.shop.on}
-          hintOff={copy.shop.off}
-          className="shrink-0"
+      <div className="flex min-h-7 items-center gap-2.5">
+        <IconToggle
+          icon="wardrobe"
+          tip={copy.sources.wardrobe.tip}
+          checked={sources.wardrobe}
+          onChange={() => onSource('wardrobe')}
+          labelOn={copy.sources.wardrobe.on}
+          labelOff={wardrobeEmpty ? copy.sources.wardrobe.empty : copy.sources.wardrobe.off}
+          faded={wardrobeEmpty}
+          testId="source-wardrobe"
         />
+        <IconToggle
+          icon="bag"
+          tip={copy.sources.shop.tip}
+          checked={sources.shop}
+          onChange={() => onSource('shop')}
+          labelOn={copy.sources.shop.on}
+          labelOff={copy.sources.shop.off}
+          testId="source-shop"
+        />
+        {context ? (
+          <>
+            <span aria-hidden className="h-4 w-px shrink-0 bg-rule-mid" />
+            <div className="flex min-w-0 flex-1">{context}</div>
+          </>
+        ) : null}
       </div>
       {thread}
-      <div className="flex min-h-13 items-center">
+      <div ref={row} className="flex min-h-13 items-center gap-2">
         <SheetField
           label={placeholder ?? copy.placeholder}
           placeholder={hint}
           value={value}
           onChange={onChange}
-          onSend={onSend}
+          onSend={send}
           disabled={busy}
           autoFocus={false}
+          hardLimit={false}
           className="py-3.5"
           testId="draft-prompt"
         />
+        <button
+          type="button"
+          aria-label={copy.send}
+          title={copy.send}
+          aria-disabled={!ready}
+          onClick={send}
+          data-testid="prompt-send"
+          className={`relative flex size-8 shrink-0 items-center justify-center rounded-pill bg-ink text-bg after:absolute after:-inset-1.5 after:content-[''] ${
+            ready ? '' : 'cursor-default opacity-30'
+          } ${focus}`}
+        >
+          <Icon name="send" size={14} />
+        </button>
       </div>
+      {tooLong ? (
+        <ErrorText size="caption" className="pb-2" data-testid="prompt-too-long">
+          {copy.tooLong(ASK_MAX_CHARS)}
+        </ErrorText>
+      ) : null}
       {onDescribe ? (
         <button
           type="button"

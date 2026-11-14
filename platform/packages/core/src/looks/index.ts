@@ -19,8 +19,9 @@ export type LookRole = (typeof LOOK_ROLES)[number];
 export const MAX_DRAFTS = 5;
 // The note under a look's picture is three sentences at most (legacy _lkNoteShort).
 export const NOTE_SENTENCES = 3;
-// What she types into a look's prompt (legacy REFINE_MAX).
-export const ASK_MAX_CHARS = 240;
+// What she types into any prompt (look prompt PRD P4): the same 300 the server takes. The field
+// lets her run past it and says so, rather than cutting her words.
+export const ASK_MAX_CHARS = 300;
 export const ASK_RACK_MAX = 14;
 // Her note on Robes' picture of a look (Felix rebuild D21): how it is drawn, never what is worn.
 export const PICTURE_NOTE_MAX = 280;
@@ -594,11 +595,10 @@ export function suggestionReason(look: {
   return { kind: 'prompt' };
 }
 
-// Where a new look's pieces come from. Since the Front Door (PRD rev 3 §4.6, plan 2026-11-09 R1)
-// the Shop toggle answers it: off is `owned` (her wardrobe alone), on is `mix` (her pieces first,
-// her wishlist and new pieces where the look needs them). `new` is no longer offered; the sets
-// that carry it still read. The question's chips went with the toggle; `balanceNote` stays on the
-// contracts for the sets that hold one.
+// Where a new look's pieces come from. The prompt's Wardrobe and Shop toggles answer it (look
+// prompt PRD S5, `sourceBalance`): Wardrobe alone is `owned`, both is `mix` (her pieces first, her
+// wishlist and new pieces where the look needs them), Shop alone is `new`. `balanceNote` stays on
+// the contracts for the sets that hold one.
 export const BALANCES = ['owned', 'mix', 'new'] as const;
 export type Balance = (typeof BALANCES)[number];
 export const BALANCE_NOTE_MAX = 160;
@@ -606,6 +606,33 @@ export const BALANCE_NOTE_MAX = 160;
 // The toggle's rest: off once she has a wardrobe to style from, on when there is nothing else.
 export function defaultBalance(ownedPieces: number): Balance {
   return ownedPieces > 0 ? 'owned' : 'mix';
+}
+
+// The prompt's two sources (look prompt PRD S1–S6): Wardrobe and Shop, each a toggle she can see.
+export interface Sources {
+  wardrobe: boolean;
+  shop: boolean;
+}
+export type Source = keyof Sources;
+
+// At rest (S2, S3): her wardrobe alone once she owns a piece; Shop alone while she owns none.
+export function defaultSources(ownedPieces: number): Sources {
+  return ownedPieces > 0 ? { wardrobe: true, shop: false } : { wardrobe: false, shop: true };
+}
+
+// A tap on one toggle (S3, S4). One source is always on: turning off the only one turns the other
+// on. An empty wardrobe cannot be turned on, so Shop stays on beside it.
+export function toggleSource(sources: Sources, which: Source, ownedPieces: number): Sources {
+  if (ownedPieces <= 0) return { wardrobe: false, shop: true };
+  const next = { ...sources, [which]: !sources[which] };
+  if (next.wardrobe || next.shop) return next;
+  return which === 'wardrobe' ? { wardrobe: false, shop: true } : { wardrobe: true, shop: false };
+}
+
+// What the sources ask of Robes (S5): her wardrobe alone, both, or new pieces only.
+export function sourceBalance(sources: Sources): Balance {
+  if (sources.wardrobe) return sources.shop ? 'mix' : 'owned';
+  return 'new';
 }
 
 // A proposal's price point ("€120", "£85", "$200") as a wish's price and currency; words that

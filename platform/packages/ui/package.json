@@ -26,7 +26,7 @@
     "./toast": "./src/toast.tsx",
     "./command-bar": "./src/command-bar.tsx",
     "./switch": "./src/switch.tsx",
-    "./switch-pill": "./src/switch-pill.tsx",
+    "./icon-toggle": "./src/icon-toggle.tsx",
     "./filter-button": "./src/filter-button.tsx",
     "./tile-sheet": "./src/tile-sheet.tsx"
   },

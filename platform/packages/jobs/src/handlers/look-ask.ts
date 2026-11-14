@@ -82,9 +82,10 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
         ];
       });
       if (rows.length === 0) throw new JobError('empty_look');
-      // The pool: her wardrobe minus the rack. With Shop on (`mix`, plan 2026-11-09 R1) the
-      // pieces on her wishlist follow it, each marked; with Shop off (`owned`) no new piece may
-      // be proposed. A wish already on the rack stays off the pool.
+      // The pool follows the prompt's sources (look prompt PRD S5): her wardrobe minus the rack,
+      // unless Shop is the one source (`new`), when nothing she owns is offered. With Shop on
+      // (`mix`, `new`) the pieces on her wishlist follow, each marked; with Shop off (`owned`) no
+      // new piece may be proposed. A wish already on the rack stays off the pool.
       type PoolEntry =
         | { kind: 'piece'; piece: (typeof her.closet)[number] }
         | { kind: 'wish'; wish: NonNullable<typeof her.wishes>[number] };
@@ -92,11 +93,14 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
       const wishedOnRack = new Set(
         input.rack.flatMap((r) => (r.proposal ? [r.proposal.name.trim().toLowerCase()] : [])),
       );
+      const shopOn = input.balance === 'mix' || input.balance === 'new';
       const pool: PoolEntry[] = [
-        ...her.closet
-          .filter((c) => !onRack.has(c.id))
-          .map((piece): PoolEntry => ({ kind: 'piece', piece })),
-        ...(input.balance === 'mix'
+        ...(input.balance === 'new'
+          ? []
+          : her.closet
+              .filter((c) => !onRack.has(c.id))
+              .map((piece): PoolEntry => ({ kind: 'piece', piece }))),
+        ...(shopOn
           ? (her.wishes ?? [])
               .filter((w) => !wishedOnRack.has(w.label.trim().toLowerCase()))
               .map((wish): PoolEntry => ({ kind: 'wish', wish }))

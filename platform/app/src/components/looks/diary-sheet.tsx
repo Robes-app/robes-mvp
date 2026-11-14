@@ -31,8 +31,9 @@ const CELL =
 const ARROW =
   "relative flex size-[22px] items-center justify-center rounded-full border border-rule-mid text-ink-muted after:absolute after:-inset-[11px] after:content-[''] hover:border-border-control hover:text-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
-// Save opens the diary every time (legacy 0.2): beta's month, any day one tap, a day gone by
-// records it as worn, and "I wore this today" beneath. Closing it writes nothing.
+// Schedule look opens the diary every time (look prompt PRD L6): the month, any day one tap, a day
+// gone by records it as worn. A day can hold several looks: this one is pinned beside any already
+// there. Closing it writes nothing. Native twin: mobile/src/features/looks/DiarySheet.tsx.
 export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () => void }) {
   const today = localToday();
   const [month, setMonth] = useState(() => monthOf(look?.dateHint ?? today));
@@ -142,31 +143,17 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
           }
         : {})}
       footer={
-        <>
-          <Button
-            variant="primary"
-            block
-            disabled={state.action === 'recorded'}
-            loading={busy}
-            onClick={act}
-          >
-            {copy.diary[state.action]}
-          </Button>
-          {/* Beta's order: the day's act, then "I wore this today" on every day — it is how a wear
-              is logged now the look page carries no wear buttons; once today is logged the link goes
-              (the calendar's dot says it). × closes; no "Not yet" (27 Oct). */}
-          {worn.has(today) ? null : (
-            <Button
-              variant="quiet"
-              disabled={busy}
-              onClick={() => {
-                if (look) wear.mutate({ params: { id: look.id }, input: { wornOn: today } });
-              }}
-            >
-              {copy.diary.woreToday}
-            </Button>
-          )}
-        </>
+        // One act (look prompt PRD L6): the day she picked. "I wore this today" is gone; a day
+        // gone by still records the look as worn. × closes; no "Not yet" (27 Oct).
+        <Button
+          variant="primary"
+          block
+          disabled={state.action === 'recorded'}
+          loading={busy}
+          onClick={act}
+        >
+          {copy.diary[state.action]}
+        </Button>
       }
     >
       <div className="flex flex-col gap-3">

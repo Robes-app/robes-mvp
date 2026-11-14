@@ -1,5 +1,5 @@
 import { diary, lookbook, wardrobe } from '@robes/copy';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { DraftLook } from '../src/features/looks/DraftLook';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
@@ -166,13 +166,13 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
   expect(onClose).not.toHaveBeenCalled();
 });
 
-// Annie and Felix, 12 Nov: the draft sheet's prompt box sat under Style it and would not scroll.
+// Annie and Felix, 12 Nov: the draft sheet's prompt box sat under the foot and would not scroll.
 // The native sheet stretched the body's ScrollView over the whole sheet once it could reach it
 // through views flattened away; the sheet's frame and the body's view stay views of their own.
 test('the draft sheet keeps its ScrollView between its head and its foot', async () => {
   mockFetch({ ...BASE, 'GET /wardrobe/items': { items: [piece()], nextCursor: null } });
   await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
-  expect(await screen.findByTestId('draft-generate')).toBeTruthy();
+  expect(await screen.findByTestId('prompt-send')).toBeTruthy();
   const shell = screen.getByTestId('draft-shell');
   expect(shell.props.collapsable).toBe(false);
   const body = screen.getByTestId('draft-look').parent;
@@ -259,7 +259,7 @@ test('a swap from the picker leaves the picture behind; the chip draws the model
   expect(screen.queryByText('1')).toBeNull();
   expect(renders()).toHaveLength(0);
   expect(screen.getByText(lookbook.draft.updateModel(1))).toBeTruthy();
-  await fireEvent.press(screen.getByTestId('draft-generate'));
+  await fireEvent.press(screen.getByTestId('update-model'));
   await waitFor(() => expect(renders()).toHaveLength(1));
   expect(screen.getByText(lookbook.draft.modelAsked)).toBeTruthy();
 });
@@ -279,7 +279,9 @@ test('the adjust disc opens the AdjustSheet; her sentence redraws the picture al
   await fireEvent.press(await screen.findByTestId('draft-adjust'));
   expect(await screen.findByTestId('adjust-sheet')).toBeTruthy();
   await fireEvent.changeText(screen.getByTestId('adjust-sheet-field'), 'sleeves rolled up');
-  await fireEvent.press(screen.getByRole('button', { name: copy.adjustSheet.send }));
+  await fireEvent.press(
+    within(screen.getByTestId('adjust-sheet')).getByRole('button', { name: copy.adjustSheet.send }),
+  );
   // Her note goes with the redraw; the look prompt (which could change the pieces) is never asked.
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/render'))?.body).toEqual({
@@ -314,7 +316,11 @@ test('Dress it again opens the DescribeSheet; Send re-writes the look from her s
   // The piece's chip, beside its row on the rack.
   expect(screen.getAllByText('Camel wool coat').length).toBeGreaterThan(1);
   await fireEvent.changeText(screen.getByTestId('describe-sheet-field'), 'more casual');
-  await fireEvent.press(screen.getByRole('button', { name: copy.describeSheet.send }));
+  await fireEvent.press(
+    within(screen.getByTestId('describe-sheet')).getByRole('button', {
+      name: copy.describeSheet.send,
+    }),
+  );
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/restyle'))?.body).toEqual({ note: 'more casual' }),
   );
@@ -383,7 +389,7 @@ test('the Edit look sheet: Update look and the tick wait for a change, × asks f
   expect(done().props.accessibilityState.disabled).toBe(true);
   expect(update().props.accessibilityLabel).toBe(copy.update);
   expect(update().props.accessibilityState.disabled).toBe(true);
-  expect(screen.queryByTestId('draft-generate')).toBeNull();
+  expect(screen.queryByTestId('update-model')).toBeNull();
   // A change: Update look and the tick wake, × asks Discard your changes?
   await fireEvent.press(screen.getByTestId('rack-pencil'));
   await fireEvent.press(
@@ -537,13 +543,13 @@ test('Describe: a Style it job that fails ends the wait and says so', async () =
     <DraftLook id="new" day="2026-11-06" presentation="sheet" onClose={() => undefined} />,
   );
   await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'Dinner with friends');
-  await fireEvent.press(screen.getByTestId('draft-generate'));
+  await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toMatchObject({
       prompt: 'Dinner with friends',
       date: '2026-11-06',
       draft: true,
-      // Shop rests off with a wardrobe (PRD rev 3 §4.6, plan R1).
+      // Her wardrobe alone at rest once she has one (look prompt PRD S2).
       balance: 'owned',
     }),
   );
@@ -552,9 +558,10 @@ test('Describe: a Style it job that fails ends the wait and says so', async () =
   await waitFor(() => expect(screen.getByTestId('draft-prompt').props.editable).not.toBe(false));
 });
 
-// The Rack card and the Shop toggle (Front Door PRD rev 3 §4.6, plan R1): with nothing filed the
-// card offers Add your pieces and Shop rests on; with a wardrobe Shop rests off until she flips it.
-test('an empty wardrobe: Add your pieces on the card, its three tiles, and Shop on', async () => {
+// The Rack card and the two sources (look prompt PRD S1–S5): with nothing filed the card offers
+// Add your pieces, Wardrobe is faded and Shop is the one source; with a wardrobe it is the other
+// way round until she says otherwise.
+test('an empty wardrobe: Add your pieces on the card, Shop the one source, new pieces only', async () => {
   const calls = mockFetch({
     ...BASE,
     'GET /wardrobe/summary': { total: 0, categories: [] },
@@ -567,14 +574,20 @@ test('an empty wardrobe: Add your pieces on the card, its three tiles, and Shop 
   expect(screen.getByTestId('add-sheet-photo')).toBeTruthy();
   expect(screen.getByTestId('add-sheet-receipt')).toBeTruthy();
   await waitFor(() =>
-    expect(screen.getByTestId('shop-toggle').props.accessibilityState.checked).toBe(true),
+    expect(screen.getByTestId('source-shop').props.accessibilityState.checked).toBe(true),
   );
+  const wardrobe = screen.getByTestId('source-wardrobe');
+  expect(wardrobe.props.accessibilityState.checked).toBe(false);
+  expect(wardrobe.props.accessibilityLabel).toBe(copy.sources.wardrobe.empty);
+  // One source is always on (S4): Shop cannot be turned off while it is the only one.
+  await fireEvent.press(screen.getByTestId('source-shop'));
+  expect(screen.getByTestId('source-shop').props.accessibilityState.checked).toBe(true);
   await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'Gallery opening');
-  await fireEvent.press(screen.getByTestId('draft-generate'));
+  await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
       prompt: 'Gallery opening',
-      balance: 'mix',
+      balance: 'new',
     }),
   );
   expect(mockRouter.replace).toHaveBeenCalledWith(
@@ -582,19 +595,37 @@ test('an empty wardrobe: Add your pieces on the card, its three tiles, and Shop 
   );
 });
 
-test('with a wardrobe Shop rests off; flipped on, her words may reach for new pieces', async () => {
+test('a tap on Wardrobe while it is empty says so and offers the way in', async () => {
+  mockFetch({ ...BASE, 'GET /wardrobe/summary': { total: 0, categories: [] } });
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  await waitFor(() =>
+    expect(screen.getByTestId('source-wardrobe').props.accessibilityLabel).toBe(
+      copy.sources.wardrobe.empty,
+    ),
+  );
+  await fireEvent.press(screen.getByTestId('source-wardrobe'));
+  expect(await screen.findByText(copy.emptyWardrobe.title)).toBeTruthy();
+  expect(screen.getByTestId('source-wardrobe').props.accessibilityState.checked).toBe(false);
+  await fireEvent.press(screen.getByTestId('empty-wardrobe-add'));
+  expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
+});
+
+test('with a wardrobe it is the one source; Shop beside it is a mix, Shop alone is new', async () => {
   const calls = mockFetch({
     ...BASE,
     'POST /looks/prompt': { jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', status: 'queued' },
   });
   await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
-  const toggle = await screen.findByTestId('shop-toggle');
-  await waitFor(() => expect(toggle.props.accessibilityState.checked).toBe(false));
-  expect(toggle.props.accessibilityHint).toBe(copy.shop.off);
-  await fireEvent.press(toggle);
-  expect(screen.getByTestId('shop-toggle').props.accessibilityHint).toBe(copy.shop.on);
+  const shop = await screen.findByTestId('source-shop');
+  await waitFor(() => expect(shop.props.accessibilityState.checked).toBe(false));
+  expect(shop.props.accessibilityLabel).toBe(copy.sources.shop.off);
+  expect(screen.getByTestId('source-wardrobe').props.accessibilityLabel).toBe(
+    copy.sources.wardrobe.on,
+  );
+  await fireEvent.press(shop);
+  expect(screen.getByTestId('source-shop').props.accessibilityLabel).toBe(copy.sources.shop.on);
   await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'Gallery opening');
-  await fireEvent.press(screen.getByTestId('draft-generate'));
+  await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
       prompt: 'Gallery opening',
@@ -603,8 +634,50 @@ test('with a wardrobe Shop rests off; flipped on, her words may reach for new pi
   );
 });
 
-// The picker's WISHLIST tab (PRD rev 3 §4.6): a wish joins the rack as a piece to find, already
-// hers to find, so the look carries the bag and Save files nothing twice.
+test('turning Wardrobe off, the only source, turns Shop on: new pieces only', async () => {
+  const calls = mockFetch({
+    ...BASE,
+    'POST /looks/prompt': { jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', status: 'queued' },
+  });
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  const wardrobe = await screen.findByTestId('source-wardrobe');
+  await waitFor(() => expect(wardrobe.props.accessibilityState.checked).toBe(true));
+  await fireEvent.press(wardrobe);
+  expect(screen.getByTestId('source-wardrobe').props.accessibilityState.checked).toBe(false);
+  expect(screen.getByTestId('source-shop').props.accessibilityState.checked).toBe(true);
+  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'Gallery opening');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
+      prompt: 'Gallery opening',
+      balance: 'new',
+    }),
+  );
+});
+
+// The send inside the box (look prompt PRD P2–P4, D5).
+test('an empty send sends nothing; past 300 characters the box says so and will not send', async () => {
+  const calls = mockFetch({
+    ...BASE,
+    'POST /looks/prompt': { jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', status: 'queued' },
+  });
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  const send = await screen.findByTestId('prompt-send');
+  // A draft's send stands ready on an empty field, and pressed empty it sends nothing.
+  expect(send.props.accessibilityState.disabled).toBe(false);
+  await fireEvent.press(send);
+  expect(calls.some((c) => c.path.endsWith('/looks/prompt'))).toBe(false);
+  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'a'.repeat(301));
+  expect(await screen.findByText(copy.tooLong(300))).toBeTruthy();
+  expect(screen.getByTestId('prompt-send').props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  expect(calls.some((c) => c.path.endsWith('/looks/prompt'))).toBe(false);
+  // Her words are never cut: back under the limit, the same field sends.
+  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'a'.repeat(300));
+  expect(screen.queryByText(copy.tooLong(300))).toBeNull();
+  expect(screen.getByTestId('prompt-send').props.accessibilityState.disabled).toBe(false);
+});
+
 test('a wish from the picker hangs on the rack as a piece to find', async () => {
   const draft = draftOf({
     pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],

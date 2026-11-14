@@ -353,7 +353,7 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   await page.getByTestId(`diary-day-${date}`).click();
   await page.getByTestId('disc-create').click();
   await page.getByTestId('draft-prompt').fill('Dinner with friends');
-  await page.getByTestId('draft-generate').click();
+  await page.getByTestId('prompt-send').click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/, { timeout: 30_000 });
   await expect(page.getByTestId('draft-look')).toBeVisible();
   await expect(page.getByText('Draft look')).toBeVisible();
@@ -377,7 +377,7 @@ test('Create: her words become the day’s one draft, which dresses in the slot'
   const { date } = await (await page.request.get('/api/v1/today')).json();
   await page.getByTestId('disc-create').click();
   await page.getByTestId('draft-prompt').fill('Something easy for the gallery');
-  await page.getByTestId('draft-generate').click();
+  await page.getByTestId('prompt-send').click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/, { timeout: 30_000 });
   await page.getByRole('button', { name: 'Close' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Keep for later' }).click();

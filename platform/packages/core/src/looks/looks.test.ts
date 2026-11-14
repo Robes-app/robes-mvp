@@ -9,6 +9,7 @@ import {
   deckReduce,
   deckTop,
   defaultBalance,
+  defaultSources,
   emptyDeck,
   forecastWord,
   frameKey,
@@ -31,8 +32,10 @@ import {
   rowNote,
   SORTS,
   sortLooks,
+  sourceBalance,
   startedLabel,
   theName,
+  toggleSource,
   wearForOptions,
 } from './index';
 
@@ -328,6 +331,34 @@ describe('the Shop toggle (balance)', () => {
   it('rests off once she has a wardrobe, on when there is nothing else to style from', () => {
     expect(defaultBalance(0)).toBe('mix');
     expect(defaultBalance(1)).toBe('owned');
+  });
+
+  it('rests on her wardrobe once she owns a piece, on Shop while she owns none', () => {
+    expect(defaultSources(3)).toEqual({ wardrobe: true, shop: false });
+    expect(defaultSources(0)).toEqual({ wardrobe: false, shop: true });
+  });
+
+  it('maps the two sources to owned, mix or new', () => {
+    expect(sourceBalance({ wardrobe: true, shop: false })).toBe('owned');
+    expect(sourceBalance({ wardrobe: true, shop: true })).toBe('mix');
+    expect(sourceBalance({ wardrobe: false, shop: true })).toBe('new');
+  });
+
+  it('keeps one source on: turning off the only one turns the other on', () => {
+    const wardrobe = { wardrobe: true, shop: false };
+    expect(toggleSource(wardrobe, 'shop', 3)).toEqual({ wardrobe: true, shop: true });
+    expect(toggleSource(wardrobe, 'wardrobe', 3)).toEqual({ wardrobe: false, shop: true });
+    expect(toggleSource({ wardrobe: false, shop: true }, 'shop', 3)).toEqual(wardrobe);
+    expect(toggleSource({ wardrobe: true, shop: true }, 'wardrobe', 3)).toEqual({
+      wardrobe: false,
+      shop: true,
+    });
+  });
+
+  it('leaves Shop on while her wardrobe is empty, whichever toggle she taps', () => {
+    const empty = { wardrobe: false, shop: true };
+    expect(toggleSource(empty, 'shop', 0)).toEqual(empty);
+    expect(toggleSource(empty, 'wardrobe', 0)).toEqual(empty);
   });
 
   it("reads a proposal's price point as a wish's price, or files none", () => {

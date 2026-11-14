@@ -16,15 +16,19 @@ import { readsAsThey } from '@robes/core/avatar';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import {
   type Balance,
-  defaultBalance,
+  defaultSources,
   type ImageStage,
   isCaptureRow,
   type RackRow,
+  type Source,
+  type Sources,
   type StageCard,
+  sourceBalance,
   stageCards,
   stageChanged,
   stageFront,
   stageInFront,
+  toggleSource,
 } from '@robes/core/looks';
 import type { WardrobeLayout } from '@robes/core/wardrobe';
 import { shortRange } from '@robes/core/weather';
@@ -37,6 +41,7 @@ import {
   DrawerHeader,
   ErrorText,
   Image,
+  Sheet,
   Skeleton,
   Tabs,
   useToast,
@@ -45,6 +50,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { useHideBack, usePushedView } from '@/components/shell/app-shell';
 import { AddPiecesSheet } from '@/components/wardrobe/add/add-pieces-sheet';
 import { LayoutToggle } from '@/components/wardrobe/wardrobe-header';
@@ -106,28 +112,69 @@ export function useDressingLine(lines: readonly string[], on: boolean): string {
   return lines[i % lines.length] ?? '';
 }
 
-// The Shop toggle's state (Front Door PRD rev 3 §4.6, plan R1): off once she has a wardrobe to
-// style from, on when there is nothing else, until she says otherwise. `owned` is null while
-// the wardrobe's count loads.
-function useShop(owned: number | null): {
-  on: boolean;
-  set: (next: boolean) => void;
+// The prompt's two sources (look prompt PRD S1–S6): her wardrobe alone once she has one, Shop
+// alone while it is empty, until she says otherwise. The choice lasts for this look's thread and
+// is never stored. `owned` is null while the wardrobe's count loads.
+function useSources(owned: number | null): {
+  sources: Sources;
+  // She owns nothing: Wardrobe is faded, and a tap on it opens "Your wardrobe is empty" (S3).
+  empty: boolean;
+  toggle: (which: Source) => void;
   balance: Balance;
-  // Flipped since the look was last applied (a saved look's Update, PRD §6.1).
+  // Changed since the look was last applied (a saved look's Update, PRD §6.1).
   changed: boolean;
   settle: () => void;
 } {
-  const [chosen, setChosen] = useState<boolean | null>(null);
-  const [applied, setApplied] = useState<boolean | null>(null);
-  const rest = owned === null ? false : defaultBalance(owned) === 'mix';
-  const on = chosen ?? rest;
+  const [chosen, setChosen] = useState<Sources | null>(null);
+  const [applied, setApplied] = useState<Balance | null>(null);
+  const count = owned ?? 1;
+  const rest = defaultSources(count);
+  const sources = chosen ?? rest;
+  const balance = sourceBalance(sources);
   return {
-    on,
-    set: setChosen,
-    balance: on ? 'mix' : 'owned',
-    changed: chosen !== null && on !== (applied ?? rest),
-    settle: () => setApplied(on),
+    sources,
+    empty: owned === 0,
+    toggle: (which) => setChosen(toggleSource(sources, which, count)),
+    balance,
+    changed: chosen !== null && balance !== (applied ?? sourceBalance(rest)),
+    settle: () => setApplied(balance),
   };
+}
+
+// A tap on Wardrobe while she owns nothing (S3): one line and the way in.
+function EmptyWardrobeSheet({
+  open,
+  onClose,
+  onAdd,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onAdd: () => void;
+}) {
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+      title={copy.emptyWardrobe.title}
+      footer={
+        <Button
+          variant="primary"
+          block
+          onClick={() => {
+            onClose();
+            onAdd();
+          }}
+          data-testid="empty-wardrobe-add"
+        >
+          {copy.emptyWardrobe.add}
+        </Button>
+      }
+    >
+      {null}
+    </Sheet>
+  );
 }
 
 // The day's weather for the look prompt, while its chip stands (D22; the ask's context).
@@ -213,7 +260,7 @@ function Rack({
 // — from Describe, built by hand, started from a piece — and for a saved look, which edits in
 // place on its own page (3e) and in the Edit look drawer from Home (3k). The header carries × and the ink done disc; under the photo (the adjust
 // disc, the image stack) sit the name, Pieces · Details, the piece list with its add slot, and the
-// prompt card whose Generate and the AdjustSheet's Send both feed the one thread (`useAdjust`)
+// prompt box whose send and the AdjustSheet's Send both feed the one thread (`useAdjust`)
 // and draw the picture once it lands; "Dress it again" opens the DescribeSheet. `id` is a look,
 // or 'new' before the first piece. The native twin is mobile/src/features/looks/DraftLook.tsx.
 export function DraftLook({
@@ -463,7 +510,9 @@ function NewDraft({
   const summary = useApi('wardrobe.summary');
   const owned = summary.data?.total ?? null;
   const hasWardrobe = owned !== null && owned > 0;
-  const shop = useShop(owned);
+  const src = useSources(owned);
+  const { track } = useAnalytics().analytics;
+  const [emptyWardrobe, setEmptyWardrobe] = useState(false);
   const [picker, setPicker] = useState<PickerMode | null>(pick ? { add: true } : null);
   const [adding, setAdding] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -545,6 +594,13 @@ function NewDraft({
     const words = prompt.trim();
     if (words.length < 2 || busy) return;
     setBusy(true);
+    const sent = (ok: boolean) =>
+      track('prompt_submitted', {
+        surface: day ? 'home' : 'create',
+        intent: 'words',
+        scope: day ? 'day' : 'none',
+        ok,
+      });
     try {
       if (day) {
         const place = diary.data?.diary?.days.find((x) => x.date === day)?.place ?? null;
@@ -553,20 +609,23 @@ function NewDraft({
             prompt: words,
             date: day,
             draft: true,
-            balance: shop.balance,
+            balance: src.balance,
             ...(place && !weatherOff ? { place } : {}),
             ...(weatherOff ? { weather: false } : {}),
           },
         });
+        sent(true);
         setPromptJob(jobId);
         setWaiting(true);
         return;
       }
       const { jobId } = await api.call('looks.prompt', {
-        input: { prompt: words, balance: shop.balance },
+        input: { prompt: words, balance: src.balance },
       });
+      sent(true);
       router.replace(`/looks/style/${jobId}`);
     } catch (err) {
+      sent(false);
       setBusy(false);
       toast({ message: errorCopy(err) });
     }
@@ -579,18 +638,6 @@ function NewDraft({
       h1={copy.newName}
       onClose={onClose}
       done={{ label: copy.done, onClick: () => undefined, disabled: true, testId: 'draft-done' }}
-      footer={
-        <Button
-          variant="primary"
-          block
-          onClick={() => void generate()}
-          disabled={prompt.trim().length < 2 || busy}
-          data-testid="draft-generate"
-        >
-          {copy.generate}
-          <Icon name="check" size={12} />
-        </Button>
-      }
     >
       <div className="relative overflow-hidden bg-surface-sunk">
         {stand ? (
@@ -627,15 +674,24 @@ function NewDraft({
                 ),
               }
             : {})}
-          shop={shop.on}
-          onShop={shop.set}
+          sources={src.sources}
+          onSource={(which) =>
+            which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
+          }
+          wardrobeEmpty={src.empty}
           placeholders={copy.placeholders}
           value={prompt}
           onChange={setPrompt}
           onSend={() => void generate()}
+          sendWhenEmpty
           busy={busy}
         />
       </div>
+      <EmptyWardrobeSheet
+        open={emptyWardrobe}
+        onClose={() => setEmptyWardrobe(false)}
+        onAdd={() => setAdding(true)}
+      />
       <PiecePicker
         mode={picker}
         onRack={[]}
@@ -697,12 +753,15 @@ function DraftBody({
   const summary = useApi('wardrobe.summary');
   const owned = summary.data?.total ?? null;
   const hasWardrobe = owned !== null && owned > 0;
-  const shop = useShop(owned);
+  const src = useSources(owned);
+  const [emptyWardrobe, setEmptyWardrobe] = useState(false);
   const [rackLayout, setRackLayout] = useState<WardrobeLayout>('list');
   const [editingPieces, setEditingPieces] = useState(false);
   const [adding, setAdding] = useState(false);
   const [weatherOff, setWeatherOff] = useState(false);
-  const askContext = useAskContext(forDay, weatherOff);
+  // A saved look carries no place and no weather, even on a day (look prompt PRD L1, L2): both
+  // belong to the day, never to the look.
+  const askContext = useAskContext(mode === 'edit' ? null : forDay, weatherOff);
   const adjustRef = useRef<Adjust | null>(null);
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
   const adjust = useAdjust(look, editor, mode === 'edit' ? 'saved' : 'draft');
@@ -747,7 +806,7 @@ function DraftBody({
   const pieceOf = (id: string) => piecesById.get(id) ?? capture.pieceOf(id);
   const imageOf = (row: RackRow) => (row.pieceId ? pieceOf(row.pieceId)?.image : null);
   const sendOpts = {
-    balance: shop.balance,
+    balance: src.balance,
     ...(askContext ? { context: askContext } : {}),
   };
   // A photograph filed from the picker lands where the picker was opened.
@@ -766,7 +825,7 @@ function DraftBody({
   // A saved look's edit: anything not yet applied with Update look (D17, D18). Her photographs
   // and the cover are not among them: the strip's ✓ keeps them (keepStrip).
   const pending =
-    mode === 'edit' && (editor.dirty || adjust.stale || words.length > 0 || shop.changed);
+    mode === 'edit' && (editor.dirty || adjust.stale || words.length > 0 || src.changed);
   // A look from her photograph saves at any point but while its pieces are being found (1c.10).
   const finding = capture.on && capture.stage === 'finding';
   // A saved look's ✓ is Update look by another name: both wait, greyed, until something changes
@@ -785,7 +844,7 @@ function DraftBody({
     if (editor.dirty) {
       if (!(await editor.update())) return;
     } else toast({ message: lookbook.updated, duration: UPDATED_MS });
-    shop.settle();
+    src.settle();
     adjust.drawForSave();
   };
   const apply = () => {
@@ -865,27 +924,16 @@ function DraftBody({
     remove(look.id);
     router.replace('/looks');
   };
-  // Generate: her words go through the thread and the picture is drawn once the rack is answered.
-  // With nothing typed and the picture behind, the chip draws the model instead.
+  // The box's send (look prompt PRD P2): her words go through the thread and the picture is drawn
+  // once the rack is answered.
   const generate = () => {
-    if (busy) return;
-    if (words) {
-      adjust.send(words, { ...sendOpts, draw: true });
-      setPrompt('');
-      return;
-    }
-    if (adjust.stale) adjust.updateModel();
+    if (busy || !words) return;
+    adjust.send(words, { ...sendOpts, draw: true });
+    setPrompt('');
   };
-  // The sticky GENERATE ✓ at the draft's foot (PRD §4.6): her words, or the model drawn again
-  // while the picture is behind. A saved look's words wait for Update look (D17) instead.
-  const generateFoot =
-    mode === 'edit' || captureDraft
-      ? null
-      : words
-        ? { label: copy.generate, disabled: busy, refresh: false }
-        : adjust.stale
-          ? { label: d.updateModel(adjust.badge), disabled: busy, refresh: true }
-          : { label: copy.generate, disabled: true, refresh: false };
+  // "Update the model · N" keeps its place at the draft's foot while the picture is behind: it is
+  // not a prompt send. A saved look's changes wait for Update look (D17) instead.
+  const modelFoot = mode === 'draft' && !captureDraft && adjust.stale;
   const dialog =
     confirm === 'delete'
       ? {
@@ -1009,21 +1057,19 @@ function DraftBody({
             {copy.update}
             <Icon name="undo" size={12} className="-scale-x-100" />
           </Button>
-        ) : generateFoot ? (
+        ) : modelFoot ? (
           <Button
             variant="primary"
             block
-            onClick={generate}
-            aria-disabled={generateFoot.disabled}
-            className={generateFoot.disabled ? 'opacity-40' : undefined}
-            data-testid="draft-generate"
+            onClick={() => {
+              if (!busy) adjust.updateModel();
+            }}
+            aria-disabled={busy}
+            className={busy ? 'opacity-40' : undefined}
+            data-testid="update-model"
           >
-            {generateFoot.label}
-            {generateFoot.refresh ? (
-              <Icon name="undo" size={12} className="-scale-x-100" />
-            ) : (
-              <Icon name="check" size={12} />
-            )}
+            {d.updateModel(adjust.badge)}
+            <Icon name="undo" size={12} className="-scale-x-100" />
           </Button>
         ) : undefined
       }
@@ -1113,7 +1159,7 @@ function DraftBody({
             )}
             {captureDraft ? null : (
               <StylingCard
-                {...(forDay
+                {...(forDay && mode === 'draft'
                   ? {
                       context: (
                         <DayContext
@@ -1124,12 +1170,15 @@ function DraftBody({
                       ),
                     }
                   : {})}
-                shop={shop.on}
-                onShop={shop.set}
+                sources={src.sources}
+                onSource={(which) =>
+                  which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
+                }
+                wardrobeEmpty={src.empty}
                 thread={<ThreadLines thread={adjust.state.thread} />}
                 {...(mode === 'edit'
-                  ? { placeholder: copy.editPlaceholder }
-                  : { placeholders: copy.placeholders })}
+                  ? { placeholder: copy.savedPlaceholder }
+                  : { placeholders: copy.placeholders, sendWhenEmpty: true })}
                 value={prompt}
                 onChange={setPrompt}
                 onSend={mode === 'edit' ? apply : generate}
@@ -1173,6 +1222,11 @@ function DraftBody({
           </div>
         )}
       </div>
+      <EmptyWardrobeSheet
+        open={emptyWardrobe}
+        onClose={() => setEmptyWardrobe(false)}
+        onAdd={() => setAdding(true)}
+      />
       <PiecePicker
         mode={picker}
         onRack={onRackIds(rows)}
