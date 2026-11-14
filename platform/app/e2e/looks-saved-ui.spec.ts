@@ -75,16 +75,26 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // No wear buttons on the page (27 Oct): Schedule look, the one ink button, opens the diary.
   await expect(page.getByRole('button', { name: 'Wear it today' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Save as new' })).toHaveCount(0);
+  // The diary has one act, the day she picked (look prompt PRD L6): no "I wore this today".
   await page.getByRole('button', { name: 'Schedule look' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'I wore this today' }).click();
-  // Beta says so: today's wear is "Worn today ✓", never silence (L10).
-  await expect(page.getByRole('listitem').getByText('Worn today ✓')).toBeVisible();
-  // The day it was worn joins the record, and opens that day.
+  const diary = page.getByRole('dialog');
+  await expect(diary.getByRole('button', { name: 'Put it in the diary' })).toBeVisible();
+  await expect(diary.getByRole('button', { name: 'I wore this today' })).toHaveCount(0);
+  await diary.getByRole('button', { name: 'Close' }).click();
   // Her local date, printed the way core's longDate prints it: "Saturday 24 October".
   const todayLocal = await page.evaluate(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
+  // A wear on today, filed as the day's drawer files one, joins the record and opens that day.
+  const wornLook = page.url().split('/').at(-1) ?? '';
+  expect(
+    (
+      await page.request.post(`/api/v1/looks/${wornLook}/wears`, { data: { wornOn: todayLocal } })
+    ).ok(),
+  ).toBe(true);
+  await page.reload();
+  await page.getByRole('tab', { name: 'Details' }).click();
   const longToday = new Intl.DateTimeFormat('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -132,7 +142,6 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     timeZone: 'UTC',
   }).format(new Date(`${tomorrow}T00:00:00Z`));
   await page.getByRole('button', { name: 'Schedule look' }).click();
-  const diary = page.getByRole('dialog');
   await diary.getByRole('button', { name: longTomorrow }).click();
   await diary.getByRole('button', { name: 'Put it in the diary' }).click();
   await expect(page.getByRole('listitem').getByText(/is in your diary for/)).toBeVisible();

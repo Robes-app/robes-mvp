@@ -91,6 +91,7 @@ export function SheetField({
   onSend,
   disabled,
   autoFocus = true,
+  hardLimit = true,
   minHeight = 52,
   testID,
 }: {
@@ -101,6 +102,8 @@ export function SheetField({
   onSend: () => void;
   disabled: boolean;
   autoFocus?: boolean;
+  // The prompt box lets her run past the limit and says so (look prompt PRD P4); the sheets cut.
+  hardLimit?: boolean;
   minHeight?: number;
   testID: string;
 }) {
@@ -115,7 +118,7 @@ export function SheetField({
       placeholderTextColor={faint}
       editable={!disabled}
       autoFocus={autoFocus}
-      maxLength={ASK_MAX_CHARS}
+      {...(hardLimit ? { maxLength: ASK_MAX_CHARS } : {})}
       returnKeyType="send"
       blurOnSubmit
       onSubmitEditing={onSend}

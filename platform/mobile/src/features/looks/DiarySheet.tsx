@@ -24,8 +24,9 @@ import { errorMessage } from '@/lib/errors';
 import { LookPhoto } from './LookTile';
 import { localDate } from './saved-looks';
 
-// Save opens the diary every time (legacy 0.2): beta's month, any day one tap, a day gone by
-// records it as worn, and "I wore this today" beneath. Closing it writes nothing.
+// Schedule look opens the diary every time (look prompt PRD L6): the month, any day one tap, a day
+// gone by records it as worn. A day can hold several looks: this one is pinned beside any already
+// there. Closing it writes nothing. Web twin: app/src/components/looks/diary-sheet.tsx.
 export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () => void }) {
   const today = localDate();
   const [month, setMonth] = useState(() => monthOf(look?.dateHint ?? today));
@@ -136,7 +137,7 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
       testID="diary-sheet"
     >
       <PrimaryScope>
-        {/* The sheet pads under the last row itself; more here pushed "I wore this today" past
+        {/* The sheet pads under the last row itself; more here pushed the button past
             the sheet's height on a phone (redline 7 Nov). */}
         <View className="gap-4">
           {/* Beta's month sits on a white card (twin: diary-sheet.tsx). */}
@@ -230,20 +231,6 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
           <Button disabled={state.action === 'recorded'} loading={busy} onPress={act}>
             {copy.diary[state.action]}
           </Button>
-          {/* Beta's order: the day's act, then "I wore this today" on every day — it is how a wear
-              is logged now the look page carries no wear buttons; once today is logged the link goes
-              (the calendar's dot says it). × closes; no "Not yet" (27 Oct). */}
-          {worn.has(today) ? null : (
-            <Button
-              variant="quiet"
-              disabled={busy}
-              onPress={() => {
-                if (look) wear.mutate({ params: { id: look.id }, input: { wornOn: today } });
-              }}
-            >
-              {copy.diary.woreToday}
-            </Button>
-          )}
         </View>
       </PrimaryScope>
     </Sheet>

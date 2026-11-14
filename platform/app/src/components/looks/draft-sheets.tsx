@@ -77,6 +77,7 @@ export function SheetField({
   onSend,
   disabled,
   autoFocus = true,
+  hardLimit = true,
   className,
   testId,
 }: {
@@ -87,6 +88,8 @@ export function SheetField({
   onSend: () => void;
   disabled: boolean;
   autoFocus?: boolean;
+  // The prompt box lets her run past the limit and says so (look prompt PRD P4); the sheets cut.
+  hardLimit?: boolean;
   className?: string;
   testId: string;
 }) {
@@ -106,7 +109,7 @@ export function SheetField({
       rows={1}
       aria-label={label}
       value={value}
-      maxLength={ASK_MAX_CHARS}
+      {...(hardLimit ? { maxLength: ASK_MAX_CHARS } : {})}
       placeholder={placeholder}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}

@@ -192,9 +192,14 @@ describe('look_ask handler (the look prompt)', () => {
         },
       ],
     });
+    // Shop alone (`new`): her wishes are offered, nothing she owns is.
+    await run('swap the trouser for the silk cami', { balance: 'new' });
+    const alone = generateJson.mock.calls[2]?.[0].system ?? '';
+    expect(alone).toContain('Silk cami [Tops], coral, Vince (on her wishlist, not hers yet)');
+    expect(alone).not.toContain('Dark straight jean');
     // Unset (an older client): the wardrobe-first pool, as before.
     await run('swap the trouser for a red skirt');
-    expect(generateJson.mock.calls[2]?.[0].system).not.toContain('Silk cami');
+    expect(generateJson.mock.calls[3]?.[0].system).not.toContain('Silk cami');
     expect(answer()).toMatchObject({ swaps: [{ key: TROUSER, to: { proposal: {} } }] });
   });
 

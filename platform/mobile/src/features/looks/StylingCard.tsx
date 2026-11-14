@@ -1,11 +1,14 @@
 import { lookbook } from '@robes/copy';
-import { FINE_EDGE, SwitchPill, Text } from '@robes/ui-native';
+import { ASK_MAX_CHARS, type Source, type Sources } from '@robes/core/looks';
+import { Icon } from '@robes/icons/native';
+import { ErrorText, FINE_EDGE, IconToggle, MIN_TOUCH, Text, useColor } from '@robes/ui-native';
 import { type ReactNode, useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Keyboard, Pressable, View } from 'react-native';
 import { SheetField } from './DraftSheets';
 
 const copy = lookbook.draftLook;
 const TURN_MS = 3200;
+const SEND = 32;
 
 // The prompt row's placeholder turns through the suggestions while the field is empty.
 export function useTurningPlaceholder(lines: readonly string[], on: boolean): string {
@@ -18,41 +21,61 @@ export function useTurningPlaceholder(lines: readonly string[], on: boolean): st
   return lines[i % lines.length] ?? '';
 }
 
-// The styling card (Front Door PRD rev 3 §4.6, §6.1): white on the fine rule, radius 12, no
-// heading. The context row — the day's weather chip at the left, the Shop toggle at the right —
-// then the thread's lines and the borderless 52pt prompt row with its turning placeholder. The
-// draft and the saved look share it; what the field sends is the parent's (Generate, Update
-// look). Web twin: app/src/components/looks/styling-card.tsx.
+// The prompt box (look prompt PRD P1–P8, S1, D1): white on the fine rule, radius 12, no heading.
+// The top row holds the two sources — Wardrobe, then Shop — and, on a draft for a day, a hairline
+// and the day's place and weather. Then the thread's lines, and the borderless prompt row with
+// the round send inside it. The draft and the saved look share it; what a send does is the
+// parent's (the brief, the thread, Update look). Web twin:
+// app/src/components/looks/styling-card.tsx.
 export function StylingCard({
   context,
-  shop,
-  onShop,
+  sources,
+  onSource,
+  wardrobeEmpty,
   thread,
   placeholder,
   placeholders,
   value,
   onChange,
   onSend,
+  sendWhenEmpty = false,
   onDescribe,
   describeLabel,
   busy,
 }: {
   context?: ReactNode;
-  shop: boolean;
-  onShop: (next: boolean) => void;
+  sources: Sources;
+  onSource: (which: Source) => void;
+  // She owns nothing: Wardrobe is drawn faded, and a tap on it says why (S3).
+  wardrobeEmpty: boolean;
   thread?: ReactNode;
-  // One placeholder (a saved look's "more casual…"), or the turning set of the draft.
+  // One placeholder (a saved look's "add matching shoes…"), or the turning set of the draft.
   placeholder?: string;
   placeholders?: readonly string[];
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
+  // A draft's send stays ready on an empty field; pressed empty it sends nothing and the
+  // keyboard goes (D5). A saved look's waits for her words (L3).
+  sendWhenEmpty?: boolean;
   onDescribe?: () => void;
   describeLabel?: string;
   busy: boolean;
 }) {
   const turning = useTurningPlaceholder(placeholders ?? [], value.length === 0 && !placeholder);
   const hint = placeholder ?? turning ?? copy.placeholder;
+  const onInk = useColor('bg');
+  const words = value.trim();
+  const tooLong = words.length > ASK_MAX_CHARS;
+  const ready = !busy && !tooLong && (words.length > 0 || sendWhenEmpty);
+  const send = () => {
+    if (!ready) return;
+    if (!words) {
+      Keyboard.dismiss();
+      return;
+    }
+    onSend();
+  };
   return (
     <View
       accessibilityLabel={copy.thread}
@@ -60,31 +83,71 @@ export function StylingCard({
       className="gap-1 rounded-card border-rule-mid bg-surface-raised px-3 pt-3 pb-1"
       style={{ borderWidth: FINE_EDGE }}
     >
-      <View className="min-h-7 flex-row items-center justify-between gap-3">
-        <View className="min-w-0 flex-1 flex-row">{context}</View>
-        <SwitchPill
-          icon="bag"
-          label={copy.shop.label}
-          checked={shop}
-          onChange={onShop}
-          hintOn={copy.shop.on}
-          hintOff={copy.shop.off}
-          testID="shop-toggle"
+      <View className="min-h-7 flex-row items-center gap-2.5">
+        <IconToggle
+          icon="wardrobe"
+          checked={sources.wardrobe}
+          onChange={() => onSource('wardrobe')}
+          labelOn={copy.sources.wardrobe.on}
+          labelOff={wardrobeEmpty ? copy.sources.wardrobe.empty : copy.sources.wardrobe.off}
+          faded={wardrobeEmpty}
+          testID="source-wardrobe"
         />
+        <IconToggle
+          icon="bag"
+          checked={sources.shop}
+          onChange={() => onSource('shop')}
+          labelOn={copy.sources.shop.on}
+          labelOff={copy.sources.shop.off}
+          testID="source-shop"
+        />
+        {context ? (
+          <>
+            <View aria-hidden className="h-4 bg-rule-mid" style={{ width: FINE_EDGE }} />
+            <View className="min-w-0 flex-1 flex-row">{context}</View>
+          </>
+        ) : null}
       </View>
       {thread}
-      <View className="flex-row items-center">
+      <View className="flex-row items-center gap-2">
         <SheetField
           label={placeholder ?? copy.placeholder}
           placeholder={hint}
           value={value}
           onChange={onChange}
-          onSend={onSend}
+          onSend={send}
           disabled={busy}
           autoFocus={false}
+          hardLimit={false}
           testID="draft-prompt"
         />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.send}
+          accessibilityState={{ disabled: !ready }}
+          onPress={send}
+          testID="prompt-send"
+          className="items-center justify-center"
+          style={{
+            minWidth: MIN_TOUCH,
+            minHeight: MIN_TOUCH,
+            marginRight: -(MIN_TOUCH - SEND) / 2,
+            opacity: ready ? 1 : 0.3,
+          }}
+        >
+          <View
+            className="items-center justify-center rounded-pill bg-ink"
+            style={{ width: SEND, height: SEND }}
+          >
+            <Icon name="send" size={14} color={onInk} />
+          </View>
+        </Pressable>
       </View>
+      {tooLong ? (
+        <ErrorText size="caption" className="pb-2">
+          {copy.tooLong(ASK_MAX_CHARS)}
+        </ErrorText>
+      ) : null}
       {onDescribe ? (
         <Pressable
           accessibilityRole="button"

@@ -19,6 +19,7 @@ export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { ErrorText } from './ErrorText';
 export { Field, type FieldProps } from './Field';
 export { FilterButton, type FilterButtonProps } from './FilterButton';
+export { IconToggle, type IconToggleProps } from './IconToggle';
 export { ASPECTS, type Aspect, Image, type ImageProps } from './Image';
 export { InlineTitleField, type InlineTitleFieldProps } from './InlineTitleField';
 export { useReducedMotion } from './motion';
@@ -40,7 +41,6 @@ export {
 } from './Sheet';
 export { Skeleton, type SkeletonProps } from './Skeleton';
 export { OptionList, OptionRow, Subview, SubviewHeader } from './Subview';
-export { SwitchPill, type SwitchPillProps } from './SwitchPill';
 export {
   appCaps,
   FINE_EDGE,

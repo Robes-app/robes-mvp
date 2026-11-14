@@ -225,26 +225,38 @@ export const lookbook = {
     // A saved look's one accept (3e's pill, the Edit look drawer's footer; D17, D18).
     update: 'Update look',
     doneForDay: 'Save and schedule for this day',
-    // The styling card (Front Door PRD rev 3 §4.6): the prompt row's placeholders turn while it
-    // is empty; a saved look's row asks for the change instead.
+    // The prompt box (look prompt PRD P, D4, L3): the draft's placeholders turn while the field is
+    // empty, the board's line first; a saved look's row asks for the change instead.
     placeholder: 'Describe look…',
     placeholders: [
+      'relaxed weekend brunch…',
       'dinner date, smart casual…',
       'the office, a long day…',
       'a walk, then lunch…',
       'drinks after work…',
     ],
-    editPlaceholder: 'more casual…',
-    // The sticky primary at the foot (PRD §4.6 draws it as GENERATE ✓), in Robes' words: Robes
-    // styles, it never generates (the voice guard in index.test.ts).
-    generate: 'Style it',
-    // The Shop toggle (PRD §4.6, plan R1): off keeps the look to her wardrobe; on lets Robes reach
-    // for her wishlist and new pieces. What a reader hears for each state.
-    shop: {
-      label: 'Shop',
-      on: 'Shop is on: looks can include your wishlist and new pieces',
-      off: 'Shop is off: looks use your wardrobe pieces only',
+    savedPlaceholder: 'add matching shoes…',
+    // The round send inside the box (P2). Robes styles, it never generates (index.test.ts).
+    send: 'Send',
+    // Past the limit (P4): said under the field, her words never cut.
+    tooLong: (max: number): string => `Keep it under ${max} characters.`,
+    // The two sources (S1–S5), each a glyph: what a reader hears for each state, and the short
+    // name a pointer shows.
+    sources: {
+      wardrobe: {
+        tip: 'Wardrobe',
+        on: 'Wardrobe is on: looks can add pieces you own',
+        off: 'Wardrobe is off: no pieces added from your wardrobe',
+        empty: 'Nothing in your wardrobe yet',
+      },
+      shop: {
+        tip: 'Shop',
+        on: 'Shop is on: looks can add wishlist and new pieces',
+        off: 'Shop is off: no wishlist or new pieces added',
+      },
     },
+    // A tap on Wardrobe while she owns nothing (S3).
+    emptyWardrobe: { title: 'Your wardrobe is empty', add: 'Add pieces' },
     // The Rack card before the first piece (PRD §4.6): with a wardrobe it opens the picker; empty
     // it opens Add your pieces. The heading shows once a piece hangs.
     rack: 'The Rack',
@@ -411,9 +423,8 @@ export const lookbook = {
     already: 'Already in the diary · Open the day',
     record: 'Record it as worn',
     recorded: 'Already worn that day',
-    woreToday: 'I wore this today',
     recordedOn: (day: string): string => `Recorded — worn ${day}`,
-    // "I wore this today" says so (beta's __lkDiaryWoreToday).
+    // A wear recorded on today's date says so.
     wornToday: 'Worn today ✓',
     inDiaryFor: (look: string, day: string): string => `“${look}” is in your diary for ${day}`,
   },

@@ -284,9 +284,11 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjus
   expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
   expect(screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') })).toBeTruthy();
   expect(screen.queryByRole('button', { name: lookbook.savedLook.edit })).toBeNull();
-  // The prompt card reads "Describe other changes…" with no chip of its own; nothing waits yet.
-  expect(screen.getByLabelText(lookbook.draftLook.editPlaceholder)).toBeTruthy();
-  expect(screen.queryByTestId('draft-generate')).toBeNull();
+  // The prompt box reads "add matching shoes…" with its send waiting for her words (look prompt
+  // PRD L3); nothing waits yet.
+  expect(screen.getByLabelText(lookbook.draftLook.savedPlaceholder)).toBeTruthy();
+  expect(screen.getByTestId('prompt-send').props.accessibilityState.disabled).toBe(true);
+  expect(screen.queryByTestId('update-model')).toBeNull();
   expect(screen.queryByTestId('update-look')).toBeNull();
   // No header: the back disc rides the photo, Schedule look holds the foot.
   expect(screen.queryByTestId('draft-close')).toBeNull();
@@ -418,19 +420,19 @@ test('the adjust disc is not on a photograph of hers', async () => {
   expect(screen.queryByTestId('draft-adjust')).toBeNull();
 });
 
-// The Shop toggle on a saved look (PRD §6.1): flipping it counts as a change and enables Update.
+// The sources on a saved look (PRD §6.1): a changed source counts as a change and enables Update.
 test('flipping Shop on a saved look waits for Update look', async () => {
   mockFetch({
     ...editRoutes(twoPieces()),
     'GET /wardrobe/summary': { total: 2, categories: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  const toggle = await screen.findByTestId('shop-toggle');
+  const toggle = await screen.findByTestId('source-shop');
   await waitFor(() => expect(toggle.props.accessibilityState.checked).toBe(false));
   expect(screen.queryByTestId('update-look')).toBeNull();
   await fireEvent.press(toggle);
   expect(screen.getByTestId('update-look')).toBeTruthy();
-  await fireEvent.press(screen.getByTestId('shop-toggle'));
+  await fireEvent.press(screen.getByTestId('source-shop'));
   await waitFor(() => expect(screen.queryByTestId('update-look')).toBeNull());
 });
 

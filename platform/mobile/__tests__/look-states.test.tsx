@@ -253,10 +253,10 @@ test('closing the diary after Save is not yet: nothing is pinned', async () => {
   expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
   // Today is already picked, so the CTA is live — beta never opens this sheet inert.
   expect(screen.getByRole('button', { name: lookbook.diary.put })).not.toBeDisabled();
-  // × closes it: there is no "Not yet". "I wore this today" stands on every day — it is how a
-  // wear is logged now the look page carries no wear buttons (27 Oct).
+  // × closes it: there is no "Not yet", and no "I wore this today" — the sheet has one act, the
+  // day she picked (look prompt PRD L6).
   expect(screen.queryByRole('button', { name: 'Not yet' })).toBeNull();
-  expect(screen.getByRole('button', { name: lookbook.diary.woreToday })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'I wore this today' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: ui.close }));
   await waitFor(() => expect(screen.queryByText(lookbook.diary.eyebrow)).toBeNull());
   expect(calls.some((c) => c.path.endsWith('/days'))).toBe(false);
@@ -373,7 +373,7 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
   // Every draft is the one DraftLook (D14): the prompt card's field feeds the thread.
   const field = await screen.findByTestId('draft-prompt');
   await fireEvent.changeText(field, 'swap the mules for my dark jean');
-  await fireEvent.press(screen.getByTestId('draft-generate'));
+  await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(await screen.findByText('Done. The dark jean is on the look now.')).toBeTruthy();
   const ask = calls.find((c) => c.path.endsWith('/ask'))?.body as {
     rack: unknown[];
@@ -452,7 +452,7 @@ test('a rule said in the prompt waits under Robes noticed; a vague ask is writte
   // Every draft is the one DraftLook (D14): the prompt card's field feeds the thread.
   const field = await screen.findByTestId('draft-prompt');
   await fireEvent.changeText(field, 'never grey');
-  await fireEvent.press(screen.getByTestId('draft-generate'));
+  await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(await screen.findByText(lookbook.prompt.noticed)).toBeTruthy();
 });
 
@@ -828,8 +828,8 @@ test('once today is logged, the diary sheet carries no second "worn today" line'
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.schedule }));
   expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
-  // It read like a bug, two checks in a row (27 Oct): the link simply goes.
-  expect(screen.queryByRole('button', { name: lookbook.diary.woreToday })).toBeNull();
+  // It read like a bug, two checks in a row (27 Oct).
+  expect(screen.queryByRole('button', { name: 'I wore this today' })).toBeNull();
   expect(screen.queryByText(/Worn today/)).toBeNull();
 });
 
