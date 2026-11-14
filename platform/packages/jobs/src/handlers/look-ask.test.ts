@@ -203,6 +203,65 @@ describe('look_ask handler (the look prompt)', () => {
     expect(answer()).toMatchObject({ swaps: [{ key: TROUSER, to: { proposal: {} } }] });
   });
 
+  // "Add high heels" on a look with no heels (testing, 14 Nov): the piece lands as a new row —
+  // one she owns by its id, a wish with its identity, a new one with brand, retailer and price.
+  it('adds a piece to the look as a new row, from her wardrobe, her wishlist or new', async () => {
+    const { run, answer, generateJson } = setup();
+    const blank = { name: '', brand: '', retailer_hint: '', price_point: '', category: '' };
+    generateJson.mockResolvedValueOnce({
+      data: {
+        intent: 'swap',
+        reply: '',
+        swaps: [],
+        back: [],
+        styled: [],
+        draft: '',
+        rule: '',
+        follow_up: 'Do the heels work?',
+        adds: [
+          { pool_index: 0, ...blank },
+          { pool_index: 1, ...blank },
+          {
+            pool_index: -1,
+            name: 'Black slingback heels',
+            brand: 'Aeyde',
+            retailer_hint: 'aeyde.com',
+            price_point: '€295',
+            category: 'Shoes',
+          },
+        ],
+      },
+      usage: {},
+    } as never);
+    await run('add high heels', { balance: 'mix' });
+    const system = generateJson.mock.calls[0]?.[0].system ?? '';
+    expect(system).toContain('put it in "adds"');
+    expect(answer()).toMatchObject({
+      intent: 'swap',
+      swaps: [],
+      followUp: 'Do the heels work?',
+      adds: [
+        { pieceId: JEAN, name: 'Dark straight jean', category: 'Bottoms', categoryL2: 'Jeans' },
+        {
+          proposal: {
+            name: 'Silk cami',
+            wishlisted: true,
+            wishlistItemId: CAMI,
+            pricePoint: '€89',
+          },
+        },
+        {
+          proposal: {
+            name: 'Black slingback heels',
+            brand: 'Aeyde',
+            retailerHint: 'aeyde.com',
+            pricePoint: '€295',
+          },
+        },
+      ],
+    });
+  });
+
   it('refuses a look that isn’t hers and bad input', async () => {
     const { run } = setup();
     await expect(run('hi', { lookId: TROUSER })).rejects.toMatchObject({ code: 'not_found' });

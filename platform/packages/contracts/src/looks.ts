@@ -500,6 +500,9 @@ export const LookAskResult = z.object({
   intent: AskIntent,
   reply: z.string(),
   swaps: z.array(z.object({ key: RackKey, to: AskTarget })),
+  // Pieces put on the look as new rows ("add high heels" on a look with no shoes); nothing is
+  // taken off for them. Absent from an older worker's answer.
+  adds: z.array(AskTarget).max(8).default([]),
   back: z.array(RackKey),
   backAll: z.boolean(),
   styled: z.array(z.object({ key: RackKey, note: z.string() })),
