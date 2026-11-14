@@ -120,6 +120,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     sawPending.current = false;
     setDrawing(false);
     dispatch({ type: 'settle' });
+    // The picture now wears the rack: a change counted while it was being drawn is caught up.
+    dispatch({ type: 'drawn' });
     if (!hushed.current) dispatch({ type: 'robes', text: d.modelDone });
     hushed.current = false;
   }, [drawing, picturePending]);

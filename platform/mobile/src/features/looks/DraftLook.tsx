@@ -144,7 +144,10 @@ function useSnap(onFiled: (piece: Piece) => void) {
 // The prompt's two sources (look prompt PRD S1–S6): her wardrobe alone once she has one, Shop
 // alone while it is empty, until she says otherwise. The choice lasts for this look's thread and
 // is never stored. `owned` is null while the wardrobe's count loads.
-function useSources(owned: number | null): {
+function useSources(
+  owned: number | null,
+  initial: Sources | null = null,
+): {
   sources: Sources;
   // She owns nothing: Wardrobe is faded, and a tap on it opens "Your wardrobe is empty" (S3).
   empty: boolean;
@@ -154,7 +157,8 @@ function useSources(owned: number | null): {
   changed: boolean;
   settle: () => void;
 } {
-  const [chosen, setChosen] = useState<Sources | null>(null);
+  // `initial`: what she had chosen in the box her brief was sent from; the draft keeps it.
+  const [chosen, setChosen] = useState<Sources | null>(initial);
   const [applied, setApplied] = useState<Balance | null>(null);
   const count = owned ?? 1;
   const rest = defaultSources(count);
@@ -324,7 +328,11 @@ export function DraftLook({
   const arrived = useArrived();
   const [lookId, setLookId] = useState<string | null>(id === 'new' ? null : id);
   // Her words, when Robes made this draft from them just now: they head its thread.
-  const [brief, setBrief] = useState<{ words: string; occasion?: string } | null>(null);
+  const [brief, setBrief] = useState<{
+    words: string;
+    occasion?: string;
+    sources?: Sources;
+  } | null>(null);
   const query = useApi(
     'looks.get',
     { params: { id: lookId ?? '' } },
@@ -393,6 +401,8 @@ interface Done {
 // opened — the scrim that greys the look behind it and closes it on a tap.
 interface ShellDock {
   node: ReactNode;
+  // The prompt stands as its cream sheet: the safe area under it is cream too.
+  solid?: boolean;
   onScrim?: () => void;
 }
 
@@ -418,7 +428,7 @@ function Shell({
   const insets = useSafeAreaInsets();
   // The prompt and Update the model ride above the keyboard, never under it.
   const root = useRef<HostInstance>(null);
-  const keyboard = useKeyboardOverlap(root);
+  const keyboard = useKeyboardOverlap(root, presentation === 'sheet');
   // The look scrolls clear of the floating prompt, however tall it stands.
   const [dockHeight, setDockHeight] = useState(0);
   if (presentation === 'saved') {
@@ -462,11 +472,17 @@ function Shell({
           <View
             pointerEvents="box-none"
             className="absolute inset-x-0 bottom-0"
-            style={{ paddingBottom: footer || keyboard ? 0 : insets.bottom }}
             onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}
             testID="floating-dock"
           >
             {dock.node}
+            {/* Down to the screen's foot: cream under the sheet, so the look never shows in a
+                strip beneath it; clear under the box and the bar. */}
+            <View
+              pointerEvents="none"
+              className={dock.solid ? 'bg-bg' : undefined}
+              style={{ height: footer || keyboard ? 0 : insets.bottom }}
+            />
           </View>
         ) : null}
         {over}
@@ -589,7 +605,7 @@ function NewDraft({
   presentation: DraftPresentation;
   onClose: () => void;
   // `from`: her brief, and the occasion Robes read in it, when Robes made the draft from it.
-  onCreated: (look: Look, from?: { words: string; occasion?: string }) => void;
+  onCreated: (look: Look, from?: { words: string; occasion?: string; sources?: Sources }) => void;
 }) {
   const api = useApiClient();
   const toast = useToast();
@@ -675,7 +691,11 @@ function NewDraft({
       .then((made) => {
         setWaiting(false);
         refresh();
-        onCreated(made, { words: prompt.trim(), ...(occasion ? { occasion } : {}) });
+        onCreated(made, {
+          words: prompt.trim(),
+          ...(occasion ? { occasion } : {}),
+          sources: src.sources,
+        });
       })
       .catch((err) => {
         opening.current = false;
@@ -831,7 +851,7 @@ function DraftBody({
   images?: 'add';
   // Her words, when Robes made this draft from them just now (the draft's first send), and the
   // occasion Robes read in them.
-  brief?: { words: string; occasion?: string };
+  brief?: { words: string; occasion?: string; sources?: Sources };
   schedule: boolean;
   // The screen has finished coming in (useArrived): no Sheet presents before it.
   arrived: boolean;
@@ -849,7 +869,7 @@ function DraftBody({
   const summary = useApi('wardrobe.summary');
   const owned = summary.data?.total ?? null;
   const hasWardrobe = owned !== null && owned > 0;
-  const src = useSources(owned);
+  const src = useSources(owned, brief?.sources ?? null);
   const [emptyWardrobe, setEmptyWardrobe] = useState(false);
   const [rackLayout, setRackLayout] = useState<WardrobeLayout>('list');
   const [editingPieces, setEditingPieces] = useState(false);
@@ -1056,7 +1076,8 @@ function DraftBody({
   };
   // "Update the model · N" keeps its place at the draft's foot while the picture is behind: it is
   // not a prompt send. A saved look's changes wait for Update look (D17) instead.
-  const modelFoot = mode === 'draft' && !captureDraft && adjust.stale;
+  // Never while Robes is at work: a prompt change draws its own picture (testing, 14 Nov).
+  const modelFoot = mode === 'draft' && !captureDraft && adjust.stale && !adjust.busy;
   const dialog: { title: string; message: string; actions: AlertDialogAction[] } | null =
     confirm === 'delete'
       ? {
@@ -1180,7 +1201,9 @@ function DraftBody({
             <ThreadLines
               thread={adjust.state.thread}
               compact
-              {...(dayContext && !weatherOff ? { meta: <DayMeta date={dayContext} /> } : {})}
+              {...(dayContext && !weatherOff && brief?.words
+                ? { meta: <DayMeta date={dayContext} /> }
+                : {})}
             />
             <Feedback
               adjust={adjust}
@@ -1233,7 +1256,11 @@ function DraftBody({
   // away: changes are made through the prompt alone (pins 23, 25).
   const promptSheet = presentation === 'saved' && dockState === 'open' && dockNode !== null;
   const dock = dockNode
-    ? { node: dockNode, ...(promptSheet ? { onScrim: () => setDockOpen(false) } : {}) }
+    ? {
+        node: dockNode,
+        solid: asSheet && dockState === 'open',
+        ...(promptSheet ? { onScrim: () => setDockOpen(false) } : {}),
+      }
     : null;
   // While the prompt is open or keeping its change there is no button at all (pin 25).
   const noButton = mode === 'edit' && (dockState === 'open' || applying !== null);
