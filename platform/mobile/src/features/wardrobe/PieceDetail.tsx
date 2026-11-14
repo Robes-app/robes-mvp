@@ -24,7 +24,7 @@ import { SettingsRow } from '@/features/you/Settings';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { DeletePieceDialog } from './DeletePieceDialog';
-import { StarButton } from './PieceCard';
+import { NoPhoto, StarButton } from './PieceCard';
 import { type PieceField, PieceFieldSheet } from './PieceFieldSheet';
 import { PieceHeader } from './PieceHeader';
 import { PieceRow, RecordRows, type RecordTab } from './PieceRows';
@@ -123,7 +123,7 @@ export function PieceDetail({ id }: { id: string }) {
               contentFit="contain"
             />
           ) : (
-            <View accessibilityElementsHidden style={{ aspectRatio: 4 / 5 }} />
+            <NoPhoto size={56} />
           )}
           <ChangePhoto
             hasPhoto={piece.image !== null}

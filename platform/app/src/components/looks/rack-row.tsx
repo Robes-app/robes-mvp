@@ -4,8 +4,9 @@ import type { PieceImage as PieceImageData } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { nameNoBrand, type RackRow, type RowNote, theName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { IconButton, Image, Text } from '@robes/ui';
+import { IconButton, Image } from '@robes/ui';
 import { CardRow, type RowMeta } from '@/components/wardrobe/piece-card';
+import { NoPhoto } from '@/components/wardrobe/piece-image';
 import { imageSources } from '@/lib/image';
 
 export type RowMark = RowNote | { kind: 'added' };
@@ -102,11 +103,7 @@ export function RackRowCard({
           sources ? (
             <Image src={sources.src} srcSet={sources.srcSet} sizes="52px" alt="" aspect="4:5" />
           ) : (
-            <div aria-hidden className="flex aspect-[4/5] items-center justify-center">
-              <Text size="small" tone="muted">
-                {name.charAt(0)}
-              </Text>
-            </div>
+            <NoPhoto className="aspect-[4/5]" size={18} />
           )
         }
         {...(row.role ? { role: copy.rack.roles[row.role] } : {})}
