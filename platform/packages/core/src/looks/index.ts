@@ -293,22 +293,9 @@ export function rackSignature(state: Pick<RackState, 'rows' | 'styling'>): strin
     .join(';');
 }
 
-// ── A day read out of her words (legacy _rbAskDateFrom, 2026-10-13) ──────────
-// Deterministic: today/tonight, tomorrow, a weekday (the coming one; "next friday" the one after),
-// the weekend (the coming Saturday), next week (Monday), or a date. Null when it can't place one.
+// ── Days, for a look's ask ──────────────────────────────────────────────────
 
 const DAY_MS = 86_400_000;
-const WEEKDAYS = [
-  'sunday',
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-] as const;
-const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-
 const isoMs = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
 export function addDays(iso: string, n: number): string {
   return new Date(isoMs(iso) + n * DAY_MS).toISOString().slice(0, 10);
@@ -324,46 +311,6 @@ export function daysBetween(from: string, to: string): number {
 export function askDate(iso: string | null | undefined, today: string): string | null {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso) || Number.isNaN(isoMs(iso))) return null;
   return iso >= today ? iso : null;
-}
-
-export function askDateFrom(text: string, today: string): string | null {
-  const t = ` ${String(text ?? '')
-    .toLowerCase()
-    .replace(/[^\w\s'’/-]/g, ' ')
-    .replace(/\s+/g, ' ')} `;
-  const dow = weekdayOf(today);
-  let m = t.match(/\b(\d{4}-\d{2}-\d{2})\b/);
-  if (m?.[1]) return askDate(m[1], today);
-  m = t.match(
-    /\b(?:(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*|(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:st|nd|rd|th)?)\b/,
-  );
-  if (m) {
-    const d = Number(m[1] ?? m[4]);
-    const mo = MONTHS.indexOf(m[2] ?? m[3] ?? '');
-    if (d >= 1 && d <= 31 && mo >= 0) {
-      const y = Number(today.slice(0, 4));
-      const iso = (yr: number) =>
-        `${yr}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const next = askDate(iso(y + 1), today);
-      // A date already gone this year is next year's only within six months.
-      const near = next !== null && daysBetween(today, next) <= 183;
-      return askDate(iso(y), today) ?? (near ? next : null);
-    }
-  }
-  if (/\b(today|tonight|this (morning|afternoon|evening))\b/.test(t)) return today;
-  if (/\btomorrow\b/.test(t)) return addDays(today, 1);
-  m = t.match(/\b(next )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
-  if (m?.[2]) {
-    const target = WEEKDAYS.indexOf(m[2] as (typeof WEEKDAYS)[number]);
-    return addDays(today, ((target - dow + 7) % 7) + (m[1] ? 7 : 0));
-  }
-  m = t.match(/\b(this|the|next|at the|for the|on the) weekend\b/);
-  if (m) {
-    const off = dow === 0 ? 0 : (6 - dow + 7) % 7;
-    return addDays(today, off + (m[1] === 'next' && off === 0 ? 7 : 0));
-  }
-  if (/\bnext week\b/.test(t)) return addDays(today, (1 - dow + 7) % 7 || 7);
-  return null;
 }
 
 // How a day reads in a sentence: "today", "tomorrow", "on Friday", "next Friday", or a date.
@@ -647,20 +594,6 @@ export function priceFromPoint(point: string): { price: number; currency: string
   const currency =
     sign === '£' || sign === 'GBP' ? 'GBP' : sign === '$' || sign === 'USD' ? 'USD' : 'EUR';
   return { price, currency };
-}
-
-// The word a piece goes by in the prompt (legacy _rbLpPieceNoun): the last word of its name —
-// "Light wash wide-leg jeans" is these jeans, "Acid green cropped jumper" this jumper; anything
-// unreadable is this piece.
-export function pieceNoun(name: string | null | undefined): { word: string; plural: boolean } {
-  const last =
-    String(name ?? '')
-      .trim()
-      .split(/\s+/)
-      .pop() ?? '';
-  const word = last.toLowerCase().replace(/[^a-z'-]/g, '');
-  if (word.length < 3 || /^(new|piece|item)$/.test(word)) return { word: 'piece', plural: false };
-  return { word, plural: /s$/.test(word) && !/(ss|us|is)$/.test(word) };
 }
 
 // What a wear held that the look no longer does, and what the look holds that she did not wear

@@ -295,8 +295,10 @@ test('the adjust disc opens the AdjustSheet; her sentence redraws the picture al
   expect(screen.getByText('sleeves rolled up')).toBeTruthy();
 });
 
-// Dress it again is the door into the DescribeSheet on a look Robes made: her sentence re-writes it.
-test('Dress it again opens the DescribeSheet; Send re-writes the look from her sentence', async () => {
+// Restyle it all is how a look Robes made is dressed again (look prompt PRD F12, F13; decision 12
+// retired Dress it again and the DescribeSheet): opened, the draft is asked about, and after a
+// thumbs down the chip stands alone, her words its note.
+test('a draft Robes made is asked about; Restyle it all re-writes it from her words', async () => {
   const SET = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
   const draft = draftOf({ setId: SET, setIndex: 0 });
   const calls = mockFetch({
@@ -308,25 +310,24 @@ test('Dress it again opens the DescribeSheet; Send re-writes the look from her s
       status: 'queued',
     },
   });
+  const fb = copy.feedback;
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.draft.redress }));
-  expect(await screen.findByTestId('describe-sheet')).toBeTruthy();
-  // The count chip opens to one chip per piece.
-  expect(screen.getByText(copy.describeSheet.pieces(1))).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: copy.describeSheet.show }));
-  // The piece's chip, beside its row on the rack.
-  expect(screen.getAllByText('Camel wool coat').length).toBeGreaterThan(1);
-  await fireEvent.changeText(screen.getByTestId('describe-sheet-field'), 'more casual');
-  await fireEvent.press(
-    within(screen.getByTestId('describe-sheet')).getByRole('button', {
-      name: copy.describeSheet.send,
-    }),
-  );
+  expect(await screen.findByText(fb.question)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: lookbook.draft.redress })).toBeNull();
+  await fireEvent.press(screen.getByTestId('thumb-down'));
+  // Picking a reason first, then Restyle it all: it stands alone (F8).
+  await fireEvent.press(screen.getByTestId('reason-dressy'));
+  await fireEvent.press(screen.getByTestId('reason-restyle'));
+  expect(screen.getByTestId('reason-restyle').props.accessibilityState.selected).toBe(true);
+  expect(screen.queryByTestId('reason-dressy')).toBeNull();
+  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'more casual');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/restyle'))?.body).toEqual({ note: 'more casual' }),
   );
-  expect(screen.queryByTestId('describe-sheet')).toBeNull();
-  expect(screen.getByText(lookbook.draft.dressingAgain)).toBeTruthy();
+  expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
+  expect(screen.getByText(`${fb.restyle.label} · “more casual”`)).toBeTruthy();
+  expect(screen.getByText(fb.restyle.work(''))).toBeTruthy();
 });
 
 test('closing asks: Discard lets the draft go, Keep for later only closes', async () => {

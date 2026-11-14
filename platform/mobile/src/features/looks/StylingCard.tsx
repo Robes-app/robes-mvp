@@ -47,8 +47,6 @@ export function StylingCard({
   onChange,
   onSend,
   emptySend,
-  onDescribe,
-  describeLabel,
   busy,
 }: {
   context?: ReactNode;
@@ -67,8 +65,6 @@ export function StylingCard({
   // keyboard goes (D5). `send`: she tapped what to change, which stands for her words (F10).
   // Unset: a saved look's send waits for her words (L3).
   emptySend?: 'blur' | 'send';
-  onDescribe?: () => void;
-  describeLabel?: string;
   busy: boolean;
 }) {
   const turning = useTurningPlaceholder(placeholders ?? [], value.length === 0 && !placeholder);
@@ -156,18 +152,6 @@ export function StylingCard({
         <ErrorText size="caption" className="pb-2">
           {copy.tooLong(ASK_MAX_CHARS)}
         </ErrorText>
-      ) : null}
-      {onDescribe ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onDescribe}
-          disabled={busy}
-          className="min-h-7 justify-center self-start pb-1"
-        >
-          <Text size="caption" tone="muted" style={{ textDecorationLine: 'underline' }}>
-            {describeLabel}
-          </Text>
-        </Pressable>
       ) : null}
     </View>
   );

@@ -68,7 +68,7 @@ import { CapturePieces, CaptureRow, NewPieceSheet, RemovedLine } from './Capture
 import { useCaptureRack } from './capture-rack';
 import { DayContext } from './DayContext';
 import { DiarySheet } from './DiarySheet';
-import { AdjustSheet, DescribeSheet } from './DraftSheets';
+import { AdjustSheet } from './DraftSheets';
 import { CardPicture, ImageManager } from './ImageManager';
 import { LookDetails } from './LookDetails';
 import { LookPicture } from './LookPicture';
@@ -105,7 +105,7 @@ type Tab = (typeof TABS)[number];
 // page (Felix 3e: the back disc on the photo, Schedule look at the foot — Update look in its place
 // while a change waits, PRD §6.1; D17).
 export type DraftPresentation = 'sheet' | 'page' | 'saved';
-export type DraftSheet = 'adjust' | 'describe';
+export type DraftSheet = 'adjust';
 
 const pronoun = (m: Model | undefined) =>
   m?.presence === 'man' ? 'him' : readsAsThey(m?.presence) ? 'them' : 'her';
@@ -292,7 +292,8 @@ function Rack({
 // page (3e) and in the Edit look sheet from Home (3k). The header carries × and the ink done disc;
 // under the photo (the adjust disc, the image stack) sit Pieces · Details, the piece list with its
 // add slot, and the prompt card whose Generate and the AdjustSheet's Send both feed the one thread
-// (`useAdjust`) and draw the picture once it lands; "Dress it again" opens the DescribeSheet. A
+// (`useAdjust`) and draw the picture once it lands; a look Robes made is restyled whole from the
+// thread's Restyle it all. A
 // saved look's changes wait for Update look. `id` is a look, or 'new' before the first piece. Web
 // twin: app/src/components/looks/draft-look.tsx.
 export function DraftLook({
@@ -803,10 +804,17 @@ function DraftBody({
   adjustRef.current = adjust;
   // Robes asks its one question about the look it just made (look prompt PRD F1, F3).
   const opened = useRef(false);
+  // A draft Robes made, opened again, is asked about too: its thumbs are the way to change it or
+  // restyle it all, now Dress it again is gone (decision 12).
   useEffect(() => {
-    if (!brief || opened.current) return;
-    opened.current = true;
-    adjust.opened(brief.words, brief.occasion);
+    if (opened.current) return;
+    if (brief) {
+      opened.current = true;
+      adjust.opened(brief.words, brief.occasion);
+    } else if (mode === 'draft' && look.setId !== null && !captureDraft) {
+      opened.current = true;
+      adjust.opened('');
+    }
   });
   const fb = copy.feedback;
   // What she tapped after a thumbs down stands for her words (F10).
@@ -1134,9 +1142,6 @@ function DraftBody({
         value={prompt}
         onChange={setPrompt}
         onSend={mode === 'edit' ? ask : generate}
-        {...(adjust.canRedress
-          ? { onDescribe: () => setSheet('describe'), describeLabel: d.redress }
-          : {})}
         busy={busy}
       />
     </PromptDock>
@@ -1177,35 +1182,16 @@ function DraftBody({
       }}
       {...(foot ? { footer: foot } : {})}
       over={
-        <>
-          <AdjustSheet
-            open={sheet === 'adjust'}
-            sending={adjust.busy}
-            // Adjust model image (D21): the picture alone, never the pieces.
-            onSend={(text) => {
-              adjust.picture(text);
-              setSheet(null);
-            }}
-            onClose={() => setSheet(null)}
-          />
-          <DescribeSheet
-            open={sheet === 'describe'}
-            pieces={rows
-              .filter((r) => r.pieceId)
-              .map((r) => ({
-                key: r.key,
-                name: r.name,
-                image: r.pieceId ? piecesById.get(r.pieceId)?.image : null,
-              }))}
-            sending={adjust.busy}
-            onRemovePiece={(key) => editor.remove(key)}
-            onSend={(text) => {
-              adjust.describe(text);
-              setSheet(null);
-            }}
-            onClose={() => setSheet(null)}
-          />
-        </>
+        <AdjustSheet
+          open={sheet === 'adjust'}
+          sending={adjust.busy}
+          // Adjust model image (D21): the picture alone, never the pieces.
+          onSend={(text) => {
+            adjust.picture(text);
+            setSheet(null);
+          }}
+          onClose={() => setSheet(null)}
+        />
       }
     >
       {managing ? (

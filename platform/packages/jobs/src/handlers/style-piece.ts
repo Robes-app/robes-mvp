@@ -720,7 +720,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         ctx,
         // Her words make one look (look prompt PRD D6): one way is asked for, not three.
         buildSystem(styleCtx, mode, steer, day?.place?.read ?? null, { one: draft }),
-        buildUser(ask, { hasPhoto: Boolean(photo) }),
+        // The words typed beside a piece ride the styling call too, not only the picture.
+        buildUser(ask, { hasPhoto: Boolean(photo), ...(prompted ? {} : { occasion: brief }) }),
         photo,
         askDetail(steer, day),
         (o) => ownedOfTotal(o.ways.slice(0, count), styleCtx.closet),

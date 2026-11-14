@@ -225,9 +225,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     restyleAll: () => dispatch({ type: 'restyle' }),
     // Robes made this look from her brief just now (the draft's first send): her words head the
     // thread and Robes asks its one question (F1, F3).
+    // With no words (a draft Robes made, opened again) only the question is asked.
     opened: (words: string, occasion?: string) => {
       brief.current = words;
-      dispatch({ type: 'her', text: words });
+      if (words) dispatch({ type: 'her', text: words });
       dispatch({ type: 'question', text: occasion ? fb.questionFor(occasion) : fb.question });
     },
     redress: () => {
@@ -240,15 +241,6 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       dispatch({ type: 'her', text: d.redress });
       dispatch({ type: 'robes', text: d.ask });
       dispatch({ type: 'ask' });
-    },
-    // The DescribeSheet: her sentence re-writes the look Robes made, the pieces she dropped gone.
-    describe: (words: string) => {
-      const text = words.trim();
-      if (!text || busy || look.setId === null) return;
-      dispatch({ type: 'her', text });
-      if (state.asking) dispatch({ type: 'answered' });
-      dispatch({ type: 'work', text: d.dressingAgain });
-      restyle(text);
     },
     another: () => {
       if (busy) return;

@@ -27,7 +27,6 @@ import {
   useState,
 } from 'react';
 import { BackLink } from '@/components/back-link';
-import { NewLookBox } from '@/components/home/home-box';
 import { Bell } from '@/components/shell/bell';
 import {
   activeRoot,
@@ -325,10 +324,6 @@ export function AppShell({
 
       <Sheet title={shell.create.title} open={createOpen} onOpenChange={setCreateOpen}>
         <div className="flex flex-col gap-5">
-          {/* Beta's sparkle opens the new-look box (legacy __rbHbOpen({fresh})): here it leads the sheet. */}
-          <FeaturesProvider value={features}>
-            <NewLookBox autoFocus={createOpen} />
-          </FeaturesProvider>
           {CREATE_GROUPS.map((group) => (
             <section
               key={group}

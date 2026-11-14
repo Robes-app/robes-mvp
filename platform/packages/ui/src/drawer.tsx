@@ -27,7 +27,7 @@ export interface DrawerProps {
   closeLabel: string;
   done: DrawerDone | null;
   children: ReactNode;
-  // Anything floating over the body inside the drawer's frame: the AdjustSheet, the DescribeSheet.
+  // Anything floating over the body inside the drawer's frame: the AdjustSheet.
   over?: ReactNode;
   // Held under the scrolling body: the Edit look drawer's Update look (Felix 3k).
   footer?: ReactNode;
