@@ -98,6 +98,7 @@ export function DayView({ date }: { date: string }) {
 
       {card && day ? (
         <DayCard
+          origin="diary"
           day={day}
           today={card.today}
           forget={(id) =>

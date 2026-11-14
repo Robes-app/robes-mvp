@@ -5,9 +5,10 @@ import type { DiaryDay, PlanEntry } from '@robes/contracts';
 import { diary as copy, wardrobe } from '@robes/copy';
 import { useToast } from '@robes/ui';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LookPicker } from '@/app/(app)/plan/look-picker';
 import { LookCapture } from '@/components/capture/look-capture';
+import { type DayOrigin, setDayOrigin } from '@/lib/day-origin';
 import { dayWordOf, type PickerMode } from '@/lib/diary';
 import { errorCopy } from '@/lib/error-copy';
 import { DaySlot } from './day-slot';
@@ -20,12 +21,15 @@ import { ModelPicker } from './model-picker';
 export function DayCard({
   day,
   today,
+  origin,
   justSaved = null,
   forget,
   refresh,
 }: {
   day: DiaryDay;
   today: string;
+  // The screen this day is on: a look made for the day comes back to it.
+  origin: DayOrigin;
   // The look just saved from its draft: its page says so for the visit.
   justSaved?: string | null;
   // Takes a look off the day in the caller's cache at once; the server read follows.
@@ -40,6 +44,7 @@ export function DayCard({
   const [choosing, setChoosing] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [drawer, setDrawer] = useState<PickerMode | null>(null);
+  useEffect(() => setDayOrigin(origin), [origin]);
   const date = day.date;
   const past = date < today;
 

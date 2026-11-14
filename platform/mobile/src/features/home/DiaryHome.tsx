@@ -138,6 +138,7 @@ export function DiaryHome({
         <View onLayout={(e) => setSlotTop(e.nativeEvent.layout.y)} testID="day-slot-room">
           <DayCard
             key={current.date}
+            origin="home"
             room={room}
             day={current}
             today={today}

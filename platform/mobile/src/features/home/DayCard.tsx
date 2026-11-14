@@ -2,11 +2,12 @@ import { useApi, useApiClient } from '@robes/api-client/react';
 import type { DiaryDay, PlanEntry } from '@robes/contracts';
 import { diary as copy, ui } from '@robes/copy';
 import { useToast } from '@robes/ui-native';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { LookPicker } from '@/features/plan/LookPicker';
 import { errorMessage } from '@/lib/errors';
 import { DaySlot } from './DaySlot';
+import { type DayOrigin, setDayOrigin } from './day-origin';
 import { dayWordOf, type PickerMode } from './diary';
 import { ModelPicker } from './ModelPicker';
 
@@ -17,6 +18,7 @@ import { ModelPicker } from './ModelPicker';
 export function DayCard({
   day,
   today,
+  origin,
   justSaved = null,
   room = null,
   forget,
@@ -24,6 +26,8 @@ export function DayCard({
 }: {
   day: DiaryDay;
   today: string;
+  // The screen this day is on: a look made for the day comes back to it.
+  origin: DayOrigin;
   // The look just saved from its draft: its page says so for the visit.
   justSaved?: string | null;
   // The height the slot may take before Home would scroll (DiaryHome measures it).
@@ -39,6 +43,8 @@ export function DayCard({
   const model = useApi('me.model.get');
   const [choosing, setChoosing] = useState(false);
   const [drawer, setDrawer] = useState<PickerMode | null>(null);
+  // Home's tab stays mounted under the Diary's day, so the origin follows the screen in focus.
+  useFocusEffect(useCallback(() => setDayOrigin(origin), [origin]));
   const date = day.date;
   const past = date < today;
 

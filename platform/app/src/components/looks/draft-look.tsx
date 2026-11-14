@@ -57,6 +57,7 @@ import { AddPiecesSheet } from '@/components/wardrobe/add/add-pieces-sheet';
 import { LayoutToggle } from '@/components/wardrobe/wardrobe-header';
 import { type Adjust, useAdjust } from '@/lib/adjust';
 import { useCaptureRack } from '@/lib/capture-rack';
+import { dayReturn } from '@/lib/day-origin';
 import { errorCopy } from '@/lib/error-copy';
 import { usePhotoFiling } from '@/lib/file-photo';
 import { onRackIds, useLookEditor } from '@/lib/look-editor';
@@ -907,9 +908,10 @@ function DraftBody({
   const [newPiece, setNewPiece] = useState<string | null>(null);
   useDressOnOpen(look);
   const save = useSaveLook((saved) => {
-    // Saved from home's day: that day shows it as the day's card. Else the saved look opens
-    // with the diary up, so it can be scheduled in the same breath.
-    if (forDay) router.replace(`/?day=${forDay}&saved=${saved.id}`);
+    // Saved for a day: it is on that day and in the Lookbook, and she goes back to the screen
+    // the day was on — Home's day, or the Diary's day page. Else the saved look opens with the
+    // diary up, so it can be scheduled in the same breath.
+    if (forDay) router.replace(dayReturn(forDay, saved.id));
     else router.replace(`/look/${saved.id}?schedule=1`);
   });
   const update = useApiMutation('looks.update', {
@@ -1050,7 +1052,7 @@ function DraftBody({
       return;
     }
     letGo(look.id);
-    if (forDay) router.replace(`/?day=${forDay}`);
+    if (forDay) router.replace(dayReturn(forDay));
     else onClose();
   };
   const del = () => {

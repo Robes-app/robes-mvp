@@ -54,6 +54,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { type HostInstance, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBareScreen } from '@/components/StackScreen';
+import { dayOrigin } from '@/features/home/day-origin';
 import { pickOne, usePhotoFiling } from '@/features/home/file-photo';
 import { AddPiecesSheet } from '@/features/wardrobe/add/AddPiecesSheet';
 import { LayoutToggle } from '@/features/wardrobe/WardrobeHeader';
@@ -917,10 +918,13 @@ function DraftBody({
   useDressOnOpen(look);
   const leaveSheetFor = useLeaveSheetFor();
   const save = useSaveLook((saved) => {
-    // Saved from home's day: that day shows it as the day's card. Else the saved look opens
-    // with the diary up, so it can be scheduled in the same breath — the sheet gone first, so
-    // the diary can rise over the page (useLeaveSheetFor).
-    if (forDay) router.replace({ pathname: '/', params: { day: forDay, saved: saved.id } });
+    // Saved for a day: it is on that day and in the Lookbook, and she goes back to the screen
+    // the day was on — the Diary's day (still beneath this sheet, read again on focus) or
+    // Home's day, which shows it as the day's card. Else the saved look opens with the diary
+    // up, so it can be scheduled in the same breath — the sheet gone first, so the diary can
+    // rise over the page (useLeaveSheetFor).
+    if (forDay && dayOrigin() === 'diary') onClose();
+    else if (forDay) router.replace({ pathname: '/', params: { day: forDay, saved: saved.id } });
     else if (presentation === 'sheet') leaveSheetFor(`/look/${saved.id}?schedule=1`);
     else router.replace(`/look/${saved.id}?schedule=1`);
   });
@@ -1053,8 +1057,9 @@ function DraftBody({
       return;
     }
     letGo(look.id);
-    if (forDay) router.replace({ pathname: '/', params: { day: forDay } });
-    else onClose();
+    if (forDay && dayOrigin() !== 'diary') {
+      router.replace({ pathname: '/', params: { day: forDay } });
+    } else onClose();
   };
   const del = () => {
     setConfirm(null);

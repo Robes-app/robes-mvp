@@ -113,6 +113,7 @@ export function DiaryHome({
       {/* Keyed by the day: a day change starts the pager on its first page (PRD rev 3 §3). */}
       <DayCard
         key={current.date}
+        origin="home"
         day={current}
         today={today}
         justSaved={saved}

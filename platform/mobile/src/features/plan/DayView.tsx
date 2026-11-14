@@ -120,6 +120,7 @@ export function DayView({ date }: { date: string }) {
       {query.isError ? <ErrorText>{errorMessage(query.error)}</ErrorText> : null}
       {card && day ? (
         <DayCard
+          origin="diary"
           day={day}
           today={card.today}
           forget={(id) =>
