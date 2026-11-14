@@ -56,25 +56,18 @@ async function watchEvents(page: Page): Promise<{ hits: string[]; events: Captur
   return { hits, events };
 }
 
-// Create's new-look box with a piece from her wardrobe → the deck → the first look, saved and put
-// in today's diary. (The piece page carries no styling door since canvas 3b; the Create sheet's box
-// is the same box it opened, so the prompt still reads surface create, intent piece.)
+// Create › Style a piece with a piece from her wardrobe → the deck → the first look, saved and put
+// in today's diary. (The new-look box that used to lead the Create sheet is retired, look prompt
+// PRD D9; the piece door is Style a piece.)
 async function saveALook(page: Page, label: string): Promise<void> {
   const piece = await (
     await page.request.post('/api/v1/wardrobe/items', { data: { label } })
   ).json();
   expect(piece.id).toBeTruthy();
-  // Load afresh so the picker counts the piece just filed behind the page's back.
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Create' }).first().click();
-  const create = page.getByRole('dialog', { name: 'Create' });
-  await create.getByRole('button', { name: 'Add a piece' }).click();
-  await create.getByRole('menuitem', { name: /From your wardrobe/ }).click();
-  const picker = page.getByTestId('piece-picker');
-  await picker.getByRole('button', { name: `Include ${label}` }).click();
-  await picker.getByRole('button', { name: 'Add 1 piece' }).click();
-  await expect(create.getByTestId('box-piece')).toContainText(label);
-  await create.getByRole('button', { name: 'Send' }).click();
+  // Load afresh so the form lists the piece just filed behind the page's back.
+  await page.goto('/looks/style');
+  await page.getByRole('button', { name: label }).click();
+  await page.getByRole('button', { name: 'Style it' }).click();
   await expect(page.getByTestId(/^deck-card-/)).toBeVisible({ timeout: 30_000 });
   await page.getByTestId(/^deck-card-/).click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
@@ -166,9 +159,15 @@ test.describe('product events', () => {
     });
     await expect.poll(() => sent('look_pinned').length, { timeout: 20_000 }).toBe(1);
     expect(sent('look_pinned')[0]).toMatchObject({ offset_from_today: 0 });
+    // Her words for a look, from New look with no day: the prompt box says so (enums only).
+    await page.goto('/looks/draft/new');
+    await page.getByTestId('draft-prompt').fill('Dinner with friends');
+    await page.getByTestId('prompt-send').click();
+    await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+    await expect.poll(() => sent('prompt_submitted').length, { timeout: 20_000 }).toBe(1);
     expect(sent('prompt_submitted')[0]).toMatchObject({
       surface: 'create',
-      intent: 'piece',
+      intent: 'words',
       scope: 'none',
       ok: true,
     });
@@ -176,6 +175,6 @@ test.describe('product events', () => {
     const ours = events
       .filter((e) => !e.event.startsWith('$'))
       .map((e) => Object.entries(e.properties).filter(([k]) => !k.startsWith('$')));
-    expect(JSON.stringify(ours)).not.toMatch(/navy blazer|camel coat/i);
+    expect(JSON.stringify(ours)).not.toMatch(/navy blazer|camel coat|dinner with friends/i);
   });
 });
