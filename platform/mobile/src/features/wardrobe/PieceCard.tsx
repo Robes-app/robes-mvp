@@ -85,6 +85,24 @@ export function Status({ status }: { status: CardStatus }) {
   );
 }
 
+// A piece with no picture — one Robes suggested, or hers with no photo yet — stands as a hanger
+// on the sunk cream, so its tile reads as a piece without a photo and never as one still loading
+// (testing, 14 Nov). Web twin: components/wardrobe/piece-image.tsx NoPhoto.
+export function NoPhoto({ aspect = '4:5', size = 28 }: { aspect?: '4:5' | '3:4'; size?: number }) {
+  const line = useColor('warm-line');
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      className="w-full items-center justify-center bg-surface-sunk"
+      style={{ aspectRatio: aspect === '3:4' ? 3 / 4 : 4 / 5 }}
+      testID="no-photo"
+    >
+      <Icon name="wardrobe" size={size} color={line} />
+    </View>
+  );
+}
+
 function Photo({
   piece,
   width,
@@ -97,6 +115,8 @@ function Photo({
   fit?: 'cover' | 'contain';
 }) {
   const uri = renditionUri(piece.image, width);
+  // No picture at all is the hanger; a picture still being made is the skeleton.
+  if (!uri && !piece.image) return <NoPhoto aspect={aspect} size={width < 80 ? 18 : 28} />;
   if (!uri) return <Skeleton width="100%" aspectRatio={aspect === '3:4' ? 3 / 4 : 4 / 5} />;
   return (
     <Image

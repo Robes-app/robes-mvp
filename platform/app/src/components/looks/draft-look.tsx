@@ -116,7 +116,10 @@ export function useDressingLine(lines: readonly string[], on: boolean): string {
 // The prompt's two sources (look prompt PRD S1–S6): her wardrobe alone once she has one, Shop
 // alone while it is empty, until she says otherwise. The choice lasts for this look's thread and
 // is never stored. `owned` is null while the wardrobe's count loads.
-function useSources(owned: number | null): {
+function useSources(
+  owned: number | null,
+  initial: Sources | null = null,
+): {
   sources: Sources;
   // She owns nothing: Wardrobe is faded, and a tap on it opens "Your wardrobe is empty" (S3).
   empty: boolean;
@@ -126,7 +129,8 @@ function useSources(owned: number | null): {
   changed: boolean;
   settle: () => void;
 } {
-  const [chosen, setChosen] = useState<Sources | null>(null);
+  // `initial`: what she had chosen in the box her brief was sent from; the draft keeps it.
+  const [chosen, setChosen] = useState<Sources | null>(initial);
   const [applied, setApplied] = useState<Balance | null>(null);
   const count = owned ?? 1;
   const rest = defaultSources(count);
@@ -290,7 +294,11 @@ export function DraftLook({
 }) {
   const [lookId, setLookId] = useState<string | null>(id === 'new' ? null : id);
   // Her words, when Robes made this draft from them just now: they head its thread.
-  const [brief, setBrief] = useState<{ words: string; occasion?: string } | null>(null);
+  const [brief, setBrief] = useState<{
+    words: string;
+    occasion?: string;
+    sources?: Sources;
+  } | null>(null);
   const query = useApi(
     'looks.get',
     { params: { id: lookId ?? '' } },
@@ -578,7 +586,7 @@ function NewDraft({
   presentation: DraftPresentation;
   onClose: () => void;
   // `from`: her brief, and the occasion Robes read in it, when Robes made the draft from it.
-  onCreated: (look: Look, from?: { words: string; occasion?: string }) => void;
+  onCreated: (look: Look, from?: { words: string; occasion?: string; sources?: Sources }) => void;
 }) {
   const api = useApiClient();
   const toast = useToast();
@@ -660,7 +668,11 @@ function NewDraft({
       .then((made) => {
         setWaiting(false);
         refresh(made);
-        onCreated(made, { words: prompt.trim(), ...(occasion ? { occasion } : {}) });
+        onCreated(made, {
+          words: prompt.trim(),
+          ...(occasion ? { occasion } : {}),
+          sources: src.sources,
+        });
       })
       .catch((err) => {
         opening.current = false;
@@ -832,7 +844,7 @@ function DraftBody({
   images?: 'add';
   // Her words, when Robes made this draft from them just now (the draft's first send), and the
   // occasion Robes read in them.
-  brief?: { words: string; occasion?: string };
+  brief?: { words: string; occasion?: string; sources?: Sources };
   schedule: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
@@ -848,7 +860,7 @@ function DraftBody({
   const summary = useApi('wardrobe.summary');
   const owned = summary.data?.total ?? null;
   const hasWardrobe = owned !== null && owned > 0;
-  const src = useSources(owned);
+  const src = useSources(owned, brief?.sources ?? null);
   const [emptyWardrobe, setEmptyWardrobe] = useState(false);
   const [rackLayout, setRackLayout] = useState<WardrobeLayout>('list');
   const [editingPieces, setEditingPieces] = useState(false);
@@ -1061,7 +1073,8 @@ function DraftBody({
   };
   // "Update the model · N" keeps its place at the draft's foot while the picture is behind: it is
   // not a prompt send. A saved look's changes wait for Update look (D17) instead.
-  const modelFoot = mode === 'draft' && !captureDraft && adjust.stale;
+  // Never while Robes is at work: a prompt change draws its own picture (testing, 14 Nov).
+  const modelFoot = mode === 'draft' && !captureDraft && adjust.stale && !adjust.busy;
   const dialog =
     confirm === 'delete'
       ? {
@@ -1188,7 +1201,9 @@ function DraftBody({
             <ThreadLines
               thread={adjust.state.thread}
               compact
-              {...(dayContext && !weatherOff ? { meta: <DayMeta date={dayContext} /> } : {})}
+              {...(dayContext && !weatherOff && brief?.words
+                ? { meta: <DayMeta date={dayContext} /> }
+                : {})}
             />
             <Feedback
               adjust={adjust}
@@ -1538,12 +1553,15 @@ function DraftPhoto({
   // The last picture drawn stays up, greyed, while the rack has moved on and the next is drawn
   // (redline 14 Nov): the look never falls back to the bare model between two pictures.
   const last = useRef<{ id: string; shown: NonNullable<typeof rendered> } | null>(null);
-  if (rendered?.image) last.current = { id: look.id, shown: rendered };
+  // A picture still being made is on the look before it can be shown (its renditions come
+  // later), so "drawn" means there is something to show, never merely that an image is named.
+  const drawn = own || (rendered?.image?.renditions.length ?? 0) > 0 ? rendered : null;
+  if (drawn?.image) last.current = { id: look.id, shown: drawn };
   const held =
-    !rendered && !own && last.current?.id === look.id
+    !drawn && !own && last.current?.id === look.id
       ? { ...look, image: last.current.shown.image }
       : null;
-  const picture = rendered ?? held;
+  const picture = drawn ?? held;
   const stand = model?.stand?.imageUrl ?? (model?.filed ? model.cell.imageUrl : null);
   const drawing = look.framePending || look.onModel === 'pending' || redressing;
   const line = useDressingLine(
