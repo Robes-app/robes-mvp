@@ -56,8 +56,8 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   await picker.getByRole('button', { name: /Dinner/ }).click();
   await picker.getByRole('button', { name: 'Schedule 2 Looks' }).click();
   await expect(page.getByText(/^2 looks added to /).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open Office' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open Dinner' })).toBeVisible();
+  await expect(page.getByTestId('day-slot')).toContainText('Office');
+  await expect(page.getByTestId('day-slot')).toContainText('Dinner');
   // Each look is a page of the day with Swap · Edit, as on Home; the pager counts them.
   await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'look');
   await expect(page.getByTestId('ootd-swap')).toBeVisible();

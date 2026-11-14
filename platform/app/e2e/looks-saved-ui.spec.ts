@@ -171,9 +171,9 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
 
   // The day is Home's day card: × on the look's page takes it off the day.
   await page.getByRole('button', { name: new RegExp(`^Take ${name} off `) }).click();
-  await expect(page.getByRole('link', { name: `Open ${name}` })).toBeHidden();
+  await expect(page.getByTestId('ootd-card')).toBeHidden();
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(page.getByRole('link', { name: `Open ${name}` })).toBeVisible();
+  await expect(page.getByTestId('ootd-card')).toBeVisible();
 
   await page.goto('/looks');
   await expect(page.getByRole('link', { name })).toBeVisible();
