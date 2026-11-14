@@ -26,9 +26,12 @@ function Sparkle({ working = false }: { working?: boolean }) {
 // the sparkle, a filed rule as a caption. Shared by home's box and the look's card.
 export function ThreadLines({
   thread,
+  compact = false,
   testId,
 }: {
   thread: readonly ThreadLine[];
+  // In the prompt's dock the thread keeps to a few lines, so the box stays in reach.
+  compact?: boolean;
   testId?: string;
 }) {
   const end = useRef<HTMLDivElement>(null);
@@ -42,7 +45,7 @@ export function ThreadLines({
   if (n === 0) return null;
   return (
     <section
-      className="flex max-h-64 flex-col gap-3 overflow-y-auto px-1.5 focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      className={`flex ${compact ? 'max-h-36' : 'max-h-64'} flex-col gap-3 overflow-y-auto px-1.5 focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring`}
       aria-live="polite"
       aria-label={copy.draftLook.thread}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: a region that scrolls needs a focus stop

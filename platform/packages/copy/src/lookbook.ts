@@ -312,6 +312,15 @@ export const lookbook = {
       },
       remove: (label: string): string => `Remove ${label}`,
     },
+    // The prompt's dock at the foot of a look (look prompt PRD F23): open, it heads the thread;
+    // minimised, it is one line; closed, the sparkle that opens it again.
+    dock: {
+      title: 'Styling with Robes',
+      open: 'Style with Robes',
+      minimise: 'Minimise',
+      expand: 'Open the prompt',
+      rest: 'Tell Robes what you need',
+    },
     // A tap on Wardrobe while she owns nothing (S3).
     emptyWardrobe: { title: 'Your wardrobe is empty', add: 'Add pieces' },
     // The Rack card before the first piece (PRD §4.6): with a wardrobe it opens the picker; empty

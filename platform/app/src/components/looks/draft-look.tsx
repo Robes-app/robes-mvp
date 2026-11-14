@@ -79,7 +79,7 @@ import { RackRowCard } from './rack-row';
 import { ImageStack, useDressOnOpen } from './saved-look';
 import { Scanning } from './scan-line';
 import { SeasonsView } from './seasons-view';
-import { StylingCard } from './styling-card';
+import { type DockState, PromptDock, StylingCard } from './styling-card';
 import { TagsView } from './tags-view';
 import { WornView } from './worn-view';
 
@@ -649,6 +649,29 @@ function NewDraft({
       h1={copy.newName}
       onClose={onClose}
       done={{ label: copy.done, onClick: () => undefined, disabled: true, testId: 'draft-done' }}
+      // The prompt box stands at the foot, in thumb reach from the start (look prompt PRD F23).
+      footer={
+        <StylingCard
+          {...(day
+            ? {
+                context: (
+                  <DayContext date={day} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
+                ),
+              }
+            : {})}
+          sources={src.sources}
+          onSource={(which) =>
+            which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
+          }
+          wardrobeEmpty={src.empty}
+          placeholders={copy.placeholders}
+          value={prompt}
+          onChange={setPrompt}
+          onSend={() => void generate()}
+          emptySend="blur"
+          busy={busy}
+        />
+      }
     >
       <div className="relative overflow-hidden bg-surface-sunk">
         {stand ? (
@@ -676,26 +699,6 @@ function NewDraft({
         <RackCard
           hasWardrobe={hasWardrobe}
           onClick={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
-        />
-        <StylingCard
-          {...(day
-            ? {
-                context: (
-                  <DayContext date={day} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
-                ),
-              }
-            : {})}
-          sources={src.sources}
-          onSource={(which) =>
-            which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
-          }
-          wardrobeEmpty={src.empty}
-          placeholders={copy.placeholders}
-          value={prompt}
-          onChange={setPrompt}
-          onSend={() => void generate()}
-          emptySend="blur"
-          busy={busy}
         />
       </div>
       <EmptyWardrobeSheet
@@ -1060,6 +1063,121 @@ function DraftBody({
       />
     ),
   );
+  // The prompt box stands at the look's foot (look prompt PRD F23): open on a draft, behind the
+  // sparkle on a saved look until she asks for it. Minimised it is one line; a thumbs up closes
+  // it down to the sparkle (F6).
+  const verdict = adjust.state.verdict;
+  const [dockOpen, setDockOpen] = useState(mode === 'draft');
+  useEffect(() => {
+    if (verdict === 'up') setDockOpen(false);
+  }, [verdict]);
+  const hasThread = adjust.state.thread.length > 0 || adjust.state.question !== null;
+  const lastLine = adjust.state.thread.at(-1);
+  const dockState: DockState = dockOpen
+    ? 'open'
+    : mode === 'edit' || (verdict === 'up' && !busy)
+      ? 'spark'
+      : 'pill';
+  const dock = captureDraft ? null : (
+    <PromptDock
+      state={dockState}
+      head={mode === 'edit' || hasThread}
+      line={
+        lastLine?.who === 'work'
+          ? lastLine.text
+          : verdict === 'down'
+            ? fb.change
+            : (adjust.state.question ?? copy.dock.rest)
+      }
+      working={lastLine?.who === 'work'}
+      onOpen={() => setDockOpen(true)}
+      onMinimise={() => setDockOpen(false)}
+    >
+      <StylingCard
+        {...(forDay && mode === 'draft'
+          ? {
+              context: (
+                <DayContext date={forDay} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
+              ),
+            }
+          : {})}
+        sources={src.sources}
+        onSource={(which) =>
+          which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
+        }
+        wardrobeEmpty={src.empty}
+        thread={
+          <>
+            <ThreadLines thread={adjust.state.thread} compact />
+            <Feedback
+              adjust={adjust}
+              weather={askContext !== undefined}
+              canRestyle={mode === 'draft' && adjust.canRedress}
+            />
+          </>
+        }
+        {...(feedbackHint
+          ? { placeholder: feedbackHint }
+          : mode === 'edit'
+            ? { placeholder: copy.savedPlaceholder }
+            : { placeholders: copy.placeholders })}
+        {...(picked
+          ? { emptySend: 'send' as const }
+          : mode === 'draft'
+            ? { emptySend: 'blur' as const }
+            : {})}
+        value={prompt}
+        onChange={setPrompt}
+        onSend={mode === 'edit' ? ask : generate}
+        {...(adjust.canRedress
+          ? { onDescribe: () => setSheet('describe'), describeLabel: d.redress }
+          : {})}
+        busy={busy}
+      />
+    </PromptDock>
+  );
+  const footButton =
+    // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
+    // change waits — never both. Native twin: DraftLook.tsx's footer.
+    presentation === 'saved' && !pending ? (
+      <Button variant="primary" block onClick={() => setDiary(true)} data-testid="schedule-look">
+        {lookbook.savedLook.schedule}
+      </Button>
+    ) : mode === 'edit' ? (
+      // The Edit look drawer's one accept (3k): she stays to see it land.
+      <Button
+        variant="primary"
+        block
+        onClick={apply}
+        aria-disabled={!pending || busy}
+        className={!pending || busy ? 'opacity-40' : undefined}
+        data-testid="update-look"
+      >
+        {copy.update}
+        <Icon name="undo" size={12} className="-scale-x-100" />
+      </Button>
+    ) : modelFoot ? (
+      <Button
+        variant="primary"
+        block
+        onClick={() => {
+          if (!busy) adjust.updateModel();
+        }}
+        aria-disabled={busy}
+        className={busy ? 'opacity-40' : undefined}
+        data-testid="update-model"
+      >
+        {d.updateModel(adjust.badge)}
+        <Icon name="undo" size={12} className="-scale-x-100" />
+      </Button>
+    ) : undefined;
+  const foot =
+    dock || footButton ? (
+      <div className="flex w-full flex-col gap-3">
+        {dock}
+        {footButton}
+      </div>
+    ) : null;
   return (
     <Shell
       presentation={presentation}
@@ -1073,47 +1191,7 @@ function DraftBody({
         disabled: !canDone,
         testId: 'draft-done',
       }}
-      footer={
-        // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
-        // change waits — never both. Native twin: DraftLook.tsx's footer.
-        presentation === 'saved' && !pending ? (
-          <Button
-            variant="primary"
-            block
-            onClick={() => setDiary(true)}
-            data-testid="schedule-look"
-          >
-            {lookbook.savedLook.schedule}
-          </Button>
-        ) : mode === 'edit' ? (
-          // The Edit look drawer's one accept (3k): she stays to see it land.
-          <Button
-            variant="primary"
-            block
-            onClick={apply}
-            aria-disabled={!pending || busy}
-            className={!pending || busy ? 'opacity-40' : undefined}
-            data-testid="update-look"
-          >
-            {copy.update}
-            <Icon name="undo" size={12} className="-scale-x-100" />
-          </Button>
-        ) : modelFoot ? (
-          <Button
-            variant="primary"
-            block
-            onClick={() => {
-              if (!busy) adjust.updateModel();
-            }}
-            aria-disabled={busy}
-            className={busy ? 'opacity-40' : undefined}
-            data-testid="update-model"
-          >
-            {d.updateModel(adjust.badge)}
-            <Icon name="undo" size={12} className="-scale-x-100" />
-          </Button>
-        ) : undefined
-      }
+      {...(foot ? { footer: foot } : {})}
       over={
         <>
           <AdjustSheet
@@ -1197,53 +1275,6 @@ function DraftBody({
                 </Rack>
                 <RemovedLine capture={capture} />
               </>
-            )}
-            {captureDraft ? null : (
-              <StylingCard
-                {...(forDay && mode === 'draft'
-                  ? {
-                      context: (
-                        <DayContext
-                          date={forDay}
-                          weatherOff={weatherOff}
-                          onWeatherOff={setWeatherOff}
-                        />
-                      ),
-                    }
-                  : {})}
-                sources={src.sources}
-                onSource={(which) =>
-                  which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
-                }
-                wardrobeEmpty={src.empty}
-                thread={
-                  <>
-                    <ThreadLines thread={adjust.state.thread} />
-                    <Feedback
-                      adjust={adjust}
-                      weather={askContext !== undefined}
-                      canRestyle={mode === 'draft' && adjust.canRedress}
-                    />
-                  </>
-                }
-                {...(feedbackHint
-                  ? { placeholder: feedbackHint }
-                  : mode === 'edit'
-                    ? { placeholder: copy.savedPlaceholder }
-                    : { placeholders: copy.placeholders })}
-                {...(picked
-                  ? { emptySend: 'send' as const }
-                  : mode === 'draft'
-                    ? { emptySend: 'blur' as const }
-                    : {})}
-                value={prompt}
-                onChange={setPrompt}
-                onSend={mode === 'edit' ? ask : generate}
-                {...(adjust.canRedress
-                  ? { onDescribe: () => setSheet('describe'), describeLabel: d.redress }
-                  : {})}
-                busy={busy}
-              />
             )}
           </div>
         ) : (

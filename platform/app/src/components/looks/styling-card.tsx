@@ -158,3 +158,86 @@ export function StylingCard({
     </section>
   );
 }
+
+// Where the prompt box stands (look prompt PRD F23): at the foot of the look, in thumb reach
+// whichever tab is up. `open` shows the box, under its head once there is a thread to fold away;
+// `pill` is the box minimised to the line it was on; `spark` is the sparkle that opens it again
+// (a saved look at rest, a draft after a thumbs up). Native twin:
+// mobile/src/features/looks/StylingCard.tsx.
+export type DockState = 'open' | 'pill' | 'spark';
+
+export function PromptDock({
+  state,
+  head,
+  line,
+  working,
+  onOpen,
+  onMinimise,
+  children,
+}: {
+  state: DockState;
+  head: boolean;
+  // What the minimised pill says: Robes' open question, the work in hand, or the invitation.
+  line: string;
+  working: boolean;
+  onOpen: () => void;
+  onMinimise: () => void;
+  children: ReactNode;
+}) {
+  if (state === 'spark') {
+    return (
+      <button
+        type="button"
+        aria-label={copy.dock.open}
+        title={copy.dock.open}
+        onClick={onOpen}
+        data-testid="prompt-spark"
+        className={`flex size-11 shrink-0 items-center justify-center self-end rounded-pill bg-ink text-bg ${focus}`}
+      >
+        <Icon name="looks" size={18} />
+      </button>
+    );
+  }
+  if (state === 'pill') {
+    return (
+      <button
+        type="button"
+        aria-label={copy.dock.expand}
+        aria-expanded={false}
+        onClick={onOpen}
+        data-testid="prompt-pill"
+        className={`flex min-h-11 w-full items-center gap-2.5 rounded-pill border-[0.5px] border-rule-mid bg-surface-raised px-4 text-left ${focus}`}
+      >
+        <Icon
+          name="looks"
+          size={14}
+          className={`shrink-0 ${working ? 'text-accent-inspire motion-safe:animate-pulse' : 'text-ink'}`}
+        />
+        <span className="min-w-0 flex-1 truncate font-display text-[17px] text-ink">{line}</span>
+        <Icon name="down" size={12} className="shrink-0 rotate-180 text-ink-muted" />
+      </button>
+    );
+  }
+  return (
+    <div className="flex w-full flex-col gap-2" data-testid="prompt-dock">
+      {head ? (
+        <div className="flex items-center gap-3">
+          <span className="flex-1 font-sans text-[10px] text-ink-muted uppercase tracking-[0.22em]">
+            {copy.dock.title}
+          </span>
+          <button
+            type="button"
+            aria-label={copy.dock.minimise}
+            title={copy.dock.minimise}
+            onClick={onMinimise}
+            data-testid="prompt-minimise"
+            className={`relative flex size-9 shrink-0 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted after:absolute after:-inset-1 after:content-[''] hover:text-ink ${focus}`}
+          >
+            <Icon name="down" size={12} />
+          </button>
+        </div>
+      ) : null}
+      {children}
+    </div>
+  );
+}

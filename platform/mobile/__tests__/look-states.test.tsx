@@ -446,6 +446,10 @@ test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
   expect(await screen.findByText(fb.again)).toBeTruthy();
   const before = calls.length;
   await fireEvent.press(screen.getByTestId('thumb-up'));
+  // The prompt closes: to its one line while the picture is still drawing, then to the sparkle
+  // (look prompt PRD F6, F23). Either opens it again.
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  await fireEvent.press(screen.getByTestId('prompt-pill'));
   expect(screen.getByTestId('thumb-up').props.accessibilityState.selected).toBe(true);
   expect(screen.queryByTestId('feedback-reasons')).toBeNull();
   // One answer per question.

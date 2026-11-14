@@ -19,9 +19,12 @@ function Sparkle({ working = false }: { working?: boolean }) {
 // the sparkle, a filed rule as a caption. Web twin: components/looks/adjust-dock.tsx.
 export function ThreadLines({
   thread,
+  compact = false,
   testID,
 }: {
   thread: readonly ThreadLine[];
+  // In the prompt's dock the thread keeps to a few lines, so the box stays in reach.
+  compact?: boolean;
   testID?: string;
 }) {
   const scroll = useRef<ScrollViewInstance>(null);
@@ -32,7 +35,7 @@ export function ThreadLines({
   return (
     <ScrollView
       ref={scroll}
-      style={{ maxHeight: 256 }}
+      style={{ maxHeight: compact ? 144 : 256 }}
       contentContainerClassName="gap-3 px-1.5"
       testID={testID ?? 'adjust-thread'}
       accessibilityLiveRegion="polite"

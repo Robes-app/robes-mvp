@@ -1,7 +1,15 @@
 import { lookbook } from '@robes/copy';
 import { ASK_MAX_CHARS, type Source, type Sources } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import { ErrorText, FINE_EDGE, IconToggle, MIN_TOUCH, Text, useColor } from '@robes/ui-native';
+import {
+  ErrorText,
+  FINE_EDGE,
+  fonts,
+  IconToggle,
+  MIN_TOUCH,
+  Text,
+  useColor,
+} from '@robes/ui-native';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Keyboard, Pressable, View } from 'react-native';
 import { SheetField } from './DraftSheets';
@@ -161,6 +169,103 @@ export function StylingCard({
           </Text>
         </Pressable>
       ) : null}
+    </View>
+  );
+}
+
+// Where the prompt box stands (look prompt PRD F23): at the foot of the look, in thumb reach
+// whichever tab is up. `open` shows the box, under its head once there is a thread to fold away;
+// `pill` is the box minimised to the line it was on; `spark` is the sparkle that opens it again
+// (a saved look at rest, a draft after a thumbs up). Web twin:
+// app/src/components/looks/styling-card.tsx.
+export type DockState = 'open' | 'pill' | 'spark';
+
+export function PromptDock({
+  state,
+  head,
+  line,
+  working,
+  onOpen,
+  onMinimise,
+  children,
+}: {
+  state: DockState;
+  head: boolean;
+  // What the minimised pill says: Robes' open question, the work in hand, or the invitation.
+  line: string;
+  working: boolean;
+  onOpen: () => void;
+  onMinimise: () => void;
+  children: ReactNode;
+}) {
+  const ink = useColor('ink');
+  const muted = useColor('ink-muted');
+  const rose = useColor('accent-inspire');
+  const onInk = useColor('bg');
+  if (state === 'spark') {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={copy.dock.open}
+        onPress={onOpen}
+        testID="prompt-spark"
+        className="items-center justify-center self-end rounded-pill bg-ink"
+        style={{ width: MIN_TOUCH, height: MIN_TOUCH }}
+      >
+        <Icon name="looks" size={18} color={onInk} />
+      </Pressable>
+    );
+  }
+  if (state === 'pill') {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={copy.dock.expand}
+        accessibilityState={{ expanded: false }}
+        onPress={onOpen}
+        testID="prompt-pill"
+        className="flex-row items-center gap-2.5 rounded-pill border-rule-mid bg-surface-raised px-4"
+        style={{ minHeight: MIN_TOUCH, borderWidth: FINE_EDGE }}
+      >
+        <Icon name="looks" size={14} color={working ? rose : ink} />
+        <Text
+          numberOfLines={1}
+          className="min-w-0 flex-1"
+          style={{ fontFamily: fonts.display, fontSize: 17 }}
+        >
+          {line}
+        </Text>
+        <View style={{ transform: [{ rotate: '180deg' }] }}>
+          <Icon name="down" size={12} color={muted} />
+        </View>
+      </Pressable>
+    );
+  }
+  return (
+    <View className="gap-2" testID="prompt-dock">
+      {head ? (
+        <View className="flex-row items-center gap-3">
+          <Text size="caption" tone="muted" className="flex-1 uppercase tracking-[0.22em]">
+            {copy.dock.title}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.dock.minimise}
+            onPress={onMinimise}
+            testID="prompt-minimise"
+            className="items-center justify-center"
+            style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH, marginRight: -4 }}
+          >
+            <View
+              className="items-center justify-center rounded-pill bg-surface-sunk"
+              style={{ width: 36, height: 36 }}
+            >
+              <Icon name="down" size={12} color={muted} />
+            </View>
+          </Pressable>
+        </View>
+      ) : null}
+      {children}
     </View>
   );
 }

@@ -89,7 +89,7 @@ import { RackRowCard } from './RackRow';
 import { ImageStack, useDressOnOpen } from './SavedLook';
 import { Scanning } from './ScanLine';
 import { SeasonsView } from './SeasonsView';
-import { StylingCard } from './StylingCard';
+import { type DockState, PromptDock, StylingCard } from './StylingCard';
 import { useRemoveLook } from './saved-looks';
 import { TagsView, useLookDetails } from './TagsView';
 import { WornView } from './WornView';
@@ -477,8 +477,11 @@ function SavedShell({
   // The toast rises above the bar while it stands, so an Undo never covers Update look.
   const [bar, setBar] = useState(0);
   useToastLift(bar);
+  // The bar holds the prompt box (look prompt PRD F23): it rides above the keyboard.
+  const root = useRef<HostInstance>(null);
+  const keyboard = useKeyboardOverlap(root);
   return (
-    <View className="flex-1 bg-bg">
+    <View ref={root} className="flex-1 bg-bg">
       <ScrollView
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
@@ -491,7 +494,7 @@ function SavedShell({
       {footer ? (
         <View
           className="absolute inset-x-0 bottom-0 flex-row items-center border-hairline bg-bg px-5 pt-3"
-          style={{ borderTopWidth: FINE_EDGE, paddingBottom: 22 }}
+          style={{ borderTopWidth: FINE_EDGE, paddingBottom: keyboard ? 12 : 22, bottom: keyboard }}
           onLayout={(e) => setBar(e.nativeEvent.layout.height)}
           testID="look-bar"
         >
@@ -668,26 +671,8 @@ function NewDraft({
       title={copy.title}
       onClose={onClose}
       done={{ label: copy.done, onPress: () => undefined, disabled: true }}
-    >
-      <View className="overflow-hidden bg-surface-sunk">
-        {stand ? (
-          <Image source={stand} alt={lookbook.figure.alt} />
-        ) : model.isPending ? (
-          <Skeleton width="100%" aspectRatio={4 / 5} />
-        ) : (
-          <View className="aspect-[4/5] w-full items-center justify-center bg-surface">
-            <Icon name="user" size={160} color={control} />
-          </View>
-        )}
-        {snap.reading ? <ReadingChip /> : null}
-        {waiting ? <Scanning line={d.dressing} corner /> : null}
-      </View>
-      <View className="gap-3 px-5 pt-3">
-        <Tabs items={TABS} value={TABS[0]} onChange={() => undefined} testID="draft-tabs" />
-        <RackCard
-          hasWardrobe={hasWardrobe}
-          onPress={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
-        />
+      // The prompt box stands at the foot, in thumb reach from the start (look prompt PRD F23).
+      footer={
         <StylingCard
           {...(day
             ? {
@@ -707,6 +692,27 @@ function NewDraft({
           onSend={() => void generate()}
           emptySend="blur"
           busy={busy}
+        />
+      }
+    >
+      <View className="overflow-hidden bg-surface-sunk">
+        {stand ? (
+          <Image source={stand} alt={lookbook.figure.alt} />
+        ) : model.isPending ? (
+          <Skeleton width="100%" aspectRatio={4 / 5} />
+        ) : (
+          <View className="aspect-[4/5] w-full items-center justify-center bg-surface">
+            <Icon name="user" size={160} color={control} />
+          </View>
+        )}
+        {snap.reading ? <ReadingChip /> : null}
+        {waiting ? <Scanning line={d.dressing} corner /> : null}
+      </View>
+      <View className="gap-3 px-5 pt-3">
+        <Tabs items={TABS} value={TABS[0]} onChange={() => undefined} testID="draft-tabs" />
+        <RackCard
+          hasWardrobe={hasWardrobe}
+          onPress={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
         />
       </View>
       <EmptyWardrobeSheet
@@ -1062,6 +1068,103 @@ function DraftBody({
       />
     ),
   );
+  // The prompt box stands at the look's foot (look prompt PRD F23): open on a draft, behind the
+  // sparkle on a saved look until she asks for it. Minimised it is one line; a thumbs up closes
+  // it down to the sparkle (F6).
+  const verdict = adjust.state.verdict;
+  const [dockOpen, setDockOpen] = useState(mode === 'draft');
+  useEffect(() => {
+    if (verdict === 'up') setDockOpen(false);
+  }, [verdict]);
+  const hasThread = adjust.state.thread.length > 0 || adjust.state.question !== null;
+  const lastLine = adjust.state.thread.at(-1);
+  const dockState: DockState = dockOpen
+    ? 'open'
+    : mode === 'edit' || (verdict === 'up' && !busy)
+      ? 'spark'
+      : 'pill';
+  const dock = captureDraft ? null : (
+    <PromptDock
+      state={dockState}
+      head={mode === 'edit' || hasThread}
+      line={
+        lastLine?.who === 'work'
+          ? lastLine.text
+          : verdict === 'down'
+            ? fb.change
+            : (adjust.state.question ?? copy.dock.rest)
+      }
+      working={lastLine?.who === 'work'}
+      onOpen={() => setDockOpen(true)}
+      onMinimise={() => setDockOpen(false)}
+    >
+      <StylingCard
+        {...(forDay && mode === 'draft'
+          ? {
+              context: (
+                <DayContext date={forDay} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
+              ),
+            }
+          : {})}
+        sources={src.sources}
+        onSource={(which) =>
+          which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
+        }
+        wardrobeEmpty={src.empty}
+        thread={
+          <>
+            <ThreadLines thread={adjust.state.thread} compact />
+            <Feedback
+              adjust={adjust}
+              weather={askContext !== undefined}
+              canRestyle={mode === 'draft' && adjust.canRedress}
+            />
+          </>
+        }
+        {...(feedbackHint
+          ? { placeholder: feedbackHint }
+          : mode === 'edit'
+            ? { placeholder: copy.savedPlaceholder }
+            : { placeholders: copy.placeholders })}
+        {...(picked
+          ? { emptySend: 'send' as const }
+          : mode === 'draft'
+            ? { emptySend: 'blur' as const }
+            : {})}
+        value={prompt}
+        onChange={setPrompt}
+        onSend={mode === 'edit' ? ask : generate}
+        {...(adjust.canRedress
+          ? { onDescribe: () => setSheet('describe'), describeLabel: d.redress }
+          : {})}
+        busy={busy}
+      />
+    </PromptDock>
+  );
+  const footButton =
+    // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
+    // change waits — never both.
+    presentation === 'saved' && !pending ? (
+      <Button onPress={() => setDiary(true)} testID="schedule-look">
+        {lookbook.savedLook.schedule}
+      </Button>
+    ) : mode === 'edit' ? (
+      // The Edit look sheet's one accept (3k): she stays to see it land.
+      <Button onPress={apply} disabled={!pending || busy} icon="refresh" testID="update-look">
+        {copy.update}
+      </Button>
+    ) : modelFoot ? (
+      <Button onPress={adjust.updateModel} disabled={busy} icon="refresh" testID="update-model">
+        {d.updateModel(adjust.badge)}
+      </Button>
+    ) : undefined;
+  const foot =
+    dock || footButton ? (
+      <View className="w-full gap-3">
+        {dock}
+        {footButton}
+      </View>
+    ) : null;
   return (
     <Shell
       presentation={presentation}
@@ -1072,30 +1175,7 @@ function DraftBody({
         onPress: done,
         disabled: !canDone,
       }}
-      footer={
-        // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
-        // change waits — never both.
-        presentation === 'saved' && !pending ? (
-          <Button onPress={() => setDiary(true)} className="flex-1" testID="schedule-look">
-            {lookbook.savedLook.schedule}
-          </Button>
-        ) : mode === 'edit' ? (
-          // The Edit look sheet's one accept (3k): she stays to see it land.
-          <Button
-            onPress={apply}
-            disabled={!pending || busy}
-            icon="refresh"
-            {...(presentation === 'saved' ? { className: 'flex-1' } : {})}
-            testID="update-look"
-          >
-            {copy.update}
-          </Button>
-        ) : modelFoot ? (
-          <Button onPress={adjust.updateModel} disabled={busy} icon="refresh" testID="update-model">
-            {d.updateModel(adjust.badge)}
-          </Button>
-        ) : undefined
-      }
+      {...(foot ? { footer: foot } : {})}
       over={
         <>
           <AdjustSheet
@@ -1180,53 +1260,6 @@ function DraftBody({
                 </Rack>
                 <RemovedLine capture={capture} />
               </>
-            )}
-            {captureDraft ? null : (
-              <StylingCard
-                {...(forDay && mode === 'draft'
-                  ? {
-                      context: (
-                        <DayContext
-                          date={forDay}
-                          weatherOff={weatherOff}
-                          onWeatherOff={setWeatherOff}
-                        />
-                      ),
-                    }
-                  : {})}
-                sources={src.sources}
-                onSource={(which) =>
-                  which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
-                }
-                wardrobeEmpty={src.empty}
-                thread={
-                  <>
-                    <ThreadLines thread={adjust.state.thread} />
-                    <Feedback
-                      adjust={adjust}
-                      weather={askContext !== undefined}
-                      canRestyle={mode === 'draft' && adjust.canRedress}
-                    />
-                  </>
-                }
-                {...(feedbackHint
-                  ? { placeholder: feedbackHint }
-                  : mode === 'edit'
-                    ? { placeholder: copy.savedPlaceholder }
-                    : { placeholders: copy.placeholders })}
-                {...(picked
-                  ? { emptySend: 'send' as const }
-                  : mode === 'draft'
-                    ? { emptySend: 'blur' as const }
-                    : {})}
-                value={prompt}
-                onChange={setPrompt}
-                onSend={mode === 'edit' ? ask : generate}
-                {...(adjust.canRedress
-                  ? { onDescribe: () => setSheet('describe'), describeLabel: d.redress }
-                  : {})}
-                busy={busy}
-              />
             )}
           </View>
         ) : (

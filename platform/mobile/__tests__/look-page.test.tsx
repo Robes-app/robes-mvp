@@ -284,8 +284,11 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjus
   expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
   expect(screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') })).toBeTruthy();
   expect(screen.queryByRole('button', { name: lookbook.savedLook.edit })).toBeNull();
-  // The prompt box reads "add matching shoes…" with its send waiting for her words (look prompt
-  // PRD L3); nothing waits yet.
+  // The prompt stands behind the sparkle at the look's foot (look prompt PRD F23). Opened, the
+  // box reads "add matching shoes…" with its send waiting for her words (L3); nothing waits yet.
+  expect(screen.queryByTestId('draft-prompt')).toBeNull();
+  await fireEvent.press(screen.getByTestId('prompt-spark'));
+  expect(screen.getByText(lookbook.draftLook.dock.title)).toBeTruthy();
   expect(screen.getByLabelText(lookbook.draftLook.savedPlaceholder)).toBeTruthy();
   expect(screen.getByTestId('prompt-send').props.accessibilityState.disabled).toBe(true);
   expect(screen.queryByTestId('update-model')).toBeNull();
@@ -383,7 +386,8 @@ test('words typed wait for Update look, which sends them and writes the answered
     },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'collar up on the coat');
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'collar up on the coat');
   // Typed words are a change waiting too: the pill shows; nothing is sent until it is pressed.
   expect(screen.getByTestId('update-look')).toBeTruthy();
   expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
@@ -439,7 +443,8 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   const fb = lookbook.draftLook.feedback;
   const asks = () => calls.filter((c) => c.path.endsWith('/ask'));
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'collar up on the coat');
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'collar up on the coat');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   // Robes' own question about the change it made (F3).
   expect(await screen.findByText('How does the collar look?')).toBeTruthy();
@@ -484,6 +489,10 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
     has_text: false,
     action: 'adjust',
   });
+  // Minimised, a saved look's prompt goes back behind the sparkle (F23).
+  await fireEvent.press(screen.getByTestId('prompt-minimise'));
+  expect(screen.queryByTestId('draft-prompt')).toBeNull();
+  expect(screen.getByTestId('prompt-spark')).toBeTruthy();
 });
 
 // Adjust model image is for Robes' picture alone (PRD §6.4): a look whose record is her own
@@ -509,6 +518,7 @@ test('flipping Shop on a saved look waits for Update look', async () => {
     'GET /wardrobe/summary': { total: 2, categories: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
   const toggle = await screen.findByTestId('source-shop');
   await waitFor(() => expect(toggle.props.accessibilityState.checked).toBe(false));
   expect(screen.queryByTestId('update-look')).toBeNull();
