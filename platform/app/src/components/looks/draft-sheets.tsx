@@ -76,6 +76,7 @@ export function SheetField({
   disabled,
   autoFocus = true,
   hardLimit = true,
+  faintHint = false,
   className,
   testId,
 }: {
@@ -88,6 +89,8 @@ export function SheetField({
   autoFocus?: boolean;
   // The prompt box lets her run past the limit and says so (look prompt PRD P4); the sheets cut.
   hardLimit?: boolean;
+  // The prompt box's resting line is the lighter `placeholder` grey (redline 14 Nov, pin 9).
+  faintHint?: boolean;
   className?: string;
   testId: string;
 }) {
@@ -113,7 +116,7 @@ export function SheetField({
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={onKeyDown}
       data-testid={testId}
-      className={`max-h-24 min-w-0 flex-1 resize-none bg-transparent font-display font-light text-[17px] text-ink italic placeholder:text-ink-faint focus:outline-none ${className ?? ''}`}
+      className={`max-h-24 min-w-0 flex-1 resize-none bg-transparent font-display font-light text-[17px] text-ink italic ${faintHint ? 'placeholder:text-placeholder' : 'placeholder:text-ink-faint'} focus:outline-none ${className ?? ''}`}
     />
   );
 }

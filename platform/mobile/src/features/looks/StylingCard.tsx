@@ -1,6 +1,7 @@
 import { lookbook } from '@robes/copy';
 import { ASK_MAX_CHARS, type Source, type Sources } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
+import { shadowNative } from '@robes/tokens';
 import {
   ErrorText,
   FINE_EDGE,
@@ -10,13 +11,15 @@ import {
   Text,
   useColor,
 } from '@robes/ui-native';
-import { type ReactNode, useEffect, useState } from 'react';
-import { Keyboard, Pressable, View } from 'react-native';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Keyboard, Pressable, ScrollView, type ScrollViewInstance, View } from 'react-native';
 import { SheetField } from './DraftSheets';
 
 const copy = lookbook.draftLook;
 const TURN_MS = 3200;
 const SEND = 32;
+const AVATAR = 26;
+const DISC = 32;
 
 // The prompt row's placeholder turns through the suggestions while the field is empty.
 export function useTurningPlaceholder(lines: readonly string[], on: boolean): string {
@@ -29,18 +32,20 @@ export function useTurningPlaceholder(lines: readonly string[], on: boolean): st
   return lines[i % lines.length] ?? '';
 }
 
-// The prompt box (look prompt PRD P1–P8, S1, D1): white on the fine rule, radius 12, no heading.
-// The top row holds the two sources — Wardrobe, then Shop — and, on a draft for a day, a hairline
-// and the day's place and weather. Then the thread's lines, and the borderless prompt row with
-// the round send inside it. The draft and the saved look share it; what a send does is the
-// parent's (the brief, the thread, Update look). Web twin:
+// The prompt box (look prompt PRD P1–P8, S1, D1; redline 14 Nov pins 1, 5, 8, 9, 11): white on
+// the fine rule and nothing but the sources and the field. Before there is a conversation it
+// floats on its own, radius 14, the sources over the field with the day's place and weather
+// beside them. `inline`, under a conversation, it is one 50pt row at radius 8: the sources, what
+// she picked as tokens, the field and the send. The conversation itself is never inside it. The
+// draft and the saved look share it; what a send does is the parent's. Web twin:
 // app/src/components/looks/styling-card.tsx.
 export function StylingCard({
   context,
+  tokens,
+  inline = false,
   sources,
   onSource,
   wardrobeEmpty,
-  thread,
   placeholder,
   placeholders,
   value,
@@ -49,12 +54,15 @@ export function StylingCard({
   emptySend,
   busy,
 }: {
+  // The day's place and weather, until her first send carries them into the conversation.
   context?: ReactNode;
+  // What she picked after a thumbs down, standing in the box beside the sources (pin 11).
+  tokens?: ReactNode;
+  inline?: boolean;
   sources: Sources;
   onSource: (which: Source) => void;
   // She owns nothing: Wardrobe is drawn faded, and a tap on it says why (S3).
   wardrobeEmpty: boolean;
-  thread?: ReactNode;
   // One placeholder (a saved look's "add matching shoes…"), or the turning set of the draft.
   placeholder?: string;
   placeholders?: readonly string[];
@@ -81,175 +89,292 @@ export function StylingCard({
     }
     onSend();
   };
+  const toggles = (
+    <View className="flex-row items-center gap-2">
+      <IconToggle
+        icon="wardrobe"
+        checked={sources.wardrobe}
+        onChange={() => onSource('wardrobe')}
+        labelOn={copy.sources.wardrobe.on}
+        labelOff={wardrobeEmpty ? copy.sources.wardrobe.empty : copy.sources.wardrobe.off}
+        faded={wardrobeEmpty}
+        testID="source-wardrobe"
+      />
+      <IconToggle
+        icon="shop"
+        checked={sources.shop}
+        onChange={() => onSource('shop')}
+        labelOn={copy.sources.shop.on}
+        labelOff={copy.sources.shop.off}
+        testID="source-shop"
+      />
+    </View>
+  );
+  const field = (
+    <SheetField
+      label={placeholder ?? copy.placeholder}
+      placeholder={hint}
+      value={value}
+      onChange={onChange}
+      onSend={send}
+      disabled={busy}
+      autoFocus={false}
+      hardLimit={false}
+      faintHint
+      minHeight={inline ? 38 : 52}
+      testID="draft-prompt"
+    />
+  );
+  // The send is the sparkle on ink (pin 8); at rest the same, at 35%.
+  const sendButton = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={copy.send}
+      accessibilityState={{ disabled: !ready }}
+      onPress={send}
+      testID="prompt-send"
+      className="items-center justify-center"
+      style={{
+        minWidth: MIN_TOUCH,
+        minHeight: inline ? 38 : MIN_TOUCH,
+        marginRight: -(MIN_TOUCH - SEND) / 2,
+        marginLeft: -(MIN_TOUCH - SEND) / 2,
+        opacity: ready ? 1 : 0.35,
+      }}
+    >
+      <View
+        className="items-center justify-center rounded-pill bg-ink"
+        style={{ width: SEND, height: SEND }}
+      >
+        <Icon name="looks" size={16} color={onInk} />
+      </View>
+    </Pressable>
+  );
+  const over = tooLong ? (
+    <ErrorText size="caption" className="pb-2">
+      {copy.tooLong(ASK_MAX_CHARS)}
+    </ErrorText>
+  ) : null;
+  if (inline) {
+    return (
+      <View
+        accessibilityLabel={copy.thread}
+        testID="styling-card"
+        className="rounded-lg border-rule-mid bg-surface-raised"
+        style={{ borderWidth: 1, paddingVertical: 6, paddingLeft: 8, paddingRight: 6 }}
+      >
+        <View className="flex-row flex-wrap items-center gap-2" style={{ minHeight: 38 }}>
+          {toggles}
+          {tokens}
+          <View className="min-w-28 flex-1 flex-row items-center gap-2">
+            {field}
+            {sendButton}
+          </View>
+        </View>
+        {over}
+      </View>
+    );
+  }
   return (
     <View
       accessibilityLabel={copy.thread}
       testID="styling-card"
-      className="gap-1 rounded-card border-rule-mid bg-surface-raised px-3 pt-3 pb-1"
-      style={{ borderWidth: FINE_EDGE }}
+      className="gap-1 border-rule-mid bg-surface-raised px-3 pt-3 pb-1"
+      style={[shadowNative.sheet, { borderWidth: 1, borderRadius: 14 }]}
     >
-      <View className="min-h-7 flex-row items-center gap-2.5">
-        <IconToggle
-          icon="wardrobe"
-          checked={sources.wardrobe}
-          onChange={() => onSource('wardrobe')}
-          labelOn={copy.sources.wardrobe.on}
-          labelOff={wardrobeEmpty ? copy.sources.wardrobe.empty : copy.sources.wardrobe.off}
-          faded={wardrobeEmpty}
-          testID="source-wardrobe"
-        />
-        <IconToggle
-          icon="bag"
-          checked={sources.shop}
-          onChange={() => onSource('shop')}
-          labelOn={copy.sources.shop.on}
-          labelOff={copy.sources.shop.off}
-          testID="source-shop"
-        />
+      <View className="min-h-7 flex-row flex-wrap items-center gap-2.5">
+        {toggles}
         {context ? (
           <>
             <View aria-hidden className="h-4 bg-rule-mid" style={{ width: FINE_EDGE }} />
             <View className="min-w-0 flex-1 flex-row">{context}</View>
           </>
         ) : null}
+        {tokens}
       </View>
-      {thread}
       <View className="flex-row items-center gap-2">
-        <SheetField
-          label={placeholder ?? copy.placeholder}
-          placeholder={hint}
-          value={value}
-          onChange={onChange}
-          onSend={send}
-          disabled={busy}
-          autoFocus={false}
-          hardLimit={false}
-          testID="draft-prompt"
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.send}
-          accessibilityState={{ disabled: !ready }}
-          onPress={send}
-          testID="prompt-send"
-          className="items-center justify-center"
-          style={{
-            minWidth: MIN_TOUCH,
-            minHeight: MIN_TOUCH,
-            marginRight: -(MIN_TOUCH - SEND) / 2,
-            opacity: ready ? 1 : 0.3,
-          }}
-        >
-          <View
-            className="items-center justify-center rounded-pill bg-ink"
-            style={{ width: SEND, height: SEND }}
-          >
-            <Icon name="send" size={14} color={onInk} />
-          </View>
-        </Pressable>
+        {field}
+        {sendButton}
       </View>
-      {tooLong ? (
-        <ErrorText size="caption" className="pb-2">
-          {copy.tooLong(ASK_MAX_CHARS)}
-        </ErrorText>
-      ) : null}
+      {over}
     </View>
   );
 }
 
-// Where the prompt box stands (look prompt PRD F23): at the foot of the look, in thumb reach
-// whichever tab is up. `open` shows the box, under its head once there is a thread to fold away;
-// `pill` is the box minimised to the line it was on; `spark` is the sparkle that opens it again
-// (a saved look at rest, a draft after a thumbs up). Web twin:
-// app/src/components/looks/styling-card.tsx.
+// Robes in the conversation and on the closed bar (pin 18): the sparkle, cream on a 26pt ink disc.
+export function RobesAvatar({ working = false }: { working?: boolean }) {
+  const onInk = useColor('bg');
+  return (
+    <View
+      aria-hidden
+      className="items-center justify-center rounded-pill bg-ink"
+      style={{ width: AVATAR, height: AVATAR, opacity: working ? 0.6 : 1 }}
+    >
+      <Icon name="looks" size={13} color={onInk} />
+    </View>
+  );
+}
+
+// Where the prompt stands (look prompt PRD F23; redline 14 Nov pins 1, 10, 15–21, 23): floating
+// at the foot of the look, never on a band of its own. `open` with a conversation is a cream
+// sheet — the tracked title and the minimise disc, the turns scrolling newest-last, and the box
+// under them, to at most two thirds of the screen; with none it is the box alone. `pill` is the
+// closed bar: Robes' avatar, the line it was on, the thumbs while Robes is asking, and the disc
+// that opens it. `spark` is the sparkle that opens it again (a saved look at rest, a draft after
+// a thumbs up). Web twin: app/src/components/looks/styling-card.tsx.
 export type DockState = 'open' | 'pill' | 'spark';
 
 export function PromptDock({
   state,
-  head,
+  sheet,
   line,
   working,
+  thumbs,
+  conversation,
+  turns = 0,
+  maxHeight,
   onOpen,
   onMinimise,
   children,
 }: {
   state: DockState;
-  head: boolean;
-  // What the minimised pill says: Robes' open question, the work in hand, or the invitation.
+  // There is a conversation to show, or a saved look's prompt was opened: the sheet stands.
+  sheet: boolean;
+  // What the closed bar says: Robes' open question, the work in hand, or the invitation.
   line: string;
   working: boolean;
+  thumbs?: ReactNode;
+  conversation?: ReactNode;
+  // How many turns the conversation holds: a new one scrolls it to its end.
+  turns?: number;
+  // Two thirds of the screen (pin 15): the sheet never grows past it.
+  maxHeight?: number;
   onOpen: () => void;
   onMinimise: () => void;
   children: ReactNode;
 }) {
-  const ink = useColor('ink');
   const muted = useColor('ink-muted');
-  const rose = useColor('accent-inspire');
   const onInk = useColor('bg');
+  const scroll = useRef<ScrollViewInstance>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scrolls when a turn lands
+  useEffect(() => {
+    scroll.current?.scrollToEnd({ animated: true });
+  }, [turns, state]);
   if (state === 'spark') {
     return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={copy.dock.open}
-        onPress={onOpen}
-        testID="prompt-spark"
-        className="items-center justify-center self-end rounded-pill bg-ink"
-        style={{ width: MIN_TOUCH, height: MIN_TOUCH }}
-      >
-        <Icon name="looks" size={18} color={onInk} />
-      </Pressable>
+      <View className="items-end" style={{ paddingHorizontal: 12, paddingBottom: 14 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.dock.open}
+          onPress={onOpen}
+          testID="prompt-spark"
+          className="items-center justify-center rounded-pill bg-ink"
+          style={[shadowNative.float, { width: MIN_TOUCH, height: MIN_TOUCH }]}
+        >
+          <Icon name="looks" size={18} color={onInk} />
+        </Pressable>
+      </View>
     );
   }
   if (state === 'pill') {
     return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={copy.dock.expand}
-        accessibilityState={{ expanded: false }}
-        onPress={onOpen}
-        testID="prompt-pill"
-        className="flex-row items-center gap-2.5 rounded-pill border-rule-mid bg-surface-raised px-4"
-        style={{ minHeight: MIN_TOUCH, borderWidth: FINE_EDGE }}
-      >
-        <Icon name="looks" size={14} color={working ? rose : ink} />
-        <Text
-          numberOfLines={1}
-          className="min-w-0 flex-1"
-          style={{ fontFamily: fonts.display, fontSize: 17 }}
+      <View style={{ paddingHorizontal: 12, paddingBottom: 14 }}>
+        <View
+          testID="prompt-pill"
+          className="flex-row items-center rounded-pill border-rule-mid bg-surface-raised"
+          style={[
+            shadowNative.float,
+            { minHeight: MIN_TOUCH, padding: 6, gap: 10, borderWidth: FINE_EDGE },
+          ]}
         >
-          {line}
-        </Text>
-        <View style={{ transform: [{ rotate: '180deg' }] }}>
-          <Icon name="down" size={12} color={muted} />
-        </View>
-      </Pressable>
-    );
-  }
-  return (
-    <View className="gap-2" testID="prompt-dock">
-      {head ? (
-        <View className="flex-row items-center gap-3">
-          <Text size="caption" tone="muted" className="flex-1 uppercase tracking-[0.22em]">
-            {copy.dock.title}
-          </Text>
+          <RobesAvatar working={working} />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={copy.dock.minimise}
-            onPress={onMinimise}
-            testID="prompt-minimise"
-            className="items-center justify-center"
-            style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH, marginRight: -4 }}
+            accessibilityLabel={line}
+            accessibilityState={{ expanded: false }}
+            onPress={onOpen}
+            hitSlop={{ top: 6, bottom: 6 }}
+            testID="prompt-pill-line"
+            className="min-w-0 flex-1 justify-center"
+            style={{ minHeight: DISC }}
           >
-            <View
-              className="items-center justify-center rounded-pill bg-surface-sunk"
-              style={{ width: 36, height: 36 }}
+            <Text
+              numberOfLines={1}
+              className="text-ink-muted"
+              style={{ fontFamily: fonts.sans, fontSize: 13 }}
             >
-              <Icon name="down" size={12} color={muted} />
+              {line}
+            </Text>
+          </Pressable>
+          {thumbs}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.dock.expand}
+            onPress={onOpen}
+            hitSlop={6}
+            testID="prompt-expand"
+            className="items-center justify-center rounded-pill bg-surface-sunk"
+            style={{ width: DISC, height: DISC }}
+          >
+            <View style={{ transform: [{ rotate: '180deg' }] }}>
+              <Icon name="down" size={14} color={muted} />
             </View>
           </Pressable>
         </View>
+      </View>
+    );
+  }
+  if (!sheet) {
+    return (
+      <View style={{ padding: 10 }} testID="prompt-dock">
+        {children}
+      </View>
+    );
+  }
+  return (
+    <View
+      accessibilityLabel={copy.dock.title}
+      testID="prompt-dock"
+      className="bg-bg"
+      style={[
+        shadowNative.sheet,
+        { shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.18, shadowRadius: 18 },
+        { borderTopLeftRadius: 18, borderTopRightRadius: 18 },
+        maxHeight ? { maxHeight } : null,
+      ]}
+    >
+      <View className="flex-row items-center gap-3 px-5 pt-3">
+        <Text
+          className="flex-1 uppercase text-ink-muted"
+          style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 9 * 0.22 }}
+        >
+          {copy.dock.title}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.dock.minimise}
+          onPress={onMinimise}
+          hitSlop={6}
+          testID="prompt-minimise"
+          className="items-center justify-center rounded-pill bg-surface-sunk"
+          style={{ width: DISC, height: DISC }}
+        >
+          <Icon name="down" size={14} color={muted} />
+        </Pressable>
+      </View>
+      {conversation ? (
+        <ScrollView
+          ref={scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          className="shrink"
+          contentContainerClassName="gap-3 px-5 pt-2 pb-1"
+          testID="prompt-conversation"
+        >
+          {conversation}
+        </ScrollView>
       ) : null}
-      {children}
+      <View style={{ padding: 10 }}>{children}</View>
     </View>
   );
 }

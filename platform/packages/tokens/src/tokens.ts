@@ -23,6 +23,12 @@ export const palette = {
   warmFill: '#F3EFE6',
   warmLine: '#C9BCA6',
   warmLineDark: '#8A7F6C',
+  // The prompt box (redline 14 Nov): the ring on a source that is on and on a token in the box,
+  // and the field's resting placeholder. Never text she must read.
+  umber: '#6E4A38',
+  umberLight: '#B89A88',
+  hint: '#A9A9A9',
+  hintDark: '#7C7C7C',
   // Felix's worn mark on a past day (#A0927A), darkened to reach 3:1 on cream and white.
   warmPast: '#968973',
   warmPastDark: '#A0927A',
@@ -69,6 +75,8 @@ export const semanticNames = [
   // Felix Design System (2026-11-06). The warm family: the edge of chips, the today cell and an add
   // slot (`warm-line`), a past day's worn mark, and the dashed edge of a piece still to find.
   'warm-line',
+  'token-line',
+  'placeholder',
   'warm-past',
   'warm-dash',
   // The unread dot.
@@ -119,6 +127,8 @@ export const light: Record<Semantic, ColorRef> = {
   selected: 'warmFill',
   'selected-line': 'warmLine',
   'warm-line': 'warmLine',
+  'token-line': 'umber',
+  placeholder: 'hint',
   'warm-past': 'warmPast',
   'warm-dash': 'warmDash',
   alert: 'alert',
@@ -161,6 +171,8 @@ export const dark: Record<Semantic, ColorRef> = {
   'selected-line': 'warmLineDark',
   // Felix has no dark theme yet: these are proposed, like the rest of this map.
   'warm-line': 'warmLineDark',
+  'token-line': 'umberLight',
+  placeholder: 'hintDark',
   'warm-past': 'warmPastDark',
   'warm-dash': 'warmLineDark',
   alert: 'dangerLight',

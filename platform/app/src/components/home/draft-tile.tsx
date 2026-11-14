@@ -51,7 +51,7 @@ export function DraftTile({
     <article
       data-testid="draft-tile"
       data-state={generating ? 'generating' : 'ready'}
-      className="flex w-full shrink-0 snap-start flex-col overflow-hidden rounded-tile border-[0.5px] border-rule-mid bg-surface-raised"
+      className="relative flex w-full shrink-0 snap-start flex-col overflow-hidden rounded-tile border-[0.5px] border-rule-mid bg-surface-raised"
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-surface">
         <div
@@ -109,7 +109,9 @@ export function DraftTile({
         <Link
           href={href}
           aria-label={d.open}
-          className={`flex min-h-[45px] items-center justify-center gap-1.5 bg-surface px-3.5 font-medium font-sans text-[10px] text-ink uppercase tracking-[0.16em] ${focus}`}
+          // The whole card opens the draft, as a saved look's card opens its look (testing,
+          // 14 Nov): the link's hit area is stretched over the picture.
+          className={`after:absolute after:inset-0 after:content-[''] flex min-h-[45px] items-center justify-center gap-1.5 bg-surface px-3.5 font-medium font-sans text-[10px] text-ink uppercase tracking-[0.16em] ${focus}`}
         >
           {d.tileBar}
           <span aria-hidden className="font-light text-[15px] text-ink-faint">

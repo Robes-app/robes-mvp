@@ -35,6 +35,13 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const d = copy.draft;
   // Her brief, when Robes made this look from her words: Restyle it all starts fresh from it.
   const brief = useRef('');
+  // The prompt's own dock (a draft, a saved look) shows a change instead of telling it (redline
+  // 14 Nov): no line says what was done, and the picture is drawn without being asked.
+  const shown = surface === 'draft' || surface === 'saved';
+  // The picture being drawn was not asked for in words: nothing is said when it lands.
+  const hushed = useRef(false);
+  // Her last send, so one tap that fires twice (the keyboard's send and the button) is one line.
+  const lastSend = useRef({ key: '', at: 0 });
 
   // A send that asked to draw once answered, and the draw it calls (defined further down).
   const drawAfter = useRef(false);
@@ -42,12 +49,15 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
 
   // Her ask: an edit comes back keyed by the rack she sent.
   const ask = useLookAsk(look.id, (result) => {
-    dispatch({ type: 'robes', text: result.reply || copy.prompt.doneNone });
+    const changed = askChanges(result);
+    // Robes' words stand when nothing changed (it asks back, or says why not). A change is seen
+    // on the rack and the model, and Robes only asks its question.
+    if (!changed || !shown) dispatch({ type: 'robes', text: result.reply || copy.prompt.doneNone });
+    else dispatch({ type: 'settle' });
     if (result.noticed) dispatch({ type: 'filed', text: copy.prompt.noticed });
     const slots = result.swaps.length + result.back.length + result.styled.length;
     if (slots)
       nativeAnalytics.track('look_prompt_applied', { surface, intent: result.intent, slots });
-    const changed = askChanges(result);
     if (changed) editor.answer(result);
     // The drawer's send draws the picture once the rack is answered (D14).
     if (drawAfter.current) {
@@ -59,7 +69,7 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     if (changed) {
       dispatch({
         type: 'question',
-        text: surface === 'saved' ? result.followUp || fb.question : fb.again,
+        text: result.followUp || fb.again,
       });
     }
   });
@@ -78,7 +88,9 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       dispatch({ type: 'drawn' });
       dispatch({ type: 'question', text: fb.again });
     } else toast.show({ message: copy.swapFailed });
-    refresh();
+    // The look itself is read again: the lists' refresh alone never reaches the open look, so a
+    // restyle used to leave the old rack standing.
+    void api.call('looks.get', { params: { id: look.id } }).then(refresh, () => refresh());
   });
 
   // Update the model: the picture's landing is read off the look (it reads pending meanwhile).
@@ -95,7 +107,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     sawPending.current = false;
     setDrawing(false);
     dispatch({ type: 'settle' });
-    dispatch({ type: 'robes', text: d.modelDone });
+    if (!hushed.current) dispatch({ type: 'robes', text: d.modelDone });
+    hushed.current = false;
   }, [drawing, picturePending]);
   useEffect(() => {
     if (!drawing) return;
@@ -118,17 +131,19 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       });
   };
 
-  draw.current = () => updateModel();
+  draw.current = () => updateModel(false, shown);
 
   const stale = state.pending > 0 || look.pictureStale;
   const badge = state.pending || (look.pictureStale ? 1 : 0);
   const busy = ask.reading || redressJob !== null || drawing;
 
-  const updateModel = (quiet = false) => {
+  // `hush`: drawn on Robes' own account after a change, so no line asks for it or reports it.
+  const updateModel = (quiet = false, hush = false) => {
     nativeAnalytics.track('draft_model_updated', { surface, pending: badge });
     if (!quiet) {
-      dispatch({ type: 'her', text: d.modelAsked });
+      if (!hush) dispatch({ type: 'her', text: d.modelAsked });
       dispatch({ type: 'work', text: d.dressing });
+      hushed.current = hush;
       sawPending.current = false;
       setDrawing(true);
     }
@@ -153,18 +168,23 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
         : d.adjust,
     // `draw`: the picture is drawn once the answer lands (the drawer's Send and Generate); only a
     // live look writes its rack as it goes, so a saved look's edit still draws on Update.
+    // True when the send went to Robes (an ask or a restyle is now in hand).
     send: (
       words: string,
       opts: { draw?: boolean; balance?: Balance; context?: LookAskInput['context'] } = {},
-    ) => {
+    ): boolean => {
       const text = words.trim();
       // What she tapped after a thumbs down rides with her words, or stands for them (F10, F11).
       const { reasons, restyle: afresh } = state;
-      if ((!text && reasons.length === 0 && !afresh) || busy) return;
+      if ((!text && reasons.length === 0 && !afresh) || busy) return false;
+      const key = `${text}|${reasons.join()}|${afresh}`;
+      const now = Date.now();
+      if (lastSend.current.key === key && now - lastSend.current.at < 1500) return false;
+      lastSend.current = { key, at: now };
       // "A piece I don't like" with no piece named: Robes asks which, rather than guess (F15).
       if (!text && reasons.includes('piece')) {
         dispatch({ type: 'robes', text: fb.whichPiece });
-        return;
+        return false;
       }
       drawAfter.current = opts.draw === true && look.status === 'draft';
       const labels = afresh ? [fb.restyle.label] : reasons.map((r) => fb.reasons[r].label);
@@ -184,16 +204,16 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
         report('restyle');
         dispatch({ type: 'work', text: fb.restyle.work(brief.current) });
         restyle(text || null);
-        return;
+        return true;
       }
       if (state.asking) {
         dispatch({ type: 'answered' });
         dispatch({ type: 'robes', text: d.thanks });
         dispatch({ type: 'work', text: d.dressingAgain });
         restyle(text);
-        return;
+        return true;
       }
-      if (editor.rack.rows.length === 0) return;
+      if (editor.rack.rows.length === 0) return false;
       report('adjust');
       nativeAnalytics.track('look_prompt_sent', { surface, chars: text.length, from_draft: false });
       const only = reasons.length === 1 ? reasons[0] : undefined;
@@ -212,6 +232,7 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
         ...(opts.balance ? { balance: opts.balance } : {}),
         ...(opts.context ? { context: opts.context } : {}),
       });
+      return true;
     },
     // Her thumb on Robes' question (F5, F6, F7). A thumbs up ends it there: nothing is saved
     // and nothing is filed. A thumbs down opens the reasons. She can answer while the picture is
@@ -268,6 +289,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     },
     drawForSave: () => {
       if (stale) updateModel(true);
+    },
+    // A saved look's prompt change, once kept: the model wears it at once, with nothing said.
+    drawNow: () => {
+      if (stale) updateModel(false, true);
     },
     landed: (fresh: Look) => {
       const line = noteShort(fresh.note, 1) || fresh.name;

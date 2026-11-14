@@ -21,7 +21,7 @@ export interface IconToggleProps {
 }
 
 // The prompt's source toggles (look prompt PRD S1, P7, P8): a 28px disc with one glyph, its hit
-// area grown to 44. On: the selected fill on the selected-line edge. Off: clear on the warm line.
+// area grown to 44. On: the sunk cream on the umber ring. Off: clear on the warm line (redline 14 Nov).
 // Twin of ui-native IconToggle.tsx.
 export function IconToggle({
   icon,
@@ -47,7 +47,7 @@ export function IconToggle({
       data-testid={testId}
       className={cn(
         "relative inline-flex size-7 shrink-0 items-center justify-center rounded-pill border after:absolute after:-inset-2 after:content-[''] motion-safe:transition-colors motion-safe:duration-150 disabled:cursor-default disabled:opacity-45",
-        checked ? 'border-selected-line bg-selected text-ink' : 'border-warm-line text-ink-muted',
+        checked ? 'border-token-line bg-surface-sunk text-ink' : 'border-warm-line text-ink-faint',
         faded && 'opacity-45',
         focusRing,
         className,

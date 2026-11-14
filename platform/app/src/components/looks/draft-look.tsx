@@ -44,6 +44,7 @@ import {
   Sheet,
   Skeleton,
   Tabs,
+  useKeyboardInset,
   useToast,
   useToastLiftOver,
 } from '@robes/ui';
@@ -62,9 +63,9 @@ import { onRackIds, useLookEditor } from '@/lib/look-editor';
 import { useImageStage } from '@/lib/look-images';
 import { isDraftsFull, useLetGo, useRefreshLooks, useSaveLook } from '@/lib/look-states';
 import { useJob } from '@/lib/use-job';
-import { Feedback, ThreadLines } from './adjust-dock';
+import { Feedback, FeedbackTokens, ThreadLines, Thumbs } from './adjust-dock';
 import { CapturePieces, CaptureRow, NewPieceSheet, RemovedLine } from './capture-rack';
-import { DayContext } from './day-context';
+import { DayContext, DayMeta } from './day-context';
 import { DiarySheet } from './diary-sheet';
 import { AdjustSheet } from './draft-sheets';
 import { CardPicture, ImageManager } from './image-manager';
@@ -354,6 +355,28 @@ export function DraftLook({
 }
 
 // The drawer, or the same anatomy on a page (a deep link, with no screen beneath).
+// The prompt at the look's foot (redline 14 Nov): what floats there, and — a saved look's prompt
+// opened — the scrim that greys the look behind it and closes it on a tap.
+interface ShellDock {
+  node: ReactNode;
+  onScrim?: () => void;
+}
+
+// The prompt floats at the foot of whatever scrolls: it sticks to the bottom of the drawer's body
+// (which the drawer already stands on the keyboard) or of the page, with no band or rule of its
+// own, and the look scrolls under it. Only what is drawn takes a tap.
+function FloatingDock({ children, lift = 0 }: { children: ReactNode; lift?: number }) {
+  return (
+    <div
+      className="pointer-events-none sticky bottom-0 z-10 mt-auto pt-2 *:pointer-events-auto"
+      style={lift ? { bottom: lift } : undefined}
+      data-testid="floating-dock"
+    >
+      {children}
+    </div>
+  );
+}
+
 function Shell({
   presentation,
   title,
@@ -362,6 +385,7 @@ function Shell({
   done,
   over,
   footer,
+  dock,
   children,
 }: {
   presentation: DraftPresentation;
@@ -371,11 +395,12 @@ function Shell({
   done: DrawerDone | null;
   over?: ReactNode;
   footer?: ReactNode;
+  dock?: ShellDock | null;
   children: ReactNode;
 }) {
   if (presentation === 'saved') {
     return (
-      <SavedShell h1={h1} over={over} footer={footer}>
+      <SavedShell h1={h1} over={over} footer={footer} dock={dock ?? null}>
         {children}
       </SavedShell>
     );
@@ -392,13 +417,18 @@ function Shell({
         {...(footer ? { footer } : {})}
         testId="draft-look"
       >
-        {h1 ? <h1 className="sr-only">{h1}</h1> : null}
-        {children}
+        {/* A column as tall as the drawer's body, so the prompt rests at its foot under a short
+            look and sticks there over a long one. */}
+        <div className={dock ? '-mb-8 flex min-h-full flex-col' : undefined}>
+          {h1 ? <h1 className="sr-only">{h1}</h1> : null}
+          {children}
+          {dock ? <FloatingDock>{dock.node}</FloatingDock> : null}
+        </div>
       </Drawer>
     );
   }
   return (
-    <PageShell title={title} h1={h1} onClose={onClose} done={done} over={over}>
+    <PageShell title={title} h1={h1} onClose={onClose} done={done} over={over} dock={dock ?? null}>
       {children}
       {footer ? <div className="px-5 pt-5">{footer}</div> : null}
     </PageShell>
@@ -406,21 +436,27 @@ function Shell({
 }
 
 // A saved look's own page (3e): no header, the back disc rides the photo; the body runs to the
-// look's one bar, held at the foot (Schedule look, or Update look while a change waits) above the
-// tab bar on a phone.
+// look's one bar, held at the foot (Schedule look, or Update look while a hand edit waits) above
+// the tab bar on a phone. The prompt floats over it: closed, the sparkle or its bar just above
+// the look's bar; opened, a sheet from the foot over a scrim, standing on the keyboard, and the
+// look's bar steps away (redline 14 Nov, pins 23 and 25).
 function SavedShell({
   h1,
   over,
   footer,
+  dock,
   children,
 }: {
   h1?: string;
   over?: ReactNode;
   footer?: ReactNode;
+  dock: ShellDock | null;
   children: ReactNode;
 }) {
   // The page's back pill stands down: the disc on the photo is the way back.
   useHideBack(true);
+  const keyboard = useKeyboardInset();
+  const sheet = dock?.onScrim;
   return (
     <article
       className="relative -mx-4 flex flex-col pb-40 md:mx-auto md:w-full md:max-w-md"
@@ -428,7 +464,31 @@ function SavedShell({
     >
       {h1 ? <h1 className="sr-only">{h1}</h1> : null}
       {children}
-      {footer ? <LookBar>{footer}</LookBar> : null}
+      {footer && !sheet ? (
+        <LookBar float={dock?.node}>{footer}</LookBar>
+      ) : dock && !sheet ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md pb-[env(safe-area-inset-bottom)] *:pointer-events-auto">
+          {dock.node}
+        </div>
+      ) : null}
+      {dock && sheet ? (
+        <>
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-hidden
+            onClick={sheet}
+            data-testid="prompt-scrim"
+            className="fixed inset-0 z-40 cursor-default bg-ink/[0.16] motion-safe:animate-[robes-fade-in_250ms_ease]"
+          />
+          <div
+            className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md motion-safe:animate-[robes-sheet-up_300ms_cubic-bezier(.2,0,.2,1)]"
+            style={keyboard ? { bottom: keyboard } : undefined}
+          >
+            {dock.node}
+          </div>
+        </>
+      ) : null}
       {/* The floating sheets ride the screen, not the page: 8px above everything, the look's bar
           included (redline 7 Nov). The layer lets taps through except where a sheet is. */}
       {over ? (
@@ -441,7 +501,8 @@ function SavedShell({
 }
 
 // The saved look's bar at the foot; toasts rise above it, so an Undo never covers Update look.
-function LookBar({ children }: { children: ReactNode }) {
+// `float` is the closed prompt, riding just above the bar with nothing behind it.
+function LookBar({ children, float }: { children: ReactNode; float?: ReactNode }) {
   const bar = useRef<HTMLDivElement>(null);
   useToastLiftOver(bar);
   return (
@@ -450,6 +511,11 @@ function LookBar({ children }: { children: ReactNode }) {
       className="fixed inset-x-0 bottom-0 z-30 border-hairline border-t-[0.5px] bg-bg pb-[max(1.375rem,env(safe-area-inset-bottom))]"
       data-testid="look-bar"
     >
+      {float ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-full mx-auto max-w-md *:pointer-events-auto">
+          {float}
+        </div>
+      ) : null}
       <div className="mx-auto flex w-full max-w-md items-center px-5 pt-3">{children}</div>
     </div>
   );
@@ -461,6 +527,7 @@ function PageShell({
   onClose,
   done,
   over,
+  dock,
   children,
 }: {
   title: string;
@@ -468,19 +535,24 @@ function PageShell({
   onClose: () => void;
   done: DrawerDone | null;
   over?: ReactNode;
+  dock: ShellDock | null;
   children: ReactNode;
 }) {
   // A pushed view on a phone: the back pill alone, no masthead and no dock.
   usePushedView();
+  const keyboard = useKeyboardInset();
   return (
     <article
-      className="relative mx-auto flex w-full max-w-md flex-col overflow-hidden rounded-t-sheet border-[0.5px] border-rule-mid bg-bg md:rounded-sheet"
+      className="relative mx-auto flex w-full max-w-md flex-col overflow-clip rounded-t-sheet border-[0.5px] border-rule-mid bg-bg md:rounded-sheet"
       data-testid="draft-look"
     >
       {h1 ? <h1 className="sr-only">{h1}</h1> : null}
       <DrawerHeader title={title} onClose={onClose} closeLabel={copy.close} done={done} />
       <div className="relative">
-        <div className="pb-8">{children}</div>
+        <div className={dock ? 'flex flex-col' : 'pb-8'}>
+          {children}
+          {dock ? <FloatingDock lift={keyboard}>{dock.node}</FloatingDock> : null}
+        </div>
         {over}
       </div>
     </article>
@@ -650,29 +722,33 @@ function NewDraft({
       h1={copy.newName}
       onClose={onClose}
       done={{ label: copy.done, onClick: () => undefined, disabled: true, testId: 'draft-done' }}
-      // The prompt box stands at the foot, in thumb reach from the start (look prompt PRD F23).
-      footer={
-        <StylingCard
-          {...(day
-            ? {
-                context: (
-                  <DayContext date={day} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
-                ),
+      // The prompt box floats at the foot, in thumb reach from the start (look prompt PRD F23).
+      dock={{
+        node: (
+          <div className="p-2.5" data-testid="prompt-dock">
+            <StylingCard
+              {...(day
+                ? {
+                    context: (
+                      <DayContext date={day} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
+                    ),
+                  }
+                : {})}
+              sources={src.sources}
+              onSource={(which) =>
+                which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
               }
-            : {})}
-          sources={src.sources}
-          onSource={(which) =>
-            which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
-          }
-          wardrobeEmpty={src.empty}
-          placeholders={copy.placeholders}
-          value={prompt}
-          onChange={setPrompt}
-          onSend={() => void generate()}
-          emptySend="blur"
-          busy={busy}
-        />
-      }
+              wardrobeEmpty={src.empty}
+              placeholders={copy.placeholders}
+              value={prompt}
+              onChange={setPrompt}
+              onSend={() => void generate()}
+              emptySend="blur"
+              busy={busy}
+            />
+          </div>
+        ),
+      }}
     >
       <div className="relative overflow-hidden bg-surface-sunk">
         {stand ? (
@@ -870,8 +946,8 @@ function DraftBody({
   const words = prompt.trim();
   // A saved look's edit: anything not yet applied with Update look (D17, D18). Her photographs
   // and the cover are not among them: the strip's ✓ keeps them (keepStrip).
-  const pending =
-    mode === 'edit' && (editor.dirty || adjust.stale || words.length > 0 || src.changed);
+  // Words in the prompt are not among them: the prompt sends and keeps its own changes.
+  const pending = mode === 'edit' && (editor.dirty || adjust.stale);
   // A look from her photograph saves at any point but while its pieces are being found (1c.10).
   const finding = capture.on && capture.stage === 'finding';
   // A saved look's ✓ is Update look by another name: both wait, greyed, until something changes
@@ -880,11 +956,9 @@ function DraftBody({
     mode === 'draft'
       ? (rows.length > 0 || look.image !== null) && !busy && !finding
       : pending && !busy;
-  // Update look: the rack written, then the picture drawn for it. Words still in the field go
-  // through the thread first; the write waits for their answer to land on the rack.
-  const [applying, setApplying] = useState<'asked' | 'reading' | null>(null);
-  // Her photographs and the cover first, then the rack and a redraw for changed pieces. The
-  // cover she chose stays in front; a hidden Robes' picture comes back as the cover (D19).
+  // Update look keeps what she changed by hand: her photographs and the cover first, then the
+  // rack and a redraw for changed pieces. The cover she chose stays in front; a hidden Robes'
+  // picture comes back as the cover (D19).
   const commit = async () => {
     if (!(await stack.commit())) return;
     if (editor.dirty) {
@@ -895,20 +969,22 @@ function DraftBody({
   };
   const apply = () => {
     if (mode !== 'edit' || busy || !pending) return;
-    if (words && rows.length > 0) {
-      adjust.send(words, sendOpts);
-      setPrompt('');
-      setApplying('asked');
-      return;
-    }
-    setPrompt('');
     void commit();
+  };
+  // A saved look's prompt keeps its own change (redline 14 Nov, pin 25): once Robes has answered
+  // on the rack, the rack is written and the model wears it, with no button and nothing said.
+  const [applying, setApplying] = useState<'asked' | 'reading' | null>(null);
+  const keep = async () => {
+    if (!editor.dirty) return;
+    if (!(await editor.update(true))) return;
+    src.settle();
+    adjust.drawNow();
   };
   useEffect(() => {
     if (applying === 'asked' && adjust.busy) setApplying('reading');
     if (applying === 'reading' && !adjust.busy) {
       setApplying(null);
-      void commit();
+      void keep();
     }
   });
   const done = () => {
@@ -977,10 +1053,10 @@ function DraftBody({
     adjust.send(words, { ...sendOpts, draw: true });
     setPrompt('');
   };
-  // A saved look's send asks, and the change waits for Update look (F22).
+  // A saved look's send asks, and what Robes changes is kept and drawn as it lands.
   const ask = () => {
     if (busy || (!words && !picked) || rows.length === 0) return;
-    adjust.send(words, sendOpts);
+    if (adjust.send(words, sendOpts)) setApplying('asked');
     setPrompt('');
   };
   // "Update the model · N" keeps its place at the draft's foot while the picture is behind: it is
@@ -1071,59 +1147,79 @@ function DraftBody({
       />
     ),
   );
-  // The prompt box stands at the look's foot (look prompt PRD F23): open on a draft, behind the
-  // sparkle on a saved look until she asks for it. Minimised it is one line; a thumbs up closes
-  // it down to the sparkle (F6).
+  // The prompt floats at the look's foot (look prompt PRD F23; redline 14 Nov): open on a draft,
+  // behind the sparkle on a saved look until she asks for it. Closed it is one bar with Robes'
+  // question and its thumbs; a thumbs up shrinks it to the sparkle (F6), a thumbs down opens it
+  // on what to change.
   const verdict = adjust.state.verdict;
   const [dockOpen, setDockOpen] = useState(mode === 'draft');
   useEffect(() => {
     if (verdict === 'up') setDockOpen(false);
+    if (verdict === 'down') setDockOpen(true);
   }, [verdict]);
   const hasThread = adjust.state.thread.length > 0 || adjust.state.question !== null;
   const lastLine = adjust.state.thread.at(-1);
+  const working = lastLine?.who === 'work';
   const dockState: DockState = dockOpen
     ? 'open'
-    : mode === 'edit' || (verdict === 'up' && !busy)
-      ? 'spark'
-      : 'pill';
-  const dock = captureDraft ? null : (
+    : verdict === 'ask' || working || adjust.busy || (mode === 'draft' && verdict !== 'up')
+      ? 'pill'
+      : 'spark';
+  // Her first send carries the day's place and weather into the conversation (pin 13).
+  const briefed = adjust.state.thread.some((l) => l.who === 'her');
+  const dayContext = forDay && mode === 'draft' ? forDay : null;
+  const asSheet = mode === 'edit' || hasThread;
+  const dockNode = captureDraft ? null : (
     <PromptDock
       state={dockState}
-      head={mode === 'edit' || hasThread}
+      sheet={asSheet}
       line={
-        lastLine?.who === 'work'
-          ? lastLine.text
+        working
+          ? (lastLine?.text ?? '')
           : verdict === 'down'
             ? fb.change
             : (adjust.state.question ?? copy.dock.rest)
       }
-      working={lastLine?.who === 'work'}
-      onOpen={() => setDockOpen(true)}
-      onMinimise={() => setDockOpen(false)}
-    >
-      <StylingCard
-        {...(forDay && mode === 'draft'
-          ? {
-              context: (
-                <DayContext date={forDay} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
-              ),
-            }
-          : {})}
-        sources={src.sources}
-        onSource={(which) =>
-          which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
-        }
-        wardrobeEmpty={src.empty}
-        thread={
+      working={working}
+      thumbs={verdict === 'ask' ? <Thumbs adjust={adjust} /> : null}
+      conversation={
+        hasThread ? (
           <>
-            <ThreadLines thread={adjust.state.thread} compact />
+            <ThreadLines
+              thread={adjust.state.thread}
+              compact
+              {...(dayContext && !weatherOff ? { meta: <DayMeta date={dayContext} /> } : {})}
+            />
             <Feedback
               adjust={adjust}
               weather={askContext !== undefined}
               canRestyle={mode === 'draft' && adjust.canRedress}
             />
           </>
+        ) : null
+      }
+      onOpen={() => setDockOpen(true)}
+      onMinimise={() => setDockOpen(false)}
+    >
+      <StylingCard
+        inline={asSheet}
+        {...(dayContext && !briefed
+          ? {
+              context: (
+                <DayContext
+                  date={dayContext}
+                  weatherOff={weatherOff}
+                  onWeatherOff={setWeatherOff}
+                />
+              ),
+            }
+          : {})}
+        tokens={<FeedbackTokens adjust={adjust} />}
+        sources={src.sources}
+        onSource={(which) =>
+          which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
         }
+        wardrobeEmpty={src.empty}
         {...(feedbackHint
           ? { placeholder: feedbackHint }
           : mode === 'edit'
@@ -1141,9 +1237,19 @@ function DraftBody({
       />
     </PromptDock>
   );
+  // A saved look's prompt opened is a sheet over the greyed look, and the look's button steps
+  // away: changes are made through the prompt alone (pins 23, 25).
+  const promptSheet = presentation === 'saved' && dockState === 'open' && dockNode !== null;
+  const dock = dockNode
+    ? { node: dockNode, ...(promptSheet ? { onScrim: () => setDockOpen(false) } : {}) }
+    : null;
   const footButton =
-    // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
-    // change waits — never both. Native twin: DraftLook.tsx's footer.
+    // While the prompt is open or keeping its change there is no button at all (pin 25).
+    mode === 'edit' &&
+    (dockState === 'open' ||
+      applying !==
+        null) ? undefined : // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
+    // hand edit waits — never both. Native twin: DraftLook.tsx's footer.
     presentation === 'saved' && !pending ? (
       <Button variant="primary" block onClick={() => setDiary(true)} data-testid="schedule-look">
         {lookbook.savedLook.schedule}
@@ -1176,13 +1282,6 @@ function DraftBody({
         <Icon name="undo" size={12} className="-scale-x-100" />
       </Button>
     ) : undefined;
-  const foot =
-    dock || footButton ? (
-      <div className="flex w-full flex-col gap-3">
-        {dock}
-        {footButton}
-      </div>
-    ) : null;
   return (
     <Shell
       presentation={presentation}
@@ -1196,7 +1295,8 @@ function DraftBody({
         disabled: !canDone,
         testId: 'draft-done',
       }}
-      {...(foot ? { footer: foot } : {})}
+      {...(footButton ? { footer: footButton } : {})}
+      dock={dock}
       over={
         <AdjustSheet
           open={sheet === 'adjust'}
@@ -1435,6 +1535,15 @@ function DraftPhoto({
       : look.model?.status === 'ready'
         ? { ...look, image: look.model }
         : null;
+  // The last picture drawn stays up, greyed, while the rack has moved on and the next is drawn
+  // (redline 14 Nov): the look never falls back to the bare model between two pictures.
+  const last = useRef<{ id: string; shown: NonNullable<typeof rendered> } | null>(null);
+  if (rendered?.image) last.current = { id: look.id, shown: rendered };
+  const held =
+    !rendered && !own && last.current?.id === look.id
+      ? { ...look, image: last.current.shown.image }
+      : null;
+  const picture = rendered ?? held;
   const stand = model?.stand?.imageUrl ?? (model?.filed ? model.cell.imageUrl : null);
   const drawing = look.framePending || look.onModel === 'pending' || redressing;
   const line = useDressingLine(
@@ -1449,7 +1558,7 @@ function DraftPhoto({
   return (
     <div className="relative overflow-hidden bg-surface-sunk" data-testid="draft-photo">
       <div
-        className={`transition-[opacity,filter] duration-500 ${stale && !drawing ? 'opacity-80 grayscale-[.75]' : ''} ${drawing ? 'opacity-60' : ''}`}
+        className={`transition-[opacity,filter] duration-500 ${(stale || held) && !drawing ? 'opacity-80 grayscale-[.75]' : ''} ${drawing ? 'opacity-60' : ''}`}
         data-testid={stale && !drawing ? 'draft-picture-stale' : 'draft-picture'}
       >
         {staged ? (
@@ -1460,8 +1569,8 @@ function DraftPhoto({
           />
         ) : look.frame && !own ? (
           <LookPicture look={look} />
-        ) : rendered ? (
-          <LookImage look={rendered} priority sizes="(min-width: 448px) 448px, 100vw" />
+        ) : picture ? (
+          <LookImage look={picture} priority sizes="(min-width: 448px) 448px, 100vw" />
         ) : stand ? (
           <Image src={stand} alt={lookbook.figure.alt} aspect="4:5" />
         ) : modelPending ? (

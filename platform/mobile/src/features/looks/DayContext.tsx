@@ -14,20 +14,42 @@ const copy = diary.door;
 // The chips stand 28pt (design 3k); a tap reaches them from 8pt either side (44pt).
 const CHIP_SLOP = { top: 8, bottom: 8 };
 const chip = 'min-h-7 flex-row items-center gap-1.5 self-start rounded-pill border px-2.5';
-// The Front Door's weather chip (PRD rev 3 §4.6): the deep rose fill with a cream label; out, an
-// outline chip on the warm line offers it back.
-const warm = `${chip} border-accent-warm bg-accent-warm`;
+// The day's place and weather in the prompt box (redline 14 Nov, pin 3): the sunk cream inside
+// the umber ring with an ink label; out, an outline chip on the warm line offers it back.
+const warm = `${chip} border-token-line bg-surface-sunk`;
 const quiet = `${chip} border-warm-line bg-transparent`;
 
-function ChipText({ children, onRose = false }: { children: string; onRose?: boolean }) {
+function ChipText({ children }: { children: string }) {
   return (
-    <RNText
-      className={`text-[11px] ${onRose ? 'text-surface-raised' : 'text-ink'}`}
-      style={{ fontFamily: fonts.sans }}
-      numberOfLines={1}
-    >
+    <RNText className="text-[11px] text-ink" style={{ fontFamily: fonts.sans }} numberOfLines={1}>
       {children}
     </RNText>
+  );
+}
+
+// Once her brief is sent the place and weather it went with stand under her first line
+// (redline 14 Nov, pins 7 and 13): the pin, the city, the sky and the range, small and faint.
+export function DayMeta({ date }: { date: string }) {
+  const faint = useColor('ink-faint');
+  const today = useApi('today.get');
+  const day = today.data?.diary?.days.find((x) => x.date === date);
+  const city = day?.place?.city ?? day?.weather?.city ?? null;
+  if (!day || !city) return null;
+  const wx = day.weather;
+  const icon = weatherIcon(wx?.code);
+  const text = { fontFamily: fonts.sans, fontSize: 11, color: faint };
+  return (
+    <View className="flex-row items-center gap-1" testID="her-meta">
+      <Icon name="pin" size={10} color={faint} />
+      <RNText style={text}>{city}</RNText>
+      {wx ? (
+        <>
+          <RNText style={text}>·</RNText>
+          {icon ? <Icon name={icon} size={10} color={faint} /> : null}
+          <RNText style={text}>{shortRange(wx.tempRange)}</RNText>
+        </>
+      ) : null}
+    </View>
   );
 }
 
@@ -49,7 +71,6 @@ export function DayContext({
   const toast = useToast();
   const queryClient = useQueryClient();
   const ink = useColor('ink');
-  const onRose = useColor('surface-raised');
   const today = useApi('today.get');
   const weather = useApi('today.weather', undefined, {
     staleTime: WEATHER_STALE_MS,
@@ -102,15 +123,13 @@ export function DayContext({
             hitSlop={CHIP_SLOP}
             className="h-full flex-row items-center gap-1.5 rounded-pill"
           >
-            <Icon name="pin" size={11} color={onRose} />
-            <ChipText onRose>{city}</ChipText>
+            <Icon name="pin" size={11} color={ink} />
+            <ChipText>{city}</ChipText>
             {wx ? (
               <>
-                <RNText className="text-[11px] text-surface-raised" style={{ opacity: 0.7 }}>
-                  ·
-                </RNText>
-                {icon ? <Icon name={icon} size={11} color={onRose} /> : null}
-                <ChipText onRose>{shortRange(wx.tempRange)}</ChipText>
+                <RNText className="text-[11px] text-ink-muted">·</RNText>
+                {icon ? <Icon name={icon} size={11} color={ink} /> : null}
+                <ChipText>{shortRange(wx.tempRange)}</ChipText>
               </>
             ) : null}
           </Pressable>
@@ -121,7 +140,7 @@ export function DayContext({
             hitSlop={{ top: 12, bottom: 12, left: 4, right: 8 }}
             className="size-5 items-center justify-center rounded-pill"
           >
-            <Icon name="close" size={11} color={onRose} />
+            <Icon name="close" size={11} color={ink} />
           </Pressable>
         </View>
       ) : (
