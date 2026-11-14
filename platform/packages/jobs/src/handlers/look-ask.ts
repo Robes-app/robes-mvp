@@ -1,5 +1,6 @@
 import { AiError, type AiProvider } from '@robes/ai';
 import {
+  type Answer,
   type AskContext,
   buildSystem,
   buildUser,
@@ -179,52 +180,47 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
       }
       const answer = normaliseAnswer(out, askCtx);
       const keyAt = (i: number) => rows[i]?.key;
+      // What a swap or an add lands as: a piece she owns, a wish (which keeps its identity), or a
+      // new piece Robes proposes.
+      const target = (
+        to: Answer['swaps'][number]['to'],
+      ): LookAskResult['swaps'][number]['to'] | null => {
+        if (!('poolIndex' in to)) return { proposal: { ...to.proposal, color: '' } };
+        const entry = pool[to.poolIndex];
+        if (!entry) return null;
+        if (entry.kind === 'wish') {
+          const w = entry.wish;
+          return {
+            proposal: {
+              name: w.label,
+              category: w.category,
+              color: w.color ?? '',
+              brand: w.brand ?? '',
+              retailerHint: w.sourceLabel ?? '',
+              pricePoint: priceOf(w.price, w.currency),
+              wishlisted: true,
+              wishlistItemId: w.id,
+            },
+          };
+        }
+        const piece = entry.piece;
+        return {
+          pieceId: piece.id,
+          name: piece.label,
+          category: piece.category ?? '',
+          categoryL2: piece.categoryL2 ?? null,
+          brand: piece.brand,
+        };
+      };
       const result: LookAskResult = {
         intent: answer.intent,
         reply: answer.reply,
         swaps: answer.swaps.flatMap((s): LookAskResult['swaps'] => {
           const key = keyAt(s.i);
-          if (!key) return [];
-          if ('poolIndex' in s.to) {
-            const entry = pool[s.to.poolIndex];
-            if (!entry) return [];
-            if (entry.kind === 'wish') {
-              const w = entry.wish;
-              const price = priceOf(w.price, w.currency);
-              return [
-                {
-                  key,
-                  to: {
-                    proposal: {
-                      name: w.label,
-                      category: w.category,
-                      color: w.color ?? '',
-                      brand: w.brand ?? '',
-                      retailerHint: w.sourceLabel ?? '',
-                      pricePoint: price,
-                      wishlisted: true,
-                      wishlistItemId: w.id,
-                    },
-                  },
-                },
-              ];
-            }
-            const piece = entry.piece;
-            return [
-              {
-                key,
-                to: {
-                  pieceId: piece.id,
-                  name: piece.label,
-                  category: piece.category ?? '',
-                  categoryL2: piece.categoryL2 ?? null,
-                  brand: piece.brand,
-                },
-              },
-            ];
-          }
-          return [{ key, to: { proposal: { ...s.to.proposal, color: '' } } }];
+          const to = key ? target(s.to) : null;
+          return key && to ? [{ key, to }] : [];
         }),
+        adds: answer.adds.flatMap((a) => target(a) ?? []),
         back: answer.back.flatMap((i) => keyAt(i) ?? []),
         backAll: answer.intent === 'back' && answer.back.length === 0,
         styled: answer.styled.flatMap((s) => {

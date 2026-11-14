@@ -200,6 +200,8 @@ export type AskTarget =
     };
 export interface AskEdit {
   swaps: { key: string; to: AskTarget }[];
+  // Pieces put on the look as new rows; nothing is taken off for them.
+  adds?: AskTarget[];
   back: string[];
   styled: { key: string; note: string }[];
   // True when "back" names nothing: every changed row goes back.
@@ -273,6 +275,43 @@ export function applyAsk(
     rows[at] = next;
     if (original.key === next.key) delete edits[next.key];
     else edits[next.key] = { was: original };
+  }
+
+  // An add is a new row at the foot of the rack; a piece already on the look is not added twice.
+  for (const to of edit.adds ?? []) {
+    if ('pieceId' in to) {
+      if (rows.some((r) => r.pieceId === to.pieceId)) continue;
+      rows.push({
+        key: to.pieceId,
+        pieceId: to.pieceId,
+        name: to.name,
+        category: to.category,
+        categoryL2: to.categoryL2 ?? null,
+        brand: to.brand,
+        role: null,
+        proposal: null,
+      });
+      continue;
+    }
+    const p = to.proposal;
+    const named = p.name.trim().toLowerCase();
+    if (rows.some((r) => r.pieceId === null && r.name.trim().toLowerCase() === named)) continue;
+    const key = newKey();
+    rows.push({
+      key,
+      pieceId: null,
+      name: p.name,
+      category: p.category,
+      brand: p.brand || null,
+      role: null,
+      proposal: {
+        ...p,
+        key,
+        role: null,
+        wishlisted: p.wishlisted ?? false,
+        wishlistItemId: p.wishlistItemId ?? null,
+      },
+    });
   }
 
   for (const s of edit.styled) {

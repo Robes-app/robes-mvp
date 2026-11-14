@@ -95,6 +95,50 @@ describe('the rack', () => {
     styling: {},
   };
 
+  it('an add is a new row at the foot of the rack, and nothing is taken off for it', () => {
+    const next = applyAsk(
+      base,
+      {
+        swaps: [],
+        adds: [
+          { pieceId: 'flats', name: 'Taupe mesh ballet flats', category: 'Shoes', brand: null },
+          {
+            proposal: {
+              name: 'Black slingback heels',
+              category: 'Shoes',
+              color: '',
+              brand: 'Aeyde',
+              retailerHint: 'aeyde.com',
+              pricePoint: '€295',
+            },
+          },
+        ],
+        back: [],
+        styled: [],
+      },
+      () => 'p-heels001',
+    );
+    expect(next.rows.map((r) => r.key)).toEqual(['tee', 'jeans', 'flats', 'p-heels001']);
+    expect(next.rows[2]).toMatchObject({ pieceId: 'flats', role: null, proposal: null });
+    expect(next.rows[3]?.proposal).toMatchObject({
+      name: 'Black slingback heels',
+      brand: 'Aeyde',
+      retailerHint: 'aeyde.com',
+      pricePoint: '€295',
+      wishlisted: false,
+    });
+    // Nothing was swapped, so nothing reads as changed.
+    expect(changedKeys(next)).toEqual([]);
+    // A piece already on the look is not added twice.
+    const again = applyAsk(next, {
+      swaps: [],
+      adds: [{ pieceId: 'flats', name: 'Taupe mesh ballet flats', category: 'Shoes', brand: null }],
+      back: [],
+      styled: [],
+    });
+    expect(again.rows).toHaveLength(4);
+  });
+
   it('swaps a row for her piece and remembers the original', () => {
     const edit: AskEdit = {
       swaps: [

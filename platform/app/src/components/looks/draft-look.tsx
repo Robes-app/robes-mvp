@@ -1538,12 +1538,15 @@ function DraftPhoto({
   // The last picture drawn stays up, greyed, while the rack has moved on and the next is drawn
   // (redline 14 Nov): the look never falls back to the bare model between two pictures.
   const last = useRef<{ id: string; shown: NonNullable<typeof rendered> } | null>(null);
-  if (rendered?.image) last.current = { id: look.id, shown: rendered };
+  // A picture still being made is on the look before it can be shown (its renditions come
+  // later), so "drawn" means there is something to show, never merely that an image is named.
+  const drawn = own || (rendered?.image?.renditions.length ?? 0) > 0 ? rendered : null;
+  if (drawn?.image) last.current = { id: look.id, shown: drawn };
   const held =
-    !rendered && !own && last.current?.id === look.id
+    !drawn && !own && last.current?.id === look.id
       ? { ...look, image: last.current.shown.image }
       : null;
-  const picture = rendered ?? held;
+  const picture = drawn ?? held;
   const stand = model?.stand?.imageUrl ?? (model?.filed ? model.cell.imageUrl : null);
   const drawing = look.framePending || look.onModel === 'pending' || redressing;
   const line = useDressingLine(
