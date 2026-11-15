@@ -133,10 +133,10 @@ export function SavedLookCard({
 }) {
   if (Platform.OS !== 'ios') {
     return (
+      // No calendar on the photo in the Lookbook (Annie, 15 Nov): she schedules from the look.
       <SavedTile
         look={look}
         onPress={onPress}
-        onDiary={onDiary}
         onDelete={onDelete}
         {...(aspect ? { aspect } : {})}
       />
@@ -146,7 +146,8 @@ export function SavedLookCard({
     <Link href={`/look/${look.id}`} asChild>
       <Link.Trigger>
         <Pressable accessibilityRole="button" accessibilityLabel={look.name} className="flex-1">
-          <SavedTile look={look} onDiary={onDiary} {...(aspect ? { aspect } : {})} />
+          {/* No calendar on the photo (Annie, 15 Nov): Schedule is in the menu and on the look. */}
+          <SavedTile look={look} {...(aspect ? { aspect } : {})} />
         </Pressable>
       </Link.Trigger>
       <Link.Preview />

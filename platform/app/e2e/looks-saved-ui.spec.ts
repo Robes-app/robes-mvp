@@ -21,12 +21,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // wardrobe (cached 30s): load afresh so the draft offers Pick from your wardrobe.
   await page.reload();
 
-  // Create › New look is the composer now.
-  await page.getByRole('button', { name: 'Create' }).first().click();
-  await page
-    .getByRole('dialog', { name: 'Create' })
-    .getByRole('link', { name: 'New look' })
-    .click();
+  // New look's draft (the desktop bar's Create is retired, Annie 15 Nov).
+  await page.goto('/looks/draft/new');
   // The draft drawer (D14) opens over the screen; the first pieces make the draft, the done disc
   // saves it, and the saved look opens with the diary up.
   await expect(page).toHaveURL(/\/looks\/draft\/new$/);

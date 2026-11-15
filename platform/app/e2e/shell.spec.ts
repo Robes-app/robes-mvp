@@ -176,7 +176,9 @@ test('every shell route renders its heading', async ({ page }) => {
   await expect(page.getByRole('link', { name: shell.notFound.back })).toHaveAttribute('href', '/');
 });
 
-test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
+// The desktop bar's Create button and sheet are retired (Annie, 15 Nov): each screen has its own +,
+// and ⌘K still adds and dresses.
+test('⌘K goes anywhere and offers Create; the bar has no Create button', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await signIn(page);
   await declineConsent(page);
@@ -187,30 +189,11 @@ test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/you\/notifications$/);
 
-  // Settings carries its own header (no Create there): Create opens from a root.
   await page.goto('/');
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
-  const sheet = page.getByRole('dialog', { name: 'Create' });
-  await expect(sheet.getByRole('link').first()).toBeVisible();
-  // trips.spec flips the trips flag mid-run and pins its door itself.
-  const options = (await sheet.getByRole('link').allTextContents()).filter(
-    (t) => t !== 'Plan a trip',
-  );
-  // Two groups: pieces in, then the stylist.
-  await expect(sheet.getByRole('region')).toHaveText([/^Add pieces/, /^Dress/]);
-  expect(options).toEqual([
-    'Take a photo',
-    'Camera roll',
-    'Paste a link',
-    'Forward a receipt',
-    'Add without a photo',
-    'Style a piece',
-    'New look',
-  ]);
-  // No prompt box leads the sheet: her words open the draft look drawer, from New look (look
-  // prompt PRD D9).
-  await expect(sheet.getByTestId('home-box')).toHaveCount(0);
-  await expect(sheet.getByRole('textbox')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Create', exact: true })).toHaveCount(0);
+  await page.keyboard.press('ControlOrMeta+k');
+  await page.getByRole('combobox', { name: 'Search Robes' }).fill('paste');
+  await expect(page.getByRole('option', { name: 'Paste a link' })).toBeVisible();
 });
 
 test('P0 routes have no serious accessibility violations', async ({ page }) => {

@@ -103,7 +103,8 @@ export function NoPhoto({ aspect = '4:5', size = 28 }: { aspect?: '4:5' | '3:4';
   );
 }
 
-function Photo({
+// A piece's photograph at a width, or the hanger / the skeleton (also the Rack's small grid).
+export function Photo({
   piece,
   width,
   aspect = '4:5',

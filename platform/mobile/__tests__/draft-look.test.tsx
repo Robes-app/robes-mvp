@@ -810,7 +810,7 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
   expect(await screen.findByLabelText(`${lookbook.rack.wishlist} · €390`)).toBeTruthy();
 });
 
-test('The Rack heading shows once a piece hangs, and the toggle turns the rows to tiles', async () => {
+test('The Rack heading shows once a piece hangs, and the toggle turns the rows to small photos', async () => {
   mockFetch({
     ...BASE,
     [`GET /looks/${LOOK_ID}`]: draftOf({
@@ -823,7 +823,11 @@ test('The Rack heading shows once a piece hangs, and the toggle turns the rows t
   await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.grid }));
   expect(screen.queryByTestId(`rack-row-${PIECE_ID}`)).toBeNull();
   expect(screen.getByLabelText(copy.rack)).toBeTruthy();
-  expect(screen.getByText('Camel wool coat')).toBeTruthy();
+  // The grid is the pieces' photographs alone, five across (Robes MVP; Annie, 15 Nov): the name is
+  // what a reader hears, not a line beneath.
+  expect(screen.getAllByTestId('rack-grid-tile')).toHaveLength(1);
+  expect(screen.getByLabelText('Camel wool coat')).toBeTruthy();
+  expect(screen.queryByText('Camel wool coat')).toBeNull();
 });
 
 // Add a photo to a look (Capture PRD flow 3): the Add a photo card opens the camera that only

@@ -1,6 +1,5 @@
 'use client';
 
-import type { Look } from '@robes/contracts';
 import { lookbook as copy, filters as filterCopy, nav } from '@robes/copy';
 import { lookFacets } from '@robes/core/filters';
 import { Icon } from '@robes/icons/web';
@@ -12,7 +11,6 @@ import { FilterSheet } from '@/components/filters/filter-sheet';
 import { useLookFilters } from '@/components/filters/use-look-filters';
 import { errorCopy } from '@/lib/error-copy';
 import { useLetGo, useLooksByStatus, useRestyle, useSaveLook } from '@/lib/look-states';
-import { DiarySheet } from './diary-sheet';
 import { DraftTile, SavedTile, SuggestedTile } from './look-tiles';
 import { NewLookSheet } from './new-look-sheet';
 
@@ -38,8 +36,6 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   const save = useSaveLook(undefined, 'suggested');
   const [newLook, setNewLook] = useState(false);
   const [sheet, setSheet] = useState(false);
-  // The calendar on a card opens the same diary sheet, over the grid — she never leaves it.
-  const [diary, setDiary] = useState<Look | null>(null);
 
   const current = tab === 'saved' ? saved : suggested;
   const all = useMemo(() => (current.data?.items ?? []).map(lookFacets), [current.data]);
@@ -161,7 +157,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
                   look={look}
                   aspect="3:4"
                   priority={i < 3}
-                  onDiary={() => setDiary(look)}
+                  // No calendar on the photo (Annie, 15 Nov): she schedules from the look.
                   onDelete={() => letGo(look.id)}
                 />
               ) : (
@@ -204,7 +200,6 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
         ctaDisabled={items.length === 0}
       />
       <NewLookSheet open={newLook} onClose={() => setNewLook(false)} />
-      <DiarySheet look={diary} onClose={() => setDiary(null)} />
     </div>
   );
 }
