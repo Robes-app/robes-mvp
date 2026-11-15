@@ -63,7 +63,7 @@ export function FilterRow({
       <span aria-hidden className="h-4 w-px shrink-0 bg-rule-mid" />
       <Pill
         size="sm"
-        tone="rose"
+        tone="filter"
         selected={none}
         count={allCount}
         onClick={onAll}
@@ -77,7 +77,7 @@ export function FilterRow({
           <Pill
             key={chip.value}
             size="sm"
-            tone="rose"
+            tone="filter"
             selected={on}
             count={chip.count}
             disabled={!on && chip.count === 0}

@@ -11,7 +11,7 @@ const sizes = {
   sm: "min-h-7 px-[11px] text-[11px] after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
 } as const;
 
-export type PillTone = 'warm' | 'rose' | 'ink';
+export type PillTone = 'warm' | 'filter' | 'option';
 
 // The pill anatomy on its own, for the controls that are not toggles — a menu
 // trigger or a disclosure, which must not claim aria-pressed.
@@ -28,12 +28,12 @@ export function pillClasses({
     base,
     sizes[size],
     selected
-      ? tone === 'rose'
-        ? 'border border-accent-warm bg-accent-warm text-surface-raised'
-        : tone === 'ink'
-          ? 'border border-ink bg-ink text-bg'
-          : 'border border-selected-line bg-selected'
-      : 'border-[0.5px] border-rule-mid bg-surface-raised hover:border-border-control',
+      ? tone === 'warm'
+        ? 'border border-selected-line bg-selected'
+        : 'border border-token-line bg-surface-sunk'
+      : tone === 'filter'
+        ? 'border border-warm-line bg-transparent text-ink-faint hover:border-token-line'
+        : 'border-[0.5px] border-rule-mid bg-surface-raised hover:border-border-control',
     // A disabled chip (a count of 0) sits back at 45% with no pointer, so it reads as a value
     // that isn't here today rather than a choice she could make.
     'disabled:cursor-default disabled:opacity-45 disabled:hover:border-rule-mid',
@@ -44,10 +44,10 @@ export function pillClasses({
 export interface PillProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-pressed'> {
   selected?: boolean;
   size?: keyof typeof sizes;
-  // How a selected pill reads: Felix's warm fill (a kept choice), the Front Door's deep rose
-  // with a cream label (an active quick chip in a filter row, PRD rev 3 §2.5), or ink with a
-  // cream label (an option picked in the filter sheet). The PRD's lighter rose misses 4.5:1
-  // under an 11px label, so the darkened rose carries it (D1).
+  // Felix's warm fill (a kept choice), or a filter (Front Door 2b/3b, 15 Nov): `filter` is a quick
+  // chip in a filter row, outlined in the warm line at rest; `option` is a choice in the Filter
+  // sheet, white on the fine edge at rest. Picked, both take the one filter selection: the pale
+  // sunk fill on a 1px umber line, ink label, no check.
   tone?: PillTone;
   // A live count after the label, lighter ("Work 3").
   count?: number;
@@ -58,8 +58,8 @@ export interface PillProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>,
 
 // Felix: unselected is white on the fine 0.5px `rule-mid` with an ink label; selected is the warm
 // fill on a 1px warm line. The check stays on a selected pill though Felix drops it: the warm fill
-// alone is too close to white to carry the state (D1). A rose pill needs no check: its fill is
-// unmistakable. The native twin is ui-native Pill.tsx.
+// alone is too close to white to carry the state (D1). A filter chip needs no check: its umber
+// edge carries it. The native twin is ui-native Pill.tsx.
 export function Pill({
   selected = false,
   size = 'md',
@@ -71,7 +71,7 @@ export function Pill({
   children,
   ...rest
 }: PillProps) {
-  const rose = selected && tone !== 'warm';
+  const filter = tone !== 'warm';
   // The count is part of the name ("Work 3"): inline text nodes would otherwise run together.
   const name =
     count !== undefined && typeof children === 'string' ? `${children} ${count}` : undefined;
@@ -83,23 +83,16 @@ export function Pill({
       aria-pressed={selected}
       className={cn(pillClasses({ selected, size, tone }), className)}
     >
-      {selected && !removable && !rose ? (
+      {selected && !removable && !filter ? (
         <Icon name="check" size={size === 'sm' ? 14 : 16} />
       ) : null}
       {children}
       {count !== undefined ? (
-        <span
-          className={cn(
-            size === 'sm' ? 'text-[10px]' : 'text-[11px]',
-            rose ? 'text-surface-raised/70' : 'text-ink-faint',
-          )}
-        >
+        <span className={cn(size === 'sm' ? 'text-[10px]' : 'text-[11px]', 'text-ink-faint')}>
           {count}
         </span>
       ) : null}
-      {removable ? (
-        <Icon name="close" size={12} className={rose ? undefined : 'text-ink-muted'} />
-      ) : null}
+      {removable ? <Icon name="close" size={12} className="text-ink-muted" /> : null}
     </button>
   );
 }

@@ -108,7 +108,7 @@ export function WardrobeGrid<T extends GridItem>({
       >
         <Pill
           size="sm"
-          tone="rose"
+          tone="filter"
           selected={!searching && category === null}
           count={count(null)}
           onPress={() => choose(null)}
@@ -119,7 +119,7 @@ export function WardrobeGrid<T extends GridItem>({
           <Pill
             key={c}
             size="sm"
-            tone="rose"
+            tone="filter"
             selected={!searching && category === c}
             count={count(c)}
             onPress={() => choose(c)}
