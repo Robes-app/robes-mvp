@@ -299,6 +299,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
     usage: Usage | undefined,
     status: 'ok' | 'error' | 'timeout',
     detail: Record<string, unknown> = {},
+    kept: { prompt?: string; response?: unknown } = {},
   ) {
     if (usage)
       await deps.ledger.record({
@@ -307,6 +308,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         userId: ctx.userId,
         feature: FEATURE,
         status,
+        ...kept,
         ...(Object.keys(detail).length ? { detail } : {}),
       });
   }
@@ -331,11 +333,20 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         signal: ctx.signal,
       });
-      await record(ctx, text.usage, 'ok', { ...detail, ...auditOf?.(text.data) });
+      // What Robes asked and its answer are kept 30 days (SEC-82), so a look can be replayed.
+      await record(
+        ctx,
+        text.usage,
+        'ok',
+        { ...detail, ...auditOf?.(text.data) },
+        { prompt: `${system}\n\n${user}`, response: text.data },
+      );
       return text.data;
     } catch (err) {
       if (err instanceof AiError) {
-        await record(ctx, err.usage, err.code === 'timeout' ? 'timeout' : 'error', detail);
+        await record(ctx, err.usage, err.code === 'timeout' ? 'timeout' : 'error', detail, {
+          prompt: `${system}\n\n${user}`,
+        });
         if (err.code === 'cancelled') throw err;
         throw new JobError(`ai_${err.code}`);
       }
