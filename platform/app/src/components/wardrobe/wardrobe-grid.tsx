@@ -95,7 +95,7 @@ export function WardrobeGrid<T extends GridItem>({
       <div className="-mx-6 flex gap-1.5 overflow-x-auto px-6 pb-1 [scrollbar-width:none]">
         <Pill
           size="sm"
-          tone="rose"
+          tone="filter"
           className="shrink-0"
           selected={!searching && category === null}
           count={count(null)}
@@ -107,7 +107,7 @@ export function WardrobeGrid<T extends GridItem>({
           <Pill
             key={c}
             size="sm"
-            tone="rose"
+            tone="filter"
             className="shrink-0 whitespace-nowrap"
             selected={!searching && category === c}
             count={count(c)}

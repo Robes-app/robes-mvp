@@ -60,7 +60,7 @@ export function FilterRow({
         </Pill>
       ))}
       <View className="h-4 w-px bg-rule-mid" />
-      <Pill size="sm" tone="rose" selected={none} count={allCount} onPress={onAll}>
+      <Pill size="sm" tone="filter" selected={none} count={allCount} onPress={onAll}>
         {copy.all}
       </Pill>
       {quick.map((chip) => {
@@ -69,7 +69,7 @@ export function FilterRow({
           <Pill
             key={chip.value}
             size="sm"
-            tone="rose"
+            tone="filter"
             selected={on}
             count={chip.count}
             disabled={!on && chip.count === 0}

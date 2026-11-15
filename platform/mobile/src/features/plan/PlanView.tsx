@@ -1,6 +1,13 @@
 import type { PlanEntry } from '@robes/contracts';
 import { plan as copy, ui } from '@robes/copy';
-import { daySummary, monthLabel, shiftMonth, weekdayShort, weekGroups } from '@robes/core/calendar';
+import {
+  daySummary,
+  inviteDay,
+  monthLabel,
+  shiftMonth,
+  weekdayShort,
+  weekGroups,
+} from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import {
   Card,
@@ -149,12 +156,15 @@ function DayRow({
   name,
   entries,
   first,
+  invite,
 }: {
   date: string;
   today: string;
   name: string | null;
   entries: PlanEntry[];
   first: boolean;
+  // The one empty row that says "Name the day" (inviteDay); the others show their date alone.
+  invite: boolean;
 }) {
   const router = useRouter();
   const muted = useColor('ink-muted');
@@ -205,13 +215,15 @@ function DayRow({
         </View>
       ) : null}
       <View className="flex-1 gap-px">
-        <Text
-          numberOfLines={1}
-          className={title ? 'text-ink' : 'text-ink-faint'}
-          style={{ fontFamily: title ? fonts.displayRegular : fonts.displayItalic, fontSize: 18 }}
-        >
-          {title ?? copy.list.nameTheDay}
-        </Text>
+        {title || invite ? (
+          <Text
+            numberOfLines={1}
+            className={title ? 'text-ink' : 'text-ink-faint'}
+            style={{ fontFamily: title ? fonts.displayRegular : fonts.displayItalic, fontSize: 18 }}
+          >
+            {title ?? copy.list.nameTheDay}
+          </Text>
+        ) : null}
         {s.looks ? (
           <Text
             numberOfLines={1}
@@ -260,6 +272,7 @@ export function PlanList() {
       />
     );
   }
+  const invite = inviteDay(data.days);
   return (
     <ScrollView
       {...tabScroll}
@@ -285,6 +298,7 @@ export function PlanList() {
               name={day.name}
               entries={day.entries}
               first={i === 0}
+              invite={day.date === invite}
             />
           ))}
         </Card>
