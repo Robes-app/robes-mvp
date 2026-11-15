@@ -64,6 +64,7 @@ import { onRackIds, useLookEditor } from '@/lib/look-editor';
 import { useImageStage } from '@/lib/look-images';
 import { isDraftsFull, useLetGo, useRefreshLooks, useSaveLook } from '@/lib/look-states';
 import { useJob } from '@/lib/use-job';
+import { useWishOf } from '@/lib/wish-of';
 import { Feedback, FeedbackTokens, ThreadLines, Thumbs } from './adjust-dock';
 import { CapturePieces, CaptureRow, NewPieceSheet, RemovedLine } from './capture-rack';
 import { DayContext, DayMeta } from './day-context';
@@ -205,6 +206,9 @@ function Rack({
   onEditing,
   hasWardrobe,
   onAdd,
+  hrefOf,
+  onSwap,
+  onRemove,
   children,
 }: {
   rows: readonly RackRow[];
@@ -216,6 +220,11 @@ function Rack({
   onEditing: (next: boolean) => void;
   hasWardrobe: boolean;
   onAdd: () => void;
+  // Where a tile opens at rest (a piece's page, a wish's).
+  hrefOf?: (row: RackRow) => string | undefined;
+  // Edit mode on the grid side: each tile's swap and ×.
+  onSwap?: (row: RackRow) => void;
+  onRemove?: (row: RackRow) => void;
   // The rows, as RackRowCards.
   children: ReactNode;
 }) {
@@ -248,7 +257,12 @@ function Rack({
           on a saved look; the big card is only for an empty rack (Annie, 15 Nov). */}
       {layout === 'grid' ? (
         <>
-          <RackGrid rows={rows} imageOf={imageOf} />
+          <RackGrid
+            rows={rows}
+            imageOf={imageOf}
+            {...(hrefOf ? { hrefOf } : {})}
+            {...(editing && onSwap && onRemove ? { editing: { onSwap, onRemove } } : {})}
+          />
           <PieceList onAdd={onAdd}>{null}</PieceList>
         </>
       ) : (
@@ -994,7 +1008,17 @@ function DraftBody({
   const rows = editor.rack.rows;
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const pieceOf = (id: string) => piecesById.get(id) ?? capture.pieceOf(id);
-  const imageOf = (row: RackRow) => (row.pieceId ? pieceOf(row.pieceId)?.image : null);
+  const wishOf = useWishOf();
+  const wishFor = (row: RackRow) => wishOf(row.proposal?.wishlistItemId);
+  const imageOf = (row: RackRow) =>
+    row.pieceId ? pieceOf(row.pieceId)?.image : (wishFor(row)?.image ?? null);
+  // A wish on the rack opens its own page (Annie, 15 Nov); a proposal Robes made has none.
+  const hrefOf = (row: RackRow) =>
+    row.pieceId
+      ? `/piece/${row.pieceId}`
+      : wishFor(row)
+        ? `/wardrobe/wishlist/${row.proposal?.wishlistItemId}`
+        : undefined;
   const sendOpts = {
     balance: src.balance,
     ...(askContext ? { context: askContext } : {}),
@@ -1207,6 +1231,8 @@ function DraftBody({
           ? { wears: pieceOf(row.pieceId)?.wearCount ?? 0 }
           : {})}
         {...(row.proposal && editingPieces ? { onWish: () => editor.wish(row.key) } : {})}
+        editing={editingPieces}
+        {...(!row.pieceId && hrefOf(row) ? { wishHref: hrefOf(row) as string } : {})}
         {...(editingPieces
           ? {
               onSwap: () =>
@@ -1445,6 +1471,11 @@ function DraftBody({
                   onEditing={setEditingPieces}
                   hasWardrobe={hasWardrobe}
                   onAdd={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
+                  hrefOf={hrefOf}
+                  onSwap={(row) =>
+                    setPicker({ swap: { key: row.key, name: row.name, category: row.category } })
+                  }
+                  onRemove={(row) => editor.remove(row.key)}
                 >
                   {rackRows}
                 </Rack>

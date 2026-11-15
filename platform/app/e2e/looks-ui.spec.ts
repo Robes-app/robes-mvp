@@ -282,6 +282,9 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
   await expect(page.getByText('Draft look')).toBeVisible();
   // L10: the pencil shows the hanger (plan R2); it opens the picker on the row; Swap it in lands
   // at once; Undo (6 s) puts it back.
+  // Edit mode rocks the cards (Robes MVP 2b), and Playwright only clicks what holds still: this
+  // test is about the swap, so it runs as a browser with Reduce Motion (no rocking) would.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.getByRole('button', { name: 'Edit pieces' }).click();
   await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
   const picker = page.getByTestId('piece-picker');
