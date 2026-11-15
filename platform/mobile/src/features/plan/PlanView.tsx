@@ -24,7 +24,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
-import { TabScreen, useTabScroll } from '@/components/TabScreen';
+import { TabScreen, TabSticky, useTabScroll, useTabTop } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { readPref, writePref } from '@/lib/prefs';
 import { usePullRefresh } from '@/lib/pull-refresh';
@@ -99,6 +99,7 @@ export function PlanView() {
   const [picking, setPicking] = useState(false);
   return (
     <TabScreen
+      glass
       title={copy.title}
       toolbar={
         <Tabs
@@ -118,25 +119,28 @@ export function PlanView() {
         />
       }
     >
-      <View className="mt-[22px] mb-3 min-h-8 flex-row items-center justify-between px-5">
-        <Eyebrow accessibilityRole="header">
-          {view === 'list' ? copy.header.window(PLAN_DAYS) : monthLabel(month)}
-        </Eyebrow>
-        {view === 'month' ? (
-          <View className="flex-row gap-2">
-            <MonthStep
-              label={copy.prevMonth}
-              icon="back"
-              onPress={() => setMonth(shiftMonth(month, -1))}
-            />
-            <MonthStep
-              label={copy.nextMonth}
-              icon="forward"
-              onPress={() => setMonth(shiftMonth(month, 1))}
-            />
-          </View>
-        ) : null}
-      </View>
+      {/* Pinned with the tabs in the glass chrome, as the Lookbook's and Wardrobe's filters are. */}
+      <TabSticky className="mt-[22px] mb-3 px-5">
+        <View className="min-h-8 flex-row items-center justify-between">
+          <Eyebrow accessibilityRole="header">
+            {view === 'list' ? copy.header.window(PLAN_DAYS) : monthLabel(month)}
+          </Eyebrow>
+          {view === 'month' ? (
+            <View className="flex-row gap-2">
+              <MonthStep
+                label={copy.prevMonth}
+                icon="back"
+                onPress={() => setMonth(shiftMonth(month, -1))}
+              />
+              <MonthStep
+                label={copy.nextMonth}
+                icon="forward"
+                onPress={() => setMonth(shiftMonth(month, 1))}
+              />
+            </View>
+          ) : null}
+        </View>
+      </TabSticky>
       {stored === null ? null : view === 'list' ? (
         <PlanList />
       ) : (
@@ -254,11 +258,12 @@ function DayRow({
 // The rolling 30 days as summary rows grouped by week (legacy ff87e89): every row opens its day.
 export function PlanList() {
   const tabScroll = useTabScroll();
+  const top = useTabTop();
   const { data, isPending, isError, error, refetch } = usePlan();
   const pull = usePullRefresh(refetch);
   if (isPending) {
     return (
-      <View className="gap-3 px-5" accessibilityState={{ busy: true }}>
+      <View className="gap-3 px-5" style={{ marginTop: top }} accessibilityState={{ busy: true }}>
         <CardSkeleton />
         <CardSkeleton />
       </View>
@@ -266,10 +271,12 @@ export function PlanList() {
   }
   if (isError || !data) {
     return (
-      <EmptyState
-        title={errorMessage(error)}
-        action={{ label: ui.retry, onPress: () => void refetch() }}
-      />
+      <View style={{ paddingTop: top }}>
+        <EmptyState
+          title={errorMessage(error)}
+          action={{ label: ui.retry, onPress: () => void refetch() }}
+        />
+      </View>
     );
   }
   const invite = inviteDay(data.days);

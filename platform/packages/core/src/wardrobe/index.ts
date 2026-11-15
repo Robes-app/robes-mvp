@@ -163,3 +163,29 @@ export function suggestPieceName(p: {
   const colour = p.colourName?.trim();
   return colour ? `${colour} ${leaf.toLowerCase()}` : leaf;
 }
+
+// Her search (Robes MVP 3b), the same rule the server applies to `q`: the words as typed, anywhere
+// in the name, the brand (or the shop a wish came from) or the category, in any case. The phone
+// narrows what it holds at once; the server finds the rest.
+export function matchesSearch(
+  item: {
+    label: string;
+    brand?: string | null;
+    sourceLabel?: string | null;
+    category?: string | null;
+    categoryL2?: string | null;
+    categoryL3?: string | null;
+  },
+  query: string,
+): boolean {
+  const words = query.trim().toLowerCase();
+  if (!words) return true;
+  return [
+    item.label,
+    item.brand,
+    item.sourceLabel,
+    item.category,
+    item.categoryL2,
+    item.categoryL3,
+  ].some((v) => (v ?? '').toLowerCase().includes(words));
+}

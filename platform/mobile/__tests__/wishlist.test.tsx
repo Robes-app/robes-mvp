@@ -108,7 +108,8 @@ test('a wish reads as the rack card: Category · Brand, its price and "Not yours
     },
   });
   await renderWithApi(<WishlistView />);
-  expect(await screen.findByText('2 wishlisted')).toBeTruthy();
+  // The search row under the glass (Robes MVP 3b) stands where the count line was.
+  expect(await screen.findByLabelText(wardrobe.search.wishlist)).toBeTruthy();
   await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.grid }));
   // The 3-up tile reads the price alone (PRD rev 3 §7.2); "Not yours yet" where there is none.
   expect(await screen.findByText('€27.95')).toBeTruthy();
@@ -119,8 +120,12 @@ test('a wish reads as the rack card: Category · Brand, its price and "Not yours
   ).toBeTruthy();
   // The category chips carry their counts and narrow the grid.
   await fireEvent.press(screen.getByRole('button', { name: 'Shoes 1' }));
-  expect(await screen.findByText('1 wishlisted')).toBeTruthy();
-  expect(screen.queryByText('Silk scarf')).toBeNull();
+  await waitFor(() => expect(screen.queryByText('Silk scarf')).toBeNull());
+  await fireEvent.press(screen.getByRole('button', { name: 'Shoes 1' }));
+  // Her search finds a wish by name, brand or shop.
+  await fireEvent.changeText(screen.getByLabelText(wardrobe.search.wishlist), 'scarf');
+  expect(await screen.findByText('Silk scarf')).toBeTruthy();
+  expect(screen.queryByText('Black leather loafers')).toBeNull();
 });
 
 // A wish's page (canvas 3b, PRD rev 3 §7.3): the piece's anatomy with Brand and Shop, WEARING with

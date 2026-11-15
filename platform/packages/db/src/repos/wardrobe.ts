@@ -100,6 +100,8 @@ export interface ListPiecesQuery {
   colourFamilies?: readonly string[] | undefined;
   wearFor?: readonly string[] | string | undefined;
   brand?: string | undefined;
+  // The search field: name, brand or category holds these words (case-insensitive, as typed).
+  q?: string | undefined;
 }
 
 export type PieceFilters = Omit<ListPiecesQuery, 'limit' | 'cursor'>;
@@ -200,6 +202,14 @@ export function wardrobeRepo(db: Db) {
     }
     // Refine by brand (case-insensitive) and by what she wears it for (wear_for tags of hers).
     if (q.brand) query = query.where(sql<boolean>`lower(brand) = lower(${q.brand})`);
+    // Her search: the words as typed, anywhere in the name, brand or category (% and _ literal).
+    const words = q.q?.trim();
+    if (words) {
+      const like = `%${words.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      query = query.where(
+        sql<boolean>`(label ilike ${like} or coalesce(brand, '') ilike ${like} or coalesce(category_l2, '') ilike ${like} or coalesce(category_l3, '') ilike ${like})`,
+      );
+    }
     const wearFor = (typeof q.wearFor === 'string' ? [q.wearFor] : (q.wearFor ?? [])).map((w) =>
       w.toLowerCase(),
     );

@@ -5,6 +5,7 @@ import { Icon } from '@robes/icons/native';
 import { ErrorText, fonts, MIN_TOUCH, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
+import { useTabScroll } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { useFeatures } from '@/lib/features';
 import { DayDots } from './DayDots';
@@ -12,6 +13,7 @@ import { DayDots } from './DayDots';
 // Month view: a numeral and one dot per look in each cell; every cell opens its day.
 export function PlanMonth({ today, month }: { today: string; month: string }) {
   const router = useRouter();
+  const tabScroll = useTabScroll();
   const faint = useColor('ink-faint');
   const grid = monthGrid(month);
   const query = useApi('plan.get', { input: { from: grid.from, days: grid.days } });
@@ -28,7 +30,7 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
     grid.cells.slice(r * 7, r * 7 + 7),
   );
   return (
-    <ScrollView contentContainerClassName="gap-1 px-5 pb-12" testID="plan-month">
+    <ScrollView {...tabScroll} contentContainerClassName="gap-1 px-5 pb-12" testID="plan-month">
       {query.isError ? <ErrorText>{errorMessage(query.error)}</ErrorText> : null}
       <View className="mb-1 flex-row" importantForAccessibility="no-hide-descendants">
         {/* Beta's heads, Mon to Sun, from the one table (twin: plan-month.tsx). */}

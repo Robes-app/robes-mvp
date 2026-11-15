@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   countByCategory,
   defaultLayout,
+  matchesSearch,
   nameWithoutBrand,
   pieceEyebrow,
   rankCategories,
@@ -113,5 +114,20 @@ describe('the season in force', () => {
     expect(seasonBandOn('2026-09-30')).toBe('spring_summer');
     expect(seasonBandOn('2026-10-01')).toBe('autumn_winter');
     expect(seasonBandOn('2027-01-15')).toBe('autumn_winter');
+  });
+});
+
+// Her search (Robes MVP 3b): the words anywhere in the name, brand, shop or category, any case.
+describe('matchesSearch', () => {
+  const coat = { label: 'Camel wool coat', brand: 'Toteme', categoryL2: 'Coats' };
+  it('finds the words in the name, the brand or the category, in any case', () => {
+    expect(matchesSearch(coat, 'WOOL')).toBe(true);
+    expect(matchesSearch(coat, 'toteme')).toBe(true);
+    expect(matchesSearch(coat, 'coats')).toBe(true);
+    expect(matchesSearch({ label: 'Loafers', sourceLabel: 'Net-a-Porter' }, 'porter')).toBe(true);
+  });
+  it('lets everything through with no words, and nothing that holds none of them', () => {
+    expect(matchesSearch(coat, '  ')).toBe(true);
+    expect(matchesSearch(coat, 'scarf')).toBe(false);
   });
 });
