@@ -36,7 +36,7 @@ import { createLogger } from '@robes/logger';
 import { createMailer, type Mailer } from '@robes/mailer';
 import { createMediaBucket, createMediaStorage, type MediaStorage } from '@robes/media/storage';
 import { storeFetchedPhoto } from './photos';
-import { tracedLedger } from './tracing';
+import { tracedLedger, traceShare } from './tracing';
 
 export interface WorkerContext {
   system: SystemRepositories;
@@ -106,11 +106,12 @@ async function createWorkerContext(): Promise<WorkerContext> {
   });
   const system = createSystemRepositories(db);
   const { consents, admin } = createRepositories(db);
-  const ledger = tracedLedger(
-    system.ledger,
-    async (userId) => (await consents.current(verifiedUserId(userId))).analytics === true,
-    (userId) => admin.isAdmin(verifiedUserId(userId)),
-  );
+  const ledger = tracedLedger(system.ledger, async (id) => {
+    const userId = verifiedUserId(id);
+    const answers = await consents.current(userId);
+    // Only a call that could send something asks whether the account is the team's own.
+    return traceShare(answers, answers.analytics === true && (await admin.isAdmin(userId)));
+  });
   const logger = createLogger({ service: 'robes-workers' });
   const storage = env.MEDIA_BUCKET
     ? createMediaStorage(

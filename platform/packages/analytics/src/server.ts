@@ -87,8 +87,12 @@ export function createServerAnalytics(deps: {
   };
 }
 
-// One model call as PostHog LLM analytics reads it. Numbers, enums and ids only, unless the caller
-// passes `text`: her prompt and its answer otherwise stay in the 30-day ledger columns (SEC-82).
+// What of a model call may leave for PostHog, by her own answers: nothing, the numbers (usage
+// counts), or the numbers with what Robes asked and its answer (Share my looks with Robes).
+export type TraceShare = 'none' | 'numbers' | 'text';
+
+// One model call as PostHog LLM analytics reads it: numbers, enums and ids, and `text` when the
+// ledger kept it. The tracer drops `text` unless she shares it.
 export interface GenerationTrace {
   // Every call made for one job shares its id, so PostHog groups them as one trace.
   traceId: string;
@@ -103,25 +107,26 @@ export interface GenerationTrace {
   status: 'ok' | 'partial' | 'timeout' | 'error' | 'cancelled';
   // What code checked of the answer (`detail.checks` on the ledger): each becomes a trace metric.
   checks?: Record<string, number | boolean>;
-  // What Robes asked and its answer. The caller passes them only for an account allowed to share
-  // them (today the team's own); for everyone else PostHog never sees her words.
+  // What Robes asked and its answer: sent only at share level 'text'.
   text?: { input?: string | undefined; output?: unknown };
 }
 
 export interface GenerationTracer {
-  // Sends nothing unless that user has granted analytics consent; never throws.
+  // Sends what `shares` allows for that user, nothing at 'none'; never throws.
   record(userId: string, call: GenerationTrace): Promise<void>;
 }
 
 export function createGenerationTracer(deps: {
   client: ServerAnalyticsClient;
-  hasConsent(userId: string): Promise<boolean>;
+  shares(userId: string): Promise<TraceShare>;
   environment: string;
 }): GenerationTracer {
   return {
     async record(userId, call) {
       try {
-        if (!(await deps.hasConsent(userId))) return;
+        const share = await deps.shares(userId);
+        if (share === 'none') return;
+        const text = share === 'text' ? call.text : undefined;
         const base = {
           $ai_trace_id: call.traceId,
           $process_person_profile: false,
@@ -142,14 +147,10 @@ export function createGenerationTracer(deps: {
             $ai_is_error: call.status === 'error' || call.status === 'timeout',
             status: call.status,
             images: call.images,
-            ...(call.text?.input
-              ? { $ai_input: [{ role: 'user', content: call.text.input }] }
-              : {}),
-            ...(call.text?.output !== undefined
+            ...(text?.input ? { $ai_input: [{ role: 'user', content: text.input }] } : {}),
+            ...(text?.output !== undefined
               ? {
-                  $ai_output_choices: [
-                    { role: 'assistant', content: JSON.stringify(call.text.output) },
-                  ],
+                  $ai_output_choices: [{ role: 'assistant', content: JSON.stringify(text.output) }],
                 }
               : {}),
           },

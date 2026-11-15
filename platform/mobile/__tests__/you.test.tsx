@@ -140,12 +140,14 @@ test('turning usage counts off also withdraws recordings', async () => {
       replay: true,
       marketing_email: null,
       photo_analysis: null,
+      look_sharing: null,
     },
     'POST /me/consents': {
       analytics: false,
       replay: false,
       marketing_email: null,
       photo_analysis: null,
+      look_sharing: null,
     },
   });
   await renderWithApi(<Privacy />);
@@ -155,6 +157,27 @@ test('turning usage counts off also withdraws recordings', async () => {
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     source: 'ios',
     consents: { analytics: false, replay: false },
+  });
+});
+
+test('sharing her looks is its own yes, with no usage counts needed', async () => {
+  const unanswered = {
+    analytics: false,
+    replay: false,
+    marketing_email: null,
+    photo_analysis: null,
+    look_sharing: null,
+  };
+  const calls = mockFetch({
+    'GET /me/consents': unanswered,
+    'POST /me/consents': { ...unanswered, look_sharing: true },
+  });
+  await renderWithApi(<Privacy />);
+  await fireEvent.press(await screen.findByLabelText(consent.sharingLabel));
+  await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
+  expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+    source: 'ios',
+    consents: { look_sharing: true },
   });
 });
 
@@ -175,6 +198,7 @@ test('Download your data: prepare, then the ready file opens to download (SEC-81
       replay: false,
       marketing_email: null,
       photo_analysis: null,
+      look_sharing: null,
     },
     'GET /me/exports': () => ({
       export: ready ? exp({ status: 'ready', downloadUrl: 'https://files.test/robes.zip' }) : null,

@@ -42,6 +42,14 @@ export function PrivacyForm() {
           disabled={status === 'saving' || !analytics}
           onChange={(on) => save({ replay: on })}
         />
+        {/* Its own yes, whatever usage counts say. Native twin: features/you/Privacy.tsx. */}
+        <SettingsToggleRow
+          label={copy.sharingLabel}
+          sub={copy.sharingHint}
+          checked={shown.look_sharing === true}
+          disabled={status === 'saving'}
+          onChange={(on) => save({ look_sharing: on })}
+        />
       </SettingsGroup>
       <p role="status" className="min-h-5 text-sm text-ink-muted">
         {status === 'saving' ? copy.saving : status === 'saved' ? copy.saved : ''}

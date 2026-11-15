@@ -39,13 +39,7 @@ describe('traced ledger', () => {
     vi.stubEnv('POSTHOG_KEY', '');
     const { tracedLedger } = await import('./tracing');
     const inner = ledger();
-    expect(
-      tracedLedger(
-        inner,
-        async () => true,
-        async () => true,
-      ),
-    ).toBe(inner);
+    expect(tracedLedger(inner, async () => 'text')).toBe(inner);
   });
 
   it('records first, then mirrors the call without its prompt, answer or words', async () => {
@@ -53,11 +47,7 @@ describe('traced ledger', () => {
     vi.stubEnv('POSTHOG_KEY', 'phc_w');
     const { tracedLedger } = await import('./tracing');
     const inner = ledger();
-    await tracedLedger(
-      inner,
-      async () => true,
-      async () => false,
-    ).record(call);
+    await tracedLedger(inner, async () => 'numbers').record(call);
     expect(inner.record).toHaveBeenCalledWith(call);
     expect(captureImmediate.mock.calls.map(([m]) => m.event)).toEqual([
       '$ai_generation',
@@ -68,38 +58,37 @@ describe('traced ledger', () => {
     expect(sent).not.toMatch(/her words|ways|never sent|owned/);
   });
 
-  it('mirrors nothing for a call outside a job, or without her consent', async () => {
+  it('mirrors nothing for a call outside a job, or when she shares nothing', async () => {
     vi.stubEnv('APP_ENV', 'staging');
     vi.stubEnv('POSTHOG_KEY', 'phc_w');
     const { tracedLedger } = await import('./tracing');
-    await tracedLedger(
-      ledger(),
-      async () => true,
-      async () => true,
-    ).record({
+    await tracedLedger(ledger(), async () => 'text').record({
       ...call,
       jobId: undefined,
     });
-    await tracedLedger(
-      ledger(),
-      async () => false,
-      async () => true,
-    ).record(call);
+    await tracedLedger(ledger(), async () => 'none').record(call);
     expect(captureImmediate).not.toHaveBeenCalled();
   });
 
-  it('sends the prompt and its answer for a team account, and still never the detail', async () => {
+  it('sends the prompt and its answer when she shares her looks, and still never the detail', async () => {
     vi.stubEnv('APP_ENV', 'staging');
     vi.stubEnv('POSTHOG_KEY', 'phc_w');
     const { tracedLedger } = await import('./tracing');
-    await tracedLedger(
-      ledger(),
-      async () => true,
-      async () => true,
-    ).record(call);
+    await tracedLedger(ledger(), async () => 'text').record(call);
     const sent = JSON.stringify(captureImmediate.mock.calls[0]);
     expect(sent).toContain('"$ai_input":[{"role":"user","content":"her words"}]');
     expect(sent).toContain('$ai_output_choices');
     expect(sent).not.toMatch(/never sent/);
+  });
+
+  it('reads what may leave from her answers', async () => {
+    const { traceShare } = await import('./tracing');
+    expect(traceShare({}, false)).toBe('none');
+    expect(traceShare({ analytics: false }, true)).toBe('none');
+    expect(traceShare({ analytics: true }, false)).toBe('numbers');
+    expect(traceShare({ analytics: true }, true)).toBe('text');
+    // Her yes to sharing looks stands without usage counts; turning it off stops the words.
+    expect(traceShare({ look_sharing: true }, false)).toBe('text');
+    expect(traceShare({ analytics: true, look_sharing: false }, false)).toBe('numbers');
   });
 });

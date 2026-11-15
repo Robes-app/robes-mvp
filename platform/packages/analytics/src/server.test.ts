@@ -76,17 +76,21 @@ describe('generation tracer', () => {
     costMicros: 750,
     status: 'ok' as const,
   };
-  function tracer(consented: boolean) {
-    const { client, hasConsent } = setup(consented);
+  function tracer(share: 'none' | 'numbers' | 'text') {
+    const { client } = setup(true);
     return {
       client,
-      tracer: createGenerationTracer({ client, hasConsent, environment: 'staging' }),
+      tracer: createGenerationTracer({ client, shares: async () => share, environment: 'staging' }),
     };
   }
 
   it('sends one generation and a metric per check, with numbers and ids only', async () => {
-    const { client, tracer: t } = tracer(true);
-    await t.record('u1', { ...call, checks: { complete: true, label_mismatch: 1 } });
+    const { client, tracer: t } = tracer('numbers');
+    await t.record('u1', {
+      ...call,
+      checks: { complete: true, label_mismatch: 1 },
+      text: { input: 'her words', output: { ways: [] } },
+    });
     expect((client.captureImmediate.mock.calls as unknown[][]).map((c) => c[0])).toEqual([
       {
         distinctId: 'u1',
@@ -125,14 +129,27 @@ describe('generation tracer', () => {
     ]);
   });
 
-  it('sends nothing without analytics consent', async () => {
-    const { client, tracer: t } = tracer(false);
-    await t.record('u2', call);
+  it('sends nothing when she shares nothing', async () => {
+    const { client, tracer: t } = tracer('none');
+    await t.record('u2', { ...call, text: { input: 'her words' } });
     expect(client.captureImmediate).not.toHaveBeenCalled();
   });
 
+  it('sends what Robes asked and its answer only when she shares her looks', async () => {
+    const { client, tracer: t } = tracer('text');
+    await t.record('u3', { ...call, text: { input: 'her words', output: { ways: [] } } });
+    expect(client.captureImmediate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        properties: expect.objectContaining({
+          $ai_input: [{ role: 'user', content: 'her words' }],
+          $ai_output_choices: [{ role: 'assistant', content: '{"ways":[]}' }],
+        }),
+      }),
+    );
+  });
+
   it('never throws when PostHog is down', async () => {
-    const { client, tracer: t } = tracer(true);
+    const { client, tracer: t } = tracer('numbers');
     client.captureImmediate.mockRejectedValueOnce(new Error('down'));
     await expect(t.record('u1', { ...call, status: 'timeout' })).resolves.toBeUndefined();
   });

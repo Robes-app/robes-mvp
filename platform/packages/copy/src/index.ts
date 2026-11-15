@@ -294,6 +294,11 @@ export const consent = {
   replayLabel: 'Screen recordings',
   replayHint:
     'Recordings of how you move through Robes, with every word, photo and typed answer hidden. Needs usage counts.',
+  // Her words and the looks made from them, shared with PostHog (owner, 15 Nov). Its own yes:
+  // it needs no usage counts, and turning it off stops anything new being shared.
+  sharingLabel: 'Share my looks with Robes',
+  sharingHint:
+    'What you ask for and what Robes styles, with your facts, so the looks keep improving.',
   saving: 'Saving…',
   saved: 'Saved.',
   back: 'Back to Today',
