@@ -6,6 +6,7 @@ import {
   createRepositories,
   createSystemRepositories,
   type SystemRepositories,
+  verifiedUserId,
 } from '@robes/db';
 import {
   createAnchorRenderer,
@@ -35,6 +36,7 @@ import { createLogger } from '@robes/logger';
 import { createMailer, type Mailer } from '@robes/mailer';
 import { createMediaBucket, createMediaStorage, type MediaStorage } from '@robes/media/storage';
 import { storeFetchedPhoto } from './photos';
+import { tracedLedger } from './tracing';
 
 export interface WorkerContext {
   system: SystemRepositories;
@@ -103,6 +105,11 @@ async function createWorkerContext(): Promise<WorkerContext> {
     applicationName: 'robes-worker',
   });
   const system = createSystemRepositories(db);
+  const consents = createRepositories(db).consents;
+  const ledger = tracedLedger(
+    system.ledger,
+    async (userId) => (await consents.current(verifiedUserId(userId))).analytics === true,
+  );
   const logger = createLogger({ service: 'robes-workers' });
   const storage = env.MEDIA_BUCKET
     ? createMediaStorage(
@@ -144,13 +151,13 @@ async function createWorkerContext(): Promise<WorkerContext> {
     storage && ai
       ? {
           linkImport,
-          wardrobeAnalyse: { ai, storage, pieces: system.pieces, ledger: system.ledger },
+          wardrobeAnalyse: { ai, storage, pieces: system.pieces, ledger },
           // Crops land as uploads, so the S3 event renders them.
           wardrobePieces: {
             ai,
             storage,
             reads: system.photoReads,
-            ledger: system.ledger,
+            ledger,
             ...(onGenerated ? { onGenerated } : {}),
           },
           stylePiece: {
@@ -161,7 +168,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
             cells: system.modelRender,
             forecast: createDayForecast(),
             destination: createDestinationWeather(),
-            ledger: system.ledger,
+            ledger,
           },
           lookRender: {
             ai,
@@ -170,7 +177,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
             frames: system.frames,
             model: system.modelRender,
             suggested: system.suggested,
-            ledger: system.ledger,
+            ledger,
             ...(onGenerated ? { onGenerated } : {}),
           },
           lookAsk: {
@@ -178,20 +185,20 @@ async function createWorkerContext(): Promise<WorkerContext> {
             styling: system.styling,
             suggested: system.suggested,
             lookPrompt: system.lookPrompt,
-            ledger: system.ledger,
+            ledger,
           },
           receiptRead: {
             ai,
             storage,
             intake: system.inboxIntake,
             assets: system.assets,
-            ledger: system.ledger,
+            ledger,
           },
           avatarCell: {
             ai,
             storage,
             cells: system.avatarCells,
-            ledger: system.ledger,
+            ledger,
             twin: {
               storage,
               model: system.modelRender,
@@ -199,26 +206,26 @@ async function createWorkerContext(): Promise<WorkerContext> {
               ...(onGenerated ? { onGenerated } : {}),
             },
           },
-          styleAnalyse: { ai, storage, profiles: system.styleAnalysis, ledger: system.ledger },
+          styleAnalyse: { ai, storage, profiles: system.styleAnalysis, ledger },
           styleBrief: {
             ai,
             brief: system.styleBrief,
             styling: system.styling,
-            ledger: system.ledger,
+            ledger,
           },
           // Frames land as uploads, so the S3 event renders them (no onGenerated).
           daily: {
             ai,
             storage,
             styling: system.styling,
-            ledger: system.ledger,
+            ledger,
             weather: createWeather(),
             destination: createDestinationWeather(),
           },
           travel: {
             ai,
             styling: system.styling,
-            ledger: system.ledger,
+            ledger,
             tripWeather: createTripWeather(),
           },
         }
@@ -298,7 +305,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
           ai,
           storage,
           styling: system.styling,
-          ledger: system.ledger,
+          ledger,
           weather: createWeather(),
         },
         batch: createJobBatch({ appEnv: env.APP_ENV, geminiApiKey }),
@@ -326,7 +333,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
         ai,
         storage,
         intake: system.inboxIntake,
-        ledger: system.ledger,
+        ledger,
         domain,
         logger,
         ...(requestPhoto ? { requestPhoto } : {}),

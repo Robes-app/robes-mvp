@@ -87,6 +87,80 @@ export function createServerAnalytics(deps: {
   };
 }
 
+// One model call as PostHog LLM analytics reads it. Numbers, enums and ids only: never a prompt,
+// an answer, her words or a piece's name. Those stay in the 30-day ledger columns (SEC-82).
+export interface GenerationTrace {
+  // Every call made for one job shares its id, so PostHog groups them as one trace.
+  traceId: string;
+  feature: string;
+  provider: string;
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  images: number;
+  latencyMs: number;
+  costMicros: number;
+  status: 'ok' | 'partial' | 'timeout' | 'error' | 'cancelled';
+  // What code checked of the answer (`detail.checks` on the ledger): each becomes a trace metric.
+  checks?: Record<string, number | boolean>;
+}
+
+export interface GenerationTracer {
+  // Sends nothing unless that user has granted analytics consent; never throws.
+  record(userId: string, call: GenerationTrace): Promise<void>;
+}
+
+export function createGenerationTracer(deps: {
+  client: ServerAnalyticsClient;
+  hasConsent(userId: string): Promise<boolean>;
+  environment: string;
+}): GenerationTracer {
+  return {
+    async record(userId, call) {
+      try {
+        if (!(await deps.hasConsent(userId))) return;
+        const base = {
+          $ai_trace_id: call.traceId,
+          $process_person_profile: false,
+          environment: deps.environment,
+        };
+        await deps.client.captureImmediate({
+          distinctId: userId,
+          event: '$ai_generation',
+          properties: {
+            ...base,
+            $ai_span_name: call.feature,
+            $ai_provider: call.provider,
+            $ai_model: call.model,
+            $ai_input_tokens: call.tokensIn,
+            $ai_output_tokens: call.tokensOut,
+            $ai_latency: call.latencyMs / 1000,
+            $ai_total_cost_usd: call.costMicros / 1_000_000,
+            $ai_is_error: call.status === 'error' || call.status === 'timeout',
+            status: call.status,
+            images: call.images,
+          },
+          disableGeoip: true,
+        });
+        for (const [name, value] of Object.entries(call.checks ?? {})) {
+          await deps.client.captureImmediate({
+            distinctId: userId,
+            event: '$ai_metric',
+            properties: {
+              ...base,
+              $ai_metric_name: `${call.feature}.${name}`,
+              $ai_metric_value: String(value),
+            },
+            disableGeoip: true,
+          });
+        }
+      } catch {
+        // Tracing must never fail the job it describes.
+      }
+    },
+  };
+}
+
 export const noopServerAnalytics: ServerAnalytics = {
   async capture() {},
   async shutdown() {},

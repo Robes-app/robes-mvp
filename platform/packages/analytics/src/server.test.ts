@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createErrorReporter,
+  createGenerationTracer,
   createServerAnalytics,
   type ServerAnalyticsClient,
   scrubExceptions,
@@ -60,4 +61,79 @@ it('strips email addresses from exception messages (SEC-83)', () => {
   const event = { properties: { $exception_list: [{ value: 'no user niall@example.com' }] } };
   expect(scrubExceptions(event)?.properties.$exception_list[0]?.value).toBe('no user [redacted]');
   expect(scrubExceptions(null)).toBeNull();
+});
+
+describe('generation tracer', () => {
+  const call = {
+    traceId: 'job-1',
+    feature: 'style.piece',
+    provider: 'google',
+    model: 'gemini-3.1-flash-lite',
+    tokensIn: 1200,
+    tokensOut: 300,
+    images: 0,
+    latencyMs: 2500,
+    costMicros: 750,
+    status: 'ok' as const,
+  };
+  function tracer(consented: boolean) {
+    const { client, hasConsent } = setup(consented);
+    return {
+      client,
+      tracer: createGenerationTracer({ client, hasConsent, environment: 'staging' }),
+    };
+  }
+
+  it('sends one generation and a metric per check, with numbers and ids only', async () => {
+    const { client, tracer: t } = tracer(true);
+    await t.record('u1', { ...call, checks: { complete: true, label_mismatch: 1 } });
+    expect((client.captureImmediate.mock.calls as unknown[][]).map((c) => c[0])).toEqual([
+      {
+        distinctId: 'u1',
+        event: '$ai_generation',
+        properties: {
+          $ai_trace_id: 'job-1',
+          $process_person_profile: false,
+          environment: 'staging',
+          $ai_span_name: 'style.piece',
+          $ai_provider: 'google',
+          $ai_model: 'gemini-3.1-flash-lite',
+          $ai_input_tokens: 1200,
+          $ai_output_tokens: 300,
+          $ai_latency: 2.5,
+          $ai_total_cost_usd: 0.00075,
+          $ai_is_error: false,
+          status: 'ok',
+          images: 0,
+        },
+        disableGeoip: true,
+      },
+      expect.objectContaining({
+        event: '$ai_metric',
+        properties: expect.objectContaining({
+          $ai_trace_id: 'job-1',
+          $ai_metric_name: 'style.piece.complete',
+          $ai_metric_value: 'true',
+        }),
+      }),
+      expect.objectContaining({
+        properties: expect.objectContaining({
+          $ai_metric_name: 'style.piece.label_mismatch',
+          $ai_metric_value: '1',
+        }),
+      }),
+    ]);
+  });
+
+  it('sends nothing without analytics consent', async () => {
+    const { client, tracer: t } = tracer(false);
+    await t.record('u2', call);
+    expect(client.captureImmediate).not.toHaveBeenCalled();
+  });
+
+  it('never throws when PostHog is down', async () => {
+    const { client, tracer: t } = tracer(true);
+    client.captureImmediate.mockRejectedValueOnce(new Error('down'));
+    await expect(t.record('u1', { ...call, status: 'timeout' })).resolves.toBeUndefined();
+  });
 });

@@ -416,7 +416,7 @@ describe('key_piece handler (suggested looks)', () => {
     const ai = createFakeProvider({
       'looks.style_piece': () => ({ ...fake(), occasion: 'The Office' }),
     });
-    const { run, suggested, writeStage, generateJson } = setup(ai);
+    const { run, suggested, writeStage, generateJson, ledger } = setup(ai);
     // No day: still one draft, for no day (look prompt PRD D6).
     await expect(
       run({ mode: 'prompt', draft: true, prompt: 'the office, then drinks' }),
@@ -432,6 +432,20 @@ describe('key_piece handler (suggested looks)', () => {
     expect(writeStage).toHaveBeenCalledWith(
       'text',
       expect.objectContaining({ lookIds: ['l0'], occasion: 'the office' }),
+    );
+    // One look carries what code checked of it, as counts and booleans.
+    expect(ledger.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: expect.objectContaining({
+          checks: {
+            complete: expect.any(Boolean),
+            sources_obeyed: expect.any(Boolean),
+            label_mismatch: expect.any(Number),
+            owned: expect.any(Number),
+            proposed: expect.any(Number),
+          },
+        }),
+      }),
     );
   });
 
