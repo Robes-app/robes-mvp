@@ -8,7 +8,7 @@ import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootLayout from '../src/app/_layout';
 import AddPiecesSheet from '../src/app/wardrobe/add';
-import { FORM_SHEET } from '../src/components/FormSheetScreen';
+import { DRAFT_SHEET, FORM_SHEET } from '../src/components/FormSheetScreen';
 import { api } from '../src/lib/api';
 import { ME, mockFetch, newQueryClient } from './support/api';
 import { mockRouter } from './support/router';
@@ -26,12 +26,16 @@ jest.mock('../src/global.css', () => ({}));
 jest.mock('expo-font', () => ({ useFonts: () => [true, null] }));
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
 
+// It moves between two heights, so iOS's own grabber shows; the draft has one height and none.
 test('Add pieces pulls up as a sheet', async () => {
   await render(<RootLayout />);
   const options = (name: string) => mockScreens.find((s) => s.name === name)?.options;
   expect(options('wardrobe/add')).toBe(FORM_SHEET);
   expect(FORM_SHEET).toEqual(
-    expect.objectContaining({ presentation: 'formSheet', sheetGrabberVisible: false }),
+    expect.objectContaining({ presentation: 'formSheet', sheetGrabberVisible: true }),
+  );
+  expect(DRAFT_SHEET).toEqual(
+    expect.objectContaining({ sheetGrabberVisible: false, sheetAllowedDetents: [1] }),
   );
 });
 

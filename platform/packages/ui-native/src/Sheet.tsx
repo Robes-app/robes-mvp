@@ -298,7 +298,7 @@ export function Sheet({
           ) : null}
           {glass ? (
             <View {...drag.panHandlers} className="mb-5 pt-3">
-              <GlassHead glass={glass} onClose={onClose} />
+              <SheetHead {...glass} onClose={onClose} />
             </View>
           ) : done !== undefined ? (
             <View {...drag.panHandlers} className="mb-6 pt-3">
@@ -405,9 +405,10 @@ function Rows({ rows }: { rows: readonly SheetRow[] }) {
 
 // The glass sheet's header: the 36pt × disc, the title in the medium sans at 15 (the one bold
 // line on a glass sheet), and the text action at the right, ink while it can act, faint while
-// it can't. A spacer keeps the title centred when there is no action.
-function GlassHead({ glass, onClose }: { glass: GlassHeader; onClose: () => void }) {
-  const { title, action } = glass;
+// it can't. A spacer keeps the title centred when there is no action. Every sheet that pulls up
+// with a title wears it, the native route sheets too (FormSheetScreen), so Add pieces has one head
+// however it was opened (UX audit, 15 Nov).
+export function SheetHead({ title, action, onClose }: GlassHeader & { onClose: () => void }) {
   return (
     <View className="h-10 flex-row items-center justify-between gap-3">
       <CloseDisc label={ui.close} onPress={onClose} />
