@@ -22,9 +22,10 @@ export const lookbook = {
   title: 'Lookbook',
   tabs: { saved: 'Saved', suggested: 'Suggested' },
   newLook: 'New look',
-  // The New Look sheet (Front Door PRD rev 3 §5.5): three doors on glass.
+  // The New Look sheet (Front Door PRD rev 3 §5.5): three doors on glass. The first says Create,
+  // as Home's day does (Annie, audit notes 15 Nov).
   newLookSheet: {
-    describe: 'Describe',
+    describe: 'Create',
     photo: 'Photo',
     fromPieces: 'From pieces',
   },
