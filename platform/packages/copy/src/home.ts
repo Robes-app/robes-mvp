@@ -250,16 +250,9 @@ export const diary = {
   day: {
     home: 'Home',
     name: 'Name the day',
-    looksFor: 'Looks for the day',
-    count: (n: number): string => `${n} ${look(n)}`,
-    ootd: 'The OOTD',
-    look: (n: number): string => `Look ${n}`,
-    makeOotd: (name: string): string => `Make ${name} the OOTD`,
-    isOotd: 'The OOTD on home',
-    takeOff: (name: string): string => `Take ${name} off the day`,
-    add: 'Add a look',
-    weather: (city: string | null, condition: string, range: string): string =>
-      [city, condition, range].filter(Boolean).join(' · '),
+    // The day card's place chip (design "Diary & Day", 14 Nov).
+    place: (city: string): string => `Change where you are that day, now ${city}`,
+    addPlace: 'Add a location',
   },
   look: {
     saved: 'Saved look',

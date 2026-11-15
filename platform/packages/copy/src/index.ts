@@ -713,14 +713,6 @@ export const plan = {
   activityPlaceholder: 'Dinner, the office',
   saveActivity: 'Save',
   unpin: (name: string): string => `Take ${name} off this day`,
-  unpinned: 'Taken off the day.',
-  empty: {
-    title: 'Nothing planned',
-    titleEm: 'yet.',
-    // Beta's empty diary with the trip hidden (legacy _dyListHtml).
-    body: 'Name a day below and add a look. The diary keeps the dates; the lookbook keeps the looks.',
-    action: 'Go to Lookbook',
-  },
   monthCaption: 'Month reads the shape of it. List is where you plan.',
   // A past day on the web's month card: what it held, never a fraction.
   monthFiled: (pieces: number): string =>
@@ -753,7 +745,6 @@ export const plan = {
   // The day page: the one door every day opens (legacy ff87e89).
   day: {
     back: (label: string): string => label,
-    rename: 'Rename the day',
     name: 'Name the day',
     planned: 'Looks planned',
     filed: 'Looks filed',

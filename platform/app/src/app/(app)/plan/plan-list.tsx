@@ -5,7 +5,7 @@ import type { PlanEntry } from '@robes/contracts';
 import { plan } from '@robes/copy';
 import { daySummary, weekdayShort, weekGroups } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
-import { EmptyState, ErrorText, Skeleton } from '@robes/ui';
+import { ErrorText, Skeleton } from '@robes/ui';
 import Link from 'next/link';
 import { LookImage } from '@/components/looks/look-image';
 import { errorCopy } from '@/lib/error-copy';
@@ -23,19 +23,8 @@ export function PlanList({ today }: { today: string }) {
     return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   if (!query.data) return <PlanSkeleton />;
-  const any = query.data.days.some((d) => d.entries.length > 0 || d.name);
   return (
     <div className="flex flex-col gap-3">
-      {any ? null : (
-        <EmptyState
-          title={
-            <>
-              {plan.empty.title} <em>{plan.empty.titleEm}</em>
-            </>
-          }
-          body={plan.empty.body}
-        />
-      )}
       {weekGroups(query.data.days, today).map((g) => {
         const label = g.range ?? (g.wholeWeek ? plan.list.thisWeek : plan.list.restOfWeek);
         return (

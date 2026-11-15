@@ -1,6 +1,6 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
-import { type Diary, type DiaryDraft, type Look, Today } from '@robes/contracts';
+import { DayCard, type Diary, type DiaryDraft, type Look, Today } from '@robes/contracts';
 import { DIARY_PAGE, diaryWindow } from '@robes/core/calendar';
 import type { UserId } from '@robes/db';
 import { z } from 'zod';
@@ -11,7 +11,7 @@ import { toJobSnapshot } from './jobs';
 import { toIdeas } from './looks';
 import { toLooks } from './looks-entity';
 import { entriesOn, loadPlan, todayIn } from './plan';
-import { loadDiaryWeather } from './weather';
+import { inForecast, loadDiaryWeather } from './weather';
 
 // A key_piece job the prompt box started (plan 2026-11-03): it lives in the day's slot as the
 // draft tile, never in the tray.
@@ -145,5 +145,55 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
       : null,
     home: await loadHome(userId, profile, looks),
     diary,
+  });
+}
+
+// One day as the Diary's day card draws it (design "Diary & Day", 14 Nov): the same day Home shows
+// — her name for it, where she is, that place's weather while the forecast reaches it, its looks
+// and the draft Robes is making — for any date, with her home city for the place chip.
+export async function loadDayCard(
+  userId: UserId,
+  date: string,
+  now = new Date(),
+): Promise<DayCard> {
+  const profile = await repos.profiles.get(userId);
+  if (!profile) throw new ApiError('not_found');
+  const today = todayIn(profile.timezone, now);
+  const ahead = date >= today;
+  const [plan, places, jobs, draftRows] = await Promise.all([
+    loadPlan(userId, date, 1),
+    repos.plan.places(userId, date, date),
+    ahead ? repos.jobs.recent(userId, ['key_piece'], TRAY_LIMIT + 3) : [],
+    ahead ? repos.looks.draftsFor(userId, date, date) : [],
+  ]);
+  const look = (await toLooks(userId, draftRows)).find((l) => l.dateHint === date) ?? null;
+  const job = jobs.find(
+    (j) => (j.status === 'queued' || j.status === 'running') && draftJobDate(j, today) === date,
+  );
+  const at = places[0];
+  const place = at ? { city: at.city, country: at.country, lat: at.lat, lon: at.lon } : null;
+  const weather = inForecast(date, today)
+    ? await loadDiaryWeather(
+        [{ date, place }],
+        {
+          city: profile.homeCity,
+          lat: profile.homeLat === null ? null : Number(profile.homeLat),
+          lon: profile.homeLon === null ? null : Number(profile.homeLon),
+        },
+        { from: date, to: date },
+      )
+    : null;
+  // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
+  return DayCard.parse({
+    today,
+    home: profile.homeCity,
+    day: {
+      date,
+      name: plan.days[0]?.name ?? null,
+      place,
+      weather: weather?.get(date) ?? null,
+      entries: plan.days[0]?.entries ?? [],
+      draft: look || job ? { look, jobId: job?.id ?? null } : null,
+    },
   });
 }

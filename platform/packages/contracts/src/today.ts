@@ -117,6 +117,16 @@ export type DiaryDay = z.infer<typeof DiaryDay>;
 export const Diary = z.object({ from: z.iso.date(), to: z.iso.date(), days: z.array(DiaryDay) });
 export type Diary = z.infer<typeof Diary>;
 
+// The Diary's day card (design "Diary & Day", 14 Nov): one day as Home draws it, for any date.
+// `today` is her calendar date, and `home` her home city, which names the place chip on a day the
+// forecast does not reach.
+export const DayCard = z.object({
+  today: z.iso.date(),
+  home: z.string().nullable(),
+  day: DiaryDay,
+});
+export type DayCard = z.infer<typeof DayCard>;
+
 export const Today = z.object({
   // Her calendar date (her timezone) and local hour, for the greeting.
   date: z.iso.date(),

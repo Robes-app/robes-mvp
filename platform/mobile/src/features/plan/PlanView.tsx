@@ -10,7 +10,7 @@ import {
   fonts,
   IconButton,
   MIN_TOUCH,
-  SegmentedControl,
+  Tabs,
   Text,
   useColor,
 } from '@robes/ui-native';
@@ -78,8 +78,11 @@ function MonthStep({
   );
 }
 
-// The Diary tab (beta parity canvas, 04 Diary): the List | Month track and the + pinned under
-// the header; the eyebrow names the window, or the month with its ‹ › on Month.
+const TABS = [copy.view.list, copy.view.month] as const;
+
+// The Diary tab (design "Diary & Day", 14 Nov; web twin plan-view.tsx): List · Month as the
+// underline Tabs the Lookbook and the Wardrobe carry, the framed + at the rail's end, pinned
+// under the header; the eyebrow names the window, or the month with its ‹ › on Month.
 export function PlanView() {
   const [stored, setView] = usePlanView();
   const view = stored ?? 'list';
@@ -91,19 +94,21 @@ export function PlanView() {
     <TabScreen
       title={copy.title}
       toolbar={
-        <View className="flex-row items-center justify-between gap-4">
-          <SegmentedControl<View_>
-            label={copy.view.label}
-            options={[
-              { value: 'list', label: copy.view.list },
-              { value: 'month', label: copy.view.month },
-            ]}
-            value={view}
-            onChange={setView}
-          />
-          {/* The trip is hidden, so the + adds a look straight away (legacy 2eacfb4). */}
-          <IconButton framed icon="plus" label={copy.header.add} onPress={() => setPicking(true)} />
-        </View>
+        <Tabs
+          items={TABS}
+          value={view === 'month' ? copy.view.month : copy.view.list}
+          onChange={(label) => setView(label === copy.view.month ? 'month' : 'list')}
+          trailing={
+            // The trip is hidden, so the + adds a look straight away (legacy 2eacfb4).
+            <IconButton
+              framed
+              icon="plus"
+              label={copy.header.add}
+              onPress={() => setPicking(true)}
+            />
+          }
+          testID="plan-tabs"
+        />
       }
     >
       <View className="mt-[22px] mb-3 min-h-8 flex-row items-center justify-between px-5">
@@ -255,7 +260,6 @@ export function PlanList() {
       />
     );
   }
-  const planned = data.days.some((d) => d.entries.length > 0 || d.name);
   return (
     <ScrollView
       {...tabScroll}
@@ -263,9 +267,6 @@ export function PlanList() {
       contentContainerClassName="gap-3 px-5 pb-12"
       refreshControl={<RefreshControl {...pull} />}
     >
-      {planned ? null : (
-        <EmptyState title={copy.empty.title} titleEm={copy.empty.titleEm} body={copy.empty.body} />
-      )}
       {weekGroups(data.days, data.from).map((g) => (
         // A week is one white card: its range (or "Rest of this week") then a row per day.
         <Card key={g.monday}>

@@ -18,6 +18,8 @@ export interface InlineTitleFieldProps {
   // Opened by a pencil: focused with the title selected. A title that is always the field (the
   // draft composer's) passes false.
   autoFocus?: boolean;
+  // A title that stands as the field on its page (the Diary's day): no underline until focused.
+  bare?: boolean;
   // A title that can't be empty (a saved look's name): an empty value cancels instead.
   required?: boolean;
   onChange?: (value: string) => void;
@@ -41,6 +43,7 @@ export function InlineTitleField({
   italic = false,
   align = 'start',
   autoFocus = true,
+  bare = false,
   required = false,
   onChange,
   onCommit,
@@ -90,6 +93,7 @@ export function InlineTitleField({
         'min-h-11 w-full min-w-0 rounded-none border-0 border-b border-border-control bg-transparent p-0 font-display font-light text-ink outline-none placeholder:text-ink-faint focus-visible:border-ink focus-visible:shadow-[0_1px_0_0_var(--color-ink)]',
         headingSizes[size],
         italic && 'italic',
+        bare && 'border-transparent',
         align === 'center' && 'text-center',
         className,
       )}
