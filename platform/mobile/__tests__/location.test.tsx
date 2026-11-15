@@ -1,7 +1,8 @@
 import { LOCATION_REFRESH_MS } from '@robes/core/location';
+import { act, waitFor } from '@testing-library/react-native';
 import * as Location from 'expo-location';
-import { ASKED_KEY, SENT_AT_KEY, syncDeviceLocation } from '../src/lib/location';
-import { mockFetch } from './support/api';
+import { ASKED_KEY, LocationSetup, SENT_AT_KEY, syncDeviceLocation } from '../src/lib/location';
+import { mockFetch, renderWithApi } from './support/api';
 
 const mockStore = new Map<string, string>();
 jest.mock('expo-secure-store', () => ({
@@ -74,4 +75,28 @@ test('no fix or a failed send tries again next launch', async () => {
   current.mockRejectedValue(new Error('location services off'));
   expect(await syncDeviceLocation(api, now)).toBe('failed');
   expect(mockStore.has(SENT_AT_KEY)).toBe(false);
+});
+
+// App Store review (P0, F2): the location prompt never stands on top of the usage question.
+test('waits for her answer to the usage question before asking where she is', async () => {
+  request.mockResolvedValue({ status: 'granted' });
+  const consents = {
+    analytics: null as boolean | null,
+    replay: null,
+    marketing_email: null,
+    photo_analysis: null,
+    look_sharing: null,
+  };
+  mockFetch({
+    'GET /me/consents': () => ({ ...consents }),
+    'POST /me/location': { ok: true },
+  });
+  const view = await renderWithApi(<LocationSetup />);
+  await act(() => new Promise((done) => setTimeout(done, 50)));
+  expect(perms).not.toHaveBeenCalled();
+  expect(request).not.toHaveBeenCalled();
+  view.unmount();
+  consents.analytics = false;
+  await renderWithApi(<LocationSetup />);
+  await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
 });
