@@ -39,7 +39,6 @@ export {
   GlassSheet,
   type GlassSheetProps,
   Sheet,
-  SheetHead,
   type SheetProps,
 } from './Sheet';
 export { Skeleton, type SkeletonProps } from './Skeleton';

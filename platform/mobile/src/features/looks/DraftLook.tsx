@@ -834,6 +834,7 @@ function NewDraft({
         onClose={() => setPicker(null)}
         onPick={start}
         onSnap={() => void snap.snap()}
+        onAddPieces={() => setAdding(true)}
       />
       <AddPiecesSheet
         open={adding}
@@ -1480,6 +1481,7 @@ function DraftBody({
           void snap.snap();
         }}
         {...(picker && 'match' in picker ? { onAddNew: () => setNewPiece(picker.match.key) } : {})}
+        onAddPieces={() => setAdding(true)}
       />
       <NewPieceSheet
         row={rows.find((r) => r.key === newPiece) ?? null}

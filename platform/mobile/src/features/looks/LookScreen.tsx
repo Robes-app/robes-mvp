@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { AddPiecesSheet } from '@/features/wardrobe/add/AddPiecesSheet';
 import { errorMessage } from '@/lib/errors';
 import { AdjustDock } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
@@ -101,6 +102,7 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [addingPieces, setAddingPieces] = useState(false);
   const [name, setName] = useState(look.nameProvisional ? '' : look.name);
   const suggested = look.status === 'suggested';
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
@@ -280,7 +282,9 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
           for (const piece of pieces) editor.add(piece);
           for (const wish of wishes) editor.addWish(wish);
         }}
+        onAddPieces={() => setAddingPieces(true)}
       />
+      <AddPiecesSheet open={addingPieces} onClose={() => setAddingPieces(false)} />
     </View>
   );
 }

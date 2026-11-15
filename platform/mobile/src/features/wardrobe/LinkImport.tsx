@@ -137,7 +137,7 @@ export function LinkImport() {
               size="small"
               accessibilityRole="link"
               className="underline"
-              onPress={() => router.replace({ pathname: '/wardrobe/add', params: { to } })}
+              onPress={() => router.setParams({ to: to === 'wishlist' ? 'wardrobe' : 'wishlist' })}
             >
               {copy.change}
             </Text>
