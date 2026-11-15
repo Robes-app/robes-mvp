@@ -105,10 +105,11 @@ async function createWorkerContext(): Promise<WorkerContext> {
     applicationName: 'robes-worker',
   });
   const system = createSystemRepositories(db);
-  const consents = createRepositories(db).consents;
+  const { consents, admin } = createRepositories(db);
   const ledger = tracedLedger(
     system.ledger,
     async (userId) => (await consents.current(verifiedUserId(userId))).analytics === true,
+    (userId) => admin.isAdmin(verifiedUserId(userId)),
   );
   const logger = createLogger({ service: 'robes-workers' });
   const storage = env.MEDIA_BUCKET

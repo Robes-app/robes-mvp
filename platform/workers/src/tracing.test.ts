@@ -39,7 +39,13 @@ describe('traced ledger', () => {
     vi.stubEnv('POSTHOG_KEY', '');
     const { tracedLedger } = await import('./tracing');
     const inner = ledger();
-    expect(tracedLedger(inner, async () => true)).toBe(inner);
+    expect(
+      tracedLedger(
+        inner,
+        async () => true,
+        async () => true,
+      ),
+    ).toBe(inner);
   });
 
   it('records first, then mirrors the call without its prompt, answer or words', async () => {
@@ -47,7 +53,11 @@ describe('traced ledger', () => {
     vi.stubEnv('POSTHOG_KEY', 'phc_w');
     const { tracedLedger } = await import('./tracing');
     const inner = ledger();
-    await tracedLedger(inner, async () => true).record(call);
+    await tracedLedger(
+      inner,
+      async () => true,
+      async () => false,
+    ).record(call);
     expect(inner.record).toHaveBeenCalledWith(call);
     expect(captureImmediate.mock.calls.map(([m]) => m.event)).toEqual([
       '$ai_generation',
@@ -62,8 +72,34 @@ describe('traced ledger', () => {
     vi.stubEnv('APP_ENV', 'staging');
     vi.stubEnv('POSTHOG_KEY', 'phc_w');
     const { tracedLedger } = await import('./tracing');
-    await tracedLedger(ledger(), async () => true).record({ ...call, jobId: undefined });
-    await tracedLedger(ledger(), async () => false).record(call);
+    await tracedLedger(
+      ledger(),
+      async () => true,
+      async () => true,
+    ).record({
+      ...call,
+      jobId: undefined,
+    });
+    await tracedLedger(
+      ledger(),
+      async () => false,
+      async () => true,
+    ).record(call);
     expect(captureImmediate).not.toHaveBeenCalled();
+  });
+
+  it('sends the prompt and its answer for a team account, and still never the detail', async () => {
+    vi.stubEnv('APP_ENV', 'staging');
+    vi.stubEnv('POSTHOG_KEY', 'phc_w');
+    const { tracedLedger } = await import('./tracing');
+    await tracedLedger(
+      ledger(),
+      async () => true,
+      async () => true,
+    ).record(call);
+    const sent = JSON.stringify(captureImmediate.mock.calls[0]);
+    expect(sent).toContain('"$ai_input":[{"role":"user","content":"her words"}]');
+    expect(sent).toContain('$ai_output_choices');
+    expect(sent).not.toMatch(/never sent/);
   });
 });

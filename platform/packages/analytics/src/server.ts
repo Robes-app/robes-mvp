@@ -87,8 +87,8 @@ export function createServerAnalytics(deps: {
   };
 }
 
-// One model call as PostHog LLM analytics reads it. Numbers, enums and ids only: never a prompt,
-// an answer, her words or a piece's name. Those stay in the 30-day ledger columns (SEC-82).
+// One model call as PostHog LLM analytics reads it. Numbers, enums and ids only, unless the caller
+// passes `text`: her prompt and its answer otherwise stay in the 30-day ledger columns (SEC-82).
 export interface GenerationTrace {
   // Every call made for one job shares its id, so PostHog groups them as one trace.
   traceId: string;
@@ -103,6 +103,9 @@ export interface GenerationTrace {
   status: 'ok' | 'partial' | 'timeout' | 'error' | 'cancelled';
   // What code checked of the answer (`detail.checks` on the ledger): each becomes a trace metric.
   checks?: Record<string, number | boolean>;
+  // What Robes asked and its answer. The caller passes them only for an account allowed to share
+  // them (today the team's own); for everyone else PostHog never sees her words.
+  text?: { input?: string | undefined; output?: unknown };
 }
 
 export interface GenerationTracer {
@@ -139,6 +142,16 @@ export function createGenerationTracer(deps: {
             $ai_is_error: call.status === 'error' || call.status === 'timeout',
             status: call.status,
             images: call.images,
+            ...(call.text?.input
+              ? { $ai_input: [{ role: 'user', content: call.text.input }] }
+              : {}),
+            ...(call.text?.output !== undefined
+              ? {
+                  $ai_output_choices: [
+                    { role: 'assistant', content: JSON.stringify(call.text.output) },
+                  ],
+                }
+              : {}),
           },
           disableGeoip: true,
         });
