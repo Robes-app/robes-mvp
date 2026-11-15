@@ -718,7 +718,6 @@ export const plan = {
   activityPlaceholder: 'Dinner, the office',
   saveActivity: 'Save',
   unpin: (name: string): string => `Take ${name} off this day`,
-  monthCaption: 'Month reads the shape of it. List is where you plan.',
   // A past day on the web's month card: what it held, never a fraction.
   monthFiled: (pieces: number): string =>
     `Filed · ${pieces === 1 ? '1 piece' : `${pieces} pieces`}`,

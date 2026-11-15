@@ -144,7 +144,6 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
           );
         })}
       </ol>
-      <p className="text-center font-sans text-ink-muted text-xs">{plan.monthCaption}</p>
       {inMonth.length ? (
         <ul aria-label={plan.trips} className="flex flex-col gap-2 pt-3">
           {inMonth.map((t) => (

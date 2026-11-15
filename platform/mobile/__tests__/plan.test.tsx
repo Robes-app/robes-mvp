@@ -71,7 +71,8 @@ test('days read as today or a short date', () => {
 test('an empty plan is its days, with no box above them; every day is a row that opens its page', async () => {
   mockFetch({ 'GET /plan': planWith(false) });
   await renderWithApi(<PlanView />);
-  expect(await screen.findAllByText(plan.list.nameTheDay)).toHaveLength(3);
+  // One row invites a name (the first empty day); the others show their date alone.
+  expect(await screen.findAllByText(plan.list.nameTheDay)).toHaveLength(1);
   expect(screen.queryByText(/Nothing planned/)).toBeNull();
   // 1 Oct 2026 is a Thursday: the window starts mid-week.
   expect(screen.getByText(plan.list.restOfWeek)).toBeTruthy();

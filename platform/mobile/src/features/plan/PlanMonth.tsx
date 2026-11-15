@@ -107,9 +107,6 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
           })}
         </View>
       ))}
-      <Text size="small" tone="muted" className="pt-3 text-center">
-        {copy.monthCaption}
-      </Text>
       {inMonth.length ? (
         <View className="gap-2 pt-4" accessibilityLabel={copy.trips}>
           {inMonth.map((t) => {

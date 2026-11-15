@@ -3,7 +3,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { PlanEntry } from '@robes/contracts';
 import { plan } from '@robes/copy';
-import { daySummary, weekdayShort, weekGroups } from '@robes/core/calendar';
+import { daySummary, inviteDay, weekdayShort, weekGroups } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
 import { ErrorText, Skeleton } from '@robes/ui';
 import Link from 'next/link';
@@ -23,6 +23,7 @@ export function PlanList({ today }: { today: string }) {
     return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   if (!query.data) return <PlanSkeleton />;
+  const invite = inviteDay(query.data.days);
   return (
     <div className="flex flex-col gap-3">
       {weekGroups(query.data.days, today).map((g) => {
@@ -41,7 +42,13 @@ export function PlanList({ today }: { today: string }) {
             <ol className="flex flex-col">
               {g.days.map((day, i) => (
                 <li key={day.date} className={i ? 'border-t border-hairline' : undefined}>
-                  <DayRow date={day.date} today={today} name={day.name} entries={day.entries} />
+                  <DayRow
+                    date={day.date}
+                    today={today}
+                    name={day.name}
+                    entries={day.entries}
+                    invite={day.date === invite}
+                  />
                 </li>
               ))}
             </ol>
@@ -60,11 +67,14 @@ function DayRow({
   today,
   name,
   entries,
+  invite,
 }: {
   date: string;
   today: string;
   name: string | null;
   entries: PlanEntry[];
+  // The one empty row that says "Name the day" (inviteDay); the others show their date alone.
+  invite: boolean;
 }) {
   const isToday = date === today;
   const s = daySummary(entries, name);
@@ -107,11 +117,11 @@ function DayRow({
       <span className="flex min-w-0 grow flex-col gap-px">
         {title ? (
           <span className="truncate font-display text-lg leading-tight text-ink">{title}</span>
-        ) : (
+        ) : invite ? (
           <span className="font-display text-lg leading-tight text-ink-faint italic">
             {plan.list.nameTheDay}
           </span>
-        )}
+        ) : null}
         {s.looks ? (
           <span className="truncate font-sans text-[11px] text-ink-faint">
             {plan.list.looks(s.looks)}
