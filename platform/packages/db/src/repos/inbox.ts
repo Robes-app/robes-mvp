@@ -1,4 +1,5 @@
 import { shadeByName } from '@robes/core/colour';
+import { pieceName } from '@robes/core/inbox';
 import { sql } from 'kysely';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
@@ -184,9 +185,15 @@ export function inboxRepo(db: Db) {
             next.push({ ...item, state: 'discarded' });
             continue;
           }
-          const label = item.label.slice(0, 120);
           // What the receipt printed travels onto the piece: its size, its category and colour.
           const { size, categoryL2, categoryL3, color } = lineFields(item);
+          // A line that names no piece ("REF 0900…") files as "Zara top", for her to rename.
+          const label = pieceName({
+            label: item.label,
+            brand: item.brand,
+            categoryL2,
+            categoryL3,
+          }).slice(0, 120);
           const read = {
             size,
             categoryL2,

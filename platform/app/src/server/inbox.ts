@@ -7,6 +7,7 @@ import {
   type InboxList,
   type PieceImage,
 } from '@robes/contracts';
+import { pieceName } from '@robes/core/inbox';
 import { heldItems, itemState, lineFields, type UserId } from '@robes/db';
 import { toImage } from './asset-urls';
 import { repos } from './db';
@@ -44,7 +45,8 @@ function toEntry(row: Row, images: Images, state?: InboxItemState): InboxEntry {
     items: heldItems(row.items)
       .map((item, index) => ({
         index,
-        label: item.label,
+        // A line that names no piece reads as its brand and category ("Zara top").
+        label: pieceName({ label: item.label, brand: item.brand, ...lineFields(item) }),
         brand: item.brand ?? null,
         price: item.price ?? null,
         currency: item.currency ?? null,

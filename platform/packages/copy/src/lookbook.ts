@@ -26,7 +26,8 @@ export const lookbook = {
   // as Home's day does (Annie, audit notes 15 Nov).
   newLookSheet: {
     describe: 'Create',
-    photo: 'Photo',
+    // Capture everywhere a look starts from a photograph (Annie, 15 Nov).
+    photo: 'Capture',
     fromPieces: 'From pieces',
   },
   // The Lookbook's hidden search, revealed by a pull (PRD Q6).
