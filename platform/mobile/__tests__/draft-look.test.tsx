@@ -331,6 +331,7 @@ test('a draft Robes made is asked about; Restyle it all re-writes it from her wo
   );
   expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
   // The send closes the sheet: the closed bar carries the work in hand, the conversation her choice.
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
   expect(screen.getByText(fb.restyle.work(''))).toBeTruthy();
   await openPrompt();
   expect(screen.getByText(`${fb.restyle.label} · “more casual”`)).toBeTruthy();

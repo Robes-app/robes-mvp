@@ -168,7 +168,10 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   expect(thread, thread).toContain(noticed);
   expect(await seriousViolations(page), 'a draft with its thread').toEqual([]);
 
-  // The done disc saves; the saved look opens with the diary up.
+  // The sheet stands over the dimmed look until she minimises it; then the done disc saves, and
+  // the saved look opens with the diary up.
+  await page.getByTestId('prompt-minimise').click();
+  await expect(page.getByTestId('prompt-scrim')).toHaveCount(0);
   await page.getByTestId('draft-done').click();
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible({
     timeout: 30_000,
