@@ -410,7 +410,7 @@ function Rows({ rows }: { rows: readonly SheetRow[] }) {
   );
 }
 
-// The glass sheet's header: the 36pt × disc, the title in the medium sans at 15 (the one bold
+// The glass sheet's header: the 36pt × disc, the title in Inter 600 at 15 (the one bold
 // line on a glass sheet), and the text action at the right, ink while it can act, faint while
 // it can't. A spacer keeps the title centred when there is no action.
 function SheetHead({ title, action, onClose }: GlassHeader & { onClose: () => void }) {
@@ -421,7 +421,8 @@ function SheetHead({ title, action, onClose }: GlassHeader & { onClose: () => vo
         accessibilityRole="header"
         numberOfLines={1}
         className="flex-1 text-center text-ink"
-        style={{ fontFamily: fonts.sansMedium, fontSize: 15 }}
+        // Inter 600 at 15, as Robes MVP sets every glass sheet's title (Annie, 15 Nov).
+        style={{ fontFamily: fonts.sansSemiBold, fontSize: 15 }}
       >
         {title}
       </Text>

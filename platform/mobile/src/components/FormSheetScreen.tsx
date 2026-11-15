@@ -11,7 +11,8 @@ export const DRAFT_SHEET: {
   presentation: 'formSheet',
   sheetGrabberVisible: false,
   sheetAllowedDetents: [1],
-  sheetCornerRadius: 22,
+  // Felix's sheet radius (rad-lg), as Robes MVP draws its sheets.
+  sheetCornerRadius: 18,
 };
 
 // A form sheet's own frame must never be flattened away. react-native-screens looks for a ScrollView

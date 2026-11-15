@@ -56,7 +56,7 @@ export function TileSheet({ tiles, selected, children, ...sheet }: TileSheetProp
               {tile.badge !== undefined && tile.badge > 0 ? (
                 <span
                   aria-hidden
-                  className="type-label absolute -top-1.5 -right-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-pill bg-ink px-1 tracking-normal text-bg"
+                  className="type-label absolute -top-1.5 -right-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-pill bg-ink px-1 font-semibold tracking-normal text-bg"
                 >
                   {tile.badge}
                 </span>

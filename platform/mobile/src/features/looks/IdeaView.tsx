@@ -129,7 +129,7 @@ function PieceByPiece({ way }: { way: IdeaWay }) {
           key={`${p.name}-${p.role}`}
           className="flex-row items-center gap-3 border-b border-hairline py-3"
         >
-          <View className="size-10 items-center justify-center rounded-[6px] bg-surface">
+          <View className="size-10 items-center justify-center rounded-tile bg-surface">
             <Swatch hex={p.colorHex} />
           </View>
           <View className="flex-1 gap-0.5">
@@ -209,7 +209,7 @@ export function IdeaView({
         {thumb ? (
           <View
             style={{ width: 46 }}
-            className="overflow-hidden rounded-[6px] border border-hairline"
+            className="overflow-hidden rounded-tile border border-hairline"
           >
             <Image source={thumb} alt="" blurhash={anchor.data?.image?.blurhash} />
           </View>

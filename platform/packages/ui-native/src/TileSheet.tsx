@@ -4,7 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useColor } from './color';
 import { cx } from './cx';
 import { GlassSheet, type GlassSheetProps } from './Sheet';
-import { FINE_EDGE, maxFontSizeMultiplier, typeStyle } from './scale';
+import { FINE_EDGE, fonts, maxFontSizeMultiplier, typeStyle } from './scale';
 
 export interface SheetTile {
   icon: IconName;
@@ -72,7 +72,12 @@ export function TileSheet({ tiles, selected, children, ...sheet }: TileSheetProp
                 >
                   <Text
                     maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-                    style={{ ...typeStyle('label'), color: onInk, letterSpacing: 0 }}
+                    style={{
+                      ...typeStyle('label'),
+                      fontFamily: fonts.sansSemiBold,
+                      color: onInk,
+                      letterSpacing: 0,
+                    }}
                   >
                     {tile.badge}
                   </Text>
