@@ -7,6 +7,7 @@ import * as v8 from './v8';
 // a word or two, for its one question ("How does this feel for brunch?"). The piece door still
 // deals three ways, and its system text is v8's byte for byte; its user turn now carries the
 // words she typed beside the piece.
+export * from './checks';
 export * from './v8';
 export const VERSION = 9;
 

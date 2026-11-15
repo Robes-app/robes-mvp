@@ -137,18 +137,22 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
         // What she tapped after a thumbs down (look prompt PRD F11): the aspects to change.
         ...(input.reasons?.length ? { reasons: input.reasons } : {}),
       };
+      const system = buildSystem(askCtx);
+      const user = buildUser({
+        name: found.look.name,
+        surface: input.surface,
+        text: input.text,
+        thread: input.thread,
+      });
+      // What Robes asked and its answer are kept 30 days (SEC-82), so a change can be replayed.
+      const prompt = `${system}\n\n${user}`;
       let out: Output;
       try {
         const res = await deps.ai.generateJson({
           feature: FEATURE,
           capability: 'text.fast',
-          system: buildSystem(askCtx),
-          user: buildUser({
-            name: found.look.name,
-            surface: input.surface,
-            text: input.text,
-            thread: input.thread,
-          }),
+          system,
+          user,
           schema: Output,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           temperature: TEMPERATURE,
@@ -160,6 +164,8 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
           userId: ctx.userId,
           feature: FEATURE,
           status: 'ok',
+          prompt,
+          response: res.data,
         });
         out = res.data;
       } catch (err) {
@@ -171,6 +177,7 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
               userId: ctx.userId,
               feature: FEATURE,
               status: err.code === 'timeout' ? 'timeout' : 'error',
+              prompt,
             });
           }
           if (err.code === 'cancelled') throw err;

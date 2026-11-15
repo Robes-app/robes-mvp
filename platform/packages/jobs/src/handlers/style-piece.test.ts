@@ -416,7 +416,7 @@ describe('key_piece handler (suggested looks)', () => {
     const ai = createFakeProvider({
       'looks.style_piece': () => ({ ...fake(), occasion: 'The Office' }),
     });
-    const { run, suggested, writeStage, generateJson } = setup(ai);
+    const { run, suggested, writeStage, generateJson, ledger } = setup(ai);
     // No day: still one draft, for no day (look prompt PRD D6).
     await expect(
       run({ mode: 'prompt', draft: true, prompt: 'the office, then drinks' }),
@@ -432,6 +432,20 @@ describe('key_piece handler (suggested looks)', () => {
     expect(writeStage).toHaveBeenCalledWith(
       'text',
       expect.objectContaining({ lookIds: ['l0'], occasion: 'the office' }),
+    );
+    // One look carries what code checked of it, as counts and booleans.
+    expect(ledger.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: expect.objectContaining({
+          checks: {
+            complete: expect.any(Boolean),
+            sources_obeyed: expect.any(Boolean),
+            label_mismatch: expect.any(Number),
+            owned: expect.any(Number),
+            proposed: expect.any(Number),
+          },
+        }),
+      }),
     );
   });
 
@@ -568,7 +582,7 @@ describe('key_piece handler (suggested looks)', () => {
     expect(later[0]?.proposals[0]).toMatchObject({ name: 'Silk cami', wishlisted: false });
   });
 
-  it('counts her own pieces per way, and logs that she wrote words, never the words', async () => {
+  it('counts her own pieces per way, and keeps her words out of the lasting detail', async () => {
     const { run, ledger } = setup(
       createFakeProvider({ 'looks.style_piece': () => fake({ closetSize: 1 }) }),
     );
@@ -579,8 +593,13 @@ describe('key_piece handler (suggested looks)', () => {
         detail: { balance: 'words', shown: 1, owned_of_total: '1/3 0/3 0/3' },
       }),
     );
-    // Her words themselves never reach the row.
-    expect(JSON.stringify(ledger.record.mock.calls)).not.toContain('two of mine');
+    // Her words ride only the 30-day `prompt` text (owner, 15 Nov 2026: what Robes asked is kept
+    // so a look can be replayed); `detail`, which outlives that purge, never holds them.
+    const rows = (ledger.record.mock.calls as unknown[][]).map(
+      (c) => c[0] as { prompt?: string; detail?: unknown },
+    );
+    expect(rows[0]?.prompt).toContain('two of mine');
+    expect(JSON.stringify(rows.map((r) => r.detail))).not.toContain('two of mine');
   });
 
   it('keeps the looks when the frame fails (UX-08), and rejects bad input', async () => {

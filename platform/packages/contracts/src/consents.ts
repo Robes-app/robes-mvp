@@ -8,6 +8,7 @@ export const Consents = z.object({
   replay: answer.nullable(),
   marketing_email: answer.nullable(),
   photo_analysis: answer.nullable(),
+  look_sharing: answer.nullable(),
 });
 export type Consents = z.infer<typeof Consents>;
 
@@ -20,6 +21,7 @@ export const UpdateConsentsInput = z.object({
       replay: answer,
       marketing_email: answer,
       photo_analysis: answer,
+      look_sharing: answer,
     })
     .partial()
     .strict()

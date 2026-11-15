@@ -22,6 +22,7 @@ const UNANSWERED: Consents = {
   replay: null,
   marketing_email: null,
   photo_analysis: null,
+  look_sharing: null,
 };
 
 beforeEach(() => jest.clearAllMocks());
