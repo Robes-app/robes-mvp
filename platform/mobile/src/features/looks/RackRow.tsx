@@ -2,13 +2,54 @@ import type { PieceImage } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { nameNoBrand, type RackRow, type RowNote, theName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import { IconButton, Text, useColor } from '@robes/ui-native';
-import { Pressable, View } from 'react-native';
+import { shadowNative } from '@robes/tokens';
+import { IconButton, Text, useColor, useReducedMotion } from '@robes/ui-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, Pressable, View } from 'react-native';
 import { CardRow, type RowMeta } from '@/features/wardrobe/PieceCard';
 
 export type RowMark = RowNote | { kind: 'added' };
 
-// A row's action (swap, remove): a 32pt `cream-200` disc with an `ink-soft` glyph, in a 44pt hit area.
+// Robes MVP 2b, edit mode: the cards rock (pzJigL ±0.35°, a tile pzJig ±1.1°) while the pencil is
+// down, as an iPhone's home screen does; still under Reduce Motion.
+export function useJig(
+  on: boolean,
+  degrees: number,
+): Animated.AnimatedInterpolation<string> | string {
+  const reduced = useReducedMotion();
+  const t = useRef(new Animated.Value(0)).current;
+  const live = on && !reduced;
+  useEffect(() => {
+    if (!live) {
+      t.setValue(0.5);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(t, {
+          toValue: 1,
+          duration: 130,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(t, {
+          toValue: 0,
+          duration: 130,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [live, t]);
+  return live
+    ? t.interpolate({ inputRange: [0, 1], outputRange: [`-${degrees}deg`, `${degrees}deg`] })
+    : '0deg';
+}
+
+// A row's action off the pencil (swap, remove on a suggestion's page): a 32pt `cream-200` disc
+// with an `ink-soft` glyph, in a 44pt hit area.
 function Disc({
   icon,
   label,
@@ -37,6 +78,40 @@ function Disc({
   );
 }
 
+// Edit mode's small discs (Robes MVP 2b): 22pt, the bg veil with a lift, an ink glyph; the hit area
+// reaches 44.
+export function EditDisc({
+  icon,
+  label,
+  onPress,
+  testID,
+}: {
+  icon: 'wardrobe' | 'close';
+  label: string;
+  onPress: () => void;
+  testID?: string;
+}) {
+  const ink = useColor('ink');
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      hitSlop={11}
+      className="items-center justify-center"
+      style={{ width: 22, height: 22 }}
+      {...(testID ? { testID } : {})}
+    >
+      <View
+        className="items-center justify-center rounded-pill border-rule-mid bg-veil"
+        style={{ width: 22, height: 22, borderWidth: 0.5, ...shadowNative.disc }}
+      >
+        <Icon name={icon} size={11} color={ink} />
+      </View>
+    </Pressable>
+  );
+}
+
 // One piece on a look's rack: the shared piece row (CardRow, PRD §6.1) with the look's own say —
 // its role in the small caps, a find's retailer under the name, and at the right the wears behind a
 // calendar (a piece she owns), a wish's price behind a heart, or a piece to find's price behind a
@@ -53,6 +128,7 @@ export function RackRowCard({
   onSwap,
   onWish,
   onRemove,
+  editing = false,
 }: {
   row: RackRow;
   image?: PieceImage | null;
@@ -64,6 +140,8 @@ export function RackRowCard({
   onSwap?: () => void;
   onWish?: () => void;
   onRemove?: () => void;
+  // The Rack's pencil is down (Robes MVP 2b): the card rocks, × on its corner, swap and chevron.
+  editing?: boolean;
 }) {
   const brand = row.brand?.trim() || '';
   const name = nameNoBrand(row.name, brand);
@@ -78,22 +156,34 @@ export function RackRowCard({
           ? copy.rack.added
           : null;
   const changed = mark?.kind === 'was' || mark?.kind === 'back' || mark?.kind === 'added';
-  const actions =
-    (proposal && onWish) || onSwap || onRemove ? (
-      <View className="flex-row items-center">
-        {proposal && onWish ? (
-          <IconButton
-            icon="heart"
-            label={copy.rack.save(name)}
-            onPress={onWish}
-            tone={proposal.wishlisted ? 'ink' : 'ink-muted'}
-          />
-        ) : null}
-        {onSwap ? <Disc icon="wardrobe" label={copy.rack.swap(name)} onPress={onSwap} /> : null}
-        {onRemove ? <Disc icon="close" label={copy.rack.remove(name)} onPress={onRemove} /> : null}
-      </View>
-    ) : null;
-  return (
+  // Edit mode (Robes MVP 2b; Annie, 15 Nov): the card rocks, × sits on its top-left corner, and at
+  // the right only the swap disc and the chevron; no wears or price. A piece to find keeps its ♡
+  // while it isn't hers yet, the one way to keep it.
+  const jig = useJig(editing, 0.35);
+  const faint = useColor('ink-faint');
+  const actions = editing ? (
+    <View className="flex-row items-center gap-2">
+      {proposal && onWish && !proposal.wishlisted ? (
+        <IconButton icon="heart" label={copy.rack.save(name)} onPress={onWish} tone="ink-muted" />
+      ) : null}
+      {onSwap ? <EditDisc icon="wardrobe" label={copy.rack.swap(name)} onPress={onSwap} /> : null}
+      <Icon name="forward" size={14} color={faint} />
+    </View>
+  ) : (proposal && onWish) || onSwap || onRemove ? (
+    <View className="flex-row items-center">
+      {proposal && onWish ? (
+        <IconButton
+          icon="heart"
+          label={copy.rack.save(name)}
+          onPress={onWish}
+          tone={proposal.wishlisted ? 'ink' : 'ink-muted'}
+        />
+      ) : null}
+      {onSwap ? <Disc icon="wardrobe" label={copy.rack.swap(name)} onPress={onSwap} /> : null}
+      {onRemove ? <Disc icon="close" label={copy.rack.remove(name)} onPress={onRemove} /> : null}
+    </View>
+  ) : null;
+  const card = (
     <CardRow
       piece={{
         id: row.key,
@@ -106,7 +196,7 @@ export function RackRowCard({
       {...(row.role ? { role: copy.rack.roles[row.role] } : {})}
       maker={brand || proposal?.retailerHint?.trim() || ''}
       dashed={!!proposal}
-      meta={meta}
+      meta={editing ? null : meta}
       action={actions}
       lines={
         markText || styled ? (
@@ -129,6 +219,22 @@ export function RackRowCard({
       highlight={changed}
       testID={`rack-row-${row.key}`}
     />
+  );
+  if (!editing) return card;
+  return (
+    <Animated.View style={{ transform: [{ rotate: jig }] }}>
+      {card}
+      {onRemove ? (
+        <View className="absolute" style={{ left: -6, top: -6 }}>
+          <EditDisc
+            icon="close"
+            label={copy.rack.remove(name)}
+            onPress={onRemove}
+            testID={`rack-remove-${row.key}`}
+          />
+        </View>
+      ) : null}
+    </Animated.View>
   );
 }
 

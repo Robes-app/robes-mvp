@@ -284,6 +284,10 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjus
   expect(screen.getByTestId('rack-pencil').props.accessibilityState.selected).toBe(true);
   expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
   expect(screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') })).toBeTruthy();
+  // Robes MVP 2b (Annie, 15 Nov): in edit mode the wears step aside (swap and the chevron only) and
+  // × sits on each card's top-left corner.
+  expect(screen.queryAllByLabelText(/^\d+ wears?$/)).toHaveLength(0);
+  expect(screen.getAllByTestId(/^rack-remove-/)).toHaveLength(2);
   expect(screen.queryByRole('button', { name: lookbook.savedLook.edit })).toBeNull();
   // No header: the back disc rides the photo, Schedule look holds the foot.
   expect(screen.queryByTestId('draft-close')).toBeNull();
