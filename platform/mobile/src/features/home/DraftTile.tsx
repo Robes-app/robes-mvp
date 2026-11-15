@@ -58,7 +58,7 @@ export function DraftTile({
       disabled={generating}
       onPress={open}
       style={{ width }}
-      className="overflow-hidden rounded-[6px] border border-rule-mid bg-surface-raised"
+      className="overflow-hidden rounded-tile border border-rule-mid bg-surface-raised"
       testID="draft-tile"
       accessibilityState={{ busy: generating }}
     >
@@ -117,7 +117,7 @@ export function DraftTile({
               return (
                 <View
                   key={p.piece.id}
-                  className="overflow-hidden rounded-[4px] border border-rule-mid bg-surface-raised"
+                  className="overflow-hidden rounded-crisp border border-rule-mid bg-surface-raised"
                   style={{ width: 34, height: 42 }}
                 >
                   {thumb ? <Image source={thumb} alt="" aspect="4:5" /> : null}

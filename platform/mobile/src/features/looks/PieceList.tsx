@@ -32,7 +32,7 @@ export function PieceList({
           onPress={onAdd}
           hitSlop={8}
           testID="rack-add"
-          className="flex-row items-center justify-center gap-1 self-center rounded-[6px] bg-surface-sunk px-2.5"
+          className="flex-row items-center justify-center gap-1 self-center rounded-tile bg-surface-sunk px-2.5"
           style={{ height: 28 }}
         >
           <Icon name="plus" size={12} color={muted} />

@@ -14,7 +14,7 @@ export const fonts = {
   sans: 'Inter_300Light',
   sansRegular: 'Inter_400Regular',
   sansMedium: 'Inter_500Medium',
-  // Only home's Create disc label (Felix ActionDisc primary).
+  // Robes MVP's strong lines: home's Create disc label, a glass sheet's title, a count badge.
   sansSemiBold: 'Inter_600SemiBold',
   display: 'Cormorant_300Light',
   displayRegular: 'Cormorant_400Regular',

@@ -306,7 +306,7 @@ export function Review({
       copy.title,
       leave,
       <>
-        <Heading size="md" style={{ fontSize: 28 }} accessibilityLiveRegion="polite">
+        <Heading size="md" style={{ fontSize: 26 }} accessibilityLiveRegion="polite">
           {old.unread}
         </Heading>
         <Text tone="muted">{session.shots.some((s) => s.failed) ? old.stalled : old.nothing}</Text>
@@ -322,7 +322,7 @@ export function Review({
       leave,
       <>
         <View className="gap-2">
-          <Heading size="md" style={{ fontSize: 28 }}>
+          <Heading size="md" style={{ fontSize: 26 }}>
             {copy.head(screen.count)}
           </Heading>
           <Text size="small" tone="muted">

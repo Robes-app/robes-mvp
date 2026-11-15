@@ -83,7 +83,7 @@ export function LinkImport() {
         className="flex-1"
       >
         <ScrollView contentContainerClassName="gap-5 px-6 pb-6" keyboardShouldPersistTaps="handled">
-          <Heading size="md" style={{ fontSize: 28 }}>
+          <Heading size="md" style={{ fontSize: 26 }}>
             {copy.title} <Em>{copy.wink}</Em>
           </Heading>
           <View className="gap-2">

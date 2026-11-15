@@ -89,7 +89,7 @@ export function StylesStep({
             onPress={() => onToggle(type)}
             className={`rounded-card border p-[5px] ${choice(on)}`}
           >
-            <View className="h-[164px] flex-row gap-[3px] overflow-hidden rounded-[10px]">
+            <View className="h-[164px] flex-row gap-[3px] overflow-hidden rounded-thumb">
               {archetypeImages(type, identity).map(({ key, src }) =>
                 src ? (
                   <View key={key} className="h-full flex-1 bg-surface-sunk">

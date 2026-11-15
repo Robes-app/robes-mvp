@@ -21,7 +21,7 @@ export function PieceSection({ title, children }: { title?: string; children: Re
   return (
     <View className="gap-2">
       {title ? <Eyebrow>{title}</Eyebrow> : null}
-      <View className="overflow-hidden rounded-[12px] border border-rule-mid bg-surface-raised">
+      <View className="overflow-hidden rounded-soft border border-rule-mid bg-surface-raised">
         {children}
       </View>
     </View>
