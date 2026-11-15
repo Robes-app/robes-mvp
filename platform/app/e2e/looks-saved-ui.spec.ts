@@ -361,6 +361,9 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
   const picker = page.getByTestId('piece-picker');
   // At rest the rows open their pieces; the pencil shows the swap and × (plan R2).
   await expect(look3e.getByRole('button', { name: /^Swap / })).toHaveCount(0);
+  // Edit mode rocks the cards (Robes MVP 2b), and Playwright only clicks what holds still: this
+  // test is about the swap, so it runs as a browser with Reduce Motion (no rocking) would.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await look3e.getByRole('button', { name: 'Edit pieces' }).click();
   // Edit mode (Robes MVP 2b): × on the card's corner and the swap disc; the wears step aside.
   await expect(look3e.getByRole('button', { name: /^Remove / })).toHaveCount(1);
