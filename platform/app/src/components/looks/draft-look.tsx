@@ -368,15 +368,76 @@ export function DraftLook({
 // opened — the scrim that greys the look behind it and closes it on a tap.
 interface ShellDock {
   node: ReactNode;
+  // The prompt is open as its sheet: it stands at the foot over the dimmed look, and a tap on
+  // the look behind it closes it (testing, 15 Nov: in a draft as on a saved look).
   onScrim?: () => void;
+  // A new look opens scrolled to its foot, so the Rack's card stands clear above the prompt box
+  // and never under it.
+  startAtEnd?: boolean;
+}
+
+// The open prompt inside a frame that already rides the keyboard (the drawer's body): a scrim
+// over the look and the sheet on the frame's foot.
+function PromptSheetLayer({ dock }: { dock: ShellDock }) {
+  return (
+    <>
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden
+        onClick={dock.onScrim}
+        data-testid="prompt-scrim"
+        className="absolute inset-0 z-10 cursor-default bg-backdrop motion-safe:animate-[robes-fade-in_250ms_ease]"
+      />
+      <div className="absolute inset-x-0 bottom-0 z-20 motion-safe:animate-[robes-sheet-up_300ms_cubic-bezier(.2,0,.2,1)]">
+        {dock.node}
+      </div>
+    </>
+  );
+}
+
+// The same on a page, where nothing else lifts it: fixed to the screen's foot, on the keyboard.
+function PromptSheetFixed({ dock }: { dock: ShellDock }) {
+  const keyboard = useKeyboardInset();
+  return (
+    <>
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden
+        onClick={dock.onScrim}
+        data-testid="prompt-scrim"
+        className="fixed inset-0 z-40 cursor-default bg-backdrop motion-safe:animate-[robes-fade-in_250ms_ease]"
+      />
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md motion-safe:animate-[robes-sheet-up_300ms_cubic-bezier(.2,0,.2,1)]"
+        style={keyboard ? { bottom: keyboard } : undefined}
+      >
+        {dock.node}
+      </div>
+    </>
+  );
 }
 
 // The prompt floats at the foot of whatever scrolls: it sticks to the bottom of the drawer's body
 // (which the drawer already stands on the keyboard) or of the page, with no band or rule of its
 // own, and the look scrolls under it. Only what is drawn takes a tap.
-function FloatingDock({ children, lift = 0 }: { children: ReactNode; lift?: number }) {
+function FloatingDock({
+  children,
+  lift = 0,
+  startAtEnd = false,
+}: {
+  children: ReactNode;
+  lift?: number;
+  startAtEnd?: boolean;
+}) {
+  const foot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (startAtEnd) foot.current?.scrollIntoView({ block: 'end' });
+  }, [startAtEnd]);
   return (
     <div
+      ref={foot}
       className="pointer-events-none sticky bottom-0 z-10 mt-auto pt-2 *:pointer-events-auto"
       style={lift ? { bottom: lift } : undefined}
       data-testid="floating-dock"
@@ -422,7 +483,12 @@ function Shell({
         onClose={onClose}
         closeLabel={copy.close}
         done={done}
-        {...(over ? { over } : {})}
+        over={
+          <>
+            {over}
+            {dock?.onScrim ? <PromptSheetLayer dock={dock} /> : null}
+          </>
+        }
         {...(footer ? { footer } : {})}
         testId="draft-look"
       >
@@ -431,7 +497,9 @@ function Shell({
         <div className={dock ? '-mb-8 flex min-h-full flex-col' : undefined}>
           {h1 ? <h1 className="sr-only">{h1}</h1> : null}
           {children}
-          {dock ? <FloatingDock>{dock.node}</FloatingDock> : null}
+          {dock && !dock.onScrim ? (
+            <FloatingDock startAtEnd={dock.startAtEnd === true}>{dock.node}</FloatingDock>
+          ) : null}
         </div>
       </Drawer>
     );
@@ -464,7 +532,6 @@ function SavedShell({
 }) {
   // The page's back pill stands down: the disc on the photo is the way back.
   useHideBack(true);
-  const keyboard = useKeyboardInset();
   const sheet = dock?.onScrim;
   return (
     <article
@@ -480,24 +547,7 @@ function SavedShell({
           {dock.node}
         </div>
       ) : null}
-      {dock && sheet ? (
-        <>
-          <button
-            type="button"
-            tabIndex={-1}
-            aria-hidden
-            onClick={sheet}
-            data-testid="prompt-scrim"
-            className="fixed inset-0 z-40 cursor-default bg-ink/[0.16] motion-safe:animate-[robes-fade-in_250ms_ease]"
-          />
-          <div
-            className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md motion-safe:animate-[robes-sheet-up_300ms_cubic-bezier(.2,0,.2,1)]"
-            style={keyboard ? { bottom: keyboard } : undefined}
-          >
-            {dock.node}
-          </div>
-        </>
-      ) : null}
+      {dock && sheet ? <PromptSheetFixed dock={dock} /> : null}
       {/* The floating sheets ride the screen, not the page: 8px above everything, the look's bar
           included (redline 7 Nov). The layer lets taps through except where a sheet is. */}
       {over ? (
@@ -560,9 +610,14 @@ function PageShell({
       <div className="relative">
         <div className={dock ? 'flex flex-col' : 'pb-8'}>
           {children}
-          {dock ? <FloatingDock lift={keyboard}>{dock.node}</FloatingDock> : null}
+          {dock && !dock.onScrim ? (
+            <FloatingDock lift={keyboard} startAtEnd={dock.startAtEnd === true}>
+              {dock.node}
+            </FloatingDock>
+          ) : null}
         </div>
         {over}
+        {dock?.onScrim ? <PromptSheetFixed dock={dock} /> : null}
       </div>
     </article>
   );
@@ -737,6 +792,7 @@ function NewDraft({
       done={{ label: copy.done, onClick: () => undefined, disabled: true, testId: 'draft-done' }}
       // The prompt box floats at the foot, in thumb reach from the start (look prompt PRD F23).
       dock={{
+        startAtEnd: true,
         node: (
           <div className="p-2.5" data-testid="prompt-dock">
             <StylingCard
@@ -1064,13 +1120,16 @@ function DraftBody({
   // once the rack is answered.
   const generate = () => {
     if (busy || (!words && !picked)) return;
-    adjust.send(words, { ...sendOpts, draw: true });
+    if (adjust.send(words, { ...sendOpts, draw: true })) setDockOpen(false);
     setPrompt('');
   };
   // A saved look's send asks, and what Robes changes is kept and drawn as it lands.
   const ask = () => {
     if (busy || (!words && !picked) || rows.length === 0) return;
-    if (adjust.send(words, sendOpts)) setApplying('asked');
+    if (adjust.send(words, sendOpts)) {
+      setApplying('asked');
+      setDockOpen(false);
+    }
     setPrompt('');
   };
   // "Update the model · N" keeps its place at the draft's foot while the picture is behind: it is
@@ -1162,12 +1221,14 @@ function DraftBody({
       />
     ),
   );
-  // The prompt floats at the look's foot (look prompt PRD F23; redline 14 Nov): open on a draft,
-  // behind the sparkle on a saved look until she asks for it. Closed it is one bar with Robes'
-  // question and its thumbs; a thumbs up shrinks it to the sparkle (F6), a thumbs down opens it
-  // on what to change.
+  // The prompt at the look's foot (look prompt PRD F23; redline 14 Nov; testing 15 Nov). At rest
+  // it never covers the look: the box on a draft with no conversation yet, the closed bar with
+  // Robes' question and its thumbs once there is one, the sparkle on a saved look or after a
+  // thumbs up (F6). Opened it is a sheet over the dimmed look. A thumbs down opens it on what to
+  // change; a send closes it, so the change is seen on the look; and it opens again when Robes
+  // answers in words. Native twin: DraftLook.tsx.
   const verdict = adjust.state.verdict;
-  const [dockOpen, setDockOpen] = useState(mode === 'draft');
+  const [dockOpen, setDockOpen] = useState(false);
   useEffect(() => {
     if (verdict === 'up') setDockOpen(false);
     if (verdict === 'down') setDockOpen(true);
@@ -1175,15 +1236,29 @@ function DraftBody({
   const hasThread = adjust.state.thread.length > 0 || adjust.state.question !== null;
   const lastLine = adjust.state.thread.at(-1);
   const working = lastLine?.who === 'work';
-  const dockState: DockState = dockOpen
-    ? 'open'
-    : verdict === 'ask' || working || adjust.busy || (mode === 'draft' && verdict !== 'up')
+  const said =
+    (lastLine?.who === 'robes' || lastLine?.who === 'filed') && lastLine.text !== d.modelDone
+      ? lastLine
+      : null;
+  const saidId = said?.id ?? null;
+  useEffect(() => {
+    if (saidId !== null) setDockOpen(true);
+  }, [saidId]);
+  const rest: 'box' | 'pill' | 'spark' =
+    verdict === 'ask' ||
+    working ||
+    adjust.busy ||
+    (mode === 'draft' && hasThread && verdict !== 'up')
       ? 'pill'
-      : 'spark';
+      : mode === 'edit' || hasThread
+        ? 'spark'
+        : 'box';
+  // The box with no conversation is typed into where it stands; everything else opens the sheet.
+  const asSheet = rest !== 'box';
+  const dockState: DockState = !asSheet || dockOpen ? 'open' : rest;
   // Her first send carries the day's place and weather into the conversation (pin 13).
   const briefed = adjust.state.thread.some((l) => l.who === 'her');
   const dayContext = forDay && mode === 'draft' ? forDay : null;
-  const asSheet = mode === 'edit' || hasThread;
   const dockNode = captureDraft ? null : (
     <PromptDock
       state={dockState}
@@ -1193,7 +1268,7 @@ function DraftBody({
           ? (lastLine?.text ?? '')
           : verdict === 'down'
             ? fb.change
-            : (adjust.state.question ?? copy.dock.rest)
+            : (adjust.state.question ?? said?.text ?? copy.dock.rest)
       }
       working={working}
       thumbs={verdict === 'ask' ? <Thumbs adjust={adjust} /> : null}
@@ -1254,16 +1329,16 @@ function DraftBody({
       />
     </PromptDock>
   );
-  // A saved look's prompt opened is a sheet over the greyed look, and the look's button steps
-  // away: changes are made through the prompt alone (pins 23, 25).
-  const promptSheet = presentation === 'saved' && dockState === 'open' && dockNode !== null;
+  // Opened, the prompt is a sheet over the dimmed look in every presentation, and a saved look's
+  // button steps away: changes are made through the prompt alone (pins 23, 25).
+  const promptSheet = asSheet && dockOpen && dockNode !== null;
   const dock = dockNode
     ? { node: dockNode, ...(promptSheet ? { onScrim: () => setDockOpen(false) } : {}) }
     : null;
   const footButton =
     // While the prompt is open or keeping its change there is no button at all (pin 25).
     mode === 'edit' &&
-    (dockState === 'open' ||
+    (dockOpen ||
       applying !==
         null) ? undefined : // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
     // hand edit waits — never both. Native twin: DraftLook.tsx's footer.

@@ -8,6 +8,7 @@ import {
   fonts,
   IconToggle,
   MIN_TOUCH,
+  Sheet,
   Text,
   useColor,
 } from '@robes/ui-native';
@@ -43,6 +44,8 @@ export function StylingCard({
   context,
   tokens,
   inline = false,
+  onOpen,
+  autoFocus = false,
   sources,
   onSource,
   wardrobeEmpty,
@@ -59,6 +62,11 @@ export function StylingCard({
   // What she picked after a thumbs down, standing in the box beside the sources (pin 11).
   tokens?: ReactNode;
   inline?: boolean;
+  // At rest on the look (15 Nov): the field is a line that opens the prompt's sheet, where the
+  // real field stands on the keyboard. Nothing is typed into the resting box itself.
+  onOpen?: () => void;
+  // The sheet's field takes the keyboard as it opens.
+  autoFocus?: boolean;
   sources: Sources;
   onSource: (which: Source) => void;
   // She owns nothing: Wardrobe is drawn faded, and a tap on it says why (S3).
@@ -110,7 +118,28 @@ export function StylingCard({
       />
     </View>
   );
-  const field = (
+  const hintColor = useColor('placeholder');
+  const field = onOpen ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={placeholder ?? copy.placeholder}
+      onPress={onOpen}
+      testID="prompt-rest"
+      className="min-w-0 flex-1 justify-center"
+      style={{ minHeight: inline ? 38 : 52 }}
+    >
+      <Text
+        numberOfLines={1}
+        style={{
+          fontFamily: fonts.displayItalic,
+          fontSize: 17,
+          ...(words ? {} : { color: hintColor }),
+        }}
+      >
+        {words || hint}
+      </Text>
+    </Pressable>
+  ) : (
     <SheetField
       label={placeholder ?? copy.placeholder}
       placeholder={hint}
@@ -118,7 +147,7 @@ export function StylingCard({
       onChange={onChange}
       onSend={send}
       disabled={busy}
-      autoFocus={false}
+      autoFocus={autoFocus}
       hardLimit={false}
       faintHint
       minHeight={inline ? 38 : 52}
@@ -215,18 +244,19 @@ export function RobesAvatar({ working = false }: { working?: boolean }) {
   );
 }
 
-// Where the prompt stands (look prompt PRD F23; redline 14 Nov pins 1, 10, 15–21, 23): floating
-// at the foot of the look, never on a band of its own. `open` with a conversation is a cream
-// sheet — the tracked title and the minimise disc, the turns scrolling newest-last, and the box
-// under them, to at most two thirds of the screen; with none it is the box alone. `pill` is the
-// closed bar: Robes' avatar, the line it was on, the thumbs while Robes is asking, and the disc
-// that opens it. `spark` is the sparkle that opens it again (a saved look at rest, a draft after
-// a thumbs up). Web twin: app/src/components/looks/styling-card.tsx.
-export type DockState = 'open' | 'pill' | 'spark';
+// Where the prompt stands (look prompt PRD F23; redline 14 Nov; testing 15 Nov). At rest it
+// floats at the look's foot and never takes the keyboard: `box` is the prompt box before there is
+// a conversation, `pill` the closed bar — Robes' avatar, the line it is on, the thumbs while
+// Robes is asking, the disc that opens it — and `spark` the sparkle (a saved look, a draft after
+// a thumbs up). Opened, it is the app's own bottom sheet: anchored to the screen's foot, standing
+// on the keyboard, the look dimmed behind it and closed by a tap there — the tracked title and
+// the minimise disc, the turns scrolling newest-last, and the box with the field in focus. Web
+// twin: app/src/components/looks/styling-card.tsx.
+export type DockRest = 'box' | 'pill' | 'spark';
 
 export function PromptDock({
-  state,
-  sheet,
+  open,
+  rest,
   line,
   working,
   thumbs,
@@ -235,11 +265,11 @@ export function PromptDock({
   maxHeight,
   onOpen,
   onMinimise,
+  box,
   children,
 }: {
-  state: DockState;
-  // There is a conversation to show, or a saved look's prompt was opened: the sheet stands.
-  sheet: boolean;
+  open: boolean;
+  rest: DockRest;
   // What the closed bar says: Robes' open question, the work in hand, or the invitation.
   line: string;
   working: boolean;
@@ -247,10 +277,13 @@ export function PromptDock({
   conversation?: ReactNode;
   // How many turns the conversation holds: a new one scrolls it to its end.
   turns?: number;
-  // Two thirds of the screen (pin 15): the sheet never grows past it.
+  // The most the turns may take of the screen before they scroll (pin 15).
   maxHeight?: number;
   onOpen: () => void;
   onMinimise: () => void;
+  // The resting prompt box (`rest` "box"): the sources, the day's chip, a line that opens the sheet.
+  box?: ReactNode;
+  // The sheet's box, its field in focus.
   children: ReactNode;
 }) {
   const muted = useColor('ink-muted');
@@ -259,122 +292,108 @@ export function PromptDock({
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrolls when a turn lands
   useEffect(() => {
     scroll.current?.scrollToEnd({ animated: true });
-  }, [turns, state]);
-  if (state === 'spark') {
-    return (
-      <View className="items-end" style={{ paddingHorizontal: 12, paddingBottom: 14 }}>
+  }, [turns, open]);
+  const resting = open ? null : rest === 'spark' ? (
+    <View className="items-end" style={{ paddingHorizontal: 12, paddingBottom: 14 }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={copy.dock.open}
+        onPress={onOpen}
+        testID="prompt-spark"
+        className="items-center justify-center rounded-pill bg-ink"
+        style={[shadowNative.float, { width: MIN_TOUCH, height: MIN_TOUCH }]}
+      >
+        <Icon name="looks" size={18} color={onInk} />
+      </Pressable>
+    </View>
+  ) : rest === 'pill' ? (
+    <View style={{ paddingHorizontal: 12, paddingBottom: 14 }}>
+      <View
+        testID="prompt-pill"
+        className="flex-row items-center rounded-pill border-rule-mid bg-surface-raised"
+        style={[
+          shadowNative.float,
+          { minHeight: MIN_TOUCH, padding: 6, gap: 10, borderWidth: FINE_EDGE },
+        ]}
+      >
+        <RobesAvatar working={working} />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={copy.dock.open}
+          accessibilityLabel={line}
+          accessibilityState={{ expanded: false }}
           onPress={onOpen}
-          testID="prompt-spark"
-          className="items-center justify-center rounded-pill bg-ink"
-          style={[shadowNative.float, { width: MIN_TOUCH, height: MIN_TOUCH }]}
+          hitSlop={{ top: 6, bottom: 6 }}
+          testID="prompt-pill-line"
+          className="min-w-0 flex-1 justify-center"
+          style={{ minHeight: DISC }}
         >
-          <Icon name="looks" size={18} color={onInk} />
+          <Text
+            numberOfLines={1}
+            className="text-ink-muted"
+            style={{ fontFamily: fonts.sans, fontSize: 13 }}
+          >
+            {line}
+          </Text>
         </Pressable>
-      </View>
-    );
-  }
-  if (state === 'pill') {
-    return (
-      <View style={{ paddingHorizontal: 12, paddingBottom: 14 }}>
-        <View
-          testID="prompt-pill"
-          className="flex-row items-center rounded-pill border-rule-mid bg-surface-raised"
-          style={[
-            shadowNative.float,
-            { minHeight: MIN_TOUCH, padding: 6, gap: 10, borderWidth: FINE_EDGE },
-          ]}
-        >
-          <RobesAvatar working={working} />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={line}
-            accessibilityState={{ expanded: false }}
-            onPress={onOpen}
-            hitSlop={{ top: 6, bottom: 6 }}
-            testID="prompt-pill-line"
-            className="min-w-0 flex-1 justify-center"
-            style={{ minHeight: DISC }}
-          >
-            <Text
-              numberOfLines={1}
-              className="text-ink-muted"
-              style={{ fontFamily: fonts.sans, fontSize: 13 }}
-            >
-              {line}
-            </Text>
-          </Pressable>
-          {thumbs}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copy.dock.expand}
-            onPress={onOpen}
-            hitSlop={6}
-            testID="prompt-expand"
-            className="items-center justify-center rounded-pill bg-surface-sunk"
-            style={{ width: DISC, height: DISC }}
-          >
-            <View style={{ transform: [{ rotate: '180deg' }] }}>
-              <Icon name="down" size={14} color={muted} />
-            </View>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
-  if (!sheet) {
-    return (
-      <View style={{ padding: 10 }} testID="prompt-dock">
-        {children}
-      </View>
-    );
-  }
-  return (
-    <View
-      accessibilityLabel={copy.dock.title}
-      testID="prompt-dock"
-      className="bg-bg"
-      style={[
-        shadowNative.sheet,
-        { shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.18, shadowRadius: 18 },
-        { borderTopLeftRadius: 18, borderTopRightRadius: 18 },
-        maxHeight ? { maxHeight } : null,
-      ]}
-    >
-      <View className="flex-row items-center gap-3 px-5 pt-3">
-        <Text
-          className="flex-1 uppercase text-ink-muted"
-          style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 9 * 0.22 }}
-        >
-          {copy.dock.title}
-        </Text>
+        {thumbs}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={copy.dock.minimise}
-          onPress={onMinimise}
+          accessibilityLabel={copy.dock.expand}
+          onPress={onOpen}
           hitSlop={6}
-          testID="prompt-minimise"
+          testID="prompt-expand"
           className="items-center justify-center rounded-pill bg-surface-sunk"
           style={{ width: DISC, height: DISC }}
         >
-          <Icon name="down" size={14} color={muted} />
+          <View style={{ transform: [{ rotate: '180deg' }] }}>
+            <Icon name="down" size={14} color={muted} />
+          </View>
         </Pressable>
       </View>
-      {conversation ? (
-        <ScrollView
-          ref={scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          className="shrink"
-          contentContainerClassName="gap-3 px-5 pt-2 pb-1"
-          testID="prompt-conversation"
-        >
-          {conversation}
-        </ScrollView>
-      ) : null}
-      <View style={{ padding: 10 }}>{children}</View>
     </View>
+  ) : (
+    <View style={{ padding: 10 }} testID="prompt-box">
+      {box}
+    </View>
+  );
+  return (
+    <>
+      {resting}
+      <Sheet open={open} onClose={onMinimise} floating testID="prompt-dock">
+        <View className="flex-row items-center gap-3 pb-2">
+          <Text
+            className="flex-1 uppercase text-ink-muted"
+            style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 9 * 0.22 }}
+          >
+            {copy.dock.title}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.dock.minimise}
+            onPress={onMinimise}
+            hitSlop={6}
+            testID="prompt-minimise"
+            className="items-center justify-center rounded-pill bg-surface-sunk"
+            style={{ width: DISC, height: DISC }}
+          >
+            <Icon name="down" size={14} color={muted} />
+          </Pressable>
+        </View>
+        {conversation ? (
+          <ScrollView
+            ref={scroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            style={maxHeight ? { maxHeight } : undefined}
+            contentContainerClassName="gap-3 pt-1 pb-3"
+            testID="prompt-conversation"
+          >
+            {conversation}
+          </ScrollView>
+        ) : null}
+        {/* The box runs wider than the sheet's own gutter: 10pt from each side (pin 1). */}
+        <View style={{ marginHorizontal: -10 }}>{children}</View>
+      </Sheet>
+    </>
   );
 }
