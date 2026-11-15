@@ -2,7 +2,7 @@ import { useApi } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { wardrobe as copy, filters as filterCopy, ui } from '@robes/copy';
 import { SEASON_OPTIONS, type SeasonOption, WEAR_FOR_ALL } from '@robes/core/filters';
-import { rankCategories } from '@robes/core/wardrobe';
+import { matchesSearch, rankCategories } from '@robes/core/wardrobe';
 import { Button, CardSkeleton, EmptyState, PrimaryScope, Text } from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -138,6 +138,12 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
   const { pieces, total, isPending, isError, error, refetch, fetchNextPage, hasNextPage } =
     usePieces(filters.input);
   const pull = usePullRefresh(refetch);
+  // Her search narrows the pieces held here at once, as she types; the server's answer (`q`, sent
+  // once she pauses) brings in any beyond the loaded pages.
+  const shown = useMemo(
+    () => pieces.filter((p) => matchesSearch(p, filters.state.query)),
+    [pieces, filters.state.query],
+  );
   const remove = useDeletePiece();
   // The row's swipe asks first, as the piece page does (R14).
   const [asking, setAsking] = useState<string | null>(null);
@@ -219,7 +225,7 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
         {...tabScroll}
         testID="pieces-list"
         key={layout}
-        data={pieces}
+        data={shown}
         keyExtractor={(p) => p.id}
         numColumns={grid ? 3 : 1}
         {...(grid ? { columnWrapperClassName: 'gap-2' } : {})}

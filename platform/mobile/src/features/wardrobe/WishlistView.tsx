@@ -1,7 +1,7 @@
 import type { Wish } from '@robes/contracts';
 import { wardrobe as copy, ui } from '@robes/copy';
 import { shade } from '@robes/core/colour';
-import { countByCategory, formatPrice, rankCategories } from '@robes/core/wardrobe';
+import { countByCategory, formatPrice, matchesSearch, rankCategories } from '@robes/core/wardrobe';
 import { Button, EmptyState, Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -41,14 +41,7 @@ function wishMatches(
 ): boolean {
   if (f.category && wish.category !== f.category) return false;
   // Her search, as the Wardrobe's: the words anywhere in the name, the brand (or shop) or category.
-  const words = f.query.trim().toLowerCase();
-  if (
-    words &&
-    ![wish.label, wish.brand, wish.sourceLabel, wish.categoryL2, wish.category].some((v) =>
-      (v ?? '').toLowerCase().includes(words),
-    )
-  )
-    return false;
+  if (!matchesSearch(wish, f.query)) return false;
   if (f.families.length) {
     const family = shade(wish.colourShade)?.family;
     if (!family || !f.families.includes(family)) return false;

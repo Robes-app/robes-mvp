@@ -114,8 +114,10 @@ export function SearchRow({
           returnKeyType="search"
           autoCorrect={false}
           clearButtonMode="while-editing"
-          className="min-w-0 flex-1 py-0"
-          style={{ fontFamily: fonts.sans, fontSize: 14, color: ink }}
+          // The field takes the pill's whole height, so a descender (the y of "your") is never
+          // clipped (Annie, 15 Nov).
+          className="h-full min-w-0 flex-1 py-0"
+          style={{ fontFamily: fonts.sans, fontSize: 14, color: ink, height: '100%' }}
           testID={testID}
         />
       </View>

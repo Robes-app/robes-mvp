@@ -598,9 +598,12 @@ test('the list is the shared piece row: its wears or New, the brand beneath, and
 
   await fireEvent.press(await screen.findByRole('button', { name: 'Accessories 1' }));
   await waitFor(() => expect(calls.some((c) => c.url.includes('category=Accessories'))).toBe(true));
-  // Her search goes to the server once she pauses (Robes MVP 3b: the field under the glass).
-  await fireEvent.changeText(screen.getByLabelText(wardrobe.search.pieces), 'wool');
-  await waitFor(() => expect(calls.some((c) => c.url.includes('q=wool'))).toBe(true));
+  // Her search narrows what's here at once, then goes to the server once she pauses (Robes MVP 3b).
+  await fireEvent.press(screen.getByRole('button', { name: 'Accessories 1' }));
+  await fireEvent.changeText(screen.getByLabelText(wardrobe.search.pieces), 'toteme');
+  expect(screen.queryByText('Silk scarf')).toBeNull();
+  expect(screen.getByText('Camel wool coat')).toBeTruthy();
+  await waitFor(() => expect(calls.some((c) => c.url.includes('q=toteme'))).toBe(true));
 });
 
 test('the star in the piece’s bar files it to the Hero Rack', async () => {
