@@ -80,6 +80,8 @@ const terms: LegalDoc = {
 
 // TODO(founders): retention for feedback, the waitlist, notifications and the audit log isn't
 // decided (data-inventory.md "Open items"), so this notice states no period for them.
+// TODO(founders): PostHog keeps analytics events for the period the plan sets (one to seven years);
+// name the number here once the plan is fixed, so the notice states it rather than the criterion.
 const privacy: LegalDoc = {
   title: 'Privacy notice',
   intro: 'In plain English.',
@@ -156,7 +158,8 @@ const privacy: LegalDoc = {
           'What Robes asked Google Gemini, and its answer: the text is cleared after 30 days. A record that a request was made, with its cost and counts but never your words, is kept for 13 months.',
           'A download of your data: seven days.',
           'Server logs: 14 days.',
-          'Usage counts, screen recordings and the looks you chose to share, only if you agreed: kept by PostHog for 30 days, and deleted sooner if you delete your account.',
+          'Usage counts and screen recordings, only if you agreed: kept by PostHog for the period our plan sets, and deleted with your account.',
+          'The looks you chose to share: what you asked and what Robes styled is cleared from PostHog after 30 days. A record that a request was made, with its cost, timing and counts but never your words, is kept with the usage counts above.',
           'A look you share: until you turn the link off.',
         ],
       ],
