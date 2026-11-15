@@ -6,6 +6,7 @@ import { Button, EmptyState, Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
+import { TabSticky, useTabScroll, useTabTop } from '@/components/TabScreen';
 import { FilterRow } from '@/features/filters/FilterRow';
 import { useWardrobeFilters } from '@/features/filters/use-wardrobe-filters';
 import { errorMessage } from '@/lib/errors';
@@ -48,6 +49,8 @@ function wishMatches(
 // keeps Bought and the swipe to remove. Web twin: app/src/components/wardrobe/wishlist.tsx.
 export function WishlistView() {
   const router = useRouter();
+  const tabScroll = useTabScroll();
+  const top = useTabTop();
   // The empty wishlist's door: the Add pieces sheet (PRD rev 3 §7.4) on the wishlist.
   const [adding, setAdding] = useState(false);
   const { wishes, isPending, isError, error, refetch, fetchNextPage, hasNextPage } = useWishes();
@@ -86,17 +89,20 @@ export function WishlistView() {
   );
   if (isError) {
     return (
-      <EmptyState
-        title={errorMessage(error)}
-        action={{ label: ui.retry, onPress: () => void refetch() }}
-      />
+      <View style={{ paddingTop: top }}>
+        <EmptyState
+          title={errorMessage(error)}
+          action={{ label: ui.retry, onPress: () => void refetch() }}
+        />
+      </View>
     );
   }
   const grid = layout === 'grid';
   return (
     <View className="flex-1">
+      {/* Pinned with the tabs in the glass chrome; the count scrolls with the wishes (3b). */}
       {wishes.length > 0 ? (
-        <View className="px-5 pt-3">
+        <TabSticky className="px-5 pt-3">
           <FilterRow
             sheetCount={filters.sheetCount}
             onOpenSheet={() => setSheet(true)}
@@ -109,16 +115,17 @@ export function WishlistView() {
             onAll={() => filters.setCategory(null)}
             testID="wishlist-filter-row"
           />
-        </View>
+        </TabSticky>
       ) : null}
       <FlatList
+        {...tabScroll}
         testID="wishlist"
         key={layout}
         data={visible}
         keyExtractor={(w) => w.id}
         numColumns={grid ? 3 : 1}
         {...(grid ? { columnWrapperClassName: 'gap-2' } : {})}
-        contentContainerClassName={grid ? 'gap-2 px-5 pt-3 pb-8' : 'gap-[3px] px-5 pt-3 pb-8'}
+        contentContainerClassName={grid ? 'gap-2 px-5 pb-8' : 'gap-[3px] px-5 pb-8'}
         keyboardShouldPersistTaps="handled"
         onEndReachedThreshold={0.5}
         onEndReached={() => (hasNextPage ? void fetchNextPage() : undefined)}
@@ -160,7 +167,7 @@ export function WishlistView() {
         }
         ListHeaderComponent={
           wishes.length > 0 ? (
-            <View className="-mx-5 -mt-3">
+            <View className="-mx-5">
               <CountRow
                 count={copy.header.wishCount(visible.length)}
                 layout={layout}

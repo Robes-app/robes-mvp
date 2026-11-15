@@ -24,7 +24,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { TabScreen } from '@/components/TabScreen';
+import { TabScreen, TabSticky } from '@/components/TabScreen';
 import { FilterRow } from '@/features/filters/FilterRow';
 import { FilterSheet } from '@/features/filters/FilterSheet';
 import { useLookFilters } from '@/features/filters/use-look-filters';
@@ -108,18 +108,21 @@ export function LooksView() {
 
   const header = (
     <View className="gap-4 pb-5">
-      <FilterRow
-        sheetCount={filters.sheetCount}
-        onOpenSheet={() => setSheet(true)}
-        seasons={filters.state.seasons}
-        onRemoveSeason={filters.toggleSeason}
-        quick={filters.quick}
-        active={filters.state.wearFor}
-        onToggle={filters.toggleWear}
-        allCount={filters.allCount}
-        onAll={filters.clearWear}
-        testID="lookbook-filter-row"
-      />
+      {/* Pinned with the tabs in the glass chrome (Robes MVP 2b); in place on Android. */}
+      <TabSticky>
+        <FilterRow
+          sheetCount={filters.sheetCount}
+          onOpenSheet={() => setSheet(true)}
+          seasons={filters.state.seasons}
+          onRemoveSeason={filters.toggleSeason}
+          quick={filters.quick}
+          active={filters.state.wearFor}
+          onToggle={filters.toggleWear}
+          allCount={filters.allCount}
+          onAll={filters.clearWear}
+          testID="lookbook-filter-row"
+        />
+      </TabSticky>
       {searching || filters.state.query ? (
         <View
           className="h-10 flex-row items-center gap-2 rounded-pill border-rule-mid bg-surface-raised px-3.5"
@@ -159,19 +162,24 @@ export function LooksView() {
   );
 
   return (
-    <TabScreen title={copy.title} toolbar={toolbar}>
+    <TabScreen glass title={copy.title} toolbar={toolbar}>
       {(tabScroll) => (
         <>
           {current.isPending ? (
-            <View className="flex-row gap-3 px-5 pt-5">
+            <View
+              className="flex-row gap-3 px-5 pt-5"
+              style={{ marginTop: tabScroll.contentContainerStyle?.paddingTop ?? 0 }}
+            >
               <CardSkeleton className="flex-1" />
               <CardSkeleton className="flex-1" />
             </View>
           ) : current.isError ? (
-            <EmptyState
-              title={errorMessage(current.error)}
-              action={{ label: ui.retry, onPress: () => void current.refetch() }}
-            />
+            <View style={{ paddingTop: tabScroll.contentContainerStyle?.paddingTop ?? 0 }}>
+              <EmptyState
+                title={errorMessage(current.error)}
+                action={{ label: ui.retry, onPress: () => void current.refetch() }}
+              />
+            </View>
           ) : (
             <FlatList
               {...tabScroll}
