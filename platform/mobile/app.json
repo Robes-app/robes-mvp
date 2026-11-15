@@ -65,6 +65,12 @@
       "expo-image",
       "expo-localization",
       [
+        "expo-notifications",
+        {
+          "color": "#202021"
+        }
+      ],
+      [
         "expo-location",
         {
           "locationWhenInUsePermission": "Robes uses your location to dress you for the weather.",
