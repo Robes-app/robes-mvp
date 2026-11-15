@@ -20,14 +20,12 @@ test.afterAll(() => {
 });
 test.beforeEach(async ({ context }) => isolateClientIp(context));
 
-test('paste a link from Create, review it, and it files to the wishlist', async ({ page }) => {
+// The desktop bar's Create is retired (Annie, 15 Nov): Add pieces is the way in.
+test('paste a link from Add pieces, review it, and it files to the wishlist', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await page
-    .getByRole('dialog', { name: 'Create' })
-    .getByRole('link', { name: 'Paste a link' })
-    .click();
+  await page.goto('/wardrobe/add');
+  await page.getByRole('link', { name: 'Paste a link' }).click();
   await expect(page.getByRole('heading', { name: 'Add from a shop page.' })).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
 
