@@ -10,7 +10,7 @@ import type {
   LookStatus,
 } from '@robes/contracts';
 import { lookbook as copy, errors, ui } from '@robes/copy';
-import { useToast } from '@robes/ui-native';
+import { haptic, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { nativeAnalytics } from '@/lib/analytics';
@@ -100,6 +100,7 @@ export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 
         proposed: look.proposals.length,
         anchored: look.anchor !== null,
       });
+      haptic.success();
       refresh(look);
       onSaved?.(look);
       toast.show({ message: from === 'suggested' ? copy.saved : copy.savedAs(look.name) });

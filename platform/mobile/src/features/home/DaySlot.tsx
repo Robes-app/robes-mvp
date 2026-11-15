@@ -6,6 +6,7 @@ import {
   ActionDisc,
   ActionDiscs,
   ASPECTS,
+  Glass,
   Image,
   MIN_TOUCH,
   maxFontSizeMultiplier,
@@ -278,8 +279,9 @@ function Remove({ label, onPress }: { label: string; onPress: () => void }) {
       onPress={onPress}
       hitSlop={(MIN_TOUCH - size) / 2}
       style={{ width: size, height: size }}
-      className="items-center justify-center rounded-pill bg-veil-mid"
+      className="items-center justify-center rounded-pill"
     >
+      <Glass tone="veil-mid" className="absolute inset-0 rounded-pill" />
       <Icon name="close" size={12} color={mute} />
     </Pressable>
   );

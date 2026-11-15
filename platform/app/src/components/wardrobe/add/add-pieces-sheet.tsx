@@ -4,20 +4,17 @@ import { useApi } from '@robes/api-client/react';
 import { wardrobe } from '@robes/copy';
 import type { AddDestination } from '@robes/core/add-flow';
 import { Button, Field, TileSheet } from '@robes/ui';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useRef, useState } from 'react';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 
 const copy = wardrobe.addSheet;
-const focus =
-  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The Add pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles on glass — PASTE URL turns
 // the sheet into Add from Link with the field inline (✓ reads the page), PHOTO the file picker
 // (over the draft the photograph files straight onto the look; elsewhere it opens the camera
-// flow), FROM RECEIPT the Receipts with the count waiting on its corner. "Add without a photo"
-// stays as a quiet line under the tiles. Native twin: mobile/src/features/wardrobe/add/AddPiecesSheet.tsx.
+// flow), FROM RECEIPT the Receipts with the count waiting on its corner. The tiles and nothing
+// under them (Annie, 15 Nov, 3b: the "Add without a photo" line made it too tall). Native twin: mobile/src/features/wardrobe/add/AddPiecesSheet.tsx.
 export function AddPiecesSheet({
   open,
   onClose,
@@ -108,15 +105,7 @@ export function AddPiecesSheet({
               {copy.linkGo}
             </Button>
           </form>
-        ) : (
-          <Link
-            href={`/wardrobe/manual?to=${to}`}
-            onClick={close}
-            className={`block min-h-11 text-center font-sans text-ink-muted text-sm leading-[44px] underline underline-offset-4 hover:text-ink ${focus}`}
-          >
-            {copy.manual}
-          </Link>
-        )}
+        ) : null}
       </TileSheet>
       {onPhoto ? (
         <input

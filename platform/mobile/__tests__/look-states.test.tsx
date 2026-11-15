@@ -126,6 +126,27 @@ test('the Lookbook: Saved leads with drafts in progress; Suggested tiles go with
   await waitFor(() => expect(calls.some((c) => c.path.endsWith('/restore'))).toBe(true));
 });
 
+test('a saved card on iOS: a tap opens the look; its long-press menu deletes with Undo, no ✕ at rest', async () => {
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET /looks': byStatus({ saved: [look()] }),
+    [`DELETE /looks/${LOOK_ID}`]: { ok: true },
+    [`POST /looks/${LOOK_ID}/restore`]: look(),
+  });
+  await renderWithApi(<LooksView />);
+  expect(await screen.findByText('Weekend navy')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: lookbook.card.delete })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Weekend navy' }));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`);
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.card.menu.delete }));
+  expect(await screen.findByText(lookbook.removed)).toBeTruthy();
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'DELETE' && c.path.endsWith(`/looks/${LOOK_ID}`))).toBe(
+      true,
+    ),
+  );
+});
+
 test('a suggested look reads as Robes composed it; Save to lookbook opens the diary', async () => {
   let saved = false;
   const [y, m, d] = localDate().split('-').map(Number);

@@ -38,11 +38,14 @@ test('an empty wishlist opens the Add pieces sheet on the wishlist', async () =>
   expect(await screen.findByText(wardrobe.wishlistEmpty.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: wardrobe.header.savePiece }));
   expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
-  // Add without a photo carries the wishlist as the destination.
-  await fireEvent.press(screen.getByTestId('add-sheet-manual'));
+  // The sheet is the three tiles and nothing under them (3b); a link carries the wishlist.
+  expect(screen.queryByText(wardrobe.addSheet.manual)).toBeNull();
+  await fireEvent.press(screen.getByTestId('add-sheet-link'));
+  await fireEvent.changeText(screen.getByTestId('add-sheet-url'), 'https://shop.test/loafers');
+  await fireEvent.press(screen.getByTestId('add-sheet-read'));
   expect(mockRouter.push).toHaveBeenCalledWith({
-    pathname: '/wardrobe/manual',
-    params: { to: 'wishlist' },
+    pathname: '/wardrobe/link',
+    params: { to: 'wishlist', url: 'https://shop.test/loafers' },
   });
 });
 

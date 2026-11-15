@@ -279,7 +279,7 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
 export function WardrobeView() {
   // `?segment=wishlist` opens a segment directly; the old `?segment=inbox` (Today, receipts)
   // now opens the pushed Inbox.
-  const params = useLocalSearchParams<{ segment?: string }>();
+  const params = useLocalSearchParams<{ segment?: string; add?: string }>();
   const router = useRouter();
   const [segment, setSegment] = useState<Segment>(
     SEGMENTS.includes(params.segment as Segment) ? (params.segment as Segment) : 'pieces',
@@ -293,6 +293,14 @@ export function WardrobeView() {
   // The + and the empty states open the Add pieces sheet (PRD rev 3 §7.4): the three tiles over
   // the Wardrobe, filing to the segment she is on.
   const [adding, setAdding] = useState(false);
+  // `?add=wardrobe|wishlist` (addPiecesHref: "add another", the old /wardrobe/add address): the
+  // sheet up over the segment the pieces go to.
+  useEffect(() => {
+    if (params.add !== 'wardrobe' && params.add !== 'wishlist') return;
+    setSegment(params.add === 'wishlist' ? 'wishlist' : 'pieces');
+    setAdding(true);
+    router.setParams({ add: undefined });
+  }, [params.add, router]);
   return (
     <TabScreen
       title={copy.title}

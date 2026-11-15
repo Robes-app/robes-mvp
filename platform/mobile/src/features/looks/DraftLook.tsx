@@ -38,6 +38,7 @@ import {
   EmptyState,
   FINE_EDGE,
   fonts,
+  Glass,
   Image,
   MIN_TOUCH,
   PrimaryScope,
@@ -833,6 +834,7 @@ function NewDraft({
         onClose={() => setPicker(null)}
         onPick={start}
         onSnap={() => void snap.snap()}
+        onAddPieces={() => setAdding(true)}
       />
       <AddPiecesSheet
         open={adding}
@@ -1479,6 +1481,7 @@ function DraftBody({
           void snap.snap();
         }}
         {...(picker && 'match' in picker ? { onAddNew: () => setNewPiece(picker.match.key) } : {})}
+        onAddPieces={() => setAdding(true)}
       />
       <NewPieceSheet
         row={rows.find((r) => r.key === newPiece) ?? null}
@@ -1651,9 +1654,10 @@ function DraftPhoto({
           onPress={onBack}
           hitSlop={10}
           testID="saved-look-back"
-          className="absolute items-center justify-center rounded-pill bg-veil-soft"
+          className="absolute items-center justify-center rounded-pill"
           style={{ top: top - 2, left: 12, width: 36, height: 36 }}
         >
+          <Glass tone="veil-soft" className="absolute inset-0 rounded-pill" />
           <Icon name="back" size={20} color={ink} />
         </Pressable>
       ) : null}
@@ -1676,9 +1680,10 @@ function DraftPhoto({
           onPress={onAdjust}
           hitSlop={10}
           testID="draft-adjust"
-          className="absolute items-center justify-center rounded-pill bg-veil-soft"
+          className="absolute items-center justify-center rounded-pill"
           style={{ left: 20, bottom: 25, width: 24, height: 24 }}
         >
+          <Glass tone="veil-soft" className="absolute inset-0 rounded-pill" />
           <Icon name="describe" size={13} color={ink} />
         </Pressable>
       ) : null}

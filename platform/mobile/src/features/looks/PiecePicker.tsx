@@ -5,7 +5,8 @@ import { formatPrice } from '@robes/core/wardrobe';
 import { Button, IconButton, PrimaryScope, Subview, Tabs, Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
+import { addPiecesHref } from '@/features/wardrobe/add/flow';
 import { usePieces } from '@/features/wardrobe/pieces';
 import { WardrobeGrid } from '@/features/wardrobe/WardrobeGrid';
 import { useWishes } from '@/features/wardrobe/wishlist';
@@ -42,6 +43,7 @@ export function PiecePicker({
   onPick,
   onSnap,
   onAddNew,
+  onAddPieces,
 }: {
   mode: PickerMode | null;
   // The pieces and wishes already on the rack, by id.
@@ -52,8 +54,12 @@ export function PiecePicker({
   onSnap?: () => void;
   // A match's +: the found piece is new, so its review opens instead of the wardrobe's add flow.
   onAddNew?: () => void;
+  // Every other +: the Add pieces sheet over the look, once the picker has gone. Without it the
+  // + opens the sheet over the Wardrobe.
+  onAddPieces?: () => void;
 }) {
   const router = useRouter();
+  const addNext = useRef(false);
   const open = mode !== null;
   const matching = mode && 'match' in mode ? mode.match : null;
   // One piece of hers, led by the row's category: a swap, or a match.
@@ -133,6 +139,11 @@ export function PiecePicker({
             : copy.title
       }
       onBack={onClose}
+      onClosed={() => {
+        if (!addNext.current) return;
+        addNext.current = false;
+        onAddPieces?.();
+      }}
       testID="piece-picker"
       footer={
         <PrimaryScope>
@@ -164,7 +175,9 @@ export function PiecePicker({
               onPress={() => {
                 onClose();
                 if (matching && onAddNew) onAddNew();
-                else router.push('/wardrobe/add');
+                else if (!onAddPieces) router.push(addPiecesHref('wardrobe'));
+                else if (Platform.OS === 'ios') addNext.current = true;
+                else onAddPieces();
               }}
               testID="picker-add-new"
             />

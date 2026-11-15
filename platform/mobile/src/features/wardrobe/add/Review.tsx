@@ -44,7 +44,14 @@ import { CropThumb } from '@/features/photo-pieces/PhotoFrame';
 import { nativeAnalytics } from '@/lib/analytics';
 import { type PieceField, PieceFieldSheet } from '../PieceFieldSheet';
 import { RecordRows } from '../PieceRows';
-import { manualHref, READ_PATIENCE_MS, type ReviewShot, sitting, wardrobeHref } from './flow';
+import {
+  addPiecesHref,
+  manualHref,
+  READ_PATIENCE_MS,
+  type ReviewShot,
+  sitting,
+  wardrobeHref,
+} from './flow';
 import { type SessionShot, useShotSession } from './reads';
 
 const old = wardrobe.add.review;
@@ -163,7 +170,7 @@ export function Review({
 
   const leave = () => {
     if (router.canGoBack()) router.back();
-    else router.replace({ pathname: '/wardrobe/add', params: { to } });
+    else router.replace(addPiecesHref(to));
   };
   // The camera is beneath Review when she came from it: going back keeps its photographs.
   const toCamera = from === 'camera' ? leave : null;
@@ -176,7 +183,7 @@ export function Review({
     left.current = true;
     sitting.empty();
     if (router.canGoBack()) router.back();
-    else router.replace({ pathname: '/wardrobe/add', params: { to } });
+    else router.replace(addPiecesHref(to));
   }, [emptied, router, to]);
 
   const remove = (key: string) => {

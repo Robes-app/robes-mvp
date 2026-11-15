@@ -29,6 +29,26 @@ test('the grid lists pieces, pages with the cursor and opens a piece', async () 
   expect(mockRouter.push).toHaveBeenCalledWith(`/piece/${PIECE_ID}`);
 });
 
+// "Add another" and the old /wardrobe/add address land on the one Add pieces sheet (addPiecesHref),
+// over the segment the pieces go to.
+test('?add=wishlist opens the Add pieces sheet over the Wishlist', async () => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+    'GET /wishlist/items': { items: [], nextCursor: null },
+    'GET /inbox': { items: [], count: 0, counts: { inbox: 0, added: 0, discarded: 0 } },
+  });
+  mockParams.add = 'wishlist';
+  try {
+    await renderWithApi(<WardrobeView />);
+    expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
+    expect(await screen.findByText(wardrobe.wishlistEmpty.title)).toBeTruthy();
+    expect(mockRouter.setParams).toHaveBeenCalledWith({ add: undefined });
+  } finally {
+    delete mockParams.add;
+  }
+});
+
 test('an empty wardrobe invites her to add pieces: the Add pieces sheet, its three tiles', async () => {
   mockFetch({
     'GET /me': ME,

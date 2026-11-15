@@ -9,6 +9,7 @@ import {
   EmptyState,
   ErrorText,
   fonts,
+  Glass,
   MIN_TOUCH,
   maxFontSizeMultiplier,
   Skeleton,
@@ -286,9 +287,10 @@ function Stage({
         {shown.onRobes ? (
           // R8: the tag, bottom-left, on glass.
           <View
-            className="absolute bottom-4 left-4 h-7 flex-row items-center gap-2 rounded-pill bg-veil px-3"
+            className="absolute bottom-4 left-4 h-7 flex-row items-center gap-2 rounded-pill px-3"
             testID="twin-robes-tag"
           >
+            <Glass tone="veil" className="absolute inset-0 rounded-pill" />
             <View className="size-1.5 rounded-pill bg-ink-faint" />
             {caps(tw.robesModel)}
           </View>
@@ -298,11 +300,12 @@ function Stage({
           // The status on the stage while she is read and drawn (designs 06–07): a dot and one
           // line, level with the back disc.
           <View
-            className="absolute right-3.5 h-8 flex-row items-center gap-2.5 rounded-pill bg-veil px-3.5"
+            className="absolute right-3.5 h-8 flex-row items-center gap-2.5 rounded-pill px-3.5"
             style={{ top: insets.top + 20 }}
             accessibilityLiveRegion="polite"
             testID="twin-status"
           >
+            <Glass tone="veil" className="absolute inset-0 rounded-pill" />
             <View className="size-1.5 rounded-pill bg-accent-warm" />
             {caps(chip)}
           </View>
@@ -330,13 +333,14 @@ function Stage({
             accessibilityRole="button"
             accessibilityLabel={tw.retake}
             onPress={onRetake}
-            className="absolute items-center justify-center rounded-pill bg-veil"
+            className="absolute items-center justify-center rounded-pill"
             style={[
               { right: 14, bottom: 14, width: MIN_TOUCH, height: MIN_TOUCH },
               shadowNative.float,
             ]}
             testID="twin-retake"
           >
+            <Glass tone="veil" className="absolute inset-0 rounded-pill" />
             <Icon name="refresh" size={18} color={ink} />
           </Pressable>
         ) : null}

@@ -3,7 +3,7 @@ import type { AddDestination } from '@robes/core/add-flow';
 import { Button, Em, Heading, PrimaryScope, Text } from '@robes/ui-native';
 import { type Href, useRouter } from 'expo-router';
 import { View } from 'react-native';
-import { wardrobeHref } from './flow';
+import { addPiecesHref, wardrobeHref } from './flow';
 
 const copy = wardrobe.add;
 
@@ -34,10 +34,7 @@ export function Filed({ to, kept }: { to: AddDestination; kept: number }) {
         </View>
         <View className="gap-3">
           <Button onPress={() => go(wardrobeHref(to))}>{copy.filed.see[to]}</Button>
-          <Button
-            variant="outline"
-            onPress={() => go({ pathname: '/wardrobe/add', params: { to } })}
-          >
+          <Button variant="outline" onPress={() => go(addPiecesHref(to))}>
             {copy.filed.another}
           </Button>
         </View>

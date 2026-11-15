@@ -2,6 +2,7 @@ import { Icon } from '@robes/icons/native';
 import { type GestureResponderEvent, Pressable, Text, View } from 'react-native';
 import { useColor } from './color';
 import { cx } from './cx';
+import { haptic } from './haptics';
 import { FINE_EDGE, fonts, MIN_TOUCH, maxFontSizeMultiplier } from './scale';
 
 export interface PillProps {
@@ -99,7 +100,10 @@ export function Pill({
       accessibilityLabel={label ?? (count === undefined ? children : `${children} ${count}`)}
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
-      onPress={onPress}
+      onPress={(event) => {
+        haptic.selection();
+        onPress(event);
+      }}
       testID={testID}
       style={{ minHeight: MIN_TOUCH }}
       className={cx('justify-center', className)}

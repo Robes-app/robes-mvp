@@ -20,7 +20,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Uniwind } from 'uniwind';
-import { DRAFT_SHEET, FORM_SHEET } from '@/components/FormSheetScreen';
+import { DRAFT_SHEET } from '@/components/FormSheetScreen';
 import { api } from '@/lib/api';
 
 // Light only, as beta: a dark-mode phone still sees cream (dark waits for a setting). Expo Go
@@ -50,8 +50,6 @@ export default function RootLayout() {
         <View className="flex-1 bg-bg">
           <ToastProvider>
             <Stack screenOptions={{ headerShown: false }}>
-              {/* Add pieces pulls up from the bottom edge (beta parity). */}
-              <Stack.Screen name="wardrobe/add" options={FORM_SHEET} />
               {/* The draft look rises over whatever started it (D14). */}
               <Stack.Screen name="looks/draft/[id]" options={DRAFT_SHEET} />
             </Stack>
