@@ -893,7 +893,9 @@ test('the bookmark on a suggestion saves it; + opens New Look; an empty Saved sa
   expect(await screen.findByText(lookbook.saved)).toBeTruthy();
 });
 
-test('nothing suggested says beta’s line and offers New look', async () => {
+// Annie, P2 15 Nov: Suggested is what Robes brings, so neither the + nor the empty state offers
+// New look there; Robes will fill blank days with suggested looks (still to be designed).
+test('nothing suggested says beta’s line, with no New look and no + on Suggested', async () => {
   mockFetch({
     'GET /me': ME,
     'GET /looks': byStatus({}),
@@ -905,10 +907,12 @@ test('nothing suggested says beta’s line and offers New look', async () => {
   expect(
     screen.getByText('Tell Robes where you’re going, or pick a piece, and it dresses you.'),
   ).toBeTruthy();
-  // Her words open the draft look sheet like every prompt (look prompt PRD D9): New look is the
-  // way in, and no second prompt box stands here.
-  expect(screen.getByRole('button', { name: `+ ${lookbook.newLook}` })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: `+ ${lookbook.newLook}` })).toBeNull();
+  expect(screen.queryByRole('button', { name: lookbook.newLook })).toBeNull();
   expect(screen.queryByTestId('draft-prompt')).toBeNull();
+  // Back on Saved, the + is there again.
+  await fireEvent.press(screen.getByRole('tab', { name: lookbook.tabs.saved }));
+  expect(await screen.findByRole('button', { name: lookbook.newLook })).toBeTruthy();
   delete mockParams.tab;
 });
 

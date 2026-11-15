@@ -250,6 +250,8 @@ export const wardrobe = {
   // URL turns it into Add from Link with the field inline. Over the draft it reads Add your pieces.
   addSheet: {
     title: 'Add pieces',
+    // Titled by where it files (Annie, P2 15 Nov).
+    titleTo: { wardrobe: 'Add pieces to Wardrobe', wishlist: 'Add pieces to Wishlist' },
     draftTitle: 'Add your pieces',
     pasteUrl: 'Paste URL',
     photo: 'Photo',

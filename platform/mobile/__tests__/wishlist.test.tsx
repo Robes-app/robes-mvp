@@ -38,6 +38,11 @@ test('an empty wishlist opens the Add pieces sheet on the wishlist', async () =>
   expect(await screen.findByText(wardrobe.wishlistEmpty.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: wardrobe.header.savePiece }));
   expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
+  // Titled by where it files; a receipt is for pieces she bought, so From receipt is inactive.
+  expect(screen.getByRole('header', { name: wardrobe.addSheet.titleTo.wishlist })).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: wardrobe.addSheet.fromReceipt }).props.accessibilityState,
+  ).toEqual(expect.objectContaining({ disabled: true }));
   // The sheet is the three tiles and nothing under them (3b); a link carries the wishlist.
   expect(screen.queryByText(wardrobe.addSheet.manual)).toBeNull();
   await fireEvent.press(screen.getByTestId('add-sheet-link'));

@@ -60,7 +60,7 @@ export function AddPiecesSheet({
         onOpenChange={(next) => {
           if (!next) close();
         }}
-        title={link ? copy.linkTitle : draft ? copy.draftTitle : copy.title}
+        title={link ? copy.linkTitle : draft ? copy.draftTitle : copy.titleTo[to]}
         {...(link ? { selected: copy.pasteUrl } : {})}
         tiles={[
           {
@@ -82,7 +82,8 @@ export function AddPiecesSheet({
             icon: 'mail',
             label: copy.fromReceipt,
             onClick: () => go('/wardrobe/inbox'),
-            ...(receipts ? { badge: receipts } : {}),
+            // A receipt is for pieces she bought: inactive while filing to the Wishlist.
+            ...(to === 'wishlist' ? { disabled: true } : receipts ? { badge: receipts } : {}),
             testId: 'add-sheet-receipt',
           },
         ]}

@@ -4,9 +4,10 @@ import { GlassView } from 'expo-glass-effect';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Dimensions,
   Easing,
   Keyboard,
-  KeyboardAvoidingView,
+  type KeyboardEvent,
   Modal,
   PanResponder,
   Platform,
@@ -99,24 +100,67 @@ const SHEET_PAD = 24;
 // Longest wait for iOS to confirm a dismissal before `onClosed` fires anyway.
 const DISMISS_FALLBACK_MS = 500;
 
-// While the keyboard is up the KeyboardAvoidingView already lifts the sheet clear of the home
-// indicator, so the inset is only added while it's down.
-function useKeyboardShown(): boolean {
+// iOS's keyboard curve, near enough, for the sheet riding up with it.
+const KEYBOARD_EASE = Easing.bezier(0.38, 0.7, 0.125, 1);
+
+// The keyboard, read from its own events: whether it is up, and (iOS) how far it reaches into the
+// window, animated with it. The sheet stands on that height. It used to stand in a
+// KeyboardAvoidingView, which lifts nothing until it has measured itself: a field that takes the
+// keyboard as the sheet opens (the look's prompt) raced that measure and was left behind the
+// keyboard, coming back only after a dismiss (Annie, TestFlight, 15 Nov). The events need no
+// measure, so the sheet is on the keyboard from its first frame. While the keyboard is up it covers
+// the home indicator, so the inset steps aside. Android resizes the window itself (adjustResize).
+function useKeyboard(): { shown: boolean; lift: Animated.Value; settle: () => void } {
   const [shown, setShown] = useState(false);
+  const up = useRef(false);
+  const lift = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const ios = Platform.OS === 'ios';
-    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', () =>
-      setShown(true),
-    );
-    const hide = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () =>
-      setShown(false),
-    );
+    const to = (height: number, duration?: number) =>
+      Animated.timing(lift, {
+        toValue: height,
+        duration: duration || DURATION,
+        easing: KEYBOARD_EASE,
+        useNativeDriver: false,
+      }).start();
+    const heightOf = (event?: KeyboardEvent) =>
+      event?.endCoordinates
+        ? Math.max(0, Dimensions.get('window').height - event.endCoordinates.screenY)
+        : 0;
+    // Only a show lifts the sheet. A change of frame (emoji, the predictive bar) moves it only
+    // while the keyboard is up: iOS also sends one as the keyboard goes or a modal presents, and
+    // read as "up" that left every sheet standing a keyboard's height off the bottom with no
+    // keyboard there (Annie, 15 Nov). Every hide, will or did, brings it down.
+    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', (e) => {
+      up.current = true;
+      setShown(true);
+      if (ios) to(heightOf(e), e?.duration);
+    });
+    const frame = ios
+      ? Keyboard.addListener('keyboardWillChangeFrame', (e) => {
+          if (!up.current || !e?.endCoordinates) return;
+          to(heightOf(e), e.duration);
+        })
+      : null;
+    const down = (e?: KeyboardEvent) => {
+      up.current = false;
+      setShown(false);
+      if (ios) to(0, e?.duration);
+    };
+    const hide = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', down);
+    const gone = ios ? Keyboard.addListener('keyboardDidHide', () => down()) : null;
     return () => {
       show.remove();
+      frame?.remove();
       hide.remove();
+      gone?.remove();
     };
-  }, []);
-  return shown;
+  }, [lift]);
+  // As a sheet opens with no keyboard up, it stands on the bottom edge whatever came before.
+  const settle = () => {
+    if (!up.current) lift.setValue(0);
+  };
+  return { shown, lift, settle };
 }
 
 // Bottom sheet from RN Modal + Animated: Expo Go compatible, no native bottom-sheet module (ADR-018).
@@ -144,7 +188,7 @@ export function Sheet({
   // On iOS 26 the glass sheet is Liquid Glass; elsewhere (or with Reduce Transparency) the solid
   // cream, so the screen behind never reads through its controls (UX audit, 15 Nov).
   const liquid = useNativeGlass() && glass !== undefined;
-  const keyboard = useKeyboardShown();
+  const { shown: keyboard, lift, settle } = useKeyboard();
   const [visible, setVisible] = useState(open);
   const closed = useRef(onClosed);
   closed.current = onClosed;
@@ -172,8 +216,11 @@ export function Sheet({
   const translateY = useRef(new Animated.Value(OFFSCREEN)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: settles once per open
   useEffect(() => {
-    if (open) setVisible(true);
+    if (!open) return;
+    settle();
+    setVisible(true);
   }, [open]);
 
   useEffect(() => {
@@ -249,10 +296,7 @@ export function Sheet({
       <ModalInsets>
         {(insets) => (
           // A field in the sheet (a name, a search) rides above the keyboard, never under it.
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            className="flex-1 justify-end"
-          >
+          <Animated.View className="flex-1 justify-end" style={{ paddingBottom: lift }}>
             <Animated.View
               className="absolute inset-0 bg-ink"
               style={{ opacity: backdrop }}
@@ -363,7 +407,7 @@ export function Sheet({
                 {children}
               </PrimaryScope>
             </Animated.View>
-          </KeyboardAvoidingView>
+          </Animated.View>
         )}
       </ModalInsets>
     </Modal>
