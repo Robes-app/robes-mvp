@@ -362,6 +362,8 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
   // At rest the rows open their pieces; the pencil shows the swap and × (plan R2).
   await expect(look3e.getByRole('button', { name: /^Swap / })).toHaveCount(0);
   await look3e.getByRole('button', { name: 'Edit pieces' }).click();
+  // Edit mode (Robes MVP 2b): × on the card's corner and the swap disc; the wears step aside.
+  await expect(look3e.getByRole('button', { name: /^Remove / })).toHaveCount(1);
   await look3e.getByRole('button', { name: /^Swap / }).click();
   await picker.getByRole('button', { name: 'Include Navy coat' }).click();
   await picker.getByRole('button', { name: 'Swap it in' }).click();
