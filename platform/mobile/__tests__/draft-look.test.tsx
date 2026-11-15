@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { DraftLook } from '../src/features/looks/DraftLook';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
+import { openPrompt } from './support/prompt';
 import { mockNavigation, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -262,6 +263,8 @@ test('a swap from the picker leaves the picture behind; the chip draws the model
   expect(screen.getByText(lookbook.draft.updateModel(1))).toBeTruthy();
   await fireEvent.press(screen.getByTestId('update-model'));
   await waitFor(() => expect(renders()).toHaveLength(1));
+  // Her ask stands in the conversation, behind the closed bar.
+  await openPrompt();
   expect(screen.getByText(lookbook.draft.modelAsked)).toBeTruthy();
 });
 
@@ -292,6 +295,7 @@ test('the adjust disc opens the AdjustSheet; her sentence redraws the picture al
   expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
   // The sheet closes behind the send; her words stand in the thread.
   expect(screen.queryByTestId('adjust-sheet')).toBeNull();
+  await openPrompt();
   expect(screen.getByText('sleeves rolled up')).toBeTruthy();
 });
 
@@ -320,14 +324,17 @@ test('a draft Robes made is asked about; Restyle it all re-writes it from her wo
   await fireEvent.press(screen.getByTestId('reason-restyle'));
   expect(screen.getByTestId('reason-restyle').props.accessibilityState.selected).toBe(true);
   expect(screen.queryByTestId('reason-dressy')).toBeNull();
-  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'more casual');
+  await fireEvent.changeText(await openPrompt(), 'more casual');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/restyle'))?.body).toEqual({ note: 'more casual' }),
   );
   expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
-  expect(screen.getByText(`${fb.restyle.label} · “more casual”`)).toBeTruthy();
+  // The send closes the sheet: the closed bar carries the work in hand, the conversation her choice.
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
   expect(screen.getByText(fb.restyle.work(''))).toBeTruthy();
+  await openPrompt();
+  expect(screen.getByText(`${fb.restyle.label} · “more casual”`)).toBeTruthy();
 });
 
 test('closing asks: Discard lets the draft go, Keep for later only closes', async () => {
@@ -544,7 +551,7 @@ test('Describe: a Style it job that fails ends the wait and says so', async () =
   await renderWithApi(
     <DraftLook id="new" day="2026-11-06" presentation="sheet" onClose={() => undefined} />,
   );
-  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'Dinner with friends');
+  await fireEvent.changeText(await openPrompt(), 'Dinner with friends');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toMatchObject({
@@ -557,7 +564,8 @@ test('Describe: a Style it job that fails ends the wait and says so', async () =
   );
   expect(await screen.findByText(copy.styleFailed)).toBeTruthy();
   // She can ask again.
-  await waitFor(() => expect(screen.getByTestId('draft-prompt').props.editable).not.toBe(false));
+  await waitFor(() => expect(screen.getByTestId('prompt-rest')).toBeTruthy());
+  expect((await openPrompt()).props.editable).not.toBe(false);
 });
 
 // The Rack card and the two sources (look prompt PRD S1–S5): with nothing filed the card offers
@@ -584,7 +592,7 @@ test('an empty wardrobe: Add your pieces on the card, Shop the one source, new p
   // One source is always on (S4): Shop cannot be turned off while it is the only one.
   await fireEvent.press(screen.getByTestId('source-shop'));
   expect(screen.getByTestId('source-shop').props.accessibilityState.checked).toBe(true);
-  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'Gallery opening');
+  await fireEvent.changeText(await openPrompt(), 'Gallery opening');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
@@ -626,7 +634,7 @@ test('with a wardrobe it is the one source; Shop beside it is a mix, Shop alone 
   );
   await fireEvent.press(shop);
   expect(screen.getByTestId('source-shop').props.accessibilityLabel).toBe(copy.sources.shop.on);
-  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'Gallery opening');
+  await fireEvent.changeText(await openPrompt(), 'Gallery opening');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
@@ -661,7 +669,7 @@ test('her words with no day make one draft in the same sheet, and Robes asks abo
     [`GET /looks/${LOOK_ID}`]: made,
   });
   await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
-  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'relaxed weekend brunch');
+  await fireEvent.changeText(await openPrompt(), 'relaxed weekend brunch');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
@@ -673,7 +681,11 @@ test('her words with no day make one draft in the same sheet, and Robes asks abo
   await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
   expect(mockRouter.replace).not.toHaveBeenCalled();
   const fb = copy.feedback;
+  // The look is seen first: the closed bar asks, with the thumbs on it. Opened, her brief heads
+  // the conversation.
   expect(await screen.findByText(fb.questionFor('brunch'))).toBeTruthy();
+  expect(screen.getByTestId('prompt-pill')).toBeTruthy();
+  await openPrompt();
   expect(screen.getByText('relaxed weekend brunch')).toBeTruthy();
   // The question is open: two thumbs, and the box offers to take a change instead.
   expect(screen.getByTestId('thumb-up').props.accessibilityState.disabled).toBe(false);
@@ -703,7 +715,7 @@ test('with no occasion in her brief, Robes asks the plain question', async () =>
   await renderWithApi(
     <DraftLook id="new" day="2026-11-06" presentation="sheet" onClose={() => undefined} />,
   );
-  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'something easy');
+  await fireEvent.changeText(await openPrompt(), 'something easy');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(await screen.findByText(copy.feedback.question)).toBeTruthy();
 });
@@ -719,7 +731,7 @@ test('turning Wardrobe off, the only source, turns Shop on: new pieces only', as
   await fireEvent.press(wardrobe);
   expect(screen.getByTestId('source-wardrobe').props.accessibilityState.checked).toBe(false);
   expect(screen.getByTestId('source-shop').props.accessibilityState.checked).toBe(true);
-  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'Gallery opening');
+  await fireEvent.changeText(await openPrompt(), 'Gallery opening');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
@@ -742,13 +754,13 @@ test('an empty send sends nothing; past 300 characters the box says so and will 
   expect(send.props.accessibilityState.disabled).toBe(false);
   await fireEvent.press(send);
   expect(calls.some((c) => c.path.endsWith('/looks/prompt'))).toBe(false);
-  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'a'.repeat(301));
+  await fireEvent.changeText(await openPrompt(), 'a'.repeat(301));
   expect(await screen.findByText(copy.tooLong(300))).toBeTruthy();
   expect(screen.getByTestId('prompt-send').props.accessibilityState.disabled).toBe(true);
   await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(calls.some((c) => c.path.endsWith('/looks/prompt'))).toBe(false);
   // Her words are never cut: back under the limit, the same field sends.
-  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'a'.repeat(300));
+  await fireEvent.changeText(await openPrompt(), 'a'.repeat(300));
   expect(screen.queryByText(copy.tooLong(300))).toBeNull();
   expect(screen.getByTestId('prompt-send').props.accessibilityState.disabled).toBe(false);
 });

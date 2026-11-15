@@ -10,6 +10,7 @@ import { dayLabel } from '../src/features/plan/plan';
 import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
 import { JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
+import { openPrompt } from './support/prompt';
 import { Providers } from './support/providers';
 import { mockParams, mockRouter } from './support/router';
 
@@ -316,7 +317,7 @@ test('after a change Robes asks; a thumbs down opens the reasons this look can h
   const fb = lookbook.draftLook.feedback;
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   // No question before Robes has changed anything.
-  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'swap the mules');
+  await fireEvent.changeText(await openPrompt(), 'swap the mules');
   expect(screen.queryByTestId('look-feedback')).toBeNull();
   await fireEvent.press(screen.getByTestId('prompt-send'));
   // The change lands, and Robes asks once: "How about now?" (F19).
@@ -384,7 +385,7 @@ test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
   });
   const fb = lookbook.draftLook.feedback;
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'swap the mules');
+  await fireEvent.changeText(await openPrompt(), 'swap the mules');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(await screen.findByText(fb.again)).toBeTruthy();
   const before = calls.length;
@@ -439,7 +440,7 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   // Every draft is the one DraftLook (D14): the prompt card's field feeds the thread.
-  const field = await screen.findByTestId('draft-prompt');
+  const field = await openPrompt();
   await fireEvent.changeText(field, 'swap the mules for my dark jean');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   // The change is seen on the rack, not told (redline 14 Nov): Robes only asks.
@@ -520,7 +521,7 @@ test('a rule said in the prompt waits under Robes noticed; a vague ask is writte
   };
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   // Every draft is the one DraftLook (D14): the prompt card's field feeds the thread.
-  const field = await screen.findByTestId('draft-prompt');
+  const field = await openPrompt();
   await fireEvent.changeText(field, 'never grey');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(await screen.findByText(lookbook.prompt.noticed)).toBeTruthy();

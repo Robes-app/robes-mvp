@@ -7,6 +7,7 @@ import { localDate, nextDays } from '../src/features/looks/saved-looks';
 import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { LOOK_ID, look, modelData, PIECE_ID, piece } from './support/fixtures';
+import { openPrompt } from './support/prompt';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -299,9 +300,10 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjus
   expect(screen.queryByTestId('update-model')).toBeNull();
   expect(screen.queryByTestId('update-look')).toBeNull();
   expect(screen.queryByTestId('schedule-look')).toBeNull();
-  // A tap on the scrim closes it: the sparkle and Schedule look are back.
-  await fireEvent.press(screen.getByTestId('prompt-scrim'));
-  expect(screen.queryByTestId('draft-prompt')).toBeNull();
+  // Minimised (the disc, or a tap on the dimmed look behind the sheet), the sparkle and Schedule
+  // look are back.
+  await fireEvent.press(screen.getByTestId('prompt-minimise'));
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
   expect(screen.getByTestId('prompt-spark')).toBeTruthy();
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
   // The adjust disc opens the AdjustSheet over the look — never the draft sheet.
@@ -394,7 +396,7 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByTestId('prompt-spark'));
-  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'collar up on the coat');
+  await fireEvent.changeText(await openPrompt(), 'collar up on the coat');
   // Typed words raise no button (redline 14 Nov, pin 25): the prompt's own send is the way.
   expect(screen.queryByTestId('update-look')).toBeNull();
   expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
@@ -409,8 +411,11 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
   // what it did: the change is seen, and it only asks.
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(screen.queryByText('Collar up.')).toBeNull();
-  expect(screen.getByText(lookbook.draftLook.feedback.again)).toBeTruthy();
+  // The closed bar carries the thumbs while the model is drawn; the question stands in the sheet.
+  expect(screen.getByTestId('thumb-up')).toBeTruthy();
   expect(screen.queryByTestId('update-look')).toBeNull();
+  await openPrompt();
+  expect(screen.getByText(lookbook.draftLook.feedback.again)).toBeTruthy();
   expect(calls.findIndex((c) => c.path.endsWith('/ask'))).toBeLessThan(
     calls.findIndex((c) => c.method === 'PATCH'),
   );
@@ -457,7 +462,7 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   const asks = () => calls.filter((c) => c.path.endsWith('/ask'));
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByTestId('prompt-spark'));
-  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'collar up on the coat');
+  await fireEvent.changeText(await openPrompt(), 'collar up on the coat');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   // Robes' own question about the change it made (F3).
   expect(await screen.findByText('How does the collar look?')).toBeTruthy();
@@ -466,16 +471,15 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(screen.queryByTestId('update-look')).toBeNull();
   expect(screen.queryByText('Collar up.')).toBeNull();
-  // Minimised while Robes is asking, the prompt is its closed bar with the question and the
-  // thumbs on it (pins 17, 19, 20), and the look's button is back under it.
-  await fireEvent.press(screen.getByTestId('prompt-minimise'));
+  // The send closed the sheet, so the change is seen on the look: the prompt is its closed bar
+  // with the question and the thumbs on it (pins 17, 19, 20), the look's button back under it.
   expect(screen.queryByTestId('draft-prompt')).toBeNull();
   expect(screen.getByTestId('prompt-pill')).toBeTruthy();
   expect(screen.getByText('How does the collar look?')).toBeTruthy();
   expect(screen.getByTestId('thumb-up')).toBeTruthy();
   // A thumbs down on the bar opens the sheet on what to change.
   await fireEvent.press(screen.getByTestId('thumb-down'));
-  expect(await screen.findByTestId('draft-prompt')).toBeTruthy();
+  expect(await openPrompt()).toBeTruthy();
   expect(screen.getByText(fb.change)).toBeTruthy();
   // A saved look carries no weather and is never restyled whole (F13, F14).
   expect(screen.queryByTestId('reason-weather')).toBeNull();
@@ -502,6 +506,9 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
     reasons: ['dressy', 'colours'],
   });
   // Her choice is one bubble (F17).
+  // That send closed the sheet again; opened, her choice is there.
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  await openPrompt();
   expect(
     await screen.findByText(`${fb.reasons.dressy.label} · ${fb.reasons.colours.label}`),
   ).toBeTruthy();
@@ -512,9 +519,6 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
     has_text: false,
     action: 'adjust',
   });
-  // The scrim closes the sheet (pin 23).
-  await fireEvent.press(screen.getByTestId('prompt-scrim'));
-  expect(screen.queryByTestId('draft-prompt')).toBeNull();
 });
 
 // Adjust model image is for Robes' picture alone (PRD §6.4): a look whose record is her own

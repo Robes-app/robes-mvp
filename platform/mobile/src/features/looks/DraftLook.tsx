@@ -51,7 +51,14 @@ import {
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { type HostInstance, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import {
+  type HostInstance,
+  Pressable,
+  ScrollView,
+  type ScrollViewInstance,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBareScreen } from '@/components/StackScreen';
 import { dayOrigin } from '@/features/home/day-origin';
@@ -90,7 +97,7 @@ import { RackRowCard } from './RackRow';
 import { ImageStack, useDressOnOpen } from './SavedLook';
 import { Scanning } from './ScanLine';
 import { SeasonsView } from './SeasonsView';
-import { type DockState, PromptDock, StylingCard } from './StylingCard';
+import { type DockRest, PromptDock, StylingCard } from './StylingCard';
 import { useRemoveLook } from './saved-looks';
 import { TagsView, useLookDetails } from './TagsView';
 import { WornView } from './WornView';
@@ -398,13 +405,13 @@ interface Done {
 // the scrolling body, anything floating over it, and a footer held under the body (the Edit look
 // sheet's Update look). On a page (a deep link to /look/:id) it stands bare under the status bar.
 // Twin of the web Drawer in @robes/ui.
-// The prompt at the look's foot (redline 14 Nov): what floats there, and — a saved look's prompt
-// opened — the scrim that greys the look behind it and closes it on a tap.
+// The prompt at rest at the look's foot (its box, its closed bar or the sparkle); opened, it is
+// a bottom sheet of its own and no part of the shell.
 interface ShellDock {
   node: ReactNode;
-  // The prompt stands as its cream sheet: the safe area under it is cream too.
-  solid?: boolean;
-  onScrim?: () => void;
+  // A new look opens scrolled to its foot, so the Rack's card stands clear above the prompt box
+  // and never under it (testing, 15 Nov).
+  startAtEnd?: boolean;
 }
 
 function Shell({
@@ -429,9 +436,11 @@ function Shell({
   const insets = useSafeAreaInsets();
   // The prompt and Update the model ride above the keyboard, never under it.
   const root = useRef<HostInstance>(null);
-  const keyboard = useKeyboardOverlap(root, presentation === 'sheet');
+  const keyboard = useKeyboardOverlap(root);
   // The look scrolls clear of the floating prompt, however tall it stands.
   const [dockHeight, setDockHeight] = useState(0);
+  const body = useRef<ScrollViewInstance>(null);
+  const atEnd = useRef(false);
   if (presentation === 'saved') {
     return (
       <SavedShell over={over} footer={footer} dock={dock ?? null}>
@@ -462,7 +471,13 @@ function Shell({
           automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
+          ref={body}
           contentContainerStyle={{ paddingBottom: dock ? dockHeight + 16 : 40 }}
+          onContentSizeChange={() => {
+            if (!dock?.startAtEnd || atEnd.current || dockHeight === 0) return;
+            atEnd.current = true;
+            body.current?.scrollToEnd({ animated: false });
+          }}
           testID="draft-look"
         >
           {children}
@@ -477,13 +492,7 @@ function Shell({
             testID="floating-dock"
           >
             {dock.node}
-            {/* Down to the screen's foot: cream under the sheet, so the look never shows in a
-                strip beneath it; clear under the box and the bar. */}
-            <View
-              pointerEvents="none"
-              className={dock.solid ? 'bg-bg' : undefined}
-              style={{ height: footer || keyboard ? 0 : insets.bottom }}
-            />
+            <View pointerEvents="none" style={{ height: footer ? 0 : insets.bottom }} />
           </View>
         ) : null}
         {over}
@@ -505,9 +514,9 @@ function Shell({
 
 // A saved look's own page (3e): no header, the photo starts under the status bar with the back
 // disc on it; the body runs to the look's one bar, held at the foot (Schedule look). The prompt
-// floats over it: closed, the sparkle or its bar just above the look's bar; opened, a sheet from
-// the foot over a scrim, standing on the keyboard, and the look's bar steps away (redline 14 Nov,
-// pins 23 and 25). Web twin: draft-look.tsx SavedShell.
+// floats over it at rest, the sparkle or its bar just above the look's bar; opened it is a
+// bottom sheet of its own over the dimmed look (redline 14 Nov, pins 23 and 25). Web twin:
+// draft-look.tsx SavedShell.
 function SavedShell({
   over,
   footer,
@@ -523,8 +532,7 @@ function SavedShell({
   const insets = useSafeAreaInsets();
   // The toast rises above the bar while it stands, so an Undo never covers Update look.
   const [bar, setBar] = useState(0);
-  const sheet = dock?.onScrim;
-  const barUp = footer && !sheet;
+  const barUp = Boolean(footer);
   useToastLift(barUp ? bar : 0);
   const root = useRef<HostInstance>(null);
   const keyboard = useKeyboardOverlap(root);
@@ -549,7 +557,7 @@ function SavedShell({
           <PrimaryScope>{footer}</PrimaryScope>
         </View>
       ) : null}
-      {dock && !sheet ? (
+      {dock ? (
         <View
           pointerEvents="box-none"
           className="absolute inset-x-0"
@@ -558,22 +566,6 @@ function SavedShell({
         >
           {dock.node}
         </View>
-      ) : null}
-      {dock && sheet ? (
-        <>
-          <Pressable
-            accessibilityLabel={copy.dock.minimise}
-            importantForAccessibility="no"
-            onPress={sheet}
-            className="absolute inset-0 bg-ink"
-            style={{ opacity: 0.16 }}
-            testID="prompt-scrim"
-          />
-          <View className="absolute inset-x-0" style={{ bottom: keyboard }} testID="prompt-sheet">
-            {dock.node}
-            {keyboard ? null : <View className="bg-bg" style={{ height: insets.bottom }} />}
-          </View>
-        </>
       ) : null}
       {/* After the bar, so a floating sheet sits 8pt above everything (redline 7 Nov). */}
       {over}
@@ -621,6 +613,8 @@ function NewDraft({
   const [picker, setPicker] = useState<PickerMode | null>(pick ? { add: true } : null);
   const [adding, setAdding] = useState(false);
   const [prompt, setPrompt] = useState('');
+  // The prompt's sheet is up and its field has the keyboard.
+  const [typing, setTyping] = useState(false);
   const [busy, setBusy] = useState(false);
   const [full, setFull] = useState<{ input: CreateLookInput; oldest: string } | null>(null);
 
@@ -711,6 +705,7 @@ function NewDraft({
   const generate = async () => {
     const words = prompt.trim();
     if (words.length < 2 || busy) return;
+    setTyping(false);
     setBusy(true);
     const sent = (ok: boolean) =>
       nativeAnalytics.track('prompt_submitted', {
@@ -743,37 +738,67 @@ function NewDraft({
     }
   };
   const stand = model.data?.stand?.imageUrl ?? null;
+  // What the resting box and the sheet's box share.
+  const box = {
+    sources: src.sources,
+    onSource: (which: Source) => {
+      if (which === 'wardrobe' && src.empty) {
+        setTyping(false);
+        setEmptyWardrobe(true);
+      } else src.toggle(which);
+    },
+    wardrobeEmpty: src.empty,
+    placeholders: copy.placeholders,
+    value: prompt,
+    onChange: setPrompt,
+    busy,
+  };
   return (
     <Shell
       presentation={presentation}
       title={copy.title}
       onClose={onClose}
       done={{ label: copy.done, onPress: () => undefined, disabled: true }}
-      // The prompt box floats at the foot, in thumb reach from the start (look prompt PRD F23).
+      // The prompt box floats at the foot, in thumb reach from the start (look prompt PRD F23); a
+      // tap on its line opens the sheet, where she types.
       dock={{
+        startAtEnd: true,
         node: (
-          <View style={{ padding: 10 }} testID="prompt-dock">
+          <PromptDock
+            open={typing}
+            rest="box"
+            line={copy.dock.rest}
+            working={false}
+            onOpen={() => setTyping(true)}
+            onMinimise={() => setTyping(false)}
+            box={
+              <StylingCard
+                {...(day
+                  ? {
+                      context: (
+                        <DayContext
+                          date={day}
+                          weatherOff={weatherOff}
+                          onWeatherOff={setWeatherOff}
+                        />
+                      ),
+                    }
+                  : {})}
+                {...box}
+                onOpen={() => setTyping(true)}
+                onSend={() => (prompt.trim() ? void generate() : setTyping(true))}
+                emptySend="send"
+              />
+            }
+          >
             <StylingCard
-              {...(day
-                ? {
-                    context: (
-                      <DayContext date={day} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
-                    ),
-                  }
-                : {})}
-              sources={src.sources}
-              onSource={(which) =>
-                which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
-              }
-              wardrobeEmpty={src.empty}
-              placeholders={copy.placeholders}
-              value={prompt}
-              onChange={setPrompt}
+              {...box}
+              inline
+              autoFocus
               onSend={() => void generate()}
               emptySend="blur"
-              busy={busy}
             />
-          </View>
+          </PromptDock>
         ),
       }}
     >
@@ -1070,13 +1095,16 @@ function DraftBody({
   // once the rack is answered.
   const generate = () => {
     if (busy || (!words && !picked)) return;
-    adjust.send(words, { ...sendOpts, draw: true });
+    if (adjust.send(words, { ...sendOpts, draw: true })) setDockOpen(false);
     setPrompt('');
   };
   // A saved look's send asks, and what Robes changes is kept and drawn as it lands.
   const ask = () => {
     if (busy || (!words && !picked) || rows.length === 0) return;
-    if (adjust.send(words, sendOpts)) setApplying('asked');
+    if (adjust.send(words, sendOpts)) {
+      setApplying('asked');
+      setDockOpen(false);
+    }
     setPrompt('');
   };
   // "Update the model · N" keeps its place at the draft's foot while the picture is behind: it is
@@ -1162,12 +1190,14 @@ function DraftBody({
       />
     ),
   );
-  // The prompt floats at the look's foot (look prompt PRD F23; redline 14 Nov): open on a draft,
-  // behind the sparkle on a saved look until she asks for it. Closed it is one bar with Robes'
-  // question and its thumbs; a thumbs up shrinks it to the sparkle (F6), a thumbs down opens it
-  // on what to change.
+  // The prompt at the look's foot (look prompt PRD F23; redline 14 Nov; testing 15 Nov). At rest
+  // it never covers the look: the box on a draft with no conversation yet, the closed bar with
+  // Robes' question and its thumbs once there is one, the sparkle on a saved look or after a
+  // thumbs up (F6). Opened it is a bottom sheet over the dimmed look. A thumbs down opens it on
+  // what to change; a send closes it, so the change is seen on the look; and it opens again when
+  // Robes answers in words.
   const verdict = adjust.state.verdict;
-  const [dockOpen, setDockOpen] = useState(mode === 'draft');
+  const [dockOpen, setDockOpen] = useState(false);
   useEffect(() => {
     if (verdict === 'up') setDockOpen(false);
     if (verdict === 'down') setDockOpen(true);
@@ -1175,31 +1205,62 @@ function DraftBody({
   const hasThread = adjust.state.thread.length > 0 || adjust.state.question !== null;
   const lastLine = adjust.state.thread.at(-1);
   const working = lastLine?.who === 'work';
-  const dockState: DockState = dockOpen
-    ? 'open'
-    : verdict === 'ask' || working || adjust.busy || (mode === 'draft' && verdict !== 'up')
+  const said =
+    (lastLine?.who === 'robes' || lastLine?.who === 'filed') && lastLine.text !== d.modelDone
+      ? lastLine
+      : null;
+  const saidId = said?.id ?? null;
+  useEffect(() => {
+    if (saidId !== null) setDockOpen(true);
+  }, [saidId]);
+  const rest: DockRest =
+    verdict === 'ask' ||
+    working ||
+    adjust.busy ||
+    (mode === 'draft' && hasThread && verdict !== 'up')
       ? 'pill'
-      : 'spark';
+      : mode === 'edit' || hasThread
+        ? 'spark'
+        : 'box';
   // Her first send carries the day's place and weather into the conversation (pin 13).
   const briefed = adjust.state.thread.some((l) => l.who === 'her');
   const dayContext = forDay && mode === 'draft' ? forDay : null;
-  const asSheet = mode === 'edit' || hasThread;
   const screen = useWindowDimensions();
+  // What the resting box and the sheet's box share.
+  const box = {
+    sources: src.sources,
+    onSource: (which: Source) => {
+      if (which === 'wardrobe' && src.empty) {
+        setDockOpen(false);
+        setEmptyWardrobe(true);
+      } else src.toggle(which);
+    },
+    wardrobeEmpty: src.empty,
+    ...(feedbackHint
+      ? { placeholder: feedbackHint }
+      : mode === 'edit'
+        ? { placeholder: copy.savedPlaceholder }
+        : { placeholders: copy.placeholders }),
+    value: prompt,
+    onChange: setPrompt,
+    busy,
+  };
+  const send = mode === 'edit' ? ask : generate;
   const dockNode = captureDraft ? null : (
     <PromptDock
-      state={dockState}
-      sheet={asSheet}
+      open={dockOpen}
+      rest={rest}
       line={
         working
           ? (lastLine?.text ?? '')
           : verdict === 'down'
             ? fb.change
-            : (adjust.state.question ?? copy.dock.rest)
+            : (adjust.state.question ?? said?.text ?? copy.dock.rest)
       }
       working={working}
       thumbs={verdict === 'ask' ? <Thumbs adjust={adjust} /> : null}
       turns={adjust.state.thread.length + (adjust.state.question ? 1 : 0)}
-      maxHeight={Math.round(screen.height * 0.66)}
+      maxHeight={Math.round(screen.height * 0.4)}
       conversation={
         hasThread ? (
           <>
@@ -1220,55 +1281,43 @@ function DraftBody({
       }
       onOpen={() => setDockOpen(true)}
       onMinimise={() => setDockOpen(false)}
+      box={
+        <StylingCard
+          {...(dayContext && !briefed
+            ? {
+                context: (
+                  <DayContext
+                    date={dayContext}
+                    weatherOff={weatherOff}
+                    onWeatherOff={setWeatherOff}
+                  />
+                ),
+              }
+            : {})}
+          {...box}
+          onOpen={() => setDockOpen(true)}
+          onSend={() => (words ? send() : setDockOpen(true))}
+          emptySend="send"
+        />
+      }
     >
       <StylingCard
-        inline={asSheet}
-        {...(dayContext && !briefed
-          ? {
-              context: (
-                <DayContext
-                  date={dayContext}
-                  weatherOff={weatherOff}
-                  onWeatherOff={setWeatherOff}
-                />
-              ),
-            }
-          : {})}
+        {...box}
+        inline
+        autoFocus={verdict !== 'down'}
         tokens={<FeedbackTokens adjust={adjust} />}
-        sources={src.sources}
-        onSource={(which) =>
-          which === 'wardrobe' && src.empty ? setEmptyWardrobe(true) : src.toggle(which)
-        }
-        wardrobeEmpty={src.empty}
-        {...(feedbackHint
-          ? { placeholder: feedbackHint }
-          : mode === 'edit'
-            ? { placeholder: copy.savedPlaceholder }
-            : { placeholders: copy.placeholders })}
         {...(picked
           ? { emptySend: 'send' as const }
           : mode === 'draft'
             ? { emptySend: 'blur' as const }
             : {})}
-        value={prompt}
-        onChange={setPrompt}
-        onSend={mode === 'edit' ? ask : generate}
-        busy={busy}
+        onSend={send}
       />
     </PromptDock>
   );
-  // A saved look's prompt opened is a sheet over the greyed look, and the look's button steps
-  // away: changes are made through the prompt alone (pins 23, 25).
-  const promptSheet = presentation === 'saved' && dockState === 'open' && dockNode !== null;
-  const dock = dockNode
-    ? {
-        node: dockNode,
-        solid: asSheet && dockState === 'open',
-        ...(promptSheet ? { onScrim: () => setDockOpen(false) } : {}),
-      }
-    : null;
+  const dock = dockNode ? { node: dockNode } : null;
   // While the prompt is open or keeping its change there is no button at all (pin 25).
-  const noButton = mode === 'edit' && (dockState === 'open' || applying !== null);
+  const noButton = mode === 'edit' && (dockOpen || applying !== null);
   const footButton =
     noButton ? undefined : // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
     // hand edit waits — never both.

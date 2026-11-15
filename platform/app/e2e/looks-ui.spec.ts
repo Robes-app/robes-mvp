@@ -147,7 +147,13 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await expect(page.getByText('Swapped in · was the white wide-leg trouser')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open Dark straight jean' })).toBeVisible();
 
-  // A rule waits under Robes noticed; it changes nothing. The thread's text names what landed.
+  // The send closed the prompt to its bar, so the change is seen on the look (testing, 15 Nov);
+  // the bar's disc opens it again as a sheet over the dimmed look.
+  await expect(field).toHaveCount(0);
+  await page.getByTestId('prompt-expand').click();
+  await expect(page.getByTestId('prompt-scrim')).toBeVisible();
+  // A rule waits under Robes noticed; it changes nothing. The thread's text names what landed,
+  // and Robes' words open the sheet again by themselves.
   await field.fill("I don't wear double denim");
   await field.press('Enter');
   const noticed = 'Waiting under Robes noticed — keep it there and it becomes a rule.';
@@ -162,7 +168,10 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   expect(thread, thread).toContain(noticed);
   expect(await seriousViolations(page), 'a draft with its thread').toEqual([]);
 
-  // The done disc saves; the saved look opens with the diary up.
+  // The sheet stands over the dimmed look until she minimises it; then the done disc saves, and
+  // the saved look opens with the diary up.
+  await page.getByTestId('prompt-minimise').click();
+  await expect(page.getByTestId('prompt-scrim')).toHaveCount(0);
   await page.getByTestId('draft-done').click();
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible({
     timeout: 30_000,
