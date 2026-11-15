@@ -19,6 +19,8 @@ export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { ErrorText } from './ErrorText';
 export { Field, type FieldProps } from './Field';
 export { FilterButton, type FilterButtonProps } from './FilterButton';
+export { Glass, type GlassProps, type GlassTone, useNativeGlass } from './Glass';
+export { haptic } from './haptics';
 export { IconToggle, type IconToggleProps } from './IconToggle';
 export { ASPECTS, type Aspect, Image, type ImageProps } from './Image';
 export { InlineTitleField, type InlineTitleFieldProps } from './InlineTitleField';

@@ -13,7 +13,7 @@ import {
   WEEKDAYS_SHORT,
 } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
-import { Button, PrimaryScope, Sheet, Text, useColor, useToast } from '@robes/ui-native';
+import { Button, haptic, PrimaryScope, Sheet, Text, useColor, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -77,6 +77,7 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     // The look's own page reads the count and the record of days: both follow a wear.
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') });
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') });
+    haptic.success();
     toast.show({ message });
     close();
   };

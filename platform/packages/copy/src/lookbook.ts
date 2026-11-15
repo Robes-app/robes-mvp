@@ -121,6 +121,8 @@ export const lookbook = {
   card: {
     diary: 'Put this look in the diary',
     delete: 'Delete this look',
+    // The long-press menu on a Lookbook card (iOS): short, as iOS menus read.
+    menu: { schedule: 'Schedule look', delete: 'Delete look' },
     // A look with pieces still to find (Front Door PRD rev 3 §5.2): the small bag on the card.
     shop: 'Includes pieces to find',
   },

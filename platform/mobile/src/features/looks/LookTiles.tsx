@@ -5,8 +5,8 @@ import { anchorName, startedLabel, suggestionReason } from '@robes/core/looks';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
 import { type Aspect, fonts, Image, MIN_TOUCH, useColor } from '@robes/ui-native';
-import { useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Link, useRouter } from 'expo-router';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
 import { LookTile } from './LookTile';
 import { Scanning, scanningLine } from './ScanLine';
@@ -86,14 +86,14 @@ export function SavedTile({
 }: {
   look: Look;
   aspect?: Aspect;
-  onPress: () => void;
+  onPress?: () => void;
   onDiary?: () => void;
   onDelete?: () => void;
 }) {
   return (
     <LookTile
       look={look}
-      onPress={onPress}
+      {...(onPress ? { onPress } : {})}
       {...(aspect ? { aspect } : {})}
       className="flex-1"
       metaIcon="calendar"
@@ -112,6 +112,53 @@ export function SavedTile({
         ) : null
       }
     />
+  );
+}
+
+// The Lookbook's saved card on iOS: a tap opens the look, a long press peeks at it with the native
+// menu (Schedule look · Delete look), so the card carries no × at rest (Front Door 2b). Delete
+// keeps its Undo toast. Elsewhere it is the SavedTile with its ✕.
+export function SavedLookCard({
+  look,
+  aspect,
+  onPress,
+  onDiary,
+  onDelete,
+}: {
+  look: Look;
+  aspect?: Aspect;
+  onPress: () => void;
+  onDiary: () => void;
+  onDelete: () => void;
+}) {
+  if (Platform.OS !== 'ios') {
+    return (
+      <SavedTile
+        look={look}
+        onPress={onPress}
+        onDiary={onDiary}
+        onDelete={onDelete}
+        {...(aspect ? { aspect } : {})}
+      />
+    );
+  }
+  return (
+    <Link href={`/look/${look.id}`} asChild>
+      <Link.Trigger>
+        <Pressable accessibilityRole="button" accessibilityLabel={look.name} className="flex-1">
+          <SavedTile look={look} onDiary={onDiary} {...(aspect ? { aspect } : {})} />
+        </Pressable>
+      </Link.Trigger>
+      <Link.Preview />
+      <Link.Menu>
+        <Link.MenuAction icon="calendar" onPress={onDiary}>
+          {copy.card.menu.schedule}
+        </Link.MenuAction>
+        <Link.MenuAction icon="trash" destructive onPress={onDelete}>
+          {copy.card.menu.delete}
+        </Link.MenuAction>
+      </Link.Menu>
+    </Link>
   );
 }
 

@@ -1,5 +1,6 @@
 import { ui } from '@robes/copy';
 import { Icon, type IconName } from '@robes/icons/native';
+import { GlassView } from 'expo-glass-effect';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -10,6 +11,7 @@ import {
   PanResponder,
   Platform,
   Pressable,
+  StyleSheet,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +19,7 @@ import { CloseDisc, PrimaryScope } from './Button';
 import { useColor } from './color';
 import { cx } from './cx';
 import { DrawerHeader, type DrawerHeaderDone } from './DrawerHeader';
+import { useNativeGlass } from './Glass';
 import { useReducedMotion } from './motion';
 import { FINE_EDGE, fonts, MIN_TOUCH } from './scale';
 import { Eyebrow, Heading, Text } from './Text';
@@ -138,6 +141,9 @@ export function Sheet({
 }: SheetProps) {
   const reduced = useReducedMotion();
   const floats = floating || glass !== undefined;
+  // On iOS 26 the glass sheet is Liquid Glass; elsewhere (or with Reduce Transparency) the solid
+  // cream, so the screen behind never reads through its controls (UX audit, 15 Nov).
+  const liquid = useNativeGlass() && glass !== undefined;
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardShown();
   const [visible, setVisible] = useState(open);
@@ -258,7 +264,7 @@ export function Sheet({
           accessibilityViewIsModal
           className={cx(
             glass
-              ? 'rounded-t-dock border-rule-mid bg-veil px-5'
+              ? cx('rounded-t-dock border-rule-mid px-5', liquid ? 'overflow-hidden' : 'bg-bg')
               : floating
                 ? 'rounded-t-sheet border-rule-mid bg-bg px-5'
                 : 'rounded-t-sheet bg-bg px-5',
@@ -283,6 +289,13 @@ export function Sheet({
               : null,
           ]}
         >
+          {liquid ? (
+            <GlassView
+              glassEffectStyle="regular"
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+          ) : null}
           {glass ? (
             <View {...drag.panHandlers} className="mb-5 pt-3">
               <GlassHead glass={glass} onClose={onClose} />

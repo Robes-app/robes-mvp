@@ -38,6 +38,7 @@ import {
   EmptyState,
   FINE_EDGE,
   fonts,
+  Glass,
   Image,
   MIN_TOUCH,
   PrimaryScope,
@@ -1651,9 +1652,10 @@ function DraftPhoto({
           onPress={onBack}
           hitSlop={10}
           testID="saved-look-back"
-          className="absolute items-center justify-center rounded-pill bg-veil-soft"
+          className="absolute items-center justify-center rounded-pill"
           style={{ top: top - 2, left: 12, width: 36, height: 36 }}
         >
+          <Glass tone="veil-soft" className="absolute inset-0 rounded-pill" />
           <Icon name="back" size={20} color={ink} />
         </Pressable>
       ) : null}
@@ -1676,9 +1678,10 @@ function DraftPhoto({
           onPress={onAdjust}
           hitSlop={10}
           testID="draft-adjust"
-          className="absolute items-center justify-center rounded-pill bg-veil-soft"
+          className="absolute items-center justify-center rounded-pill"
           style={{ left: 20, bottom: 25, width: 24, height: 24 }}
         >
+          <Glass tone="veil-soft" className="absolute inset-0 rounded-pill" />
           <Icon name="describe" size={13} color={ink} />
         </Pressable>
       ) : null}

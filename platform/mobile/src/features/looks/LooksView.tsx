@@ -31,7 +31,7 @@ import { useLookFilters } from '@/features/filters/use-look-filters';
 import { errorMessage } from '@/lib/errors';
 import { usePullRefresh } from '@/lib/pull-refresh';
 import { DiarySheet } from './DiarySheet';
-import { DraftTile, SavedTile, SuggestedTile } from './LookTiles';
+import { DraftTile, SavedLookCard, SuggestedTile } from './LookTiles';
 import { useLetGo, useLooksByStatus, useRestyle, useSaveLook } from './look-states';
 import { NewLookSheet } from './NewLookSheet';
 
@@ -176,7 +176,7 @@ export function LooksView() {
               renderItem={({ item }) => (
                 <View className="flex-1">
                   {tab === 'saved' ? (
-                    <SavedTile
+                    <SavedLookCard
                       look={item}
                       aspect="3:4"
                       onPress={() => open(item)}
