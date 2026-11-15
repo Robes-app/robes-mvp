@@ -782,8 +782,10 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   expect(await screen.findByTestId('the-rack')).toBeTruthy();
-  // The card under the list is the add slot.
-  await fireEvent.press(screen.getByTestId('rack-card-add'));
+  // With a piece on the rack, the add slot is the small + hanger chip, not the big card (Annie,
+  // 15 Nov); the card is only for an empty rack.
+  expect(screen.queryByTestId('rack-card-add')).toBeNull();
+  await fireEvent.press(screen.getByTestId('rack-add'));
   expect(await screen.findByTestId('piece-picker')).toBeTruthy();
   await fireEvent.press(screen.getByRole('tab', { name: wardrobe.segments.wishlist }));
   await fireEvent.press(
@@ -808,6 +810,10 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
   );
   // A wish reads as a piece to find: the bag and its price at the row's right.
   expect(await screen.findByLabelText(`${lookbook.rack.wishlist} · €390`)).toBeTruthy();
+  // It is the wish itself: tapped, it opens the wish's page (Annie, 15 Nov: it couldn't be opened).
+  mockRouter.push.mockClear();
+  await fireEvent.press(screen.getByRole('button', { name: /Black leather loafers/ }));
+  expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/wish/[id]', params: { id: WISH_ID } });
 });
 
 test('The Rack heading shows once a piece hangs, and the toggle turns the rows to small photos', async () => {
@@ -828,6 +834,12 @@ test('The Rack heading shows once a piece hangs, and the toggle turns the rows t
   expect(screen.getAllByTestId('rack-grid-tile')).toHaveLength(1);
   expect(screen.getByLabelText('Camel wool coat')).toBeTruthy();
   expect(screen.queryByText('Camel wool coat')).toBeNull();
+  // The pencil puts the tiles in edit mode (Robes MVP 2b): × on the corner, swap at the foot.
+  await fireEvent.press(screen.getByTestId('rack-pencil'));
+  expect(
+    screen.getByRole('button', { name: lookbook.rack.remove('Camel wool coat') }),
+  ).toBeTruthy();
+  expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
 });
 
 // Add a photo to a look (Capture PRD flow 3): the Add a photo card opens the camera that only

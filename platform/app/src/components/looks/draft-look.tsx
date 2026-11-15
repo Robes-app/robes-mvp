@@ -203,7 +203,6 @@ function Rack({
   onLayout,
   editing,
   onEditing,
-  saved,
   hasWardrobe,
   onAdd,
   children,
@@ -215,8 +214,6 @@ function Rack({
   // Edit-pieces mode (PRD §6.2, plan R2): the pencil ink-filled, the rows' swap and × out.
   editing: boolean;
   onEditing: (next: boolean) => void;
-  // A saved look's add slot is the small hanger under the list (§6.1); a draft keeps the card.
-  saved: boolean;
   hasWardrobe: boolean;
   onAdd: () => void;
   // The rows, as RackRowCards.
@@ -247,17 +244,18 @@ function Rack({
           <Icon name="pencil" size={16} />
         </button>
       </div>
+      {/* Once a piece hangs, the add slot is the small + hanger chip under the rows, on a draft as
+          on a saved look; the big card is only for an empty rack (Annie, 15 Nov). */}
       {layout === 'grid' ? (
         <>
           <RackGrid rows={rows} imageOf={imageOf} />
-          {saved ? <PieceList onAdd={onAdd}>{null}</PieceList> : null}
+          <PieceList onAdd={onAdd}>{null}</PieceList>
         </>
       ) : (
-        <PieceList label={lookbook.rack.title(rows.length)} {...(saved ? { onAdd } : {})}>
+        <PieceList label={lookbook.rack.title(rows.length)} onAdd={onAdd}>
           {children}
         </PieceList>
       )}
-      {saved ? null : <RackCard hasWardrobe={hasWardrobe} onClick={onAdd} testId="rack-card-add" />}
     </div>
   );
 }
@@ -1445,7 +1443,6 @@ function DraftBody({
                   onLayout={setRackLayout}
                   editing={editingPieces}
                   onEditing={setEditingPieces}
-                  saved={mode === 'edit'}
                   hasWardrobe={hasWardrobe}
                   onAdd={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
                 >

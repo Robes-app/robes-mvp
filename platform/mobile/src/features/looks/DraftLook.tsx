@@ -66,6 +66,7 @@ import { dayOrigin } from '@/features/home/day-origin';
 import { pickOne, usePhotoFiling } from '@/features/home/file-photo';
 import { AddPiecesSheet } from '@/features/wardrobe/add/AddPiecesSheet';
 import { LayoutToggle } from '@/features/wardrobe/WardrobeHeader';
+import { useWishOf } from '@/features/wardrobe/wishlist';
 import { nativeAnalytics } from '@/lib/analytics';
 import { useArrived, useLeaveSheetFor } from '@/lib/arrival';
 import { errorMessage } from '@/lib/errors';
@@ -236,10 +237,11 @@ function Rack({
   onLayout,
   editing,
   onEditing,
-  saved,
   hasWardrobe,
   onAdd,
   onOpen,
+  onSwap,
+  onRemove,
   children,
 }: {
   rows: readonly RackRow[];
@@ -249,11 +251,12 @@ function Rack({
   // Edit-pieces mode (PRD §6.2, plan R2): the pencil ink-filled, the rows' swap and × out.
   editing: boolean;
   onEditing: (next: boolean) => void;
-  // A saved look's add slot is the small hanger under the list (§6.1); a draft keeps the card.
-  saved: boolean;
   hasWardrobe: boolean;
   onAdd: () => void;
   onOpen?: (row: RackRow) => void;
+  // Edit mode on the grid side: each tile's swap and ×.
+  onSwap?: (row: RackRow) => void;
+  onRemove?: (row: RackRow) => void;
   // The rows, as RackRowCards.
   children: ReactNode;
 }) {
@@ -286,15 +289,21 @@ function Rack({
           <Icon name="pencil" size={16} color={editing ? onInk : ink} />
         </Pressable>
       </View>
+      {/* Once a piece hangs, the add slot is the small + hanger chip under the rows, on a draft as
+          on a saved look; the big card is only for an empty rack (Annie, 15 Nov). */}
       {layout === 'grid' ? (
         <>
-          <RackGrid rows={rows} imageOf={imageOf} {...(onOpen ? { onOpen } : {})} />
-          {saved ? <PieceList onAdd={onAdd}>{null}</PieceList> : null}
+          <RackGrid
+            rows={rows}
+            imageOf={imageOf}
+            {...(onOpen && !editing ? { onOpen } : {})}
+            {...(editing && onSwap && onRemove ? { editing: { onSwap, onRemove } } : {})}
+          />
+          <PieceList onAdd={onAdd}>{null}</PieceList>
         </>
       ) : (
-        <PieceList {...(saved ? { onAdd } : {})}>{children}</PieceList>
+        <PieceList onAdd={onAdd}>{children}</PieceList>
       )}
-      {saved ? null : <RackCard hasWardrobe={hasWardrobe} onPress={onAdd} testID="rack-card-add" />}
     </View>
   );
 }
@@ -973,10 +982,18 @@ function DraftBody({
   const rows = editor.rack.rows;
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const pieceOf = (id: string) => piecesById.get(id) ?? capture.pieceOf(id);
-  const imageOf = (row: RackRow) => (row.pieceId ? pieceOf(row.pieceId)?.image : null);
-  // At rest a row opens its piece (PRD §6.1); a proposal has no page yet (PR 6).
+  const wishOf = useWishOf();
+  const wishFor = (row: RackRow) => wishOf(row.proposal?.wishlistItemId);
+  const imageOf = (row: RackRow) =>
+    row.pieceId ? pieceOf(row.pieceId)?.image : (wishFor(row)?.image ?? null);
+  // At rest a row opens its piece (PRD §6.1), a wish its wish; a proposal Robes made has no page.
+  const opens = (row: RackRow) => !!row.pieceId || !!wishFor(row);
   const openPiece = (row: RackRow) => {
     if (row.pieceId) router.push({ pathname: '/piece/[id]', params: { id: row.pieceId } });
+    else {
+      const wish = wishFor(row);
+      if (wish) router.push({ pathname: '/wish/[id]', params: { id: wish.id } });
+    }
   };
   const sendOpts = {
     balance: src.balance,
@@ -1178,6 +1195,7 @@ function DraftBody({
           ? { wears: pieceOf(row.pieceId)?.wearCount ?? 0 }
           : {})}
         {...(row.proposal && editingPieces ? { onWish: () => editor.wish(row.key) } : {})}
+        editing={editingPieces}
         {...(editingPieces
           ? {
               onSwap: () =>
@@ -1186,7 +1204,7 @@ function DraftBody({
                 }),
               onRemove: () => editor.remove(row.key),
             }
-          : row.pieceId
+          : opens(row)
             ? { onOpen: () => openPiece(row) }
             : {})}
       />
@@ -1405,10 +1423,13 @@ function DraftBody({
                   onLayout={setRackLayout}
                   editing={editingPieces}
                   onEditing={setEditingPieces}
-                  saved={mode === 'edit'}
                   hasWardrobe={hasWardrobe}
                   onAdd={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
                   onOpen={openPiece}
+                  onSwap={(row) =>
+                    setPicker({ swap: { key: row.key, name: row.name, category: row.category } })
+                  }
+                  onRemove={(row) => editor.remove(row.key)}
                 >
                   {rackRows}
                 </Rack>

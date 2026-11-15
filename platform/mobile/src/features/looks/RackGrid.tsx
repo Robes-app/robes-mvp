@@ -2,8 +2,9 @@ import type { PieceImage } from '@robes/contracts';
 import { lookbook } from '@robes/copy';
 import { nameNoBrand, type RackRow } from '@robes/core/looks';
 import { shadowNative } from '@robes/tokens';
-import { Pressable, View } from 'react-native';
+import { Animated, Pressable, View } from 'react-native';
 import { Photo } from '@/features/wardrobe/PieceCard';
+import { EditDisc, useJig } from './RackRow';
 
 const COLUMNS = 5;
 
@@ -15,11 +16,15 @@ export function RackGrid({
   rows,
   imageOf,
   onOpen,
+  editing,
 }: {
   rows: readonly RackRow[];
   imageOf: (row: RackRow) => PieceImage | null | undefined;
   onOpen?: (row: RackRow) => void;
+  // The pencil is down (Robes MVP 2b): the tiles rock, × on the corner, swap at the foot.
+  editing?: { onSwap: (row: RackRow) => void; onRemove: (row: RackRow) => void };
 }) {
+  const jig = useJig(!!editing, 1.1);
   return (
     <View
       className="-mx-[7px] flex-row flex-wrap pt-1"
@@ -47,6 +52,33 @@ export function RackGrid({
             </View>
           </View>
         );
+        if (editing) {
+          return (
+            <View key={row.key} style={{ width: `${100 / COLUMNS}%` }} className="px-[7px]">
+              <Animated.View
+                accessible={false}
+                style={{ transform: [{ rotate: jig }] }}
+                testID="rack-grid-tile"
+              >
+                {tile}
+                <View className="absolute" style={{ left: -6, top: -6 }}>
+                  <EditDisc
+                    icon="close"
+                    label={lookbook.rack.remove(label)}
+                    onPress={() => editing.onRemove(row)}
+                  />
+                </View>
+                <View className="absolute inset-x-0 items-center" style={{ bottom: -8 }}>
+                  <EditDisc
+                    icon="wardrobe"
+                    label={lookbook.rack.swap(label)}
+                    onPress={() => editing.onSwap(row)}
+                  />
+                </View>
+              </Animated.View>
+            </View>
+          );
+        }
         return (
           <View key={row.key} style={{ width: `${100 / COLUMNS}%` }} className="px-[7px]">
             {onOpen ? (
