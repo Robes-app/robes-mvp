@@ -152,6 +152,30 @@ describe('wardrobe repo', () => {
     await deleteTestUsers(db, user);
   });
 
+  // Robes MVP 3b: the search field finds her words in a piece's name, brand or category, any case;
+  // % and _ are just characters.
+  it('searches name, brand and category, case-insensitive, with % and _ taken literally', async () => {
+    const user = await createTestUser(db);
+    const coat = await wardrobe.create(user, {
+      label: 'Camel wool coat',
+      brand: 'Brandvale',
+      categoryL2: 'Coats',
+    });
+    const tee = await wardrobe.create(user, { label: 'White tee', brand: 'COS' });
+    const odd = await wardrobe.create(user, { label: '100% linen shirt' });
+    const ids = async (q: string) =>
+      (await wardrobe.list(user, { limit: 10, q })).items.map((p) => p.id);
+    expect(await ids('WOOL')).toEqual([coat.id]);
+    expect(await ids('cos')).toEqual([tee.id]);
+    expect(await ids('coats')).toEqual([coat.id]);
+    expect(await ids('100%')).toEqual([odd.id]);
+    expect(await ids('_')).toEqual([]);
+    expect(await wardrobe.countMatching(user, { q: 'brand' })).toBe(1);
+    // Another woman's pieces never answer her search.
+    expect(await wardrobe.countMatching(ann, { q: 'Brandvale' })).toBe(0);
+    await deleteTestUsers(db, user);
+  });
+
   it('filters by several seasons, families and tags at once, with Year round as the untagged (PRD rev 3)', async () => {
     const user = await createTestUser(db);
     const coat = await wardrobe.create(user, {

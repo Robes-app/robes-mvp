@@ -20,7 +20,7 @@ import { DeletePieceDialog } from './DeletePieceDialog';
 import { useWardrobeLayout } from './layout';
 import { CardRow, type CardStatus, CardTile, type RowMeta, Status } from './PieceCard';
 import { useDeletePiece, usePieces } from './pieces';
-import { CountRow, HeaderRow, type Segment } from './WardrobeHeader';
+import { HeaderRow, SearchRow, type Segment } from './WardrobeHeader';
 import { WishlistView } from './WishlistView';
 
 const SEGMENTS: readonly Segment[] = ['pieces', 'wishlist'];
@@ -225,13 +225,14 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
         {...(grid ? { columnWrapperClassName: 'gap-2' } : {})}
         contentContainerClassName={grid ? 'gap-2 px-5 pb-8' : 'gap-[3px] px-5 pb-8'}
         ListHeaderComponent={
-          <View className="-mx-5">
-            <CountRow
-              count={total === null ? null : copy.header.count(total)}
-              layout={layout}
-              onLayout={setLayout}
-            />
-          </View>
+          <SearchRow
+            placeholder={copy.search.pieces}
+            value={filters.state.query}
+            onChange={filters.setQuery}
+            layout={layout}
+            onLayout={setLayout}
+            testID="wardrobe-search"
+          />
         }
         renderItem={({ item }) => {
           const open = () => router.push(`/piece/${item.id}`);

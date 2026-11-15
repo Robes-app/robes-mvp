@@ -14,7 +14,7 @@ import { usePullRefresh } from '@/lib/pull-refresh';
 import { AddPiecesSheet } from './add/AddPiecesSheet';
 import { useWardrobeLayout } from './layout';
 import { CardRow, type CardStatus, CardTile, HeartButton, type RowMeta } from './PieceCard';
-import { CountRow } from './WardrobeHeader';
+import { SearchRow } from './WardrobeHeader';
 import { WardrobeFilterSheet, wearChoicesOf } from './WardrobeView';
 import { useRemoveWish, useWishes } from './wishlist';
 
@@ -32,9 +32,23 @@ function wishStatus(wish: Wish): CardStatus {
 // carries no seasons or wear-for yet, so those sections leave it be (plan PR 3 note).
 function wishMatches(
   wish: Wish,
-  f: { category: string | null; families: readonly string[]; brand: string | null },
+  f: {
+    category: string | null;
+    families: readonly string[];
+    brand: string | null;
+    query: string;
+  },
 ): boolean {
   if (f.category && wish.category !== f.category) return false;
+  // Her search, as the Wardrobe's: the words anywhere in the name, the brand (or shop) or category.
+  const words = f.query.trim().toLowerCase();
+  if (
+    words &&
+    ![wish.label, wish.brand, wish.sourceLabel, wish.categoryL2, wish.category].some((v) =>
+      (v ?? '').toLowerCase().includes(words),
+    )
+  )
+    return false;
   if (f.families.length) {
     const family = shade(wish.colourShade)?.family;
     if (!family || !f.families.includes(family)) return false;
@@ -167,13 +181,14 @@ export function WishlistView() {
         }
         ListHeaderComponent={
           wishes.length > 0 ? (
-            <View className="-mx-5">
-              <CountRow
-                count={copy.header.wishCount(visible.length)}
-                layout={layout}
-                onLayout={setLayout}
-              />
-            </View>
+            <SearchRow
+              placeholder={copy.search.wishlist}
+              value={filters.state.query}
+              onChange={filters.setQuery}
+              layout={layout}
+              onLayout={setLayout}
+              testID="wishlist-search"
+            />
           ) : undefined
         }
         ListEmptyComponent={

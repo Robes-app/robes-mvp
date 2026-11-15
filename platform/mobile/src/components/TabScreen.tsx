@@ -95,7 +95,7 @@ export function TabSticky({
   });
   useLayoutEffect(() => () => store?.set(null), [store]);
   if (store) return null;
-  return className ? <View className={className}>{children}</View> : <>{children}</>;
+  return className ? <View className={className}>{children}</View> : children;
 }
 
 // The greeting holds this long before it gives way to ROBES (Front Door canvas 1a: the greeting

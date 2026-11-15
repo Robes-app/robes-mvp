@@ -248,6 +248,8 @@ export const wardrobe = {
   // one Review before anything files. Where the pieces go is chosen once and carried through.
   // The Add pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles over the screen; Paste
   // URL turns it into Add from Link with the field inline. Over the draft it reads Add your pieces.
+  // The search field under the glass (Robes MVP 3b).
+  search: { pieces: 'Search your wardrobe', wishlist: 'Search your wishlist' },
   addSheet: {
     title: 'Add pieces',
     // Titled by where it files (Annie, P2 15 Nov).
