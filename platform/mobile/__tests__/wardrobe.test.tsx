@@ -59,6 +59,7 @@ test('an empty wardrobe invites her to add pieces: the Add pieces sheet, its thr
   expect(await screen.findByText(wardrobe.empty.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: `+ ${wardrobe.empty.action}` }));
   expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
+  expect(screen.getByRole('header', { name: wardrobe.addSheet.titleTo.wardrobe })).toBeTruthy();
   // From receipt carries the count waiting; Paste URL turns the sheet into Add from Link.
   expect(
     await screen.findByRole('button', { name: `${wardrobe.addSheet.fromReceipt}, 2` }),

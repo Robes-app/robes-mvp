@@ -65,7 +65,7 @@ export function AddPiecesSheet({
         if (onPhoto) onPhoto();
         else router.push({ pathname: '/wardrobe/camera', params: { to } });
       }}
-      title={link ? copy.linkTitle : draft ? copy.draftTitle : copy.title}
+      title={link ? copy.linkTitle : draft ? copy.draftTitle : copy.titleTo[to]}
       testID="add-pieces-sheet"
       {...(link ? { selected: copy.pasteUrl } : {})}
       tiles={[
@@ -88,7 +88,8 @@ export function AddPiecesSheet({
           icon: 'mail',
           label: copy.fromReceipt,
           onPress: () => go('/wardrobe/inbox'),
-          ...(receipts ? { badge: receipts } : {}),
+          // A receipt is for pieces she bought: inactive while filing to the Wishlist.
+          ...(to === 'wishlist' ? { disabled: true } : receipts ? { badge: receipts } : {}),
           testID: 'add-sheet-receipt',
         },
       ]}

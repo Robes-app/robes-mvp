@@ -62,14 +62,17 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           }
           label={copy.title}
           icons={{ [copy.tabs.saved]: 'bookmark', [copy.tabs.suggested]: 'looks' }}
+          // New look only on Saved: Suggested is what Robes brings (Annie, P2 15 Nov).
           trailing={
-            <IconButton
-              framed
-              icon="plus"
-              label={copy.newLook}
-              onClick={() => setNewLook(true)}
-              data-testid="lookbook-new"
-            />
+            tab === 'saved' ? (
+              <IconButton
+                framed
+                icon="plus"
+                label={copy.newLook}
+                onClick={() => setNewLook(true)}
+                data-testid="lookbook-new"
+              />
+            ) : undefined
           }
         />
         <FilterRow
@@ -145,17 +148,9 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
             />
           )
         ) : (
-          // Her words open the draft look drawer like every prompt (look prompt PRD D9): New look
-          // is the way in, never a second prompt box.
-          <EmptyState
-            title={copy.suggestedEmpty.title}
-            body={copy.suggestedEmpty.body}
-            action={
-              <Button variant="primary" onClick={() => setNewLook(true)}>
-                + {copy.newLook}
-              </Button>
-            }
-          />
+          // No + New look here: Robes fills blank days with suggested looks (still to be
+          // designed; Annie, P2 15 Nov).
+          <EmptyState title={copy.suggestedEmpty.title} body={copy.suggestedEmpty.body} />
         )
       ) : (
         <ul aria-label={copy.tabs[tab]} className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">

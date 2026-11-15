@@ -89,9 +89,19 @@ export function LooksView() {
       value={labelOf(tab)}
       onChange={(label) => setTab(tabOf(label))}
       icons={{ [copy.tabs.saved]: 'bookmark', [copy.tabs.suggested]: 'looks' }}
-      trailing={
-        <IconButton framed icon="plus" label={copy.newLook} onPress={() => setNewLook(true)} />
-      }
+      // New look only on Saved: Suggested is what Robes brings (Annie, P2 15 Nov).
+      {...(tab === 'saved'
+        ? {
+            trailing: (
+              <IconButton
+                framed
+                icon="plus"
+                label={copy.newLook}
+                onPress={() => setNewLook(true)}
+              />
+            ),
+          }
+        : {})}
       testID="lookbook-tabs"
     />
   );
@@ -224,16 +234,11 @@ export function LooksView() {
                     />
                   )
                 ) : (
-                  // Her words open the draft look sheet like every prompt (look prompt PRD D9): New
-                  // look is the way in, never a second prompt box.
+                  // No + New look here: Robes fills blank days with suggested looks (still to be
+                  // designed; Annie, P2 15 Nov).
                   <EmptyState
                     title={copy.suggestedEmpty.title}
                     body={copy.suggestedEmpty.body}
-                    action={{
-                      label: `+ ${copy.newLook}`,
-                      variant: 'primary',
-                      onPress: () => setNewLook(true),
-                    }}
                     testID="suggested-empty"
                   />
                 )
