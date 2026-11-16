@@ -13,15 +13,13 @@ export interface DrawerHeaderDone {
 }
 
 // Felix's drawer header (DraftLook): a 36pt `cream-200` × disc, the tracked title centred, a 36pt
-// ink done disc with the cream check (a spacer without one). In a drawer it is 56pt over a 0.5pt
-// rule; at the head of a bottom sheet (`inSheet`, NotificationsSheet) 40pt on the sheet's own
-// padding, no rule. Twin of web ui drawer.tsx DrawerHeader.
+// ink done disc with the cream check (a spacer without one), 56pt over a 0.5pt rule. A bottom
+// sheet's header is the Sheet's own (SheetHead). Twin of web ui drawer.tsx DrawerHeader.
 export function DrawerHeader({
   title,
   onClose,
   closeLabel,
   done,
-  inSheet = false,
   closeTestID,
   doneTestID,
 }: {
@@ -29,19 +27,14 @@ export function DrawerHeader({
   onClose: () => void;
   closeLabel: string;
   done: DrawerHeaderDone | null;
-  inSheet?: boolean;
   closeTestID?: string;
   doneTestID?: string;
 }) {
   const onInk = useColor('bg');
   return (
     <View
-      className={
-        inSheet
-          ? 'h-10 flex-row items-center justify-between gap-3'
-          : 'h-14 flex-row items-center justify-between border-hairline px-3'
-      }
-      style={inSheet ? undefined : { borderBottomWidth: FINE_EDGE }}
+      className="h-14 flex-row items-center justify-between border-hairline px-3"
+      style={{ borderBottomWidth: FINE_EDGE }}
     >
       <CloseDisc
         label={closeLabel}

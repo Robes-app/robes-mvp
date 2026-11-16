@@ -123,7 +123,9 @@ describe('Dialog and Sheet', () => {
     expect(take).toHaveBeenCalledOnce();
   });
 
-  it('takes the drawer header with done: × and ✓ both ask to close, no handle and no corner ×', async () => {
+  // Audit P2 (16 Nov): one sheet header — × on the left, the title in the glass sheets' one style,
+  // the action on the right as a word.
+  it('takes the one sheet header with done: × at the left, the title centred, done as a word', async () => {
     const onOpenChange = vi.fn();
     const onDone = vi.fn();
     render(
@@ -131,16 +133,19 @@ describe('Dialog and Sheet', () => {
         open
         onOpenChange={onOpenChange}
         title="Notifications"
-        done={{ label: 'Done', onClick: onDone }}
+        done={{ label: 'Done', hint: 'Schedule 2 Looks', onClick: onDone }}
       >
         <p>Nothing new.</p>
       </Sheet>,
     );
     const dialog = screen.getByRole('dialog', { name: 'Notifications' });
-    expect(screen.getByText('Notifications')).toHaveClass('type-label');
+    expect(screen.getByText('Notifications')).toHaveClass('font-semibold', 'text-center');
     expect(dialog.querySelector('header')).toHaveClass('h-10');
     expect(screen.getAllByRole('button', { name: ui.close })).toHaveLength(1);
-    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    const done = screen.getByRole('button', { name: 'Done' });
+    expect(done).toHaveTextContent('Done');
+    expect(done).toHaveAccessibleDescription('Schedule 2 Looks');
+    await userEvent.click(done);
     expect(onDone).toHaveBeenCalledOnce();
     await userEvent.click(screen.getByRole('button', { name: ui.close }));
     expect(onOpenChange).toHaveBeenCalledWith(false);

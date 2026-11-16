@@ -233,14 +233,17 @@ test('Pick opens the drawer, which schedules several looks at once', async () =>
   });
   await renderWithApi(<DayView date={today} />);
   await fireEvent.press(await screen.findByTestId('disc-pick'));
-  // The ✓ waits grey until a pick (Front Door PRD rev 3 §4.5).
+  // Done waits faint until a pick (Front Door PRD rev 3 §4.5).
   expect(
     (await screen.findByRole('button', { name: diary.drawer.done })).props.accessibilityState,
   ).toEqual({ disabled: true });
   await fireEvent.press(await screen.findByRole('button', { name: 'Weekend navy' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Gallery night' }));
   expect(screen.getAllByText(diary.drawer.adding)).toHaveLength(2);
-  await fireEvent.press(screen.getByRole('button', { name: diary.drawer.schedule(2) }));
+  // Done, Schedule 2 Looks its hint (audit P2: one sheet header).
+  const done = screen.getByRole('button', { name: diary.drawer.done });
+  expect(done.props.accessibilityHint).toBe(diary.drawer.schedule(2));
+  await fireEvent.press(done);
   expect(await screen.findByText(diary.drawer.added(2, 'today'))).toBeTruthy();
   const pins = calls.filter((c) => c.method === 'POST' && c.path.endsWith('/days'));
   expect(pins.map((c) => c.body)).toEqual([{ dates: [today] }, { dates: [today] }]);

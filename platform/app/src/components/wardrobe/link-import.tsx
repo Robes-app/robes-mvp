@@ -125,8 +125,12 @@ export function LinkImport({
       </div>
       <Text size="small" tone="muted">
         {copy.filingTo[to]} ·{' '}
+        {/* Toggles where it files, in place (twin of native LinkImport's Change). */}
         <Link
-          href={`/wardrobe/add?to=${to}`}
+          // Only `to`: a `url` in the address is read at once. What she typed stays in the field.
+          href={`/wardrobe/link?to=${to === 'wishlist' ? 'wardrobe' : 'wishlist'}`}
+          replace
+          scroll={false}
           className="text-ink underline underline-offset-4 focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
         >
           {copy.change}

@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AddCircle } from '@/components/add-circle';
 import { useAnalytics } from '@/components/analytics-provider';
 import { WardrobeGrid } from '@/components/wardrobe/wardrobe-grid';
+import { addPiecesHref } from '@/lib/add-flow';
 
 const copy = lookbook.draftLook.picker;
 const match = lookbook.draftLook.capture.match;
@@ -169,7 +170,7 @@ export function PiecePicker({
                 }}
               />
             ) : (
-              <AddCircle href="/wardrobe/add" label={copy.addNew} />
+              <AddCircle href={addPiecesHref('wardrobe')} label={copy.addNew} />
             )
           }
         />

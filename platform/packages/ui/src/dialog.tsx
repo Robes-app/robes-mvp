@@ -7,7 +7,7 @@ import type { ReactElement, ReactNode, RefObject } from 'react';
 import { PrimaryScope } from './button';
 import { buttonClasses } from './button-styles';
 import { cn, focusRing } from './cn';
-import { type DrawerDone, DrawerHeader } from './drawer';
+import type { DrawerDone } from './drawer';
 import { CloseDisc } from './icon-button';
 import { Eyebrow, Heading, Text, type TextTone } from './text';
 
@@ -43,8 +43,8 @@ export interface DialogProps {
   // A Sheet only: Felix's choice rows under the question — a 40px disc with the glyph, a
   // sentence-case label and a ›, 56px tall between `hairline` rules. Twin of ui-native Sheet rows.
   rows?: readonly SheetRow[];
-  // A Sheet only: the drawer header (× · the tracked title · the ink done disc) in place of the
-  // handle, the question and the × (Felix NotificationsSheet). `null` keeps the × and a spacer.
+  // A Sheet only: the one sheet header (audit P2, 16 Nov) on a solid sheet — the × disc, the title
+  // centred and `done` as a word at the right — in place of the handle, the titles and the ×.
   done?: DrawerDone | null;
   // A Sheet only: the Front Door's glass sheet (PRD rev 3 §2.4, §2.5) — on the bottom edge, its
   // top corners on the dock radius, cream glass over the dimmed page, with its own header: the × disc
@@ -55,6 +55,9 @@ export interface DialogProps {
 
 export interface GlassAction {
   label: string;
+  testId?: string;
+  // What the tap will do, when that is more than the word says: its tooltip and description.
+  hint?: string;
   onClick: () => void;
   // Faint and inert while there is nothing to act on (Clear with no filter picked).
   disabled?: boolean;
@@ -175,38 +178,21 @@ function Frame({
       >
         <PrimaryScope>
           {glass ? (
-            <header className="flex h-10 shrink-0 items-center justify-between gap-3">
-              <RadixDialog.Close asChild>
-                <CloseDisc label={ui.close} />
-              </RadixDialog.Close>
-              <RadixDialog.Title className="min-w-0 flex-1 truncate text-center font-semibold font-sans text-[15px] text-ink">
-                {title}
-              </RadixDialog.Title>
-              {glass.action ? (
-                <button
-                  type="button"
-                  onClick={glass.action.onClick}
-                  disabled={glass.action.disabled}
-                  className={cn(
-                    "relative -mr-2 min-h-11 min-w-11 px-2 text-right font-sans text-sm after:absolute after:inset-0 after:content-['']",
-                    glass.action.disabled ? 'text-ink-faint' : 'text-ink hover:opacity-80',
-                    focusRing,
-                  )}
-                >
-                  {glass.action.label}
-                </button>
-              ) : (
-                <span aria-hidden className="w-9 shrink-0" />
-              )}
-            </header>
+            <SheetHead title={title} action={glass.action} />
           ) : drawer ? (
-            <DrawerHeader
-              inSheet
+            <SheetHead
               title={title}
-              titleAs={RadixDialog.Title}
-              onClose={drawer.onClose}
-              closeLabel={ui.close}
-              done={drawer.done}
+              action={
+                drawer.done
+                  ? {
+                      label: drawer.done.label,
+                      onClick: drawer.done.onClick,
+                      ...(drawer.done.hint ? { hint: drawer.done.hint } : {}),
+                      ...(drawer.done.disabled ? { disabled: true } : {}),
+                      ...(drawer.done.testId ? { testId: drawer.done.testId } : {}),
+                    }
+                  : undefined
+              }
             />
           ) : null}
           {/* The drawer's own handle: it says this pulls up from the edge, and nothing else. On a
@@ -407,4 +393,39 @@ export type GlassSheetProps = Omit<
 // and Receipts all stand on it. Twin of ui-native GlassSheet.
 export function GlassSheet({ action, ...rest }: GlassSheetProps) {
   return <Sheet {...rest} glass={action ? { action } : {}} />;
+}
+
+// The one sheet header (audit P2, 16 Nov: "× on the left, the title in one style, the action on
+// the right as a word"), on the glass sheets and the solid ones (the bell, the LookPicker) alike.
+// Twin of ui-native Sheet's SheetHead.
+function SheetHead({ title, action }: { title: ReactNode; action?: GlassAction | undefined }) {
+  return (
+    <header className="flex h-10 shrink-0 items-center justify-between gap-3">
+      <RadixDialog.Close asChild>
+        <CloseDisc label={ui.close} />
+      </RadixDialog.Close>
+      <RadixDialog.Title className="min-w-0 flex-1 truncate text-center font-semibold font-sans text-[15px] text-ink">
+        {title}
+      </RadixDialog.Title>
+      {action ? (
+        <button
+          type="button"
+          onClick={action.onClick}
+          disabled={action.disabled}
+          title={action.hint}
+          aria-description={action.hint}
+          data-testid={action.testId}
+          className={cn(
+            "relative -mr-2 min-h-11 min-w-11 px-2 text-right font-sans text-sm after:absolute after:inset-0 after:content-['']",
+            action.disabled ? 'text-ink-faint' : 'text-ink hover:opacity-80',
+            focusRing,
+          )}
+        >
+          {action.label}
+        </button>
+      ) : (
+        <span aria-hidden className="w-9 shrink-0" />
+      )}
+    </header>
+  );
 }
