@@ -1052,7 +1052,8 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
   expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/wish/[id]', params: { id: WISH_ID } });
 });
 
-test('The Rack heading shows once a piece hangs, and the toggle turns the rows to small photos', async () => {
+// The Rack's controls sit on the Pieces · Details line, with no heading of its own (Annie, 16 Nov).
+test('once a piece hangs, the toggle on the tabs line turns the rows to small photos', async () => {
   mockFetch({
     ...BASE,
     [`GET /looks/${LOOK_ID}`]: draftOf({
@@ -1060,9 +1061,11 @@ test('The Rack heading shows once a piece hangs, and the toggle turns the rows t
     }),
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
-  expect(await screen.findByText(copy.rack)).toBeTruthy();
-  expect(screen.getByTestId(`rack-row-${PIECE_ID}`)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.grid }));
+  expect(await screen.findByTestId(`rack-row-${PIECE_ID}`)).toBeTruthy();
+  const tabs = within(screen.getByTestId('draft-tabs'));
+  expect(tabs.getByTestId('rack-pencil')).toBeTruthy();
+  expect(screen.queryByRole('header', { name: copy.rack })).toBeNull();
+  await fireEvent.press(tabs.getByRole('radio', { name: wardrobe.header.grid }));
   expect(screen.queryByTestId(`rack-row-${PIECE_ID}`)).toBeNull();
   expect(screen.getByLabelText(copy.rack)).toBeTruthy();
   // The grid is the pieces' photographs alone, five across (Robes MVP; Annie, 15 Nov): the name is
@@ -1076,6 +1079,17 @@ test('The Rack heading shows once a piece hangs, and the toggle turns the rows t
     screen.getByRole('button', { name: lookbook.rack.remove('Camel wool coat') }),
   ).toBeTruthy();
   expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
+});
+
+// A look Robes made from her words opens on its pieces' photographs (Annie, 16 Nov).
+test('a draft Robes made opens its rack on the photographs', async () => {
+  mockFetch({
+    ...BASE,
+    [`GET /looks/${LOOK_ID}`]: draftOf({ composedByRobes: true, source: 'generated' }),
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  expect(await screen.findByTestId('rack-grid-tile')).toBeTruthy();
+  expect(screen.queryByTestId(`rack-row-${PIECE_ID}`)).toBeNull();
 });
 
 // Add a photo to a look (Capture PRD flow 3): the Add a photo card opens the camera that only

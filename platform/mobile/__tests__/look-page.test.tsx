@@ -1,7 +1,7 @@
 import type { Look } from '@robes/contracts';
 import { lookbook, looks } from '@robes/copy';
 import { longDate, monthOf, shiftMonth } from '@robes/core/calendar';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { LookScreen } from '../src/features/looks/LookScreen';
 import { localDate, nextDays } from '../src/features/looks/saved-looks';
 import { nativeAnalytics } from '../src/lib/analytics';
@@ -265,10 +265,10 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjus
   mockFetch(editRoutes(twoPieces()));
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   // At rest a row opens its piece (PRD §6.1, plan R2); the pencil shows the swap and ×.
-  expect(await screen.findByText(lookbook.draftLook.rack)).toBeTruthy();
-  // The canvas's rack: the serif heading, each row's wears behind a calendar, and the small
-  // + hanger chip under the list.
-  expect(screen.getByRole('header', { name: lookbook.draftLook.rack })).toBeTruthy();
+  // The rack's controls sit on the Pieces · Details line (Annie, 16 Nov); each row's wears behind a
+  // calendar, and the small + hanger chip under the list.
+  expect(await screen.findByTestId('rack-pencil')).toBeTruthy();
+  expect(within(screen.getByTestId('draft-tabs')).getByTestId('rack-pencil')).toBeTruthy();
   expect(screen.getAllByLabelText(/^\d+ wears?$/)).toHaveLength(2);
   expect(screen.getByTestId('rack-add')).toBeTruthy();
   expect(screen.queryByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeNull();
