@@ -587,7 +587,8 @@ function LookBar({ children, float }: { children: ReactNode; float?: ReactNode }
           {float}
         </div>
       ) : null}
-      <div className="mx-auto flex w-full max-w-md items-center px-5 pt-3">{children}</div>
+      {/* Its one button spans the bar, label centred (Robes MVP; Annie, 16 Nov). */}
+      <div className="mx-auto flex w-full max-w-md flex-col px-5 pt-3 *:w-full">{children}</div>
     </div>
   );
 }

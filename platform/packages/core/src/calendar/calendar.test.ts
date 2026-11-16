@@ -134,13 +134,14 @@ describe('trip bands', () => {
 describe('diaryPick', () => {
   const clear = { pinned: false, worn: false, filed: false };
 
-  it('files a look on a day ahead, and says when something is already there', () => {
+  // Audit F4 (Annie, 16 Nov): a day that holds a look is marked by its dot, never by a line.
+  it('files a look on a day ahead, and says nothing of what is already there', () => {
     expect(diaryPick('2026-10-25', '2026-10-23', clear)).toEqual({
       past: false,
       suffix: null,
       action: 'put',
     });
-    expect(diaryPick('2026-10-25', '2026-10-23', { ...clear, filed: true }).suffix).toBe('filed');
+    expect(diaryPick('2026-10-25', '2026-10-23', { ...clear, filed: true }).suffix).toBeNull();
   });
 
   it('opens the day when this look is already pinned to it', () => {
