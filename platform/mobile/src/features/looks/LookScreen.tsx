@@ -1,7 +1,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook as copy, ui } from '@robes/copy';
-import { anchorName, noteShort } from '@robes/core/looks';
+import { anchorName, noteShort, pictureLanding } from '@robes/core/looks';
 import {
   Button,
   EmptyState,
@@ -45,8 +45,8 @@ export function LookScreen({
     'looks.get',
     { params: { id } },
     {
-      refetchInterval: (q) =>
-        q.state.data?.framePending || q.state.data?.onModel === 'pending' ? JOB_REFRESH_MS : false,
+      // Until the picture has landed, renditions and all (pictureLanding).
+      refetchInterval: (q) => (pictureLanding(q.state.data) ? JOB_REFRESH_MS : false),
     },
   );
   // Save opens the diary every time; the sheet outlives the working page it was saved from.

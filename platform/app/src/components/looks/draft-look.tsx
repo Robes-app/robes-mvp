@@ -19,6 +19,7 @@ import {
   defaultSources,
   type ImageStage,
   isCaptureRow,
+  pictureLanding,
   type RackRow,
   type Source,
   type Sources,
@@ -329,13 +330,8 @@ export function DraftLook({
     { params: { id: lookId ?? '' } },
     {
       enabled: lookId !== null,
-      refetchInterval: (q) =>
-        q.state.data?.onModel === 'pending' ||
-        q.state.data?.framePending ||
-        // Her photograph, just taken: until its renditions are made.
-        q.state.data?.photo?.status === 'pending'
-          ? 3_000
-          : false,
+      // Until the picture has landed, renditions and all (pictureLanding).
+      refetchInterval: (q) => (pictureLanding(q.state.data) ? 3_000 : false),
     },
   );
   if (lookId === null) {

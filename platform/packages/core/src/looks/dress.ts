@@ -19,3 +19,25 @@ export function dressOnOpen(look: DressableLook): boolean {
   if (look.model === null) return true;
   return look.modelStale && !look.robesHidden;
 }
+
+// A look whose picture is still on its way: drawn by a job, or drawn and waiting for its
+// renditions, which in AWS are made after the job finishes, from the S3 event. A page showing the
+// look asks again while this holds: one that stopped at "ready" kept the bare model up forever
+// (staging, 16 Nov). Her photograph, just taken, waits the same way.
+type Picture = { status: 'pending' | 'ready' | 'failed' } | null | undefined;
+export interface LandingLook {
+  onModel?: 'pending' | 'ready' | 'failed' | null | undefined;
+  framePending?: boolean;
+  image?: Picture;
+  model?: Picture;
+  photo?: Picture;
+}
+
+export function pictureLanding(look: LandingLook | undefined): boolean {
+  if (!look) return false;
+  return (
+    look.onModel === 'pending' ||
+    look.framePending === true ||
+    [look.image, look.model, look.photo].some((p) => p?.status === 'pending')
+  );
+}
