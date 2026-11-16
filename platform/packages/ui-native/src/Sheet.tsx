@@ -61,6 +61,9 @@ export interface SheetProps {
   // no panel, no handle (the look prompt's box before her first send, Prompt states, 16 Nov). A
   // tap beside it still closes it.
   bare?: boolean;
+  // A row of the caller's own under a slim handle, in place of the tall grab bar (the look prompt's
+  // title and minimise, Prompt States); a swipe down on either still closes.
+  head?: ReactNode;
   // The eyebrow's colour: Felix's rose (the darkened rose for small text) by default.
   eyebrowTone?: 'faint' | 'warm';
   // Felix's choice rows under the question: a 40pt disc with the glyph, a sentence-case label
@@ -103,6 +106,10 @@ const OFFSCREEN = 800;
 const DISMISS_DRAG = 120;
 // Felix's `backdrop` behind every drawer (the token's alpha; it is ink, so opacity carries it).
 const BACKDROP_OPACITY = 0.28;
+// The look prompt's sheet (a `head` of its own, Prompt States): a lighter shade, the look still read
+// through it, and 20pt under its content.
+const HEAD_BACKDROP_OPACITY = 0.16;
+const HEAD_PAD = 20;
 // The PRD's motion (rev 3 §2.6): 0.26s on cubic-bezier(.4, 0, .7, 1), in and out alike.
 const DURATION = 260;
 const EASE = Easing.bezier(0.4, 0, 0.7, 1);
@@ -201,6 +208,7 @@ export function Sheet({
   testID,
   floating = false,
   bare = false,
+  head,
   eyebrowTone = 'warm',
   rows,
   done,
@@ -208,6 +216,7 @@ export function Sheet({
 }: SheetProps) {
   const reduced = useReducedMotion();
   const floats = floating || glass !== undefined;
+  const headed = head !== undefined;
   // On iOS 26 the glass sheet is Liquid Glass; elsewhere (or with Reduce Transparency) the solid
   // cream, so the screen behind never reads through its controls (UX audit, 15 Nov).
   const liquid = useNativeGlass() && glass !== undefined;
@@ -251,7 +260,7 @@ export function Sheet({
   useEffect(() => {
     if (!visible) return;
     const to = open ? 0 : OFFSCREEN;
-    const shade = open && !bare ? BACKDROP_OPACITY : 0;
+    const shade = open && !bare ? (headed ? HEAD_BACKDROP_OPACITY : BACKDROP_OPACITY) : 0;
     if (reduced) {
       translateY.setValue(to);
       backdrop.setValue(shade);
@@ -276,7 +285,7 @@ export function Sheet({
       if (finished && !open) setVisible(false);
     });
     return () => animation.stop();
-  }, [open, visible, reduced, translateY, backdrop, bare]);
+  }, [open, visible, reduced, translateY, backdrop, bare, headed]);
 
   const eyebrowClass = eyebrowTone === 'warm' ? 'text-accent-warm' : undefined;
   const close = floats ? null : closeLabel ? (
@@ -362,7 +371,7 @@ export function Sheet({
                     maxHeight: SHEET_MAX,
                     paddingBottom: bare
                       ? BARE_GAP + (keyboard ? 0 : insets.bottom)
-                      : SHEET_PAD + (keyboard ? 0 : insets.bottom),
+                      : (head ? HEAD_PAD : SHEET_PAD) + (keyboard ? 0 : insets.bottom),
                     transform: [{ translateY }],
                   },
                   // The fine edge runs over the top and down the sides; the bottom is the screen's.
@@ -382,7 +391,13 @@ export function Sheet({
                     pointerEvents="none"
                   />
                 ) : null}
-                {bare ? null : glass ? (
+                {bare ? null : head ? (
+                  // Prompt States: the 36 × 4 handle 8pt from the top and 6pt over the head row.
+                  <View {...drag.panHandlers} className="pt-2">
+                    <View className="mb-1.5 h-1 w-9 self-center rounded bg-rule-mid" />
+                    {head}
+                  </View>
+                ) : glass ? (
                   <View {...drag.panHandlers} className="mb-5 pt-3">
                     <SheetHead {...glass} onClose={onClose} />
                   </View>

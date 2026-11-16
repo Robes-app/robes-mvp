@@ -50,7 +50,7 @@ import {
 } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 import { useHideBack, usePushedView } from '@/components/shell/app-shell';
 import { AddPiecesSheet } from '@/components/wardrobe/add/add-pieces-sheet';
@@ -722,6 +722,18 @@ function NewDraft({
   const [weatherOff, setWeatherOff] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [promptJob, setPromptJob] = useState<string | null>(null);
+  // Her words once sent (16 Nov): they leave the box for the conversation above it, Robes at work
+  // under them, until the draft opens; a send that fails puts them back in the box.
+  const [sent, setSent] = useState<string | null>(null);
+  const sentRef = useRef<string | null>(null);
+  // Minimised while it dresses: the bar says Robes is at work.
+  const [folded, setFolded] = useState(false);
+  const unsend = useCallback(() => {
+    const words = sentRef.current;
+    sentRef.current = null;
+    setSent(null);
+    if (words !== null) setPrompt(words);
+  }, []);
   const followed = useJob(promptJob);
   const ended =
     followed.job && isTerminalJobStatus(followed.job.status) ? followed.job.status : null;
@@ -738,7 +750,7 @@ function NewDraft({
         setWaiting(false);
         refresh(made);
         onCreated(made, {
-          words: prompt.trim(),
+          words: sent ?? prompt.trim(),
           ...(occasion ? { occasion } : {}),
           sources: src.sources,
           ...(weatherOff ? { weatherOff } : {}),
@@ -749,6 +761,7 @@ function NewDraft({
         setPromptJob(null);
         setWaiting(false);
         setBusy(false);
+        unsend();
         toast({ message: errorCopy(err) });
       });
   });
@@ -758,15 +771,19 @@ function NewDraft({
     setPromptJob(null);
     setWaiting(false);
     setBusy(false);
+    unsend();
     toast({ message: copy.styleFailed });
-  }, [ended, madeId, toast]);
+  }, [ended, madeId, toast, unsend]);
   // The day's place, for the brief.
   const diary = useApi('today.get', undefined, { enabled: day !== undefined });
   const generate = async () => {
     const words = prompt.trim();
     if (words.length < 2 || busy) return;
+    sentRef.current = words;
+    setSent(words);
+    setPrompt('');
     setBusy(true);
-    const sent = (ok: boolean) =>
+    const tracked = (ok: boolean) =>
       track('prompt_submitted', {
         surface: day ? 'home' : 'create',
         intent: 'words',
@@ -787,12 +804,13 @@ function NewDraft({
           ...(day && weatherOff ? { weather: false } : {}),
         },
       });
-      sent(true);
+      tracked(true);
       setPromptJob(jobId);
       setWaiting(true);
     } catch (err) {
-      sent(false);
+      tracked(false);
       setBusy(false);
+      unsend();
       toast({ message: errorCopy(err) });
     }
   };
@@ -808,9 +826,28 @@ function NewDraft({
       dock={{
         startAtEnd: true,
         node: (
-          <div className="p-2.5" data-testid="prompt-dock">
+          <PromptDock
+            state={sent !== null && folded ? 'pill' : 'open'}
+            sheet={sent !== null}
+            line={d.dressing}
+            working
+            conversation={
+              sent === null ? null : (
+                <ThreadLines
+                  thread={[
+                    { id: 1, who: 'her', text: sent },
+                    { id: 2, who: 'work', text: d.dressing },
+                  ]}
+                  compact
+                  {...(day && !weatherOff ? { meta: <DayMeta date={day} /> } : {})}
+                />
+              )
+            }
+            onOpen={() => setFolded(false)}
+            onMinimise={() => setFolded(true)}
+          >
             <StylingCard
-              {...(day
+              {...(day && sent === null
                 ? {
                     context: (
                       <DayContext date={day} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
@@ -829,7 +866,7 @@ function NewDraft({
               emptySend="blur"
               busy={busy}
             />
-          </div>
+          </PromptDock>
         ),
       }}
     >
@@ -949,11 +986,20 @@ function DraftBody({
   const opened = useRef(false);
   // A draft Robes made, opened again, is asked about too: its thumbs are the way to change it or
   // restyle it all, now Dress it again is gone (decision 12).
+  // Made from her words, the draft opens while its picture is still drawn: Robes works under her
+  // line, and asks once the picture lands (16 Nov).
+  const dressing = look.framePending || look.onModel === 'pending';
+  const toAsk = useRef<{ occasion?: string } | null>(null);
   useEffect(() => {
+    if (toAsk.current && !dressing) {
+      adjust.asks(toAsk.current.occasion);
+      toAsk.current = null;
+    }
     if (opened.current) return;
     if (brief) {
       opened.current = true;
-      adjust.opened(brief.words, brief.occasion);
+      adjust.opened(brief.words, brief.occasion, dressing);
+      if (dressing) toAsk.current = brief.occasion ? { occasion: brief.occasion } : {};
     } else if (mode === 'draft' && look.setId !== null && !captureDraft) {
       opened.current = true;
       adjust.opened('');
@@ -1142,10 +1188,11 @@ function DraftBody({
     router.replace('/looks');
   };
   // The box's send (look prompt PRD P2): her words go through the thread and the picture is drawn
-  // once the rack is answered.
+  // once the rack is answered. The drawer stays open on the conversation, capped so the look shows
+  // above it (look prompt improvements B6, Annie 16 Nov).
   const generate = () => {
     if (busy || (!words && !picked)) return;
-    if (adjust.send(words, { ...sendOpts, draw: true })) setDockOpen(false);
+    if (adjust.send(words, { ...sendOpts, draw: true })) setDockOpen(true);
     setPrompt('');
   };
   // A saved look's send asks, and what Robes changes is kept and drawn as it lands.
@@ -1153,7 +1200,7 @@ function DraftBody({
     if (busy || (!words && !picked) || rows.length === 0) return;
     if (adjust.send(words, sendOpts)) {
       setApplying('asked');
-      setDockOpen(false);
+      setDockOpen(true);
     }
     setPrompt('');
   };
@@ -1252,10 +1299,11 @@ function DraftBody({
   // it never covers the look: the box on a draft with no conversation yet, the closed bar with
   // Robes' question and its thumbs once there is one, the sparkle on a saved look or after a
   // thumbs up (F6). Opened it is a sheet over the dimmed look. A thumbs down opens it on what to
-  // change; a send closes it, so the change is seen on the look; and it opens again when Robes
-  // answers in words. Native twin: DraftLook.tsx.
+  // change; a send keeps it open, the look above it (B6, 16 Nov); minimise, a tap on the look or a
+  // thumbs up folds it, and it opens again when Robes answers in words. Native twin: DraftLook.tsx.
   const verdict = adjust.state.verdict;
-  const [dockOpen, setDockOpen] = useState(false);
+  // Her brief's send keeps it open into the draft it made (B6).
+  const [dockOpen, setDockOpen] = useState(brief !== undefined);
   useEffect(() => {
     if (verdict === 'up') setDockOpen(false);
     if (verdict === 'down') setDockOpen(true);

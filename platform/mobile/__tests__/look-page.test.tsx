@@ -475,10 +475,10 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(screen.queryByTestId('update-look')).toBeNull();
   expect(screen.queryByText('Collar up.')).toBeNull();
-  // The send closed the sheet, so the change is seen on the look: the prompt is its closed bar
-  // with the question and the thumbs on it (pins 17, 19, 20), the look's button back under it.
-  expect(screen.queryByTestId('draft-prompt')).toBeNull();
-  expect(screen.getByTestId('prompt-pill')).toBeTruthy();
+  // The send keeps the sheet open (B6, 16 Nov): the question and its thumbs stand in the
+  // conversation, the look above it.
+  expect(screen.getByTestId('draft-prompt')).toBeTruthy();
+  expect(screen.queryByTestId('prompt-pill')).toBeNull();
   expect(screen.getByText('How does the collar look?')).toBeTruthy();
   expect(screen.getByTestId('thumb-up')).toBeTruthy();
   // A thumbs down on the bar opens the sheet on what to change.
@@ -509,10 +509,8 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
     text: '',
     reasons: ['dressy', 'colours'],
   });
-  // Her choice is one bubble (F17).
-  // That send closed the sheet again; opened, her choice is there.
-  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
-  await openPrompt();
+  // Her choice is one bubble (F17), in the sheet the send kept open (B6).
+  expect(screen.getByTestId('draft-prompt')).toBeTruthy();
   expect(
     await screen.findByText(`${fb.reasons.dressy.label} · ${fb.reasons.colours.label}`),
   ).toBeTruthy();

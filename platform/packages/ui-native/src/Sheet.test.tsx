@@ -286,3 +286,16 @@ test('useSheetPresented is false until the sheet is shown, and true outside a sh
   await act(async () => screen.getByTestId('probe-sheet').props.onShow());
   expect(await screen.findByText('inside:up')).toBeTruthy();
 });
+
+test('a head of its own stands in place of the grab bar', async () => {
+  await render(
+    <SafeAreaProvider>
+      <Sheet open onClose={() => undefined} floating head={<Text>Styling with Robes</Text>}>
+        <Text>Body</Text>
+      </Sheet>
+    </SafeAreaProvider>,
+  );
+  expect(screen.getByText('Styling with Robes')).toBeTruthy();
+  // The tall grab bar (a Close button) gives way to the slim handle over the head.
+  expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+});
