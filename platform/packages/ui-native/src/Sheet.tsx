@@ -1,7 +1,15 @@
 import { ui } from '@robes/copy';
 import { Icon, type IconName } from '@robes/icons/native';
 import { GlassView } from 'expo-glass-effect';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Animated,
   Dimensions,
@@ -170,6 +178,14 @@ function useKeyboard(): { shown: boolean; lift: Animated.Value; settle: () => vo
 }
 
 // Bottom sheet from RN Modal + Animated: Expo Go compatible, no native bottom-sheet module (ADR-018).
+// Whether the sheet a field stands in is on the screen yet. iOS drops a focus asked for while its
+// modal is still being presented, so a field that takes the keyboard as its sheet opens waits for
+// this (the look prompt's field, 16 Nov). Outside a sheet it is always true.
+const SheetPresented = createContext(true);
+export function useSheetPresented(): boolean {
+  return useContext(SheetPresented);
+}
+
 export function Sheet({
   open,
   onClose,
@@ -197,6 +213,7 @@ export function Sheet({
   const liquid = useNativeGlass() && glass !== undefined;
   const { shown: keyboard, lift, settle } = useKeyboard();
   const [visible, setVisible] = useState(open);
+  const [presented, setPresented] = useState(false);
   const closed = useRef(onClosed);
   closed.current = onClosed;
   // `onClosed` once per close: iOS reports the native dismissal (Modal onDismiss), with a short
@@ -212,6 +229,7 @@ export function Sheet({
     const hid = shown.current && !visible;
     shown.current = visible;
     if (!hid) return;
+    setPresented(false);
     closing.current = true;
     if (Platform.OS !== 'ios') {
       fireClosed();
@@ -298,137 +316,140 @@ export function Sheet({
       statusBarTranslucent
       onRequestClose={onClose}
       {...(Platform.OS === 'ios' ? { onDismiss: fireClosed } : {})}
+      onShow={() => setPresented(true)}
       testID={testID}
     >
-      <ModalInsets>
-        {(insets) => (
-          // A field in the sheet (a name, a search) rides above the keyboard, never under it.
-          <Animated.View className="flex-1 justify-end" style={{ paddingBottom: lift }}>
-            {/* The shade fades; the tap that closes is its own layer, since iOS gives no touch to a
+      <SheetPresented.Provider value={presented}>
+        <ModalInsets>
+          {(insets) => (
+            // A field in the sheet (a name, a search) rides above the keyboard, never under it.
+            <Animated.View className="flex-1 justify-end" style={{ paddingBottom: lift }}>
+              {/* The shade fades; the tap that closes is its own layer, since iOS gives no touch to a
             view faded to nothing (a bare sheet's shade never shows). */}
-            <Animated.View
-              className="absolute inset-0 bg-ink"
-              style={{ opacity: backdrop }}
-              pointerEvents="none"
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-            />
-            <Pressable
-              className="absolute inset-0"
-              onPress={onClose}
-              accessible={false}
-              testID={testID ? `${testID}-backdrop` : undefined}
-            />
-            <Animated.View
-              accessibilityViewIsModal
-              className={cx(
-                bare
-                  ? 'px-2.5'
-                  : glass
-                    ? cx(
-                        'rounded-t-dock border-rule-mid px-5',
-                        liquid ? 'overflow-hidden' : 'bg-bg',
-                      )
-                    : floating
-                      ? 'rounded-t-sheet border-rule-mid bg-bg px-5'
-                      : 'rounded-t-sheet bg-bg px-5',
-                className,
-              )}
-              // Every sheet stands on the screen's bottom edge, edge to edge (Felix, 12 Nov). A tall
-              // drawer stops short of the status bar and Dynamic Island; its content scrolls. Its last
-              // row (a footer button) sits above the home indicator, never under it.
-              style={[
-                {
-                  maxHeight: SHEET_MAX,
-                  paddingBottom: bare
-                    ? BARE_GAP + (keyboard ? 0 : insets.bottom)
-                    : SHEET_PAD + (keyboard ? 0 : insets.bottom),
-                  transform: [{ translateY }],
-                },
-                // The fine edge runs over the top and down the sides; the bottom is the screen's.
-                floats && !bare
-                  ? {
-                      borderTopWidth: FINE_EDGE,
-                      borderLeftWidth: FINE_EDGE,
-                      borderRightWidth: FINE_EDGE,
-                    }
-                  : null,
-              ]}
-            >
-              {liquid ? (
-                <GlassView
-                  glassEffectStyle="regular"
-                  style={StyleSheet.absoluteFill}
-                  pointerEvents="none"
-                />
-              ) : null}
-              {bare ? null : glass ? (
-                <View {...drag.panHandlers} className="mb-5 pt-3">
-                  <SheetHead {...glass} onClose={onClose} />
-                </View>
-              ) : done !== undefined ? (
-                <View {...drag.panHandlers} className="mb-5 pt-3">
-                  <SheetHead
-                    title={title ?? ''}
-                    {...(done ? { action: done } : {})}
-                    onClose={onClose}
+              <Animated.View
+                className="absolute inset-0 bg-ink"
+                style={{ opacity: backdrop }}
+                pointerEvents="none"
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
+              <Pressable
+                className="absolute inset-0"
+                onPress={onClose}
+                accessible={false}
+                testID={testID ? `${testID}-backdrop` : undefined}
+              />
+              <Animated.View
+                accessibilityViewIsModal
+                className={cx(
+                  bare
+                    ? 'px-2.5'
+                    : glass
+                      ? cx(
+                          'rounded-t-dock border-rule-mid px-5',
+                          liquid ? 'overflow-hidden' : 'bg-bg',
+                        )
+                      : floating
+                        ? 'rounded-t-sheet border-rule-mid bg-bg px-5'
+                        : 'rounded-t-sheet bg-bg px-5',
+                  className,
+                )}
+                // Every sheet stands on the screen's bottom edge, edge to edge (Felix, 12 Nov). A tall
+                // drawer stops short of the status bar and Dynamic Island; its content scrolls. Its last
+                // row (a footer button) sits above the home indicator, never under it.
+                style={[
+                  {
+                    maxHeight: SHEET_MAX,
+                    paddingBottom: bare
+                      ? BARE_GAP + (keyboard ? 0 : insets.bottom)
+                      : SHEET_PAD + (keyboard ? 0 : insets.bottom),
+                    transform: [{ translateY }],
+                  },
+                  // The fine edge runs over the top and down the sides; the bottom is the screen's.
+                  floats && !bare
+                    ? {
+                        borderTopWidth: FINE_EDGE,
+                        borderLeftWidth: FINE_EDGE,
+                        borderRightWidth: FINE_EDGE,
+                      }
+                    : null,
+                ]}
+              >
+                {liquid ? (
+                  <GlassView
+                    glassEffectStyle="regular"
+                    style={StyleSheet.absoluteFill}
+                    pointerEvents="none"
                   />
-                </View>
-              ) : (
-                <View {...drag.panHandlers} className="items-center pt-1 pb-2">
-                  {/* With a close in the header, the grab bar is only the handle, so a reader hears
+                ) : null}
+                {bare ? null : glass ? (
+                  <View {...drag.panHandlers} className="mb-5 pt-3">
+                    <SheetHead {...glass} onClose={onClose} />
+                  </View>
+                ) : done !== undefined ? (
+                  <View {...drag.panHandlers} className="mb-5 pt-3">
+                    <SheetHead
+                      title={title ?? ''}
+                      {...(done ? { action: done } : {})}
+                      onClose={onClose}
+                    />
+                  </View>
+                ) : (
+                  <View {...drag.panHandlers} className="items-center pt-1 pb-2">
+                    {/* With a close in the header, the grab bar is only the handle, so a reader hears
                   one Close, not two. */}
-                  <Pressable
-                    accessible={!close}
-                    accessibilityRole="button"
-                    accessibilityLabel={ui.close}
-                    onPress={onClose}
-                    className="min-h-11 w-24 items-center justify-center"
+                    <Pressable
+                      accessible={!close}
+                      accessibilityRole="button"
+                      accessibilityLabel={ui.close}
+                      onPress={onClose}
+                      className="min-h-11 w-24 items-center justify-center"
+                    >
+                      <View className="h-1 w-9 rounded bg-cream400 dark:bg-rule-mid" />
+                    </Pressable>
+                  </View>
+                )}
+                {glass || done !== undefined ? null : media ? (
+                  <View className="mb-4 flex-row items-start gap-4">
+                    <View>{media}</View>
+                    <View className="min-w-0 flex-1">
+                      {eyebrow ? (
+                        <Eyebrow className={cx('mb-2', eyebrowClass)}>{eyebrow}</Eyebrow>
+                      ) : null}
+                      {title ? <Question>{title}</Question> : null}
+                    </View>
+                    {close}
+                  </View>
+                ) : title || eyebrow || leading || close ? (
+                  <View
+                    className={cx(
+                      'flex-row items-center gap-1',
+                      title || leading || close ? 'mb-4' : 'mb-1',
+                      leading ? '-ml-3' : null,
+                    )}
                   >
-                    <View className="h-1 w-9 rounded bg-cream400 dark:bg-rule-mid" />
-                  </Pressable>
-                </View>
-              )}
-              {glass || done !== undefined ? null : media ? (
-                <View className="mb-4 flex-row items-start gap-4">
-                  <View>{media}</View>
-                  <View className="min-w-0 flex-1">
-                    {eyebrow ? (
-                      <Eyebrow className={cx('mb-2', eyebrowClass)}>{eyebrow}</Eyebrow>
-                    ) : null}
-                    {title ? <Question>{title}</Question> : null}
+                    {leading}
+                    <View className="min-w-0 flex-1">
+                      {eyebrow ? (
+                        <Eyebrow className={cx(title ? 'mb-2' : null, eyebrowClass)}>
+                          {eyebrow}
+                        </Eyebrow>
+                      ) : null}
+                      {title ? <Question>{title}</Question> : null}
+                    </View>
+                    {close}
                   </View>
-                  {close}
-                </View>
-              ) : title || eyebrow || leading || close ? (
-                <View
-                  className={cx(
-                    'flex-row items-center gap-1',
-                    title || leading || close ? 'mb-4' : 'mb-1',
-                    leading ? '-ml-3' : null,
-                  )}
-                >
-                  {leading}
-                  <View className="min-w-0 flex-1">
-                    {eyebrow ? (
-                      <Eyebrow className={cx(title ? 'mb-2' : null, eyebrowClass)}>
-                        {eyebrow}
-                      </Eyebrow>
-                    ) : null}
-                    {title ? <Question>{title}</Question> : null}
-                  </View>
-                  {close}
-                </View>
-              ) : null}
-              {/* A drawer is a layer of its own: its one filled button stands beside the screen's. */}
-              <PrimaryScope>
-                {rows?.length ? <Rows rows={rows} /> : null}
-                {children}
-              </PrimaryScope>
+                ) : null}
+                {/* A drawer is a layer of its own: its one filled button stands beside the screen's. */}
+                <PrimaryScope>
+                  {rows?.length ? <Rows rows={rows} /> : null}
+                  {children}
+                </PrimaryScope>
+              </Animated.View>
             </Animated.View>
-          </Animated.View>
-        )}
-      </ModalInsets>
+          )}
+        </ModalInsets>
+      </SheetPresented.Provider>
     </Modal>
   );
 }
