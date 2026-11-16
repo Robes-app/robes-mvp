@@ -1,7 +1,7 @@
 import { wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { AddPiecesPanel } from '../src/features/wardrobe/add/AddPiecesPanel';
-import { sitting } from '../src/features/wardrobe/add/flow';
+import { Filed } from '../src/features/wardrobe/add/Filed';
+import { addPiecesHref, sitting } from '../src/features/wardrobe/add/flow';
 import { ManualAdd } from '../src/features/wardrobe/add/ManualAdd';
 import { Review } from '../src/features/wardrobe/add/Review';
 import { nativeAnalytics } from '../src/lib/analytics';
@@ -67,26 +67,13 @@ const cap = wardrobe.capture;
 const JOB_B = '77777777-7777-4777-8777-777777777777';
 const SHOT_B = { uri: 'file:///tmp/b.jpg', width: 800, height: 1000, jobId: JOB_B };
 
-test('the sheet carries where the pieces go into every door', async () => {
-  await renderWithApi(<AddPiecesPanel />);
-  await fireEvent.press(screen.getByRole('radio', { name: add.to.wishlist }));
-  await fireEvent.press(screen.getByRole('button', { name: add.doors.photograph }));
-  expect(mockRouter.replace).toHaveBeenLastCalledWith({
-    pathname: '/wardrobe/camera',
-    params: { to: 'wishlist' },
-  });
-  await fireEvent.press(screen.getByRole('button', { name: add.doors.link }));
-  expect(mockRouter.replace).toHaveBeenLastCalledWith({
-    pathname: '/wardrobe/link',
-    params: { to: 'wishlist' },
-  });
-  await fireEvent.press(screen.getByRole('button', { name: add.doors.manual }));
-  expect(mockRouter.replace).toHaveBeenLastCalledWith({
-    pathname: '/wardrobe/manual',
-    params: { to: 'wishlist' },
-  });
-  await fireEvent.press(screen.getByRole('button', { name: add.doors.receipt }));
-  expect(mockRouter.replace).toHaveBeenLastCalledWith('/wardrobe/receipt');
+// One Add pieces sheet, however she gets back to it: "Add another" opens it over the Wardrobe,
+// filing where the last pieces went.
+test('add another goes back to the Add pieces sheet, still filing to the wishlist', async () => {
+  await renderWithApi(<Filed to="wishlist" kept={1} />);
+  await fireEvent.press(screen.getByRole('button', { name: add.filed.another }));
+  expect(mockRouter.replace).toHaveBeenLastCalledWith(addPiecesHref('wishlist'));
+  expect(addPiecesHref('wishlist')).toEqual({ pathname: '/wardrobe', params: { add: 'wishlist' } });
 });
 
 test('the list shows one row per piece, and a row for a photograph still being read', async () => {

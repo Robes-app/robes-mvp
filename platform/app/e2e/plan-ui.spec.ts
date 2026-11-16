@@ -16,29 +16,35 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   const { date } = await (await api.get('/api/v1/today')).json();
 
   await page.goto('/plan');
-  await expect(page.getByRole('radio', { name: 'List' })).toBeChecked();
+  // List · Month are the underline tabs the Lookbook and the Wardrobe carry (design 14 Nov).
+  await expect(page.getByRole('tab', { name: 'List' })).toHaveAttribute('aria-selected', 'true');
+  // An empty diary is its days: no box above them.
+  await expect(page.getByText(/Nothing planned/)).toHaveCount(0);
   await expect(page.getByText('The next 30 days')).toBeVisible();
   await expect(page.getByRole('region', { name: /^(This week|Rest of this week)$/ })).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
 
   await page.getByRole('link', { name: /^Open Today/ }).click();
   await expect(page).toHaveURL(new RegExp(`/plan/${date}$`));
-  await expect(page.getByRole('heading', { level: 1, name: 'Name the day' })).toBeVisible();
   // An empty day takes a name, so she can plan a week before adding outfits; it shows on the list.
-  await page.getByRole('button', { name: 'Name the day' }).click();
-  // The title itself becomes the field: focused, an underline and never a box.
+  // The title is the field itself (design 14 Nov): no pencil, an underline on focus, never a box.
   const dayName = page.getByRole('textbox', { name: 'Name the day' });
-  await expect(dayName).toBeFocused();
+  await expect(dayName).toHaveValue('');
+  await dayName.click();
   await expect(dayName).toHaveCSS('outline-style', 'none');
   await expect(dayName).toHaveCSS('border-top-width', '0px');
-  await expect(dayName).toHaveCSS('font-style', 'italic');
   await dayName.fill('Gallery opening');
   await dayName.press('Enter');
-  await expect(page.getByRole('heading', { level: 1, name: 'Gallery opening' })).toBeVisible();
+  await expect(dayName).toHaveValue('Gallery opening');
+  // The day is the day as Home draws it: her model with Capture · Create · Pick.
+  await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'empty');
+  await expect(page.getByTestId('disc-capture')).toBeVisible();
+  await expect(page.getByTestId('disc-create')).toBeVisible();
+  await expect(page.getByTestId('day-place')).toBeVisible();
   await page.goto('/plan');
   await expect(page.getByRole('link', { name: /^Open Today.*: Gallery opening$/ })).toBeVisible();
   await page.getByRole('link', { name: /^Open Today/ }).click();
-  await page.getByTestId('day-add').click();
+  await page.getByTestId('disc-pick').click();
 
   // The drawer (design 3k) asks what she is wearing today and schedules one or several; the ✓
   // waits grey until a pick (Front Door PRD rev 3 §4.5).
@@ -50,16 +56,16 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   await picker.getByRole('button', { name: /Dinner/ }).click();
   await picker.getByRole('button', { name: 'Schedule 2 Looks' }).click();
   await expect(page.getByText(/^2 looks added to /).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: /Office/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Dinner/ })).toBeVisible();
-  await expect(page.getByText('2 looks', { exact: true })).toBeVisible();
-  // The first on the day is the OOTD; ☆ on the other makes it the one that leads home.
-  await expect(page.getByTestId('day-ootd')).toContainText('Office');
-  await page.getByRole('button', { name: 'Make Dinner the OOTD' }).click();
-  await expect(page.getByTestId('day-ootd')).toContainText('Dinner');
+  await expect(page.getByTestId('day-slot')).toContainText('Office');
+  await expect(page.getByTestId('day-slot')).toContainText('Dinner');
+  // Each look is a page of the day with Swap · Edit, as on Home; the pager counts them.
+  await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'look');
+  await expect(page.getByTestId('ootd-swap')).toBeVisible();
+  await expect(page.getByTestId('ootd-edit')).toBeVisible();
+  await expect(page.getByTestId('day-pager')).toBeVisible();
 
   // A look already on the day opens ticked as Scheduled; unticking it takes it off.
-  await page.getByTestId('day-add').click();
+  await page.getByTestId('disc-pick').click();
   await expect(picker.getByText('Scheduled')).toHaveCount(2);
   await expect(picker.getByTestId('drawer-done')).toHaveAttribute('aria-disabled', 'true');
   await picker.getByRole('button', { name: 'Close' }).click();
@@ -74,7 +80,7 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   await expect(page.getByRole('link', { name: /^Open Today .*: Gallery opening$/ })).toBeVisible();
 
   // Month: a cell per day, each opening its page; the header names the month.
-  await page.getByRole('radio', { name: 'Month' }).click();
+  await page.getByRole('tab', { name: 'Month' }).click();
   await expect(page.getByRole('button', { name: 'Next month' })).toBeVisible();
   await page.getByRole('link', { name: /, 2 looks$/ }).click();
   await expect(page).toHaveURL(new RegExp(`/plan/${date}$`));
@@ -87,8 +93,8 @@ test('a quiet field focuses as an underline; a bare control keeps the ring', asy
   await declineConsent(page);
   const { date } = await (await page.request.get('/api/v1/today')).json();
   await page.goto(`/plan/${date}`);
-  await page.getByRole('button', { name: 'Name the day' }).click();
   const dayName = page.getByRole('textbox', { name: 'Name the day' });
+  await dayName.click();
   await expect(dayName).toBeFocused();
   const field = await dayName.evaluate((el) => {
     const s = getComputedStyle(el);
@@ -135,8 +141,8 @@ test('a quiet field focuses as an underline; a bare control keeps the ring', asy
     return width;
   });
   expect(bare).toEqual({ focusVisible: true, style: 'solid', width: ring });
-  // The shared Button keeps its ring too.
-  const named = page.getByRole('button', { name: 'Name the day' });
+  // A control that names its own ring keeps it too: the day's place chip.
+  const named = page.getByTestId('day-place');
   await named.focus();
   await expect(named).toHaveCSS('outline-style', 'solid');
   await expect(named).toHaveCSS('outline-width', ring);
@@ -176,10 +182,10 @@ test('the diary list says Worn, keeps its view, and the drawer reads every wear'
   );
 
   // Month is kept across a reload, headed Mon to Sun from the one table.
-  await page.getByRole('radio', { name: 'Month' }).click();
+  await page.getByRole('tab', { name: 'Month' }).click();
   await expect(page.getByRole('button', { name: 'Next month' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('radio', { name: 'Month' })).toBeChecked();
+  await expect(page.getByRole('tab', { name: 'Month' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Wed', { exact: true })).toBeVisible();
 
   // The drawer: a day last month she wore it (not its last wear) is already recorded…

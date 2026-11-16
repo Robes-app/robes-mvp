@@ -291,14 +291,15 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
         .catch(() => toast.show({ message: errors.internal }));
     },
     // Saved look: Update commits the rack (working notes drop); Done/Discard leaves it as it was.
-    update: (): Promise<boolean> =>
+    // `quiet`: kept on Robes' own account after a prompt change, so no toast says so.
+    update: (quiet = false): Promise<boolean> =>
       write
         .mutateAsync({ params: { id: look.id }, input: rackUpdate(rack, { keepEdits: false }) })
         .then((updated) => {
           nativeAnalytics.track('look_updated', { pieces: updated.pieces.length });
           setDirty(false);
           setEditing(false);
-          toast.show({ message: lookbook.updated, duration: 2600 });
+          if (!quiet) toast.show({ message: lookbook.updated, duration: 2600 });
           return true;
         })
         .catch(() => false),

@@ -6,6 +6,9 @@ export const wardrobe = {
   newPiece: 'New piece',
   reading: 'Robes is reading this piece…',
   noPieceFound: 'Robes couldn’t see a piece in this photo.',
+  // Audit F3: read the photo again (naming it by hand is the Name row).
+  readAgain: 'Try again',
+  readAgainLabel: (name: string): string => `Read ${name} again`,
   // The empty wardrobe (Front Door PRD rev 3 §7.2): a hanger on a white disc, one line, one door.
   empty: {
     title: 'Your wardrobe is empty',
@@ -248,8 +251,12 @@ export const wardrobe = {
   // one Review before anything files. Where the pieces go is chosen once and carried through.
   // The Add pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles over the screen; Paste
   // URL turns it into Add from Link with the field inline. Over the draft it reads Add your pieces.
+  // The search field under the glass (Robes MVP 3b).
+  search: { pieces: 'Search your wardrobe', wishlist: 'Search your wishlist' },
   addSheet: {
     title: 'Add pieces',
+    // Titled by where it files (Annie, P2 15 Nov).
+    titleTo: { wardrobe: 'Add pieces to Wardrobe', wishlist: 'Add pieces to Wishlist' },
     draftTitle: 'Add your pieces',
     pasteUrl: 'Paste URL',
     photo: 'Photo',

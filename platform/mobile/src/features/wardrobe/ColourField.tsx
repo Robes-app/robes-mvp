@@ -315,7 +315,7 @@ export function FamilyList({
   const ink = useColor('ink');
   const soft = useColor('ink-muted');
   return (
-    <View className="overflow-hidden rounded-[12px] border border-rule-mid bg-surface-raised">
+    <View className="overflow-hidden rounded-soft border border-rule-mid bg-surface-raised">
       {groups.map((g, i) => {
         const isOpen = g.id === open;
         const picked = g.items
@@ -457,7 +457,7 @@ export function PrintPicker({
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={copy.print}
-      className="overflow-hidden rounded-[12px] border border-rule-mid bg-surface-raised"
+      className="overflow-hidden rounded-soft border border-rule-mid bg-surface-raised"
     >
       {options.map((o, i) => {
         const on = value.print === o.id;

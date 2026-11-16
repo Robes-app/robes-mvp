@@ -38,7 +38,6 @@ export const home = {
     [weekday, city, temp].filter(Boolean).join(' · '),
   metaSpoken: (condition: string | null, meta: string): string =>
     [condition, meta].filter(Boolean).join(' · '),
-  doorDay: (day: string): string => `Dress ${day}…`,
   later: 'Later',
   map: {
     title: 'Getting to know you',
@@ -134,32 +133,6 @@ export const home = {
   lookEyebrow: 'Look',
   aroundYour: (piece: string): string => `Around your ${piece}`,
   fromPrompt: 'From your prompt',
-  // The + inside the box (legacy HomePrompt 2026-10-15): a piece by photograph or from the
-  // wardrobe sits inside the box above her words, and Send is three looks around it.
-  plus: {
-    label: 'Add a piece',
-    camera: 'Take a picture',
-    cameraHint: 'Lay it flat, in good light.',
-    upload: 'Upload a photo',
-    uploadHint: 'A flat lay, or you wearing it.',
-    wardrobe: 'From your wardrobe',
-    wardrobeHint: 'Anything already filed.',
-    remove: 'Remove piece',
-    reading: 'Reading the piece…',
-    readingSub: 'Robes will file it to your wardrobe',
-    // "Style these jeans for…" / "Style this jumper for…"
-    styleFor: (noun: { word: string; plural: boolean }): string =>
-      `Style ${noun.plural ? 'these' : 'this'} ${noun.word} for…`,
-    inWardrobe: (category: string): string => `${category} · in your wardrobe`,
-    filedTo: (category: string): string => `${category} · filed to your wardrobe`,
-    notFiled: 'Not filed yet — the looks still run',
-    nothingFound: 'Robes couldn’t see a piece to file — the looks still run',
-    filing: 'Filing it to your wardrobe…',
-    placeholder: 'Where to? Optional',
-    emptyWardrobe: 'Nothing catalogued yet — take a picture of the piece instead',
-    pickTitle: 'From your wardrobe',
-    newPiece: 'New piece',
-  },
 } as const;
 
 // Onboarding, splash to home (handoff 30 Oct): name, identity, styles, brands, colours. Identity
@@ -277,16 +250,9 @@ export const diary = {
   day: {
     home: 'Home',
     name: 'Name the day',
-    looksFor: 'Looks for the day',
-    count: (n: number): string => `${n} ${look(n)}`,
-    ootd: 'The OOTD',
-    look: (n: number): string => `Look ${n}`,
-    makeOotd: (name: string): string => `Make ${name} the OOTD`,
-    isOotd: 'The OOTD on home',
-    takeOff: (name: string): string => `Take ${name} off the day`,
-    add: 'Add a look',
-    weather: (city: string | null, condition: string, range: string): string =>
-      [city, condition, range].filter(Boolean).join(' · '),
+    // The day card's place chip (design "Diary & Day", 14 Nov).
+    place: (city: string): string => `Change where you are that day, now ${city}`,
+    addPlace: 'Add a location',
   },
   look: {
     saved: 'Saved look',
@@ -344,12 +310,12 @@ export const diary = {
   // The discs on the day's photo (Felix ActionDisc, design 3a · 3k): into a look, or onto one.
   discs: {
     capture: 'Capture',
-    describe: 'Describe',
+    create: 'Create',
     pick: 'Pick',
     swap: 'Swap',
     edit: 'Edit',
     captureLabel: (day: string): string => `Photograph a look for ${day}`,
-    describeLabel: (day: string): string => `Describe a look for ${day}`,
+    createLabel: (day: string): string => `Create a look for ${day}`,
     pickLabel: (day: string): string => `Pick a look for ${day}`,
     swapLabel: (name: string): string => `Swap ${name} for another look`,
     editLabel: (name: string): string => `Edit ${name}`,

@@ -31,6 +31,13 @@ export function Privacy() {
           disabled={consents.analytics !== true}
           onChange={(v) => give({ replay: v })}
         />
+        {/* Its own yes, whatever usage counts say. Web twin: you/privacy/privacy-form.tsx. */}
+        <SettingsToggleRow
+          label={copy.sharingLabel}
+          sub={copy.sharingHint}
+          value={consents.look_sharing === true}
+          onChange={(v) => give({ look_sharing: v })}
+        />
       </SettingsGroup>
       {error ? <ErrorText>{errorMessage(error)}</ErrorText> : null}
       <DownloadData />

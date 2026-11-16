@@ -192,15 +192,110 @@ describe('look_ask handler (the look prompt)', () => {
         },
       ],
     });
+    // Shop alone (`new`): her wishes are offered, nothing she owns is.
+    await run('swap the trouser for the silk cami', { balance: 'new' });
+    const alone = generateJson.mock.calls[2]?.[0].system ?? '';
+    expect(alone).toContain('Silk cami [Tops], coral, Vince (on her wishlist, not hers yet)');
+    expect(alone).not.toContain('Dark straight jean');
     // Unset (an older client): the wardrobe-first pool, as before.
     await run('swap the trouser for a red skirt');
-    expect(generateJson.mock.calls[2]?.[0].system).not.toContain('Silk cami');
+    expect(generateJson.mock.calls[3]?.[0].system).not.toContain('Silk cami');
     expect(answer()).toMatchObject({ swaps: [{ key: TROUSER, to: { proposal: {} } }] });
+  });
+
+  // "Add high heels" on a look with no heels (testing, 14 Nov): the piece lands as a new row —
+  // one she owns by its id, a wish with its identity, a new one with brand, retailer and price.
+  it('adds a piece to the look as a new row, from her wardrobe, her wishlist or new', async () => {
+    const { run, answer, generateJson } = setup();
+    const blank = { name: '', brand: '', retailer_hint: '', price_point: '', category: '' };
+    generateJson.mockResolvedValueOnce({
+      data: {
+        intent: 'swap',
+        reply: '',
+        swaps: [],
+        back: [],
+        styled: [],
+        draft: '',
+        rule: '',
+        follow_up: 'Do the heels work?',
+        adds: [
+          { pool_index: 0, ...blank },
+          { pool_index: 1, ...blank },
+          {
+            pool_index: -1,
+            name: 'Black slingback heels',
+            brand: 'Aeyde',
+            retailer_hint: 'aeyde.com',
+            price_point: '€295',
+            category: 'Shoes',
+          },
+        ],
+      },
+      usage: {},
+    } as never);
+    await run('add high heels', { balance: 'mix' });
+    const system = generateJson.mock.calls[0]?.[0].system ?? '';
+    expect(system).toContain('put it in "adds"');
+    expect(answer()).toMatchObject({
+      intent: 'swap',
+      swaps: [],
+      followUp: 'Do the heels work?',
+      adds: [
+        { pieceId: JEAN, name: 'Dark straight jean', category: 'Bottoms', categoryL2: 'Jeans' },
+        {
+          proposal: {
+            name: 'Silk cami',
+            wishlisted: true,
+            wishlistItemId: CAMI,
+            pricePoint: '€89',
+          },
+        },
+        {
+          proposal: {
+            name: 'Black slingback heels',
+            brand: 'Aeyde',
+            retailerHint: 'aeyde.com',
+            pricePoint: '€295',
+          },
+        },
+      ],
+    });
   });
 
   it('refuses a look that isn’t hers and bad input', async () => {
     const { run } = setup();
     await expect(run('hi', { lookId: TROUSER })).rejects.toMatchObject({ code: 'not_found' });
     await expect(run('')).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+
+  it('a tapped reason is a clear instruction: the look changes, a question follows, memory keeps it', async () => {
+    const { run, answer, generateJson, lookPrompt } = setup();
+    // No words: the reasons alone are the ask (look prompt PRD F10, F11).
+    await run('', { reasons: ['dressy', 'colours'] });
+    const system = generateJson.mock.calls[0]?.[0].system ?? '';
+    expect(system).toContain(
+      'SHE TAPPED WHAT IS NOT RIGHT WITH THIS LOOK: it is too dressy; the colours are not right.',
+    );
+    expect(generateJson.mock.calls[0]?.[0].user).toContain('She typed nothing');
+    const result = answer() as { intent: string; swaps: unknown[]; followUp?: string };
+    expect(result.intent).toBe('swap');
+    expect(result.swaps).toHaveLength(1);
+    expect(result.followUp).toBe('How does the change look?');
+    expect(lookPrompt.remember).toHaveBeenCalledWith(
+      USER,
+      expect.objectContaining({ body: 'it is too dressy · the colours are not right' }),
+    );
+    // With her words, both ride into memory, the reasons first.
+    await run('nothing black', { reasons: ['colours'] });
+    expect(lookPrompt.remember).toHaveBeenLastCalledWith(
+      USER,
+      expect.objectContaining({ body: 'the colours are not right · nothing black' }),
+    );
+  });
+
+  it('refuses an ask that says nothing: no words and no reason', async () => {
+    const { run } = setup();
+    await expect(run('')).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(run('', { reasons: [] })).rejects.toMatchObject({ code: 'invalid_input' });
   });
 });

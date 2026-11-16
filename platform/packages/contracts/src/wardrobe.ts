@@ -148,6 +148,8 @@ const pieceFilters = {
   // What she wears it for (one or several of her wear_for tags), and the brand on the label.
   wearFor: many(z.string().trim().min(1).max(40)),
   brand: z.string().trim().min(1).max(80).optional(),
+  // Her words in the search field (Robes MVP 3b): a piece whose name, brand or category holds them.
+  q: z.string().trim().min(1).max(80).optional(),
 };
 
 export const ListPiecesInput = z.object({

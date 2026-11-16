@@ -2,12 +2,12 @@ import { useApi } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { wardrobe as copy, filters as filterCopy, ui } from '@robes/copy';
 import { SEASON_OPTIONS, type SeasonOption, WEAR_FOR_ALL } from '@robes/core/filters';
-import { rankCategories } from '@robes/core/wardrobe';
+import { matchesSearch, rankCategories } from '@robes/core/wardrobe';
 import { Button, CardSkeleton, EmptyState, PrimaryScope, Text } from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
-import { TabScreen, useTabScroll } from '@/components/TabScreen';
+import { FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { TabScreen, TabSticky, useTabScroll, useTabTop } from '@/components/TabScreen';
 import { BrandSelect } from '@/features/filters/BrandSelect';
 import { FilterRow } from '@/features/filters/FilterRow';
 import { FilterSheet } from '@/features/filters/FilterSheet';
@@ -20,7 +20,8 @@ import { DeletePieceDialog } from './DeletePieceDialog';
 import { useWardrobeLayout } from './layout';
 import { CardRow, type CardStatus, CardTile, type RowMeta, Status } from './PieceCard';
 import { useDeletePiece, usePieces } from './pieces';
-import { CountRow, HeaderRow, type Segment } from './WardrobeHeader';
+import { useReread } from './reread';
+import { HeaderRow, SearchRow, type Segment } from './WardrobeHeader';
 import { WishlistView } from './WishlistView';
 
 const SEGMENTS: readonly Segment[] = ['pieces', 'wishlist'];
@@ -123,7 +124,9 @@ export function wearChoicesOf(own: readonly string[]): string[] {
 
 function Pieces({ onAdd }: { onAdd: () => void }) {
   const tabScroll = useTabScroll();
+  const top = useTabTop();
   const router = useRouter();
+  const reread = useReread();
   const [layout, setLayout] = useWardrobeLayout();
   const filters = useWardrobeFilters();
   const [sheet, setSheet] = useState(false);
@@ -137,6 +140,12 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
   const { pieces, total, isPending, isError, error, refetch, fetchNextPage, hasNextPage } =
     usePieces(filters.input);
   const pull = usePullRefresh(refetch);
+  // Her search narrows the pieces held here at once, as she types; the server's answer (`q`, sent
+  // once she pauses) brings in any beyond the loaded pages.
+  const shown = useMemo(
+    () => pieces.filter((p) => matchesSearch(p, filters.state.query)),
+    [pieces, filters.state.query],
+  );
   const remove = useDeletePiece();
   // The row's swipe asks first, as the piece page does (R14).
   const [asking, setAsking] = useState<string | null>(null);
@@ -161,6 +170,7 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
     return (
       <View
         className="flex-row gap-3 px-5 pt-5"
+        style={{ marginTop: top }}
         accessibilityLabel={copy.title}
         accessibilityState={{ busy: true }}
       >
@@ -171,16 +181,18 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
   }
   if (isError) {
     return (
-      <EmptyState
-        title={errorMessage(error)}
-        action={{ label: ui.retry, onPress: () => void refetch() }}
-      />
+      <View style={{ paddingTop: top }}>
+        <EmptyState
+          title={errorMessage(error)}
+          action={{ label: ui.retry, onPress: () => void refetch() }}
+        />
+      </View>
     );
   }
   if (owned === 0 || (pieces.length === 0 && !filters.active && owned === null)) {
     return (
       <PrimaryScope>
-        <View className="px-5 pt-8">
+        <View className="px-5 pt-8" style={{ marginTop: top }}>
           <EmptyState
             icon="wardrobe"
             title={copy.empty.title}
@@ -196,7 +208,8 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
   const grid = layout === 'grid';
   return (
     <View className="flex-1">
-      <View className="px-5 pt-3">
+      {/* Pinned with the tabs in the glass chrome; the count scrolls with the pieces (3b). */}
+      <TabSticky className="px-5 pt-3">
         <FilterRow
           sheetCount={filters.sheetCount}
           onOpenSheet={() => setSheet(true)}
@@ -209,21 +222,26 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
           onAll={() => filters.setCategory(null)}
           testID="wardrobe-filter-row"
         />
-      </View>
-      <CountRow
-        count={total === null ? null : copy.header.count(total)}
-        layout={layout}
-        onLayout={setLayout}
-      />
+      </TabSticky>
       <FlatList
         {...tabScroll}
         testID="pieces-list"
         key={layout}
-        data={pieces}
+        data={shown}
         keyExtractor={(p) => p.id}
         numColumns={grid ? 3 : 1}
         {...(grid ? { columnWrapperClassName: 'gap-2' } : {})}
         contentContainerClassName={grid ? 'gap-2 px-5 pb-8' : 'gap-[3px] px-5 pb-8'}
+        ListHeaderComponent={
+          <SearchRow
+            placeholder={copy.search.pieces}
+            value={filters.state.query}
+            onChange={filters.setQuery}
+            layout={layout}
+            onLayout={setLayout}
+            testID="wardrobe-search"
+          />
+        }
         renderItem={({ item }) => {
           const open = () => router.push(`/piece/${item.id}`);
           return grid ? (
@@ -234,7 +252,27 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
             <CardRow
               piece={item}
               meta={pieceMeta(item)}
-              lines={item.status === 'ready' ? null : <Status status={pieceStatus(item)} />}
+              lines={
+                item.status === 'ready' ? null : (
+                  <View className="flex-row items-center gap-2">
+                    <Status status={pieceStatus(item)} />
+                    {item.status === 'failed' ? (
+                      // Audit F3: Try again on the row too.
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={copy.readAgainLabel(item.label)}
+                        onPress={() => reread.mutate({ params: { id: item.id }, input: {} })}
+                        hitSlop={12}
+                        testID={`read-again-${item.id}`}
+                      >
+                        <Text size="small" className="underline">
+                          {copy.readAgain}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                )
+              }
               onOpen={open}
               swipe={{
                 text: copy.card.swipeDelete,
@@ -279,7 +317,7 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
 export function WardrobeView() {
   // `?segment=wishlist` opens a segment directly; the old `?segment=inbox` (Today, receipts)
   // now opens the pushed Inbox.
-  const params = useLocalSearchParams<{ segment?: string }>();
+  const params = useLocalSearchParams<{ segment?: string; add?: string }>();
   const router = useRouter();
   const [segment, setSegment] = useState<Segment>(
     SEGMENTS.includes(params.segment as Segment) ? (params.segment as Segment) : 'pieces',
@@ -293,8 +331,17 @@ export function WardrobeView() {
   // The + and the empty states open the Add pieces sheet (PRD rev 3 §7.4): the three tiles over
   // the Wardrobe, filing to the segment she is on.
   const [adding, setAdding] = useState(false);
+  // `?add=wardrobe|wishlist` (addPiecesHref: "add another", the old /wardrobe/add address): the
+  // sheet up over the segment the pieces go to.
+  useEffect(() => {
+    if (params.add !== 'wardrobe' && params.add !== 'wishlist') return;
+    setSegment(params.add === 'wishlist' ? 'wishlist' : 'pieces');
+    setAdding(true);
+    router.setParams({ add: undefined });
+  }, [params.add, router]);
   return (
     <TabScreen
+      glass
       title={copy.title}
       toolbar={
         <HeaderRow

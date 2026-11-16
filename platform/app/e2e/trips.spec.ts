@@ -29,10 +29,14 @@ test('trips are hidden by default: no door, no page, no API', async ({ page }) =
   await signIn(page);
   await declineConsent(page);
   expect(await (await page.request.get('/api/v1/me/features')).json()).toEqual({ trips: false });
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
-  const sheet = page.getByRole('dialog', { name: 'Create' });
-  await expect(sheet.getByRole('link', { name: 'New look' })).toBeVisible();
-  await expect(sheet.getByRole('link', { name: 'Plan a trip' })).toHaveCount(0);
+  // No door to a trip: ⌘K's Create group offers New look and no Plan a trip (the desktop bar's
+  // Create sheet is retired, Annie 15 Nov).
+  await page.keyboard.press('ControlOrMeta+k');
+  const bar = page.getByRole('combobox', { name: 'Search Robes' });
+  await bar.fill('new look');
+  await expect(page.getByRole('option', { name: 'New look' })).toBeVisible();
+  await bar.fill('trip');
+  await expect(page.getByRole('option', { name: 'Plan a trip' })).toHaveCount(0);
   await page.keyboard.press('Escape');
   expect((await page.goto('/trip/new'))?.status()).toBe(404);
   const plan = await page.request.post('/api/v1/travel/plan', {
@@ -84,7 +88,7 @@ test.describe('with trips on', () => {
 
     await page.goto('/plan');
     await expect(page.getByRole('link', { name: 'Golden Hour' }).first()).toBeVisible();
-    await page.getByRole('radio', { name: 'Month' }).click();
+    await page.getByRole('tab', { name: 'Month' }).click();
     await expect(page.getByRole('button', { name: 'Next month' })).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
   });

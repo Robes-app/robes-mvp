@@ -109,3 +109,10 @@ export async function pickFromRoll(): Promise<ReviewShot[] | null> {
 export function wardrobeHref(to: AddDestination): Href {
   return to === 'wishlist' ? '/wardrobe?segment=wishlist' : '/wardrobe';
 }
+
+// The Add pieces sheet, over the Wardrobe on the segment the pieces go to (Front Door PRD rev 3
+// §7.4). Every "add another" and the old /wardrobe/add address land here: one sheet, however
+// she got there (Annie, 15 Nov: the Wardrobe/Wishlist panel was a legacy sheet).
+export function addPiecesHref(to: AddDestination): Href {
+  return { pathname: '/wardrobe', params: { add: to } };
+}

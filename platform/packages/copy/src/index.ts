@@ -34,7 +34,6 @@ export const auth = {
   sendCode: 'Email me a code',
   sendingCode: 'Sending…',
   // For beta testers who signed in with a password (F4): one line, under the button.
-  noPassword: 'Used a password? Robes emails you a code now.',
   codeTitle: 'Check your email.',
   codeSubtitle: (email: string): string => `Robes sent a six-digit code to ${email}.`,
   codeLabel: 'Code',
@@ -294,6 +293,11 @@ export const consent = {
   replayLabel: 'Screen recordings',
   replayHint:
     'Recordings of how you move through Robes, with every word, photo and typed answer hidden. Needs usage counts.',
+  // Her words and the looks made from them, shared with PostHog (owner, 15 Nov). Its own yes:
+  // it needs no usage counts, and turning it off stops anything new being shared.
+  sharingLabel: 'Share my looks with Robes',
+  sharingHint:
+    'What you ask for and what Robes styles, with your facts, so the looks keep improving.',
   saving: 'Saving…',
   saved: 'Saved.',
   back: 'Back to Today',
@@ -350,6 +354,8 @@ export const filters = {
 // App shell (IA §3.2): nav, Create sheet, command bar, placeholder routes.
 export const shell = {
   primaryNav: 'Main',
+  // A server that needs a newer app (426, audit F6): the store link, never a dead end.
+  update: { title: 'Update Robes to keep going.', action: 'Update', later: 'Not now' },
   openYou: 'Your profile and settings',
   create: {
     title: 'Create',
@@ -557,6 +563,11 @@ export const you = {
     morningCue: 'A morning cue with today’s look',
     nudges: 'Gentle nudges to add pieces',
     receipts: 'When a receipt becomes a piece',
+    // The phone's own permission above the switches (audit F8): they do nothing while it's off.
+    systemOff: 'Notifications are off for Robes',
+    systemOffSub: 'Turn on in Settings',
+    systemAsk: 'Allow notifications',
+    systemAskSub: 'Robes asks your phone first',
   },
   // The row that holds her consents and her data export (decided 27 Oct: one "privacy" row only).
   privacy: 'Your data',
@@ -713,15 +724,6 @@ export const plan = {
   activityPlaceholder: 'Dinner, the office',
   saveActivity: 'Save',
   unpin: (name: string): string => `Take ${name} off this day`,
-  unpinned: 'Taken off the day.',
-  empty: {
-    title: 'Nothing planned',
-    titleEm: 'yet.',
-    // Beta's empty diary with the trip hidden (legacy _dyListHtml).
-    body: 'Name a day below and add a look. The diary keeps the dates; the lookbook keeps the looks.',
-    action: 'Go to Lookbook',
-  },
-  monthCaption: 'Month reads the shape of it. List is where you plan.',
   // A past day on the web's month card: what it held, never a fraction.
   monthFiled: (pieces: number): string =>
     `Filed · ${pieces === 1 ? '1 piece' : `${pieces} pieces`}`,
@@ -753,7 +755,6 @@ export const plan = {
   // The day page: the one door every day opens (legacy ff87e89).
   day: {
     back: (label: string): string => label,
-    rename: 'Rename the day',
     name: 'Name the day',
     planned: 'Looks planned',
     filed: 'Looks filed',

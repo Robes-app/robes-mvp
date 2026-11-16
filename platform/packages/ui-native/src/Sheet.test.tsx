@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { useState } from 'react';
-import { AccessibilityInfo, Keyboard, Pressable, StyleSheet, Text } from 'react-native';
+import { AccessibilityInfo, Dimensions, Keyboard, Pressable, StyleSheet, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Button, DOUBLE_PRIMARY_WARNING, PrimaryScope } from './Button';
 import { Sheet } from './Sheet';
@@ -141,6 +141,70 @@ test('its last row sits above the home indicator, and rides the keyboard without
   expect(panelStyle('Save')).toEqual(expect.objectContaining({ paddingBottom: 24 }));
   await act(() => listeners.get('keyboardWillHide')?.());
   expect(panelStyle('Save')).toEqual(expect.objectContaining({ paddingBottom: 24 + 34 }));
+  jest.restoreAllMocks();
+});
+
+// TestFlight, 15 Nov: the look's prompt opens with its field in focus, so the keyboard rises as the
+// sheet does. The sheet stands on the keyboard's own height from that first event, with nothing to
+// measure first, so it is never left behind the keyboard.
+test('it stands on the keyboard from the keyboard event that opens with it', async () => {
+  const listeners = new Map<string, (e?: unknown) => void>();
+  jest.spyOn(Keyboard, 'addListener').mockImplementation((event, listener) => {
+    listeners.set(event, listener as (e?: unknown) => void);
+    return { remove: jest.fn() } as never;
+  });
+  const window = Dimensions.get('window').height;
+  await render(
+    <Sheet open onClose={() => {}} title="Styling with Robes">
+      <Text>Prompt</Text>
+    </Sheet>,
+  );
+  await act(() =>
+    listeners.get('keyboardWillShow')?.({
+      endCoordinates: { screenY: window - 336, height: 336, screenX: 0, width: 390 },
+      duration: 0,
+    }),
+  );
+  let stage = screen.getByText('Prompt').parent;
+  while (stage && stage.props.accessibilityViewIsModal !== true) stage = stage.parent;
+  const ground = () => StyleSheet.flatten(stage?.parent?.props.style)?.paddingBottom;
+  await waitFor(() => expect(ground()).toBe(336));
+  await act(() => listeners.get('keyboardWillHide')?.({ duration: 0 }));
+  await waitFor(() => expect(ground()).toBe(0));
+  jest.restoreAllMocks();
+});
+
+// Annie, 15 Nov: every sheet stood a keyboard's height off the bottom with no keyboard there. iOS
+// sends a change of keyboard frame as the keyboard goes or a modal presents; only a show lifts.
+test('a change of keyboard frame with no keyboard up never lifts it, nor one after a hide', async () => {
+  const listeners = new Map<string, (e?: unknown) => void>();
+  jest.spyOn(Keyboard, 'addListener').mockImplementation((event, listener) => {
+    listeners.set(event, listener as (e?: unknown) => void);
+    return { remove: jest.fn() } as never;
+  });
+  const window = Dimensions.get('window').height;
+  const at = (height: number) => ({
+    endCoordinates: { screenY: window - height, height, screenX: 0, width: 390 },
+    duration: 0,
+  });
+  await render(
+    <Sheet open onClose={() => {}} title="Add pieces">
+      <Text>Tiles</Text>
+    </Sheet>,
+  );
+  let stage = screen.getByText('Tiles').parent;
+  while (stage && stage.props.accessibilityViewIsModal !== true) stage = stage.parent;
+  const ground = () => StyleSheet.flatten(stage?.parent?.props.style)?.paddingBottom;
+  await act(() => listeners.get('keyboardWillChangeFrame')?.(at(300)));
+  await act(() => new Promise((done) => setTimeout(done, 100)));
+  expect(ground()).toBe(0);
+  await act(() => listeners.get('keyboardWillShow')?.(at(336)));
+  await waitFor(() => expect(ground()).toBe(336));
+  await act(() => listeners.get('keyboardWillHide')?.({ duration: 0 }));
+  await waitFor(() => expect(ground()).toBe(0));
+  await act(() => listeners.get('keyboardWillChangeFrame')?.(at(300)));
+  await act(() => new Promise((done) => setTimeout(done, 400)));
+  expect(ground()).toBe(0);
   jest.restoreAllMocks();
 });
 

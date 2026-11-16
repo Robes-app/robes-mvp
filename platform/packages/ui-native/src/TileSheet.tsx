@@ -4,7 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useColor } from './color';
 import { cx } from './cx';
 import { GlassSheet, type GlassSheetProps } from './Sheet';
-import { FINE_EDGE, maxFontSizeMultiplier, typeStyle } from './scale';
+import { FINE_EDGE, fonts, maxFontSizeMultiplier, typeStyle } from './scale';
 
 export interface SheetTile {
   icon: IconName;
@@ -13,6 +13,8 @@ export interface SheetTile {
   onPress: () => void;
   // A count waiting behind the tile (receipts to review), on an ink disc at its corner.
   badge?: number;
+  // Shown but inactive at 45% (From receipt on the Wishlist: a receipt is for pieces she bought).
+  disabled?: boolean;
   testID?: string;
 }
 
@@ -44,7 +46,10 @@ export function TileSheet({ tiles, selected, children, ...sheet }: TileSheetProp
               accessibilityLabel={
                 tile.badge !== undefined ? `${tile.label}, ${tile.badge}` : tile.label
               }
-              accessibilityState={{ selected: picked }}
+              accessibilityState={
+                tile.disabled ? { selected: picked, disabled: true } : { selected: picked }
+              }
+              {...(tile.disabled ? { disabled: true } : {})}
               onPress={tile.onPress}
               testID={tile.testID}
               className={cx(
@@ -53,7 +58,7 @@ export function TileSheet({ tiles, selected, children, ...sheet }: TileSheetProp
               )}
               style={{
                 borderWidth: picked ? 1.5 : FINE_EDGE,
-                opacity: dimmed && !picked ? 0.45 : 1,
+                opacity: tile.disabled || (dimmed && !picked) ? 0.45 : 1,
               }}
             >
               <Icon name={tile.icon} size={18} color={ink} />
@@ -72,7 +77,12 @@ export function TileSheet({ tiles, selected, children, ...sheet }: TileSheetProp
                 >
                   <Text
                     maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-                    style={{ ...typeStyle('label'), color: onInk, letterSpacing: 0 }}
+                    style={{
+                      ...typeStyle('label'),
+                      fontFamily: fonts.sansSemiBold,
+                      color: onInk,
+                      letterSpacing: 0,
+                    }}
                   >
                     {tile.badge}
                   </Text>

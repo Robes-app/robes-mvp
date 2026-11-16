@@ -1,4 +1,5 @@
 import { dayMonth } from '../calendar';
+import { sheetL1For } from '../taxonomy';
 
 // Forwarded receipts (Wardrobe › Inbox and the receipt door): the pieces she ticks, the day a
 // receipt came in, and her address set to break only at the @. Shared by web and native.
@@ -34,4 +35,49 @@ export function splitAddress(address: string): { local: string; domain: string }
   const at = address.lastIndexOf('@');
   if (at <= 0) return { local: address, domain: '' };
   return { local: address.slice(0, at), domain: address.slice(at) };
+}
+
+// A receipt line that names no piece ("REF 09003701051", "SKU 4471", the brand alone): the piece
+// reads as its brand and category instead, "Zara top", for her to rename (UX audit, 15 Nov). A
+// line with a real name keeps it word for word.
+const CODE_WORD = /^(ref|sku|art|item|no|nr|code|style|model|product|#)[.:#]*$/i;
+const NOUN: Record<string, string> = {
+  Accessories: 'accessory',
+  Activewear: 'activewear',
+  Bags: 'bag',
+  Bottoms: 'bottoms',
+  'Dresses & jumpsuits': 'dress',
+  Jewellery: 'jewellery',
+  Knitwear: 'knit',
+  'Loungewear & sleepwear': 'loungewear',
+  Outerwear: 'outerwear',
+  Shoes: 'shoes',
+  'Swim & beach': 'swimwear',
+  'Tailoring & suiting': 'tailoring',
+  Tops: 'top',
+  'Underwear & intimates': 'underwear',
+};
+
+export function namesNoPiece(label: string, brand?: string | null): boolean {
+  const words = label
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && !CODE_WORD.test(w) && !/\d/.test(w));
+  const rest = words.join(' ');
+  if (brand && rest.toLowerCase() === brand.trim().toLowerCase()) return true;
+  return (rest.match(/\p{L}/gu) ?? []).length < 3;
+}
+
+export function pieceName(line: {
+  label: string;
+  brand?: string | null;
+  categoryL2?: string | null;
+  categoryL3?: string | null;
+}): string {
+  if (!namesNoPiece(line.label, line.brand)) return line.label.trim();
+  const l1 = line.categoryL2 ? sheetL1For(line.categoryL2) : null;
+  const noun = line.categoryL3?.trim().toLowerCase() || (l1 ? NOUN[l1] : undefined) || 'piece';
+  const brand = line.brand?.trim();
+  const name = brand ? `${brand} ${noun}` : noun;
+  return name.charAt(0).toUpperCase() + name.slice(1);
 }

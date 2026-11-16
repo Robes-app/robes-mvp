@@ -42,11 +42,13 @@ describe('Pill and Chip', () => {
     expect(pillClasses()).not.toMatch(/\bbg-selected\b/);
   });
 
-  it('carries a count, and reads deep rose with a cream label as an active quick chip', () => {
+  // Front Door 2b/3b: a quick chip is outlined at rest; picked, the pale fill on the umber line.
+  it('carries a count; a filter chip is outlined at rest and picked on the umber line', () => {
     render(
       <>
         <Pill count={3}>Work</Pill>
-        <Pill selected tone="rose" count={2}>
+        <Pill tone="filter">Weekend</Pill>
+        <Pill selected tone="filter" count={2}>
           Everyday
         </Pill>
         <Pill count={0} disabled>
@@ -56,7 +58,12 @@ describe('Pill and Chip', () => {
     );
     expect(screen.getByRole('button', { name: 'Work 3' })).toHaveClass('bg-surface-raised');
     const active = screen.getByRole('button', { name: 'Everyday 2' });
-    expect(active).toHaveClass('bg-accent-warm', 'text-surface-raised');
+    expect(active).toHaveClass('bg-surface-sunk', 'border-token-line');
+    expect(active).not.toHaveClass('bg-selected');
+    expect(screen.getByRole('button', { name: 'Weekend' })).toHaveClass(
+      'border-warm-line',
+      'bg-transparent',
+    );
     expect(active.querySelector('svg')).toBeNull();
     expect(screen.getByRole('button', { name: 'Active 0' })).toBeDisabled();
     expect(pillClasses()).toMatch(/\bdisabled:opacity-45\b/);

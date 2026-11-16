@@ -152,6 +152,57 @@ describe('wardrobe repo', () => {
     await deleteTestUsers(db, user);
   });
 
+  // Audit F3, Try again: only a failed piece with a photo goes back to reading; a queue failure
+  // puts it back to failed. Nothing else moves.
+  it('reads again only a failed piece with a photo, and can put it back', async () => {
+    const user = await createTestUser(db);
+    const photo = await assets.createPending(user, {
+      kind: 'wardrobe',
+      contentType: 'image/jpeg',
+      bytes: 1000,
+    });
+    const failed = await wardrobe.create(user, {
+      label: 'New piece',
+      imageAssetId: photo.id,
+      status: 'reading',
+    });
+    expect(await pieces.markFailed(user, failed.id)).toBe(true);
+    const ready = await wardrobe.create(user, { label: 'Coat', imageAssetId: photo.id });
+    const noPhoto = await wardrobe.create(user, { label: 'Scarf', status: 'reading' });
+    await pieces.markFailed(user, noPhoto.id);
+    expect((await wardrobe.rereadFailed(user, failed.id))?.status).toBe('reading');
+    expect(await wardrobe.rereadFailed(user, ready.id)).toBeUndefined();
+    expect(await wardrobe.rereadFailed(user, noPhoto.id)).toBeUndefined();
+    expect(await wardrobe.rereadFailed(ann, failed.id)).toBeUndefined();
+    await wardrobe.unreread(user, failed.id);
+    expect((await wardrobe.get(user, failed.id))?.status).toBe('failed');
+    await deleteTestUsers(db, user);
+  });
+
+  // Robes MVP 3b: the search field finds her words in a piece's name, brand or category, any case;
+  // % and _ are just characters.
+  it('searches name, brand and category, case-insensitive, with % and _ taken literally', async () => {
+    const user = await createTestUser(db);
+    const coat = await wardrobe.create(user, {
+      label: 'Camel wool coat',
+      brand: 'Brandvale',
+      categoryL2: 'Coats',
+    });
+    const tee = await wardrobe.create(user, { label: 'White tee', brand: 'COS' });
+    const odd = await wardrobe.create(user, { label: '100% linen shirt' });
+    const ids = async (q: string) =>
+      (await wardrobe.list(user, { limit: 10, q })).items.map((p) => p.id);
+    expect(await ids('WOOL')).toEqual([coat.id]);
+    expect(await ids('cos')).toEqual([tee.id]);
+    expect(await ids('coats')).toEqual([coat.id]);
+    expect(await ids('100%')).toEqual([odd.id]);
+    expect(await ids('_')).toEqual([]);
+    expect(await wardrobe.countMatching(user, { q: 'brand' })).toBe(1);
+    // Another woman's pieces never answer her search.
+    expect(await wardrobe.countMatching(ann, { q: 'Brandvale' })).toBe(0);
+    await deleteTestUsers(db, user);
+  });
+
   it('filters by several seasons, families and tags at once, with Year round as the untagged (PRD rev 3)', async () => {
     const user = await createTestUser(db);
     const coat = await wardrobe.create(user, {

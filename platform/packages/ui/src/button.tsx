@@ -26,7 +26,8 @@ export function PrimaryScope({ children }: { children: ReactNode }) {
 export const ONE_PRIMARY_WARNING =
   '@robes/ui: more than one primary Button is mounted on this screen. Keep one filled button for the single real commitment and make the rest outline, chip or quiet (UX-26).';
 
-function usePrimaryGuard(active: boolean): void {
+// Every filled ink control counts here: the primary Button, a danger fill, home's Create disc.
+export function usePrimaryGuard(active: boolean): void {
   const scope = useContext(PrimaryScopeContext);
   useEffect(() => {
     if (!active || process.env.NODE_ENV === 'production') return;

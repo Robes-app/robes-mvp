@@ -23,6 +23,12 @@ export const palette = {
   warmFill: '#F3EFE6',
   warmLine: '#C9BCA6',
   warmLineDark: '#8A7F6C',
+  // The prompt box (redline 14 Nov): the ring on a source that is on and on a token in the box,
+  // and the field's resting placeholder. Never text she must read.
+  umber: '#6E4A38',
+  umberLight: '#B89A88',
+  hint: '#A9A9A9',
+  hintDark: '#7C7C7C',
   // Felix's worn mark on a past day (#A0927A), darkened to reach 3:1 on cream and white.
   warmPast: '#968973',
   warmPastDark: '#A0927A',
@@ -37,9 +43,6 @@ export const palette = {
   // Felix's danger: error text on cream and the swipe-to-delete reveal (white label 5.3:1).
   danger: '#B5483A',
   dangerLight: '#E08A7E',
-  // The Front Door's Shop toggle (PRD rev 3 §4.6): its on-state wash and its off-state track.
-  shopOn: '#F6EEF0',
-  switchOff: '#E4DCCD',
   mutedDark: '#B9B3A8',
   faintDark: '#A89E8C',
 } as const;
@@ -72,6 +75,8 @@ export const semanticNames = [
   // Felix Design System (2026-11-06). The warm family: the edge of chips, the today cell and an add
   // slot (`warm-line`), a past day's worn mark, and the dashed edge of a piece still to find.
   'warm-line',
+  'token-line',
+  'placeholder',
   'warm-past',
   'warm-dash',
   // The unread dot.
@@ -97,9 +102,6 @@ export const semanticNames = [
   'rose-mid',
   'sage-bg',
   'sage-mid',
-  // The Shop toggle: the pill's wash while on, the switch track while off.
-  'shop-on',
-  'switch-off',
 ] as const;
 
 export type Semantic = (typeof semanticNames)[number];
@@ -125,6 +127,8 @@ export const light: Record<Semantic, ColorRef> = {
   selected: 'warmFill',
   'selected-line': 'warmLine',
   'warm-line': 'warmLine',
+  'token-line': 'umber',
+  placeholder: 'hint',
   'warm-past': 'warmPast',
   'warm-dash': 'warmDash',
   alert: 'alert',
@@ -143,8 +147,6 @@ export const light: Record<Semantic, ColorRef> = {
   'rose-mid': { base: 'mauve', alpha: 0.6 },
   'sage-bg': { base: 'sageTint', alpha: 0.4 },
   'sage-mid': { base: 'sageTint', alpha: 0.72 },
-  'shop-on': 'shopOn',
-  'switch-off': 'switchOff',
 };
 
 export const dark: Record<Semantic, ColorRef> = {
@@ -169,6 +171,8 @@ export const dark: Record<Semantic, ColorRef> = {
   'selected-line': 'warmLineDark',
   // Felix has no dark theme yet: these are proposed, like the rest of this map.
   'warm-line': 'warmLineDark',
+  'token-line': 'umberLight',
+  placeholder: 'hintDark',
   'warm-past': 'warmPastDark',
   'warm-dash': 'warmLineDark',
   alert: 'dangerLight',
@@ -187,8 +191,6 @@ export const dark: Record<Semantic, ColorRef> = {
   'rose-mid': { base: 'mauve', alpha: 0.24 },
   'sage-bg': { base: 'sageTint', alpha: 0.12 },
   'sage-mid': { base: 'sageTint', alpha: 0.24 },
-  'shop-on': 'ink800',
-  'switch-off': { base: 'cream50', alpha: 0.2 },
 };
 
 // Accent colours are declared at 3:1 (large text, icons, fills only) per the brand guideline.
@@ -230,7 +232,6 @@ export const pairs: Array<{ fg: Semantic; bg: Semantic; min: number }> = [
   { fg: 'surface-raised', bg: 'danger', min: 4.5 },
   // An active quick chip: the cream label on the deep rose (the Front Door's rose chip, D1).
   { fg: 'surface-raised', bg: 'accent-warm', min: 4.5 },
-  { fg: 'ink', bg: 'shop-on', min: 4.5 },
 ];
 
 export const font = {
@@ -263,6 +264,8 @@ export const shadow = {
   row: '0 1px 2px rgba(32, 32, 33, 0.08), 0 4px 10px -4px rgba(32, 32, 33, 0.16)',
   // Action discs on the photo's edge: a soft lift, never a dark pool (Felix, 12 Nov).
   disc: '0 4px 10px -4px rgba(32, 32, 33, 0.18), 0 1px 2px rgba(32, 32, 33, 0.08)',
+  // Home's ink Create disc stands a little further off the photo than its cream neighbours.
+  'disc-primary': '0 8px 18px -6px rgba(32, 32, 33, 0.38), 0 2px 4px rgba(32, 32, 33, 0.12)',
   // White + discs and small floating buttons.
   float: '0 6px 16px -6px rgba(32, 32, 33, 0.30)',
   // Floating sheets and popovers.
@@ -285,6 +288,7 @@ export const shadowNative = {
   row: nativeShadow(2, 5, 0.12, 2),
   // Native has no negative spread, so the disc's lift is lighter still than the web's.
   disc: nativeShadow(2, 6, 0.12, 3),
+  'disc-primary': nativeShadow(5, 12, 0.24, 6),
   float: nativeShadow(6, 16, 0.3, 6),
   sheet: nativeShadow(18, 40, 0.35, 10),
   modal: nativeShadow(18, 48, 0.28, 12),

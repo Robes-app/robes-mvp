@@ -1,22 +1,26 @@
 import { ui } from '@robes/copy';
 import { Icon, type IconName } from '@robes/icons/native';
+import { GlassView } from 'expo-glass-effect';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Dimensions,
   Easing,
   Keyboard,
-  KeyboardAvoidingView,
+  type KeyboardEvent,
   Modal,
   PanResponder,
   Platform,
   Pressable,
+  StyleSheet,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloseDisc, PrimaryScope } from './Button';
 import { useColor } from './color';
 import { cx } from './cx';
 import { DrawerHeader, type DrawerHeaderDone } from './DrawerHeader';
+import { useNativeGlass } from './Glass';
+import { ModalInsets } from './ModalInsets';
 import { useReducedMotion } from './motion';
 import { FINE_EDGE, fonts, MIN_TOUCH } from './scale';
 import { Eyebrow, Heading, Text } from './Text';
@@ -96,24 +100,67 @@ const SHEET_PAD = 24;
 // Longest wait for iOS to confirm a dismissal before `onClosed` fires anyway.
 const DISMISS_FALLBACK_MS = 500;
 
-// While the keyboard is up the KeyboardAvoidingView already lifts the sheet clear of the home
-// indicator, so the inset is only added while it's down.
-function useKeyboardShown(): boolean {
+// iOS's keyboard curve, near enough, for the sheet riding up with it.
+const KEYBOARD_EASE = Easing.bezier(0.38, 0.7, 0.125, 1);
+
+// The keyboard, read from its own events: whether it is up, and (iOS) how far it reaches into the
+// window, animated with it. The sheet stands on that height. It used to stand in a
+// KeyboardAvoidingView, which lifts nothing until it has measured itself: a field that takes the
+// keyboard as the sheet opens (the look's prompt) raced that measure and was left behind the
+// keyboard, coming back only after a dismiss (Annie, TestFlight, 15 Nov). The events need no
+// measure, so the sheet is on the keyboard from its first frame. While the keyboard is up it covers
+// the home indicator, so the inset steps aside. Android resizes the window itself (adjustResize).
+function useKeyboard(): { shown: boolean; lift: Animated.Value; settle: () => void } {
   const [shown, setShown] = useState(false);
+  const up = useRef(false);
+  const lift = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const ios = Platform.OS === 'ios';
-    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', () =>
-      setShown(true),
-    );
-    const hide = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () =>
-      setShown(false),
-    );
+    const to = (height: number, duration?: number) =>
+      Animated.timing(lift, {
+        toValue: height,
+        duration: duration || DURATION,
+        easing: KEYBOARD_EASE,
+        useNativeDriver: false,
+      }).start();
+    const heightOf = (event?: KeyboardEvent) =>
+      event?.endCoordinates
+        ? Math.max(0, Dimensions.get('window').height - event.endCoordinates.screenY)
+        : 0;
+    // Only a show lifts the sheet. A change of frame (emoji, the predictive bar) moves it only
+    // while the keyboard is up: iOS also sends one as the keyboard goes or a modal presents, and
+    // read as "up" that left every sheet standing a keyboard's height off the bottom with no
+    // keyboard there (Annie, 15 Nov). Every hide, will or did, brings it down.
+    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', (e) => {
+      up.current = true;
+      setShown(true);
+      if (ios) to(heightOf(e), e?.duration);
+    });
+    const frame = ios
+      ? Keyboard.addListener('keyboardWillChangeFrame', (e) => {
+          if (!up.current || !e?.endCoordinates) return;
+          to(heightOf(e), e.duration);
+        })
+      : null;
+    const down = (e?: KeyboardEvent) => {
+      up.current = false;
+      setShown(false);
+      if (ios) to(0, e?.duration);
+    };
+    const hide = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', down);
+    const gone = ios ? Keyboard.addListener('keyboardDidHide', () => down()) : null;
     return () => {
       show.remove();
+      frame?.remove();
       hide.remove();
+      gone?.remove();
     };
-  }, []);
-  return shown;
+  }, [lift]);
+  // As a sheet opens with no keyboard up, it stands on the bottom edge whatever came before.
+  const settle = () => {
+    if (!up.current) lift.setValue(0);
+  };
+  return { shown, lift, settle };
 }
 
 // Bottom sheet from RN Modal + Animated: Expo Go compatible, no native bottom-sheet module (ADR-018).
@@ -138,8 +185,10 @@ export function Sheet({
 }: SheetProps) {
   const reduced = useReducedMotion();
   const floats = floating || glass !== undefined;
-  const insets = useSafeAreaInsets();
-  const keyboard = useKeyboardShown();
+  // On iOS 26 the glass sheet is Liquid Glass; elsewhere (or with Reduce Transparency) the solid
+  // cream, so the screen behind never reads through its controls (UX audit, 15 Nov).
+  const liquid = useNativeGlass() && glass !== undefined;
+  const { shown: keyboard, lift, settle } = useKeyboard();
   const [visible, setVisible] = useState(open);
   const closed = useRef(onClosed);
   closed.current = onClosed;
@@ -167,8 +216,11 @@ export function Sheet({
   const translateY = useRef(new Animated.Value(OFFSCREEN)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: settles once per open
   useEffect(() => {
-    if (open) setVisible(true);
+    if (!open) return;
+    settle();
+    setVisible(true);
   }, [open]);
 
   useEffect(() => {
@@ -241,111 +293,123 @@ export function Sheet({
       {...(Platform.OS === 'ios' ? { onDismiss: fireClosed } : {})}
       testID={testID}
     >
-      {/* A field in the sheet (a name, a search) rides above the keyboard, never under it. */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1 justify-end"
-      >
-        <Animated.View
-          className="absolute inset-0 bg-ink"
-          style={{ opacity: backdrop }}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
-          <Pressable className="flex-1" onPress={onClose} accessible={false} />
-        </Animated.View>
-        <Animated.View
-          accessibilityViewIsModal
-          className={cx(
-            glass
-              ? 'rounded-t-dock border-rule-mid bg-veil px-5'
-              : floating
-                ? 'rounded-t-sheet border-rule-mid bg-bg px-5'
-                : 'rounded-t-sheet bg-bg px-5',
-            className,
-          )}
-          // Every sheet stands on the screen's bottom edge, edge to edge (Felix, 12 Nov). A tall
-          // drawer stops short of the status bar and Dynamic Island; its content scrolls. Its last
-          // row (a footer button) sits above the home indicator, never under it.
-          style={[
-            {
-              maxHeight: SHEET_MAX,
-              paddingBottom: SHEET_PAD + (keyboard ? 0 : insets.bottom),
-              transform: [{ translateY }],
-            },
-            // The fine edge runs over the top and down the sides; the bottom is the screen's.
-            floats
-              ? {
-                  borderTopWidth: FINE_EDGE,
-                  borderLeftWidth: FINE_EDGE,
-                  borderRightWidth: FINE_EDGE,
-                }
-              : null,
-          ]}
-        >
-          {glass ? (
-            <View {...drag.panHandlers} className="mb-5 pt-3">
-              <GlassHead glass={glass} onClose={onClose} />
-            </View>
-          ) : done !== undefined ? (
-            <View {...drag.panHandlers} className="mb-6 pt-3">
-              <DrawerHeader
-                inSheet
-                title={title ?? ''}
-                onClose={onClose}
-                closeLabel={ui.close}
-                done={done}
-              />
-            </View>
-          ) : (
-            <View {...drag.panHandlers} className="items-center pt-1 pb-2">
-              {/* With a close in the header, the grab bar is only the handle, so a reader hears
-                  one Close, not two. */}
-              <Pressable
-                accessible={!close}
-                accessibilityRole="button"
-                accessibilityLabel={ui.close}
-                onPress={onClose}
-                className="min-h-11 w-24 items-center justify-center"
-              >
-                <View className="h-1 w-9 rounded bg-cream400 dark:bg-rule-mid" />
-              </Pressable>
-            </View>
-          )}
-          {glass || done !== undefined ? null : media ? (
-            <View className="mb-4 flex-row items-start gap-4">
-              <View>{media}</View>
-              <View className="min-w-0 flex-1">
-                {eyebrow ? <Eyebrow className={cx('mb-2', eyebrowClass)}>{eyebrow}</Eyebrow> : null}
-                {title ? <Question>{title}</Question> : null}
-              </View>
-              {close}
-            </View>
-          ) : title || eyebrow || leading || close ? (
-            <View
-              className={cx(
-                'flex-row items-center gap-1',
-                title || leading || close ? 'mb-4' : 'mb-1',
-                leading ? '-ml-3' : null,
-              )}
+      <ModalInsets>
+        {(insets) => (
+          // A field in the sheet (a name, a search) rides above the keyboard, never under it.
+          <Animated.View className="flex-1 justify-end" style={{ paddingBottom: lift }}>
+            <Animated.View
+              className="absolute inset-0 bg-ink"
+              style={{ opacity: backdrop }}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
             >
-              {leading}
-              <View className="min-w-0 flex-1">
-                {eyebrow ? (
-                  <Eyebrow className={cx(title ? 'mb-2' : null, eyebrowClass)}>{eyebrow}</Eyebrow>
-                ) : null}
-                {title ? <Question>{title}</Question> : null}
-              </View>
-              {close}
-            </View>
-          ) : null}
-          {/* A drawer is a layer of its own: its one filled button stands beside the screen's. */}
-          <PrimaryScope>
-            {rows?.length ? <Rows rows={rows} /> : null}
-            {children}
-          </PrimaryScope>
-        </Animated.View>
-      </KeyboardAvoidingView>
+              <Pressable className="flex-1" onPress={onClose} accessible={false} />
+            </Animated.View>
+            <Animated.View
+              accessibilityViewIsModal
+              className={cx(
+                glass
+                  ? cx('rounded-t-dock border-rule-mid px-5', liquid ? 'overflow-hidden' : 'bg-bg')
+                  : floating
+                    ? 'rounded-t-sheet border-rule-mid bg-bg px-5'
+                    : 'rounded-t-sheet bg-bg px-5',
+                className,
+              )}
+              // Every sheet stands on the screen's bottom edge, edge to edge (Felix, 12 Nov). A tall
+              // drawer stops short of the status bar and Dynamic Island; its content scrolls. Its last
+              // row (a footer button) sits above the home indicator, never under it.
+              style={[
+                {
+                  maxHeight: SHEET_MAX,
+                  paddingBottom: SHEET_PAD + (keyboard ? 0 : insets.bottom),
+                  transform: [{ translateY }],
+                },
+                // The fine edge runs over the top and down the sides; the bottom is the screen's.
+                floats
+                  ? {
+                      borderTopWidth: FINE_EDGE,
+                      borderLeftWidth: FINE_EDGE,
+                      borderRightWidth: FINE_EDGE,
+                    }
+                  : null,
+              ]}
+            >
+              {liquid ? (
+                <GlassView
+                  glassEffectStyle="regular"
+                  style={StyleSheet.absoluteFill}
+                  pointerEvents="none"
+                />
+              ) : null}
+              {glass ? (
+                <View {...drag.panHandlers} className="mb-5 pt-3">
+                  <SheetHead {...glass} onClose={onClose} />
+                </View>
+              ) : done !== undefined ? (
+                <View {...drag.panHandlers} className="mb-6 pt-3">
+                  <DrawerHeader
+                    inSheet
+                    title={title ?? ''}
+                    onClose={onClose}
+                    closeLabel={ui.close}
+                    done={done}
+                  />
+                </View>
+              ) : (
+                <View {...drag.panHandlers} className="items-center pt-1 pb-2">
+                  {/* With a close in the header, the grab bar is only the handle, so a reader hears
+                  one Close, not two. */}
+                  <Pressable
+                    accessible={!close}
+                    accessibilityRole="button"
+                    accessibilityLabel={ui.close}
+                    onPress={onClose}
+                    className="min-h-11 w-24 items-center justify-center"
+                  >
+                    <View className="h-1 w-9 rounded bg-cream400 dark:bg-rule-mid" />
+                  </Pressable>
+                </View>
+              )}
+              {glass || done !== undefined ? null : media ? (
+                <View className="mb-4 flex-row items-start gap-4">
+                  <View>{media}</View>
+                  <View className="min-w-0 flex-1">
+                    {eyebrow ? (
+                      <Eyebrow className={cx('mb-2', eyebrowClass)}>{eyebrow}</Eyebrow>
+                    ) : null}
+                    {title ? <Question>{title}</Question> : null}
+                  </View>
+                  {close}
+                </View>
+              ) : title || eyebrow || leading || close ? (
+                <View
+                  className={cx(
+                    'flex-row items-center gap-1',
+                    title || leading || close ? 'mb-4' : 'mb-1',
+                    leading ? '-ml-3' : null,
+                  )}
+                >
+                  {leading}
+                  <View className="min-w-0 flex-1">
+                    {eyebrow ? (
+                      <Eyebrow className={cx(title ? 'mb-2' : null, eyebrowClass)}>
+                        {eyebrow}
+                      </Eyebrow>
+                    ) : null}
+                    {title ? <Question>{title}</Question> : null}
+                  </View>
+                  {close}
+                </View>
+              ) : null}
+              {/* A drawer is a layer of its own: its one filled button stands beside the screen's. */}
+              <PrimaryScope>
+                {rows?.length ? <Rows rows={rows} /> : null}
+                {children}
+              </PrimaryScope>
+            </Animated.View>
+          </Animated.View>
+        )}
+      </ModalInsets>
     </Modal>
   );
 }
@@ -390,11 +454,10 @@ function Rows({ rows }: { rows: readonly SheetRow[] }) {
   );
 }
 
-// The glass sheet's header: the 36pt × disc, the title in the medium sans at 15 (the one bold
+// The glass sheet's header: the 36pt × disc, the title in Inter 600 at 15 (the one bold
 // line on a glass sheet), and the text action at the right, ink while it can act, faint while
 // it can't. A spacer keeps the title centred when there is no action.
-function GlassHead({ glass, onClose }: { glass: GlassHeader; onClose: () => void }) {
-  const { title, action } = glass;
+function SheetHead({ title, action, onClose }: GlassHeader & { onClose: () => void }) {
   return (
     <View className="h-10 flex-row items-center justify-between gap-3">
       <CloseDisc label={ui.close} onPress={onClose} />
@@ -402,7 +465,8 @@ function GlassHead({ glass, onClose }: { glass: GlassHeader; onClose: () => void
         accessibilityRole="header"
         numberOfLines={1}
         className="flex-1 text-center text-ink"
-        style={{ fontFamily: fonts.sansMedium, fontSize: 15 }}
+        // Inter 600 at 15, as Robes MVP sets every glass sheet's title (Annie, 15 Nov).
+        style={{ fontFamily: fonts.sansSemiBold, fontSize: 15 }}
       >
         {title}
       </Text>

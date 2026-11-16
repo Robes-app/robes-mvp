@@ -99,6 +99,23 @@ describe('the rack, shared by both clients', () => {
       },
     });
     expect(askChanges({ swaps: [], back: [], backAll: false, styled: [] })).toBe(false);
+    // A piece added to the look is a change too, with no row swapped.
+    expect(
+      askChanges({
+        swaps: [],
+        adds: [
+          {
+            pieceId: '33333333-3333-4333-8333-333333333333',
+            name: 'x',
+            category: 'Shoes',
+            brand: null,
+          },
+        ],
+        back: [],
+        backAll: false,
+        styled: [],
+      }),
+    ).toBe(true);
   });
 
   it('carries each piece’s subcategory, so the rack and the wardrobe share one eyebrow', () => {

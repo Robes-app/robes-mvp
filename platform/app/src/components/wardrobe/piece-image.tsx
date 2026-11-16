@@ -1,8 +1,24 @@
 import type { Piece } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
+import { Icon } from '@robes/icons/web';
 import { Image, Skeleton } from '@robes/ui';
 import { imageSources } from '@/lib/image';
 import { localPreview } from '@/lib/local-previews';
+
+// A piece with no picture — one Robes suggested, or hers with no photo yet — stands as a hanger
+// on the sunk cream, so its tile reads as a piece without a photo and never as one still loading
+// (testing, 14 Nov). Native twin: features/wardrobe/PieceCard.tsx NoPhoto.
+export function NoPhoto({ className, size = 28 }: { className?: string; size?: number }) {
+  return (
+    <div
+      aria-hidden
+      data-testid="no-photo"
+      className={`flex items-center justify-center bg-surface-sunk text-warm-line ${className ?? ''}`}
+    >
+      <Icon name="wardrobe" size={size} />
+    </div>
+  );
+}
 
 export function PieceImage({
   piece,
@@ -44,7 +60,7 @@ export function PieceImage({
     return piece.status === 'reading' ? (
       <Skeleton className={`${ratio} ${className ?? ''}`} />
     ) : (
-      <div aria-hidden className={`${ratio} bg-surface-sunk ${className ?? ''}`} />
+      <NoPhoto className={`${ratio} ${className ?? ''}`} />
     );
   }
   return (

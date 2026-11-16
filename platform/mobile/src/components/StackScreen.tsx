@@ -1,6 +1,6 @@
 import { ui } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
-import { Heading, IconButton, MIN_TOUCH, useColor } from '@robes/ui-native';
+import { Glass, Heading, IconButton, MIN_TOUCH, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -57,10 +57,11 @@ export function StackScreen({
               accessibilityRole="button"
               accessibilityLabel={ui.back}
               onPress={goBack}
-              className="absolute items-center justify-center rounded-pill bg-veil"
+              className="absolute items-center justify-center rounded-pill"
               style={{ top: insets.top + 14, left: 14, width: MIN_TOUCH, height: MIN_TOUCH }}
               testID="stack-back"
             >
+              <Glass tone="veil" className="absolute inset-0 rounded-pill" />
               <Icon name="back" size={18} color={ink} />
             </Pressable>
           ) : null}

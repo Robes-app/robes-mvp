@@ -2,9 +2,9 @@ import { ui } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import type { ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PrimaryScope } from './Button';
 import { useColor } from './color';
+import { ModalInsets } from './ModalInsets';
 import { FINE_EDGE, MIN_TOUCH, maxFontSizeMultiplier, typeStyle } from './scale';
 import { Heading, Text } from './Text';
 
@@ -67,43 +67,51 @@ export function Subview({
   children,
   footer,
   testID,
+  onClosed,
 }: {
   open: boolean;
   title: string;
   onBack: () => void;
+  // Once iOS has dismissed it: a sheet that follows (Add pieces from the picker's +) waits for
+  // this, since iOS will not present over a modal that is still going.
+  onClosed?: () => void;
   children: ReactNode;
   footer?: ReactNode;
   testID?: string;
 }) {
-  const insets = useSafeAreaInsets();
   return (
     <Modal
       visible={open}
       animationType="slide"
       presentationStyle="fullScreen"
       onRequestClose={onBack}
+      {...(onClosed ? { onDismiss: onClosed } : {})}
       testID={testID}
     >
-      <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
-        <SubviewHeader title={title} onBack={onBack} />
-        <PrimaryScope>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerClassName="px-5 pt-5 pb-8"
-            className="flex-1"
-          >
-            {children}
-          </ScrollView>
-          {footer ? (
-            <View
-              className="border-hairline bg-bg px-5 pt-3"
-              style={{ borderTopWidth: FINE_EDGE, paddingBottom: Math.max(22, insets.bottom) }}
-            >
-              {footer}
-            </View>
-          ) : null}
-        </PrimaryScope>
-      </View>
+      <ModalInsets>
+        {(insets) => (
+          <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
+            <SubviewHeader title={title} onBack={onBack} />
+            <PrimaryScope>
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                contentContainerClassName="px-5 pt-5 pb-8"
+                className="flex-1"
+              >
+                {children}
+              </ScrollView>
+              {footer ? (
+                <View
+                  className="border-hairline bg-bg px-5 pt-3"
+                  style={{ borderTopWidth: FINE_EDGE, paddingBottom: Math.max(22, insets.bottom) }}
+                >
+                  {footer}
+                </View>
+              ) : null}
+            </PrimaryScope>
+          </View>
+        )}
+      </ModalInsets>
     </Modal>
   );
 }

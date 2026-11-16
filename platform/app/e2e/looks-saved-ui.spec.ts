@@ -21,12 +21,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // wardrobe (cached 30s): load afresh so the draft offers Pick from your wardrobe.
   await page.reload();
 
-  // Create › New look is the composer now.
-  await page.getByRole('button', { name: 'Create' }).first().click();
-  await page
-    .getByRole('dialog', { name: 'Create' })
-    .getByRole('link', { name: 'New look' })
-    .click();
+  // New look's draft (the desktop bar's Create is retired, Annie 15 Nov).
+  await page.goto('/looks/draft/new');
   // The draft drawer (D14) opens over the screen; the first pieces make the draft, the done disc
   // saves it, and the saved look opens with the diary up.
   await expect(page).toHaveURL(/\/looks\/draft\/new$/);
@@ -36,7 +32,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Draft look')).toBeVisible();
-  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
+  // With a piece hanging, the small + hanger chip adds the next (Annie, 15 Nov).
+  await page.getByRole('button', { name: '+ Add a piece' }).click();
   await picker.getByRole('button', { name: 'Include Straight jeans' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();
@@ -75,16 +72,26 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // No wear buttons on the page (27 Oct): Schedule look, the one ink button, opens the diary.
   await expect(page.getByRole('button', { name: 'Wear it today' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Save as new' })).toHaveCount(0);
+  // The diary has one act, the day she picked (look prompt PRD L6): no "I wore this today".
   await page.getByRole('button', { name: 'Schedule look' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'I wore this today' }).click();
-  // Beta says so: today's wear is "Worn today ✓", never silence (L10).
-  await expect(page.getByRole('listitem').getByText('Worn today ✓')).toBeVisible();
-  // The day it was worn joins the record, and opens that day.
+  const diary = page.getByRole('dialog');
+  await expect(diary.getByRole('button', { name: 'Put it in the diary' })).toBeVisible();
+  await expect(diary.getByRole('button', { name: 'I wore this today' })).toHaveCount(0);
+  await diary.getByRole('button', { name: 'Close' }).click();
   // Her local date, printed the way core's longDate prints it: "Saturday 24 October".
   const todayLocal = await page.evaluate(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
+  // A wear on today, filed as the day's drawer files one, joins the record and opens that day.
+  const wornLook = page.url().split('/').at(-1) ?? '';
+  expect(
+    (
+      await page.request.post(`/api/v1/looks/${wornLook}/wears`, { data: { wornOn: todayLocal } })
+    ).ok(),
+  ).toBe(true);
+  await page.reload();
+  await page.getByRole('tab', { name: 'Details' }).click();
   const longToday = new Intl.DateTimeFormat('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -104,9 +111,9 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // own title.
   await record.getByRole('link', { name: `Open ${longToday}` }).click();
   await expect(page).toHaveURL(new RegExp(`/plan/${todayLocal}`));
-  await expect(page.getByTestId('day-ootd')).toBeVisible();
-  await expect(page.getByRole('heading', { level: 1, name: 'Name the day' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Add a look/ })).toBeVisible();
+  await expect(page.getByTestId('ootd-card')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Name the day' })).toHaveValue('');
+  await expect(page.getByTestId('disc-pick')).toBeVisible();
   await page.goBack();
   // Taken off the record from its own row, in the Worn subview.
   await page.getByRole('tab', { name: 'Details' }).click();
@@ -132,7 +139,6 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     timeZone: 'UTC',
   }).format(new Date(`${tomorrow}T00:00:00Z`));
   await page.getByRole('button', { name: 'Schedule look' }).click();
-  const diary = page.getByRole('dialog');
   await diary.getByRole('button', { name: longTomorrow }).click();
   await diary.getByRole('button', { name: 'Put it in the diary' }).click();
   await expect(page.getByRole('listitem').getByText(/is in your diary for/)).toBeVisible();
@@ -147,10 +153,12 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await expect(page).toHaveURL(new RegExp(`/plan/${tomorrow}$`));
   expect(await seriousViolations(page)).toEqual([]);
   // The day keeps its own title (beta): unnamed, it invites a name rather than borrowing the look's.
-  await page.getByRole('button', { name: 'Name the day', exact: true }).click();
-  await page.getByLabel('Name the day').fill('Gallery opening');
-  await page.getByLabel('Name the day').press('Enter');
-  await expect(page.getByRole('heading', { level: 1, name: 'Gallery opening' })).toBeVisible();
+  // Its name is the field itself (design 14 Nov): no pencil to open it.
+  const dayName = page.getByRole('textbox', { name: 'Name the day' });
+  await expect(dayName).toHaveValue('');
+  await dayName.fill('Gallery opening');
+  await dayName.press('Enter');
+  await expect(dayName).toHaveValue('Gallery opening');
   await expect
     .poll(async () => {
       const plan = await (await page.request.get(`/api/v1/plan?from=${tomorrow}&days=1`)).json();
@@ -158,10 +166,11 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     })
     .toBe('Gallery opening');
 
-  await page.getByRole('button', { name: `Take ${name} off the day` }).click();
-  await expect(page.getByRole('link', { name })).toBeHidden();
+  // The day is Home's day card: × on the look's page takes it off the day.
+  await page.getByRole('button', { name: new RegExp(`^Take ${name} off `) }).click();
+  await expect(page.getByTestId('ootd-card')).toBeHidden();
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(page.getByRole('link', { name })).toBeVisible();
+  await expect(page.getByTestId('ootd-card')).toBeVisible();
 
   await page.goto('/looks');
   await expect(page.getByRole('link', { name })).toBeVisible();
@@ -352,7 +361,12 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
   const picker = page.getByTestId('piece-picker');
   // At rest the rows open their pieces; the pencil shows the swap and × (plan R2).
   await expect(look3e.getByRole('button', { name: /^Swap / })).toHaveCount(0);
+  // Edit mode rocks the cards (Robes MVP 2b), and Playwright only clicks what holds still: this
+  // test is about the swap, so it runs as a browser with Reduce Motion (no rocking) would.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await look3e.getByRole('button', { name: 'Edit pieces' }).click();
+  // Edit mode (Robes MVP 2b): × on the card's corner and the swap disc; the wears step aside.
+  await expect(look3e.getByRole('button', { name: /^Remove / })).toHaveCount(1);
   await look3e.getByRole('button', { name: /^Swap / }).click();
   await picker.getByRole('button', { name: 'Include Navy coat' }).click();
   await picker.getByRole('button', { name: 'Swap it in' }).click();

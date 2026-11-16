@@ -51,9 +51,14 @@ export function DraftTile({
     if (look) router.push(`/looks/draft/${look.id}?day=${day.date}`);
   };
   return (
-    <View
+    // The whole card opens the draft, as a saved look's card opens its look (testing, 14 Nov);
+    // the bar under the picture stays the one named button.
+    <Pressable
+      accessible={false}
+      disabled={generating}
+      onPress={open}
       style={{ width }}
-      className="overflow-hidden rounded-[6px] border border-rule-mid bg-surface-raised"
+      className="overflow-hidden rounded-tile border border-rule-mid bg-surface-raised"
       testID="draft-tile"
       accessibilityState={{ busy: generating }}
     >
@@ -112,7 +117,7 @@ export function DraftTile({
               return (
                 <View
                   key={p.piece.id}
-                  className="overflow-hidden rounded-[4px] border border-rule-mid bg-surface-raised"
+                  className="overflow-hidden rounded-crisp border border-rule-mid bg-surface-raised"
                   style={{ width: 34, height: 42 }}
                 >
                   {thumb ? <Image source={thumb} alt="" aspect="4:5" /> : null}
@@ -142,6 +147,6 @@ export function DraftTile({
           </RNText>
         )}
       </Pressable>
-    </View>
+    </Pressable>
   );
 }

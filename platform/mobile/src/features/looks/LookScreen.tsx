@@ -15,6 +15,8 @@ import {
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { AddPiecesSheet } from '@/features/wardrobe/add/AddPiecesSheet';
+import { useWishOf } from '@/features/wardrobe/wishlist';
 import { errorMessage } from '@/lib/errors';
 import { AdjustDock } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
@@ -101,9 +103,11 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [addingPieces, setAddingPieces] = useState(false);
   const [name, setName] = useState(look.nameProvisional ? '' : look.name);
   const suggested = look.status === 'suggested';
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
+  const wishOf = useWishOf();
   const swapRow = editor.rack.rows.find((r) => r.key === swapping) ?? null;
   // One picker for every + and every swap (plan 2026-11-09 PR 9: the older swap sheet is gone).
   const picker: PickerMode | null =
@@ -178,10 +182,24 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
             <RackRowCard
               key={row.key}
               row={row}
-              image={row.pieceId ? piecesById.get(row.pieceId)?.image : null}
+              image={
+                row.pieceId
+                  ? piecesById.get(row.pieceId)?.image
+                  : (wishOf(row.proposal?.wishlistItemId)?.image ?? null)
+              }
               mark={editor.mark(row.key)}
               styled={editor.rack.styling[row.key]}
-              {...(row.pieceId ? { onOpen: () => router.push(`/piece/${row.pieceId}`) } : {})}
+              {...(row.pieceId
+                ? { onOpen: () => router.push(`/piece/${row.pieceId}`) }
+                : wishOf(row.proposal?.wishlistItemId)
+                  ? {
+                      onOpen: () =>
+                        router.push({
+                          pathname: '/wish/[id]',
+                          params: { id: row.proposal?.wishlistItemId ?? '' },
+                        }),
+                    }
+                  : {})}
               {...(row.proposal ? { onWish: () => editor.wish(row.key) } : {})}
               {...(suggested
                 ? { onSwap: () => setSwapping(row.key) }
@@ -280,7 +298,9 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
           for (const piece of pieces) editor.add(piece);
           for (const wish of wishes) editor.addWish(wish);
         }}
+        onAddPieces={() => setAddingPieces(true)}
       />
+      <AddPiecesSheet open={addingPieces} onClose={() => setAddingPieces(false)} />
     </View>
   );
 }

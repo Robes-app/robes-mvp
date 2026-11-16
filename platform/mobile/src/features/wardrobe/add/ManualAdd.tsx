@@ -115,7 +115,7 @@ export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: 
   return (
     <PrimaryScope>
       <ScrollView contentContainerClassName="gap-5 px-6 pb-12">
-        <Heading size="md" style={{ fontSize: 28 }}>
+        <Heading size="md" style={{ fontSize: 26 }}>
           {copy.title} <Em>{copy.wink}</Em>
         </Heading>
         <RecordRows

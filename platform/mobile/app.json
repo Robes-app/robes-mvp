@@ -2,7 +2,7 @@
   "expo": {
     "name": "Robes",
     "slug": "robes",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "robes",
@@ -64,6 +64,12 @@
       ],
       "expo-image",
       "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "color": "#202021"
+        }
+      ],
       [
         "expo-location",
         {

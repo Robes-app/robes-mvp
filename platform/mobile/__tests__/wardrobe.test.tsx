@@ -29,6 +29,26 @@ test('the grid lists pieces, pages with the cursor and opens a piece', async () 
   expect(mockRouter.push).toHaveBeenCalledWith(`/piece/${PIECE_ID}`);
 });
 
+// "Add another" and the old /wardrobe/add address land on the one Add pieces sheet (addPiecesHref),
+// over the segment the pieces go to.
+test('?add=wishlist opens the Add pieces sheet over the Wishlist', async () => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+    'GET /wishlist/items': { items: [], nextCursor: null },
+    'GET /inbox': { items: [], count: 0, counts: { inbox: 0, added: 0, discarded: 0 } },
+  });
+  mockParams.add = 'wishlist';
+  try {
+    await renderWithApi(<WardrobeView />);
+    expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
+    expect(await screen.findByText(wardrobe.wishlistEmpty.title)).toBeTruthy();
+    expect(mockRouter.setParams).toHaveBeenCalledWith({ add: undefined });
+  } finally {
+    delete mockParams.add;
+  }
+});
+
 test('an empty wardrobe invites her to add pieces: the Add pieces sheet, its three tiles', async () => {
   mockFetch({
     'GET /me': ME,
@@ -39,6 +59,7 @@ test('an empty wardrobe invites her to add pieces: the Add pieces sheet, its thr
   expect(await screen.findByText(wardrobe.empty.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: `+ ${wardrobe.empty.action}` }));
   expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
+  expect(screen.getByRole('header', { name: wardrobe.addSheet.titleTo.wardrobe })).toBeTruthy();
   // From receipt carries the count waiting; Paste URL turns the sheet into Add from Link.
   expect(
     await screen.findByRole('button', { name: `${wardrobe.addSheet.fromReceipt}, 2` }),
@@ -63,6 +84,23 @@ test('a reading piece says so in its bar, under ‹ and beside the star', async 
   expect(screen.getByTestId('piece-back')).toBeTruthy();
   expect(screen.getByRole('button', { name: wardrobe.card.star('Camel wool coat') })).toBeTruthy();
   expect(screen.queryByRole('button', { name: wardrobe.piece.stylePiece })).toBeNull();
+});
+
+// Audit F3: a piece Robes couldn't read is never a dead end: Try again reads its photo anew.
+test('a piece Robes couldn’t read offers Try again, which reads it anew', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({ status: 'failed' }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`POST /wardrobe/items/${PIECE_ID}/read`]: piece({ status: 'reading' }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  expect(await screen.findByText(wardrobe.noPieceFound)).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('piece-read-again'));
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/read'))).toBe(true),
+  );
+  expect(await screen.findByText(wardrobe.reading)).toBeTruthy();
 });
 
 test('each fact is its own drawer: a brand saves and the PIECE row shows it at once', async () => {
@@ -525,7 +563,7 @@ test('removing a piece goes back and offers Undo, which restores it', async () =
 
 const SCARF_ID = '77777777-7777-4777-8777-777777777777';
 
-test('the list is the shared piece row: its wears or New, the brand beneath, and the count row', async () => {
+test('the list is the shared piece row: its wears or New, the brand beneath, and its search', async () => {
   const calls = mockFetch({
     'GET /me': ME,
     'GET /wardrobe/summary': {
@@ -565,7 +603,7 @@ test('the list is the shared piece row: its wears or New, the brand beneath, and
     [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ brand: 'Toteme', heroPosition: 1 }),
   });
   await renderWithApi(<WardrobeView />);
-  expect(await screen.findByText('2 pieces')).toBeTruthy();
+  expect(await screen.findByText('Camel wool coat')).toBeTruthy();
   // The wears behind the calendar at the right, "New" before the first (canvas 3b, §7.2).
   expect(screen.getByLabelText(wardrobe.card.worn(6))).toBeTruthy();
   expect(screen.getByText('6')).toBeTruthy();
@@ -576,8 +614,13 @@ test('the list is the shared piece row: its wears or New, the brand beneath, and
   expect(screen.queryByRole('button', { name: wardrobe.card.star('Camel wool coat') })).toBeNull();
 
   await fireEvent.press(await screen.findByRole('button', { name: 'Accessories 1' }));
-  expect(await screen.findByText('1 piece')).toBeTruthy();
-  expect(calls.some((c) => c.url.includes('category=Accessories'))).toBe(true);
+  await waitFor(() => expect(calls.some((c) => c.url.includes('category=Accessories'))).toBe(true));
+  // Her search narrows what's here at once, then goes to the server once she pauses (Robes MVP 3b).
+  await fireEvent.press(screen.getByRole('button', { name: 'Accessories 1' }));
+  await fireEvent.changeText(screen.getByLabelText(wardrobe.search.pieces), 'toteme');
+  expect(screen.queryByText('Silk scarf')).toBeNull();
+  expect(screen.getByText('Camel wool coat')).toBeTruthy();
+  await waitFor(() => expect(calls.some((c) => c.url.includes('q=toteme'))).toBe(true));
 });
 
 test('the star in the piece’s bar files it to the Hero Rack', async () => {
@@ -732,7 +775,7 @@ test('Owned · Wishlist · Shop, and no receipt card on the page while a receipt
     'GET /inbox': { items: [entry], count: 2 },
   });
   await renderWithApi(<WardrobeView />);
-  expect(await screen.findByText('2 pieces')).toBeTruthy();
+  expect(await screen.findByLabelText(wardrobe.search.pieces)).toBeTruthy();
   // Owned · Wishlist · Shop (Front Door PRD rev 3 §7.1): Shop stands disabled; no Inbox tab.
   const tabs = screen.getAllByRole('tab').map((r) => r.props.accessibilityLabel);
   expect(tabs).toEqual([
@@ -762,7 +805,7 @@ test('an old Inbox link opens the Inbox', async () => {
   mockParams.segment = 'inbox';
   try {
     await renderWithApi(<WardrobeView />);
-    expect(await screen.findByText('1 piece')).toBeTruthy();
+    expect(await screen.findByLabelText(wardrobe.search.pieces)).toBeTruthy();
     expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/inbox');
   } finally {
     delete mockParams.segment;

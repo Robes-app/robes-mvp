@@ -2,7 +2,6 @@ import type { Look, LookSet } from '@robes/contracts';
 import { diary, filters, lookbook, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import { NewLookBox } from '../src/features/home/HomeBox';
 import { Deck, JobDeck } from '../src/features/looks/Deck';
 import { LookScreen } from '../src/features/looks/LookScreen';
 import { LooksView } from '../src/features/looks/LooksView';
@@ -11,6 +10,7 @@ import { dayLabel } from '../src/features/plan/plan';
 import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
 import { JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
+import { openPrompt } from './support/prompt';
 import { Providers } from './support/providers';
 import { mockParams, mockRouter } from './support/router';
 
@@ -126,59 +126,24 @@ test('the Lookbook: Saved leads with drafts in progress; Suggested tiles go with
   await waitFor(() => expect(calls.some((c) => c.path.endsWith('/restore'))).toBe(true));
 });
 
-test('an empty Suggested tab offers the prompt; her words go with the day they name', async () => {
+test('a saved card on iOS: a tap opens the look; its long-press menu deletes with Undo, no ✕ at rest', async () => {
   const calls = mockFetch({
     'GET /me': ME,
-    'GET /looks': byStatus({}),
-    'GET /wardrobe/items': { items: [], nextCursor: null },
-    'POST /looks/prompt': { jobId: JOB_ID, status: 'queued' },
+    'GET /looks': byStatus({ saved: [look()] }),
+    [`DELETE /looks/${LOOK_ID}`]: { ok: true },
+    [`POST /looks/${LOOK_ID}/restore`]: look(),
   });
-  await renderWithApi(<NewLookBox />);
-  await fireEvent.changeText(
-    screen.getByLabelText(lookbook.prompt.doorNew),
-    'Dinner tomorrow, chic',
-  );
-  await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
+  await renderWithApi(<LooksView />);
+  expect(await screen.findByText('Weekend navy')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: lookbook.card.delete })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Weekend navy' }));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`);
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.card.menu.delete }));
+  expect(await screen.findByText(lookbook.removed)).toBeTruthy();
   await waitFor(() =>
-    expect(mockRouter.push).toHaveBeenCalledWith({
-      pathname: '/looks/job/[jobId]',
-      params: { jobId: JOB_ID },
-    }),
-  );
-  const today = localDate();
-  const [y, m, d] = today.split('-').map(Number);
-  const tomorrow = localDate(new Date(y ?? 0, (m ?? 1) - 1, (d ?? 1) + 1));
-  // Nothing filed yet: the look may reach for new pieces (the Shop toggle's rest, plan R1).
-  expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
-    prompt: 'Dinner tomorrow, chic',
-    date: tomorrow,
-    balance: 'mix',
-  });
-});
-
-test('a new-look door builds from her wardrobe once she has filed any (the Shop toggle at rest)', async () => {
-  const calls = mockFetch({
-    'GET /me': ME,
-    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
-    'POST /looks/prompt': { jobId: JOB_ID, status: 'queued' },
-  });
-  await renderWithApi(<NewLookBox />);
-  await waitFor(() => expect(calls.some((c) => c.path.includes('/wardrobe/items'))).toBe(true));
-  await fireEvent.changeText(screen.getByLabelText(lookbook.prompt.doorNew), 'Gallery opening');
-  await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
-  await waitFor(() =>
-    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
-      prompt: 'Gallery opening',
-      balance: 'owned',
-    }),
-  );
-  await waitFor(() =>
-    expect(track).toHaveBeenCalledWith('prompt_submitted', {
-      surface: 'create',
-      intent: 'words',
-      scope: 'none',
-      ok: true,
-    }),
+    expect(calls.some((c) => c.method === 'DELETE' && c.path.endsWith(`/looks/${LOOK_ID}`))).toBe(
+      true,
+    ),
   );
 });
 
@@ -253,10 +218,10 @@ test('closing the diary after Save is not yet: nothing is pinned', async () => {
   expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
   // Today is already picked, so the CTA is live — beta never opens this sheet inert.
   expect(screen.getByRole('button', { name: lookbook.diary.put })).not.toBeDisabled();
-  // × closes it: there is no "Not yet". "I wore this today" stands on every day — it is how a
-  // wear is logged now the look page carries no wear buttons (27 Oct).
+  // × closes it: there is no "Not yet", and no "I wore this today" — the sheet has one act, the
+  // day she picked (look prompt PRD L6).
   expect(screen.queryByRole('button', { name: 'Not yet' })).toBeNull();
-  expect(screen.getByRole('button', { name: lookbook.diary.woreToday })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'I wore this today' })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: ui.close }));
   await waitFor(() => expect(screen.queryByText(lookbook.diary.eyebrow)).toBeNull());
   expect(calls.some((c) => c.path.endsWith('/days'))).toBe(false);
@@ -333,6 +298,131 @@ test('a look drawn on her own twin wears no tag, whatever her account says', asy
   expect(screen.queryByRole('button', { name: lookbook.deck.robesModelLabel })).toBeNull();
 });
 
+// The feedback thread (look prompt PRD F): once a change lands Robes asks its one question; a
+// thumbs down opens the reasons, and what she taps stands for her words on the next send.
+test('after a change Robes asks; a thumbs down opens the reasons this look can have', async () => {
+  const draft = look({
+    status: 'draft',
+    pieces: [{ piece: piece(), slot: null, role: 'anchor' }],
+    proposals: [mules],
+  });
+  const swapped = {
+    intent: 'swap',
+    reply: 'Done. The dark jean is on the look now.',
+    swaps: [
+      {
+        key: 'p-aaaa1111',
+        to: { pieceId: JEAN, name: 'Dark straight jean', category: 'Bottoms', brand: null },
+      },
+    ],
+    back: [],
+    backAll: false,
+    styled: [],
+    draft: '',
+    rule: '',
+    noticed: false,
+  };
+  const calls = mockFetch({
+    'GET /me': ME,
+    [`GET /looks/${LOOK_ID}`]: draft,
+    [`POST /looks/${LOOK_ID}/ask`]: { jobId: JOB_ID, status: 'queued' },
+    [`GET /jobs/${JOB_ID}`]: job({ ask: swapped }),
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...draft,
+      ...JSON.parse(String(init.body)),
+      proposals: [],
+    }),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' },
+    'GET /looks': byStatus({}),
+  });
+  const fb = lookbook.draftLook.feedback;
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  // No question before Robes has changed anything.
+  await fireEvent.changeText(await openPrompt(), 'swap the mules');
+  expect(screen.queryByTestId('look-feedback')).toBeNull();
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  // The change lands, and Robes asks once: "How about now?" (F19).
+  expect(await screen.findByText(fb.again)).toBeTruthy();
+  expect(screen.queryByTestId('feedback-reasons')).toBeNull();
+  // A thumbs down opens the reasons; the other thumb dims and takes no second answer (F5, F7).
+  await fireEvent.press(screen.getByTestId('thumb-down'));
+  expect(screen.getByText(fb.change)).toBeTruthy();
+  expect(screen.getByTestId('thumb-down').props.accessibilityState.selected).toBe(true);
+  expect(screen.getByTestId('thumb-up').props.accessibilityState.disabled).toBe(true);
+  // This draft is for no day, so it carries no weather to be wrong for (F14); and Robes did not
+  // make it from a brief, so there is nothing to restyle from (F13).
+  expect(screen.queryByTestId('reason-weather')).toBeNull();
+  expect(screen.queryByTestId('reason-restyle')).toBeNull();
+  // A reason picked stands first with its ×, and the send stands ready on it alone (F10); the
+  // send itself waits for the picture this change asked for.
+  await fireEvent.press(screen.getByTestId('reason-dressy'));
+  expect(screen.getByTestId('reason-dressy').props.accessibilityState.selected).toBe(true);
+  expect(screen.getByTestId('reason-dressy').props.accessibilityLabel).toBe(
+    fb.remove(fb.reasons.dressy.label),
+  );
+  expect(calls.filter((c) => c.path.endsWith('/ask'))).toHaveLength(1);
+  // Counts and enums only: never her words.
+  expect(nativeAnalytics.track).toHaveBeenCalledWith('look_feedback', {
+    surface: 'draft',
+    verdict: 'down',
+  });
+});
+
+test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
+  const draft = look({
+    status: 'draft',
+    pieces: [{ piece: piece(), slot: null, role: 'anchor' }],
+    proposals: [mules],
+  });
+  const calls = mockFetch({
+    'GET /me': ME,
+    [`GET /looks/${LOOK_ID}`]: draft,
+    [`POST /looks/${LOOK_ID}/ask`]: { jobId: JOB_ID, status: 'queued' },
+    [`GET /jobs/${JOB_ID}`]: job({
+      ask: {
+        intent: 'swap',
+        reply: 'Done.',
+        swaps: [
+          {
+            key: 'p-aaaa1111',
+            to: { pieceId: JEAN, name: 'Dark straight jean', category: 'Bottoms', brand: null },
+          },
+        ],
+        back: [],
+        backAll: false,
+        styled: [],
+        draft: '',
+        rule: '',
+        noticed: false,
+      },
+    }),
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...draft,
+      ...JSON.parse(String(init.body)),
+      proposals: [],
+    }),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' },
+    'GET /looks': byStatus({}),
+  });
+  const fb = lookbook.draftLook.feedback;
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.changeText(await openPrompt(), 'swap the mules');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  expect(await screen.findByText(fb.again)).toBeTruthy();
+  const before = calls.length;
+  await fireEvent.press(screen.getByTestId('thumb-up'));
+  // The prompt closes: to its closed bar while the picture is still drawing, then to the sparkle
+  // (look prompt PRD F6, F23). Either opens it again.
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  await fireEvent.press(screen.getByTestId('prompt-expand'));
+  expect(screen.getByTestId('thumb-up').props.accessibilityState.selected).toBe(true);
+  expect(screen.queryByTestId('feedback-reasons')).toBeNull();
+  // One answer per question.
+  await fireEvent.press(screen.getByTestId('thumb-down'));
+  expect(screen.queryByTestId('feedback-reasons')).toBeNull();
+  expect(calls.slice(before).some((c) => c.method !== 'GET')).toBe(false);
+});
+
 test('the look prompt lands a swap on a draft and remembers what it replaced', async () => {
   const draft = look({
     status: 'draft',
@@ -371,10 +461,12 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   // Every draft is the one DraftLook (D14): the prompt card's field feeds the thread.
-  const field = await screen.findByTestId('draft-prompt');
+  const field = await openPrompt();
   await fireEvent.changeText(field, 'swap the mules for my dark jean');
-  await fireEvent.press(screen.getByTestId('draft-generate'));
-  expect(await screen.findByText('Done. The dark jean is on the look now.')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  // The change is seen on the rack, not told (redline 14 Nov): Robes only asks.
+  expect(await screen.findByText(lookbook.draftLook.feedback.again)).toBeTruthy();
+  expect(screen.queryByText('Done. The dark jean is on the look now.')).toBeNull();
   const ask = calls.find((c) => c.path.endsWith('/ask'))?.body as {
     rack: unknown[];
     surface: string;
@@ -450,9 +542,9 @@ test('a rule said in the prompt waits under Robes noticed; a vague ask is writte
   };
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   // Every draft is the one DraftLook (D14): the prompt card's field feeds the thread.
-  const field = await screen.findByTestId('draft-prompt');
+  const field = await openPrompt();
   await fireEvent.changeText(field, 'never grey');
-  await fireEvent.press(screen.getByTestId('draft-generate'));
+  await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(await screen.findByText(lookbook.prompt.noticed)).toBeTruthy();
 });
 
@@ -801,7 +893,9 @@ test('the bookmark on a suggestion saves it; + opens New Look; an empty Saved sa
   expect(await screen.findByText(lookbook.saved)).toBeTruthy();
 });
 
-test('nothing suggested says beta’s line and offers the prompt', async () => {
+// Annie, P2 15 Nov: Suggested is what Robes brings, so neither the + nor the empty state offers
+// New look there; Robes will fill blank days with suggested looks (still to be designed).
+test('nothing suggested says beta’s line, with no New look and no + on Suggested', async () => {
   mockFetch({
     'GET /me': ME,
     'GET /looks': byStatus({}),
@@ -813,7 +907,12 @@ test('nothing suggested says beta’s line and offers the prompt', async () => {
   expect(
     screen.getByText('Tell Robes where you’re going, or pick a piece, and it dresses you.'),
   ).toBeTruthy();
-  expect(screen.getByLabelText(lookbook.prompt.doorNew)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: `+ ${lookbook.newLook}` })).toBeNull();
+  expect(screen.queryByRole('button', { name: lookbook.newLook })).toBeNull();
+  expect(screen.queryByTestId('draft-prompt')).toBeNull();
+  // Back on Saved, the + is there again.
+  await fireEvent.press(screen.getByRole('tab', { name: lookbook.tabs.saved }));
+  expect(await screen.findByRole('button', { name: lookbook.newLook })).toBeTruthy();
   delete mockParams.tab;
 });
 
@@ -828,8 +927,8 @@ test('once today is logged, the diary sheet carries no second "worn today" line'
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.schedule }));
   expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
-  // It read like a bug, two checks in a row (27 Oct): the link simply goes.
-  expect(screen.queryByRole('button', { name: lookbook.diary.woreToday })).toBeNull();
+  // It read like a bug, two checks in a row (27 Oct).
+  expect(screen.queryByRole('button', { name: 'I wore this today' })).toBeNull();
   expect(screen.queryByText(/Worn today/)).toBeNull();
 });
 

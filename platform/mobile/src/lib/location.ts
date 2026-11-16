@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { useEffect } from 'react';
 import { api } from './api';
+import { useConsents } from './consents';
 import { readPref, writePref } from './prefs';
 
 // Native twin of app/src/lib/device-location.ts: the system prompt once, on her first signed-in
@@ -52,15 +53,21 @@ export async function syncDeviceLocation(
   }
 }
 
-// Mounted only inside the signed-in shell, beside PushSetup.
+// Mounted only inside the signed-in shell, beside PushSetup. It waits for her answer to the usage
+// question: the system's location prompt never stands on top of it (P0, App Store review, F2).
+// Home shows the weather at once, so straight after that answer is when the weather needs her
+// place.
 export function LocationSetup(): null {
   const queryClient = useQueryClient();
+  const { consents } = useConsents();
+  const answered = consents !== undefined && consents.analytics !== null;
   useEffect(() => {
+    if (!answered) return;
     void syncDeviceLocation(api).then((outcome) => {
       if (outcome !== 'sent') return;
       void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.get') });
       void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.weather') });
     });
-  }, [queryClient]);
+  }, [queryClient, answered]);
   return null;
 }

@@ -42,6 +42,9 @@ function TwinConsent() {
     >
       <div className="mx-auto flex min-h-full max-w-md flex-col gap-5 px-5 pt-10 pb-6">
         <div className="flex flex-col gap-1">
+          <Eyebrow tone="warm" className="mb-2">
+            {copy.eyebrow}
+          </Eyebrow>
           <Heading id="twin-consent-title" size="xl">
             {copy.title}
           </Heading>
@@ -54,7 +57,7 @@ function TwinConsent() {
             {copy.rows.map(([label, value]) => (
               <div
                 key={label}
-                className="flex flex-col gap-1 border-rule border-t-[0.5px] px-3.5 py-2.5 first:border-t-0"
+                className="flex flex-col gap-1 border-hairline border-t-[0.5px] px-3.5 py-2.5 first:border-t-0"
               >
                 <dt>
                   <Eyebrow>{label}</Eyebrow>
@@ -71,17 +74,21 @@ function TwinConsent() {
             type="checkbox"
             checked={agreed}
             onChange={(e) => setAgreed(e.target.checked)}
-            className="mt-0.5 size-[18px] flex-none accent-ink"
+            className="size-5 flex-none accent-ink"
           />
           <span>
             {copy.agree}{' '}
-            <Link href="/legal/privacy" target="_blank" className="underline underline-offset-4">
+            <Link
+              href="/legal/privacy"
+              target="_blank"
+              className="text-ink-faint underline underline-offset-4"
+            >
               {copy.privacy}
             </Link>
           </span>
         </label>
         {status === 'failed' ? <ErrorText>{consent.failed}</ErrorText> : null}
-        <div className="mt-auto grid grid-cols-[1fr_2fr] gap-2 border-rule border-t-[0.5px] pt-3">
+        <div className="mt-auto grid grid-cols-[1fr_2fr] gap-2 border-hairline border-t-[0.5px] pt-3">
           <Button
             block
             onClick={() =>

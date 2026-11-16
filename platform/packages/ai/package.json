@@ -5,7 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./prompts/wardrobe-analyse": "./src/prompts/wardrobe-analyse/v5.ts",
-    "./prompts/style-piece": "./src/prompts/style-piece/v8.ts",
+    "./prompts/style-piece": "./src/prompts/style-piece/v9.ts",
     "./prompts/style-analyse": "./src/prompts/style-analyse/v1.ts",
     "./prompts/daily": "./src/prompts/daily/v4.ts",
     "./prompts/travel": "./src/prompts/travel/v3.ts",
@@ -15,7 +15,7 @@
     "./prompts/style-brief": "./src/prompts/style-brief/v2.ts",
     "./prompts/wardrobe-pieces": "./src/prompts/wardrobe-pieces/v3.ts",
     "./prompts/style-piece/v2": "./src/prompts/style-piece/v2.ts",
-    "./prompts/look-ask": "./src/prompts/look-ask/v1.ts"
+    "./prompts/look-ask": "./src/prompts/look-ask/v4.ts"
   },
   "scripts": {
     "test": "vitest run",

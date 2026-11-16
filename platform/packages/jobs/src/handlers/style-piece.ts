@@ -8,10 +8,12 @@ import {
   FALLBACK_PIECE,
   FEATURE,
   type FrameSetting,
+  lookChecks,
   MAX_OUTPUT_TOKENS,
   type Mode,
   normalisePieces,
   Output,
+  occasionOf,
   placeLine,
   type RecentSet,
   type Refine,
@@ -271,17 +273,22 @@ function markWants(
   });
 }
 
-// Counted on the pieces as they will be stored, so the row says what she was actually shown.
-function ownedOfTotal(
+// Counted and checked on the pieces as they will be stored, so the row says what she was actually
+// shown: owned/total per way, and what code can check of each look (`lookChecks`).
+function audit(
   ways: readonly { pieces: Parameters<typeof normalisePieces>[0] }[],
-  closet: Parameters<typeof normalisePieces>[1],
-): string {
-  return ways
-    .map((w) => {
-      const pieces = normalisePieces(w.pieces, closet);
-      return `${pieces.filter((p) => p.pieceId).length}/${pieces.length}`;
-    })
-    .join(' ');
+  ctx: { closet: Parameters<typeof normalisePieces>[1]; wishes?: readonly WantedPiece[] },
+  steer: Steer,
+): Record<string, unknown> {
+  const looks = ways.map((w) => markWants(normalisePieces(w.pieces, ctx.closet), ctx, steer));
+  const checks = looks.map((pieces) => lookChecks(pieces, ctx.closet, steer.balance));
+  return {
+    owned_of_total: looks
+      .map((pieces) => `${pieces.filter((p) => p.pieceId).length}/${pieces.length}`)
+      .join(' '),
+    // One look is the prompt's own answer; a set of three keeps its counts per way above.
+    ...(checks.length === 1 ? { checks: checks[0] } : {}),
+  };
 }
 
 // Style a piece, or dress a day, three ways (legacy /api/style): the looks as text first, minted
@@ -292,6 +299,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
     usage: Usage | undefined,
     status: 'ok' | 'error' | 'timeout',
     detail: Record<string, unknown> = {},
+    kept: { prompt?: string; response?: unknown } = {},
   ) {
     if (usage)
       await deps.ledger.record({
@@ -300,6 +308,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         userId: ctx.userId,
         feature: FEATURE,
         status,
+        ...kept,
         ...(Object.keys(detail).length ? { detail } : {}),
       });
   }
@@ -311,7 +320,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
     photo: Uint8Array | null,
     detail: Record<string, unknown> = {},
     // Only its own answer can say how many pieces of hers each way used.
-    ownedOf?: (out: z.infer<typeof Output>) => string,
+    auditOf?: (out: z.infer<typeof Output>) => Record<string, unknown>,
   ) {
     try {
       const text = await deps.ai.generateJson({
@@ -324,12 +333,20 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         signal: ctx.signal,
       });
-      const owned = ownedOf?.(text.data);
-      await record(ctx, text.usage, 'ok', owned ? { ...detail, owned_of_total: owned } : detail);
+      // What Robes asked and its answer are kept 30 days (SEC-82), so a look can be replayed.
+      await record(
+        ctx,
+        text.usage,
+        'ok',
+        { ...detail, ...auditOf?.(text.data) },
+        { prompt: `${system}\n\n${user}`, response: text.data },
+      );
       return text.data;
     } catch (err) {
       if (err instanceof AiError) {
-        await record(ctx, err.usage, err.code === 'timeout' ? 'timeout' : 'error', detail);
+        await record(ctx, err.usage, err.code === 'timeout' ? 'timeout' : 'error', detail, {
+          prompt: `${system}\n\n${user}`,
+        });
         if (err.code === 'cancelled') throw err;
         throw new JobError(`ai_${err.code}`);
       }
@@ -610,7 +627,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           buildUser(ask, { hasPhoto: Boolean(photo), refine }),
           photo,
           askDetail(steer, day),
-          (o) => ownedOfTotal(o.ways.slice(0, 1), styleCtx.closet),
+          (o) => audit(o.ways.slice(0, 1), styleCtx, steer),
         );
         const raw = out.ways[0];
         if (!raw) throw new JobError('ai_invalid_output');
@@ -653,8 +670,9 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         return { status: 'succeeded' };
       }
 
-      // A piece, or her words for a day. From the prompt box (plan 2026-11-03) her words make ONE
-      // look, minted as her draft for the day; the piece door still deals three suggestions.
+      // A piece, or her words. From the prompt box (plan 2026-11-03; look prompt PRD D6) her words
+      // make ONE look, minted as her draft — for the day when she named one, for no day when she
+      // did not; the piece door still deals three suggestions.
       const prompted = 'mode' in input && input.mode === 'prompt';
       const draft = prompted && input.draft === true;
       const count = draft ? 1 : WAYS;
@@ -716,11 +734,13 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
 
       const out = await generate(
         ctx,
-        buildSystem(styleCtx, mode, steer, day?.place?.read ?? null),
-        buildUser(ask, { hasPhoto: Boolean(photo) }),
+        // Her words make one look (look prompt PRD D6): one way is asked for, not three.
+        buildSystem(styleCtx, mode, steer, day?.place?.read ?? null, { one: draft }),
+        // The words typed beside a piece ride the styling call too, not only the picture.
+        buildUser(ask, { hasPhoto: Boolean(photo), ...(prompted ? {} : { occasion: brief }) }),
         photo,
         askDetail(steer, day),
-        (o) => ownedOfTotal(o.ways.slice(0, count), styleCtx.closet),
+        (o) => audit(o.ways.slice(0, count), styleCtx, steer),
       );
       const { fallback } = out;
       // Her profile decides the wearer; the model's judgement stands only when it is silent.
@@ -774,7 +794,16 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
             { status: draft ? 'draft' : 'suggested' },
           )
         : [];
-      await ctx.writeStage('text', { setId, lookIds, fallback, wearer, ways });
+      // The occasion in her brief, for Robes' one question about the look (F3, F4).
+      const occasion = draft ? occasionOf(out) : '';
+      await ctx.writeStage('text', {
+        setId,
+        lookIds,
+        fallback,
+        wearer,
+        ways,
+        ...(occasion ? { occasion } : {}),
+      });
 
       // Only the first frame is drawn now; the others when she reaches them (UX-09).
       const [hero] = ways;

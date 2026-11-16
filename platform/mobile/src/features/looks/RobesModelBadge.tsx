@@ -3,7 +3,7 @@ import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
-import { appCaps, fonts, maxFontSizeMultiplier, Sheet, useColor } from '@robes/ui-native';
+import { appCaps, fonts, Glass, maxFontSizeMultiplier, Sheet, useColor } from '@robes/ui-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -39,9 +39,10 @@ export function RobesModelBadge({
         accessibilityLabel={copy.deck.robesModelLabel}
         onPress={() => setOpen(true)}
         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-        className="absolute top-3 right-3 h-7 flex-row items-center gap-2 rounded-pill bg-veil pr-2.5 pl-3"
+        className="absolute top-3 right-3 h-7 flex-row items-center gap-2 rounded-pill pr-2.5 pl-3"
         testID="robes-model-badge"
       >
+        <Glass tone="veil" className="absolute inset-0 rounded-pill" />
         <View className="size-1.5 rounded-pill bg-ink-faint" />
         <RNText
           maxFontSizeMultiplier={maxFontSizeMultiplier.label}

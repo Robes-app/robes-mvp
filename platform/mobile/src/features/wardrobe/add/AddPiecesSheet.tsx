@@ -1,17 +1,19 @@
 import { useApi } from '@robes/api-client/react';
 import { wardrobe } from '@robes/copy';
 import type { AddDestination } from '@robes/core/add-flow';
-import { Button, Field, PrimaryScope, Text, TileSheet } from '@robes/ui-native';
+import { Button, Field, PrimaryScope, TileSheet } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
 const copy = wardrobe.addSheet;
 
 // The Add pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles on glass — PASTE URL turns
 // the sheet into Add from Link with the field inline (✓ reads the page), PHOTO the camera (over the
 // draft the photograph files straight onto the look), FROM RECEIPT the Receipts with the count
-// waiting on its corner. "Add without a photo" stays as a quiet line under the tiles. Web twin:
+// waiting on its corner. The sheet is the three tiles and nothing under them (Annie, 15 Nov, on
+// the 3b reference: the quiet "Add without a photo" line made it too tall); a piece by hand is
+// still there when a link can't be read. Web twin:
 // app/src/components/wardrobe/add/add-pieces-sheet.tsx.
 export function AddPiecesSheet({
   open,
@@ -63,7 +65,7 @@ export function AddPiecesSheet({
         if (onPhoto) onPhoto();
         else router.push({ pathname: '/wardrobe/camera', params: { to } });
       }}
-      title={link ? copy.linkTitle : draft ? copy.draftTitle : copy.title}
+      title={link ? copy.linkTitle : draft ? copy.draftTitle : copy.titleTo[to]}
       testID="add-pieces-sheet"
       {...(link ? { selected: copy.pasteUrl } : {})}
       tiles={[
@@ -86,7 +88,8 @@ export function AddPiecesSheet({
           icon: 'mail',
           label: copy.fromReceipt,
           onPress: () => go('/wardrobe/inbox'),
-          ...(receipts ? { badge: receipts } : {}),
+          // A receipt is for pieces she bought: inactive while filing to the Wishlist.
+          ...(to === 'wishlist' ? { disabled: true } : receipts ? { badge: receipts } : {}),
           testID: 'add-sheet-receipt',
         },
       ]}
@@ -119,18 +122,7 @@ export function AddPiecesSheet({
             </Button>
           </View>
         </PrimaryScope>
-      ) : (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => go({ pathname: '/wardrobe/manual', params: { to } })}
-          className="min-h-11 items-center justify-center"
-          testID="add-sheet-manual"
-        >
-          <Text size="small" tone="muted" style={{ textDecorationLine: 'underline' }}>
-            {copy.manual}
-          </Text>
-        </Pressable>
-      )}
+      ) : null}
     </TileSheet>
   );
 }

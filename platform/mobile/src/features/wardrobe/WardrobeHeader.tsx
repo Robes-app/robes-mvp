@@ -1,7 +1,16 @@
 import { wardrobe as copy } from '@robes/copy';
 import type { WardrobeLayout } from '@robes/core/wardrobe';
-import { fonts, IconButton, SegmentedControl, Tabs, Text as UiText } from '@robes/ui-native';
-import { View } from 'react-native';
+import { Icon } from '@robes/icons/native';
+import {
+  FINE_EDGE,
+  fonts,
+  IconButton,
+  SegmentedControl,
+  Tabs,
+  Text as UiText,
+  useColor,
+} from '@robes/ui-native';
+import { TextInput, View } from 'react-native';
 
 // Owned · Wishlist · Shop: Shop stands disabled until the Shop PRD lands (plan R10). Waiting
 // receipts are announced by the bell, not on the page.
@@ -64,6 +73,55 @@ export function CountRow({
         {count ?? ''}
       </UiText>
       <LayoutToggle layout={layout} onLayout={onLayout} />
+    </View>
+  );
+}
+
+// The row under the glass (Robes MVP 2b/3b): a 40pt pill to search what's below, and the grid |
+// list toggle beside it where the screen has both. It replaces the count line: the grid says how
+// much there is. Lookbook, Wardrobe and the Wishlist share it.
+export function SearchRow({
+  placeholder,
+  value,
+  onChange,
+  layout,
+  onLayout,
+  testID,
+}: {
+  placeholder: string;
+  value: string;
+  onChange: (next: string) => void;
+  layout?: WardrobeLayout;
+  onLayout?: (next: WardrobeLayout) => void;
+  testID?: string;
+}) {
+  const ink = useColor('ink');
+  const muted = useColor('ink-muted');
+  const hint = useColor('placeholder');
+  return (
+    <View className="mt-4 mb-3 flex-row items-center gap-2.5">
+      <View
+        className="h-10 min-w-0 flex-1 flex-row items-center gap-2.5 rounded-pill border-rule-mid bg-surface-raised px-4"
+        style={{ borderWidth: FINE_EDGE }}
+      >
+        <Icon name="search" size={13} color={muted} />
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          placeholderTextColor={hint}
+          accessibilityLabel={placeholder}
+          returnKeyType="search"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+          // The field takes the pill's whole height, so a descender (the y of "your") is never
+          // clipped (Annie, 15 Nov).
+          className="h-full min-w-0 flex-1 py-0"
+          style={{ fontFamily: fonts.sans, fontSize: 14, color: ink, height: '100%' }}
+          testID={testID}
+        />
+      </View>
+      {layout && onLayout ? <LayoutToggle layout={layout} onLayout={onLayout} /> : null}
     </View>
   );
 }

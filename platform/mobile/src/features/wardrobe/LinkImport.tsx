@@ -83,7 +83,7 @@ export function LinkImport() {
         className="flex-1"
       >
         <ScrollView contentContainerClassName="gap-5 px-6 pb-6" keyboardShouldPersistTaps="handled">
-          <Heading size="md" style={{ fontSize: 28 }}>
+          <Heading size="md" style={{ fontSize: 26 }}>
             {copy.title} <Em>{copy.wink}</Em>
           </Heading>
           <View className="gap-2">
@@ -137,7 +137,7 @@ export function LinkImport() {
               size="small"
               accessibilityRole="link"
               className="underline"
-              onPress={() => router.replace({ pathname: '/wardrobe/add', params: { to } })}
+              onPress={() => router.setParams({ to: to === 'wishlist' ? 'wardrobe' : 'wishlist' })}
             >
               {copy.change}
             </Text>

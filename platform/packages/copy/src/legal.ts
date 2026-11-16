@@ -19,7 +19,7 @@ export interface LegalDoc {
   contactLead: string;
 }
 
-const lastUpdated = 'Last updated 13 November 2026.';
+const lastUpdated = 'Last updated 15 November 2026.';
 
 const terms: LegalDoc = {
   title: 'Terms of use',
@@ -80,8 +80,8 @@ const terms: LegalDoc = {
 
 // TODO(founders): retention for feedback, the waitlist, notifications and the audit log isn't
 // decided (data-inventory.md "Open items"), so this notice states no period for them.
-// TODO(founders): PostHog's retention is set by the plan (data-inventory.md); name the period here
-// once it is fixed, so the notice states a number rather than the criterion.
+// TODO(founders): PostHog keeps analytics events for the period the plan sets (one to seven years);
+// name the number here once the plan is fixed, so the notice states it rather than the criterion.
 const privacy: LegalDoc = {
   title: 'Privacy notice',
   intro: 'In plain English.',
@@ -95,7 +95,7 @@ const privacy: LegalDoc = {
     {
       heading: 'What we collect',
       body: [
-        'Your email, name and the styling inputs you give us — prompts, wardrobe pieces, any photos you upload (including the optional close-up under Your digital twin), and the facts you give about your size — never your weight. You sign in with a one-time code we email you, or with Apple or Google, so Robes holds no password. We also record in our own database how you use Robes: the pages you open and the actions you take. Robes is for adults: you must be 18 or over, and we do not knowingly hold data about anyone younger.',
+        'Your email, name and the styling inputs you give us — prompts, wardrobe pieces, any photos you upload (including the optional close-up under Your digital twin), and the facts you give about your size. You sign in with a one-time code we email you, or with Apple or Google, so Robes holds no password. We also record in our own database how you use Robes: the pages you open and the actions you take. Robes is for adults: you must be 18 or over, and we do not knowingly hold data about anyone younger.',
       ],
     },
     {
@@ -112,6 +112,7 @@ const privacy: LegalDoc = {
           'Errors on our servers are reported to PostHog, on European servers, with email addresses removed and never linked to you. Rate limits are counted by Upstash in the EU.',
           'The waitlist form is checked by Cloudflare Turnstile to keep out bots.',
           'How the app is used is measured in PostHog, on European servers, only if you agree.',
+          'If you turn on Share my looks with Robes, what you ask for and what Robes styles is also stored in PostHog, on European servers.',
         ],
         'Where a service is outside the EU, or run by a company based outside it — Google Gemini, Vercel, Cloudflare and Expo — the transfer is covered by the European Commission’s Standard Contractual Clauses, or by the EU–US Data Privacy Framework where the provider is certified under it.',
       ],
@@ -131,7 +132,7 @@ const privacy: LegalDoc = {
     {
       heading: 'Usage counts and screen recordings',
       body: [
-        'Robes asks before measuring how the app is used in PostHog, and you can change your mind at any time under You › Privacy. PostHog counts which screens you open and what you tap; it never sees your photos, words or email. If something in the app breaks, PostHog also records the error so we can fix it. Screen recordings are a separate choice: recordings of how you move through Robes, with every word, photo and typed answer hidden. Recordings are stored on European servers, are visible only to us, and are never used for advertising.',
+        'Robes asks before measuring how the app is used in PostHog, and you can change your mind at any time under You › Privacy. PostHog counts which screens you open and what you tap. It never sees your photos or your email, and it sees your words only if you turn on Share my looks with Robes. With that on, what you ask Robes for and the look it styles are kept in PostHog so we can check the looks and improve them. That includes the pieces in your wardrobe by name, your Style DNA, and the facts you gave: height, size, bust, waist and age. Your photographs are never included. You can turn it off at any time under You › Privacy, and nothing new is shared from then on. If something in the app breaks, PostHog also records the error so we can fix it. Screen recordings are a separate choice: recordings of how you move through Robes, with every word, photo and typed answer hidden. Recordings are stored on European servers, are visible only to us, and are never used for advertising.',
       ],
     },
     {
@@ -158,6 +159,7 @@ const privacy: LegalDoc = {
           'A download of your data: seven days.',
           'Server logs: 14 days.',
           'Usage counts and screen recordings, only if you agreed: kept by PostHog for the period our plan sets, and deleted with your account.',
+          'The looks you chose to share: what you asked and what Robes styled is cleared from PostHog after 30 days. A record that a request was made, with its cost, timing and counts but never your words, is kept with the usage counts above.',
           'A look you share: until you turn the link off.',
         ],
       ],

@@ -3,12 +3,12 @@ import {
   type AskEdit,
   anchorName,
   applyAsk,
-  askDateFrom,
   askWhen,
   changedKeys,
   deckReduce,
   deckTop,
   defaultBalance,
+  defaultSources,
   emptyDeck,
   forecastWord,
   frameKey,
@@ -22,7 +22,6 @@ import {
   noteShort,
   orderRack,
   pickerOrder,
-  pieceNoun,
   pinnedFor,
   priceFromPoint,
   type RackRow,
@@ -31,8 +30,10 @@ import {
   rowNote,
   SORTS,
   sortLooks,
+  sourceBalance,
   startedLabel,
   theName,
+  toggleSource,
   wearForOptions,
 } from './index';
 
@@ -93,6 +94,50 @@ describe('the rack', () => {
     edits: {},
     styling: {},
   };
+
+  it('an add is a new row at the foot of the rack, and nothing is taken off for it', () => {
+    const next = applyAsk(
+      base,
+      {
+        swaps: [],
+        adds: [
+          { pieceId: 'flats', name: 'Taupe mesh ballet flats', category: 'Shoes', brand: null },
+          {
+            proposal: {
+              name: 'Black slingback heels',
+              category: 'Shoes',
+              color: '',
+              brand: 'Aeyde',
+              retailerHint: 'aeyde.com',
+              pricePoint: '€295',
+            },
+          },
+        ],
+        back: [],
+        styled: [],
+      },
+      () => 'p-heels001',
+    );
+    expect(next.rows.map((r) => r.key)).toEqual(['tee', 'jeans', 'flats', 'p-heels001']);
+    expect(next.rows[2]).toMatchObject({ pieceId: 'flats', role: null, proposal: null });
+    expect(next.rows[3]?.proposal).toMatchObject({
+      name: 'Black slingback heels',
+      brand: 'Aeyde',
+      retailerHint: 'aeyde.com',
+      pricePoint: '€295',
+      wishlisted: false,
+    });
+    // Nothing was swapped, so nothing reads as changed.
+    expect(changedKeys(next)).toEqual([]);
+    // A piece already on the look is not added twice.
+    const again = applyAsk(next, {
+      swaps: [],
+      adds: [{ pieceId: 'flats', name: 'Taupe mesh ballet flats', category: 'Shoes', brand: null }],
+      back: [],
+      styled: [],
+    });
+    expect(again.rows).toHaveLength(4);
+  });
 
   it('swaps a row for her piece and remembers the original', () => {
     const edit: AskEdit = {
@@ -200,30 +245,9 @@ describe('the rack', () => {
   });
 });
 
-describe('a day read out of her words', () => {
+describe('the day of an ask', () => {
   // 2026-10-15 is a Thursday.
   const today = '2026-10-15';
-  it.each([
-    ['dinner tonight', '2026-10-15'],
-    ['what to wear tomorrow', '2026-10-16'],
-    ['Style me for dinner on saturday night', '2026-10-17'],
-    ['thursday lunch', '2026-10-15'],
-    ['next friday', '2026-10-23'],
-    ['the weekend', '2026-10-17'],
-    ['next week', '2026-10-19'],
-    ['17 Oct', '2026-10-17'],
-    ['October 30th', '2026-10-30'],
-    ['2 jan', '2027-01-02'],
-    ['2026-11-01', '2026-11-01'],
-  ])('%s → %s', (text, iso) => expect(askDateFrom(text, today)).toBe(iso));
-
-  it('places nothing it cannot read, and never a day gone by', () => {
-    expect(askDateFrom('something chic', today)).toBeNull();
-    expect(askDateFrom('sat brunch', today)).toBeNull();
-    expect(askDateFrom('1 Oct', today)).toBeNull();
-    expect(askDateFrom('2026-10-01', today)).toBeNull();
-  });
-
   it('says when, and reads the forecast', () => {
     expect(askWhen('2026-10-16', today)).toEqual({ kind: 'tomorrow' });
     expect(askWhen('2026-10-17', today)).toEqual({ kind: 'weekday', weekday: 6 });
@@ -310,24 +334,38 @@ describe('the Saved tab’s sort', () => {
   });
 });
 
-describe('pieceNoun', () => {
-  it('reads the last word of the name, plural when it ends in a plain s', () => {
-    expect(pieceNoun('Light wash wide-leg jeans')).toEqual({ word: 'jeans', plural: true });
-    expect(pieceNoun('Acid green cropped jumper')).toEqual({ word: 'jumper', plural: false });
-    expect(pieceNoun('Silk dress')).toEqual({ word: 'dress', plural: false });
-    expect(pieceNoun('Cream long-sleeve t-shirt')).toEqual({ word: 't-shirt', plural: false });
-  });
-  it('falls back to this piece when the name tells nothing', () => {
-    expect(pieceNoun('')).toEqual({ word: 'piece', plural: false });
-    expect(pieceNoun(null)).toEqual({ word: 'piece', plural: false });
-    expect(pieceNoun('New')).toEqual({ word: 'piece', plural: false });
-  });
-});
-
 describe('the Shop toggle (balance)', () => {
   it('rests off once she has a wardrobe, on when there is nothing else to style from', () => {
     expect(defaultBalance(0)).toBe('mix');
     expect(defaultBalance(1)).toBe('owned');
+  });
+
+  it('rests on her wardrobe once she owns a piece, on Shop while she owns none', () => {
+    expect(defaultSources(3)).toEqual({ wardrobe: true, shop: false });
+    expect(defaultSources(0)).toEqual({ wardrobe: false, shop: true });
+  });
+
+  it('maps the two sources to owned, mix or new', () => {
+    expect(sourceBalance({ wardrobe: true, shop: false })).toBe('owned');
+    expect(sourceBalance({ wardrobe: true, shop: true })).toBe('mix');
+    expect(sourceBalance({ wardrobe: false, shop: true })).toBe('new');
+  });
+
+  it('keeps one source on: turning off the only one turns the other on', () => {
+    const wardrobe = { wardrobe: true, shop: false };
+    expect(toggleSource(wardrobe, 'shop', 3)).toEqual({ wardrobe: true, shop: true });
+    expect(toggleSource(wardrobe, 'wardrobe', 3)).toEqual({ wardrobe: false, shop: true });
+    expect(toggleSource({ wardrobe: false, shop: true }, 'shop', 3)).toEqual(wardrobe);
+    expect(toggleSource({ wardrobe: true, shop: true }, 'wardrobe', 3)).toEqual({
+      wardrobe: false,
+      shop: true,
+    });
+  });
+
+  it('leaves Shop on while her wardrobe is empty, whichever toggle she taps', () => {
+    const empty = { wardrobe: false, shop: true };
+    expect(toggleSource(empty, 'shop', 0)).toEqual(empty);
+    expect(toggleSource(empty, 'wardrobe', 0)).toEqual(empty);
   });
 
   it("reads a proposal's price point as a wish's price, or files none", () => {

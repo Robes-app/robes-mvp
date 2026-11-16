@@ -19,8 +19,9 @@ export type LookRole = (typeof LOOK_ROLES)[number];
 export const MAX_DRAFTS = 5;
 // The note under a look's picture is three sentences at most (legacy _lkNoteShort).
 export const NOTE_SENTENCES = 3;
-// What she types into a look's prompt (legacy REFINE_MAX).
-export const ASK_MAX_CHARS = 240;
+// What she types into any prompt (look prompt PRD P4): the same 300 the server takes. The field
+// lets her run past it and says so, rather than cutting her words.
+export const ASK_MAX_CHARS = 300;
 export const ASK_RACK_MAX = 14;
 // Her note on Robes' picture of a look (Felix rebuild D21): how it is drawn, never what is worn.
 export const PICTURE_NOTE_MAX = 280;
@@ -199,6 +200,8 @@ export type AskTarget =
     };
 export interface AskEdit {
   swaps: { key: string; to: AskTarget }[];
+  // Pieces put on the look as new rows; nothing is taken off for them.
+  adds?: AskTarget[];
   back: string[];
   styled: { key: string; note: string }[];
   // True when "back" names nothing: every changed row goes back.
@@ -274,6 +277,43 @@ export function applyAsk(
     else edits[next.key] = { was: original };
   }
 
+  // An add is a new row at the foot of the rack; a piece already on the look is not added twice.
+  for (const to of edit.adds ?? []) {
+    if ('pieceId' in to) {
+      if (rows.some((r) => r.pieceId === to.pieceId)) continue;
+      rows.push({
+        key: to.pieceId,
+        pieceId: to.pieceId,
+        name: to.name,
+        category: to.category,
+        categoryL2: to.categoryL2 ?? null,
+        brand: to.brand,
+        role: null,
+        proposal: null,
+      });
+      continue;
+    }
+    const p = to.proposal;
+    const named = p.name.trim().toLowerCase();
+    if (rows.some((r) => r.pieceId === null && r.name.trim().toLowerCase() === named)) continue;
+    const key = newKey();
+    rows.push({
+      key,
+      pieceId: null,
+      name: p.name,
+      category: p.category,
+      brand: p.brand || null,
+      role: null,
+      proposal: {
+        ...p,
+        key,
+        role: null,
+        wishlisted: p.wishlisted ?? false,
+        wishlistItemId: p.wishlistItemId ?? null,
+      },
+    });
+  }
+
   for (const s of edit.styled) {
     if (rows.some((r) => r.key === s.key) && s.note.trim()) styling[s.key] = s.note.trim();
   }
@@ -292,22 +332,9 @@ export function rackSignature(state: Pick<RackState, 'rows' | 'styling'>): strin
     .join(';');
 }
 
-// ── A day read out of her words (legacy _rbAskDateFrom, 2026-10-13) ──────────
-// Deterministic: today/tonight, tomorrow, a weekday (the coming one; "next friday" the one after),
-// the weekend (the coming Saturday), next week (Monday), or a date. Null when it can't place one.
+// ── Days, for a look's ask ──────────────────────────────────────────────────
 
 const DAY_MS = 86_400_000;
-const WEEKDAYS = [
-  'sunday',
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-] as const;
-const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-
 const isoMs = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
 export function addDays(iso: string, n: number): string {
   return new Date(isoMs(iso) + n * DAY_MS).toISOString().slice(0, 10);
@@ -323,46 +350,6 @@ export function daysBetween(from: string, to: string): number {
 export function askDate(iso: string | null | undefined, today: string): string | null {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso) || Number.isNaN(isoMs(iso))) return null;
   return iso >= today ? iso : null;
-}
-
-export function askDateFrom(text: string, today: string): string | null {
-  const t = ` ${String(text ?? '')
-    .toLowerCase()
-    .replace(/[^\w\s'’/-]/g, ' ')
-    .replace(/\s+/g, ' ')} `;
-  const dow = weekdayOf(today);
-  let m = t.match(/\b(\d{4}-\d{2}-\d{2})\b/);
-  if (m?.[1]) return askDate(m[1], today);
-  m = t.match(
-    /\b(?:(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*|(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:st|nd|rd|th)?)\b/,
-  );
-  if (m) {
-    const d = Number(m[1] ?? m[4]);
-    const mo = MONTHS.indexOf(m[2] ?? m[3] ?? '');
-    if (d >= 1 && d <= 31 && mo >= 0) {
-      const y = Number(today.slice(0, 4));
-      const iso = (yr: number) =>
-        `${yr}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const next = askDate(iso(y + 1), today);
-      // A date already gone this year is next year's only within six months.
-      const near = next !== null && daysBetween(today, next) <= 183;
-      return askDate(iso(y), today) ?? (near ? next : null);
-    }
-  }
-  if (/\b(today|tonight|this (morning|afternoon|evening))\b/.test(t)) return today;
-  if (/\btomorrow\b/.test(t)) return addDays(today, 1);
-  m = t.match(/\b(next )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
-  if (m?.[2]) {
-    const target = WEEKDAYS.indexOf(m[2] as (typeof WEEKDAYS)[number]);
-    return addDays(today, ((target - dow + 7) % 7) + (m[1] ? 7 : 0));
-  }
-  m = t.match(/\b(this|the|next|at the|for the|on the) weekend\b/);
-  if (m) {
-    const off = dow === 0 ? 0 : (6 - dow + 7) % 7;
-    return addDays(today, off + (m[1] === 'next' && off === 0 ? 7 : 0));
-  }
-  if (/\bnext week\b/.test(t)) return addDays(today, (1 - dow + 7) % 7 || 7);
-  return null;
 }
 
 // How a day reads in a sentence: "today", "tomorrow", "on Friday", "next Friday", or a date.
@@ -594,11 +581,10 @@ export function suggestionReason(look: {
   return { kind: 'prompt' };
 }
 
-// Where a new look's pieces come from. Since the Front Door (PRD rev 3 §4.6, plan 2026-11-09 R1)
-// the Shop toggle answers it: off is `owned` (her wardrobe alone), on is `mix` (her pieces first,
-// her wishlist and new pieces where the look needs them). `new` is no longer offered; the sets
-// that carry it still read. The question's chips went with the toggle; `balanceNote` stays on the
-// contracts for the sets that hold one.
+// Where a new look's pieces come from. The prompt's Wardrobe and Shop toggles answer it (look
+// prompt PRD S5, `sourceBalance`): Wardrobe alone is `owned`, both is `mix` (her pieces first, her
+// wishlist and new pieces where the look needs them), Shop alone is `new`. `balanceNote` stays on
+// the contracts for the sets that hold one.
 export const BALANCES = ['owned', 'mix', 'new'] as const;
 export type Balance = (typeof BALANCES)[number];
 export const BALANCE_NOTE_MAX = 160;
@@ -606,6 +592,33 @@ export const BALANCE_NOTE_MAX = 160;
 // The toggle's rest: off once she has a wardrobe to style from, on when there is nothing else.
 export function defaultBalance(ownedPieces: number): Balance {
   return ownedPieces > 0 ? 'owned' : 'mix';
+}
+
+// The prompt's two sources (look prompt PRD S1–S6): Wardrobe and Shop, each a toggle she can see.
+export interface Sources {
+  wardrobe: boolean;
+  shop: boolean;
+}
+export type Source = keyof Sources;
+
+// At rest (S2, S3): her wardrobe alone once she owns a piece; Shop alone while she owns none.
+export function defaultSources(ownedPieces: number): Sources {
+  return ownedPieces > 0 ? { wardrobe: true, shop: false } : { wardrobe: false, shop: true };
+}
+
+// A tap on one toggle (S3, S4). One source is always on: turning off the only one turns the other
+// on. An empty wardrobe cannot be turned on, so Shop stays on beside it.
+export function toggleSource(sources: Sources, which: Source, ownedPieces: number): Sources {
+  if (ownedPieces <= 0) return { wardrobe: false, shop: true };
+  const next = { ...sources, [which]: !sources[which] };
+  if (next.wardrobe || next.shop) return next;
+  return which === 'wardrobe' ? { wardrobe: false, shop: true } : { wardrobe: true, shop: false };
+}
+
+// What the sources ask of Robes (S5): her wardrobe alone, both, or new pieces only.
+export function sourceBalance(sources: Sources): Balance {
+  if (sources.wardrobe) return sources.shop ? 'mix' : 'owned';
+  return 'new';
 }
 
 // A proposal's price point ("€120", "£85", "$200") as a wish's price and currency; words that
@@ -620,20 +633,6 @@ export function priceFromPoint(point: string): { price: number; currency: string
   const currency =
     sign === '£' || sign === 'GBP' ? 'GBP' : sign === '$' || sign === 'USD' ? 'USD' : 'EUR';
   return { price, currency };
-}
-
-// The word a piece goes by in the prompt (legacy _rbLpPieceNoun): the last word of its name —
-// "Light wash wide-leg jeans" is these jeans, "Acid green cropped jumper" this jumper; anything
-// unreadable is this piece.
-export function pieceNoun(name: string | null | undefined): { word: string; plural: boolean } {
-  const last =
-    String(name ?? '')
-      .trim()
-      .split(/\s+/)
-      .pop() ?? '';
-  const word = last.toLowerCase().replace(/[^a-z'-]/g, '');
-  if (word.length < 3 || /^(new|piece|item)$/.test(word)) return { word: 'piece', plural: false };
-  return { word, plural: /s$/.test(word) && !/(ss|us|is)$/.test(word) };
 }
 
 // What a wear held that the look no longer does, and what the look holds that she did not wear

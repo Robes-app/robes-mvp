@@ -1,15 +1,12 @@
-import type { PieceImage } from '@robes/contracts';
 import { lookbook } from '@robes/copy';
 import { ASK_MAX_CHARS } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import { shadowNative } from '@robes/tokens';
 import { FINE_EDGE, fonts, Text, useColor, useReducedMotion } from '@robes/ui-native';
-import { Image as ExpoImage } from 'expo-image';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
-import { renditionUri } from '@/lib/images';
 
-// Felix's floating sheet shell (AdjustSheet, DescribeSheet): a cream card 8pt from the drawer's
+// Felix's floating sheet shell (the AdjustSheet): a cream card 8pt from the drawer's
 // sides and bottom on a 0.5pt `rule-mid` edge, sheet corners and shadow, rising over 0.3s, with a
 // 40pt header — the 9pt tracked title and a 36pt `cream-200` close disc. A tap on the body
 // behind it closes it. Web twin: app/src/components/looks/draft-sheets.tsx.
@@ -91,6 +88,8 @@ export function SheetField({
   onSend,
   disabled,
   autoFocus = true,
+  hardLimit = true,
+  faintHint = false,
   minHeight = 52,
   testID,
 }: {
@@ -101,11 +100,15 @@ export function SheetField({
   onSend: () => void;
   disabled: boolean;
   autoFocus?: boolean;
+  // The prompt box lets her run past the limit and says so (look prompt PRD P4); the sheets cut.
+  hardLimit?: boolean;
+  // The prompt box's resting line is the lighter `placeholder` grey (redline 14 Nov, pin 9).
+  faintHint?: boolean;
   minHeight?: number;
   testID: string;
 }) {
   const ink = useColor('ink');
-  const faint = useColor('ink-faint');
+  const faint = useColor(faintHint ? 'placeholder' : 'ink-faint');
   return (
     <TextInput
       accessibilityLabel={label}
@@ -115,7 +118,7 @@ export function SheetField({
       placeholderTextColor={faint}
       editable={!disabled}
       autoFocus={autoFocus}
-      maxLength={ASK_MAX_CHARS}
+      {...(hardLimit ? { maxLength: ASK_MAX_CHARS } : {})}
       returnKeyType="send"
       blurOnSubmit
       onSubmitEditing={onSend}
@@ -174,121 +177,6 @@ export function AdjustSheet({
         >
           <Icon name={sending ? 'refresh' : 'forward'} size={15} color={ink} />
         </Pressable>
-      </View>
-    </FloatingSheet>
-  );
-}
-
-export interface DescribePiece {
-  key: string;
-  name: string;
-  image: PieceImage | null | undefined;
-}
-
-// Felix's DescribeSheet ("Describe changes"): her sentence re-writes the look, keeping the pieces
-// in its chip row — the count chip opens to one chip per piece, each with × to drop it from the
-// prompt — and sends through the thread's Dress it again.
-export function DescribeSheet({
-  open,
-  pieces,
-  sending,
-  onRemovePiece,
-  onSend,
-  onClose,
-}: {
-  open: boolean;
-  pieces: readonly DescribePiece[];
-  sending: boolean;
-  onRemovePiece: (key: string) => void;
-  onSend: (text: string) => void;
-  onClose: () => void;
-}) {
-  const copy = lookbook.draftLook.describeSheet;
-  const [text, setText] = useState('');
-  const [expanded, setExpanded] = useState(false);
-  const ink = useColor('ink');
-  const muted = useColor('ink-muted');
-  if (!open) return null;
-  const send = () => {
-    const words = text.trim();
-    if (!words || sending) return;
-    onSend(words);
-    setText('');
-  };
-  const can = !sending && text.trim().length > 0;
-  const chip = 'h-7 flex-row items-center gap-1.5 rounded-pill px-2.5';
-  return (
-    <FloatingSheet title={copy.title} onClose={onClose} testID="describe-sheet">
-      <View className="mt-4 gap-2.5 rounded-sheet bg-surface-raised px-1.5 pt-2.5 pb-1.5">
-        <View className="flex-row flex-wrap gap-1.5 px-1">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={expanded ? copy.hide : copy.show}
-            accessibilityState={{ expanded }}
-            onPress={() => setExpanded((e) => !e)}
-            className={`${chip} ${pieces.length ? 'border-selected-line bg-selected' : 'border-rule-mid bg-surface-raised'}`}
-            style={{ borderWidth: pieces.length ? 1 : FINE_EDGE }}
-          >
-            <Icon name="wardrobe" size={12} color={ink} />
-            <Text style={{ fontSize: 11 }}>{copy.pieces(pieces.length)}</Text>
-            <Text className="w-5 text-center text-ink-muted" style={{ fontSize: 13 }}>
-              {expanded ? '‹' : '›'}
-            </Text>
-          </Pressable>
-          {expanded
-            ? pieces.map((p) => {
-                const uri = renditionUri(p.image ?? null, 40);
-                return (
-                  <View
-                    key={p.key}
-                    className={`${chip} border-selected-line bg-selected pl-1`}
-                    style={{ borderWidth: 1 }}
-                  >
-                    <View
-                      className="overflow-hidden rounded-pill bg-surface-sunk"
-                      style={{ width: 20, height: 20 }}
-                    >
-                      {uri ? <ExpoImage source={{ uri }} style={{ flex: 1 }} /> : null}
-                    </View>
-                    <Text style={{ fontSize: 11 }}>{p.name}</Text>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={copy.remove(p.name)}
-                      onPress={() => onRemovePiece(p.key)}
-                      hitSlop={8}
-                      className="items-center justify-center"
-                      style={{ width: 16, height: 16 }}
-                    >
-                      <Icon name="close" size={10} color={muted} />
-                    </Pressable>
-                  </View>
-                );
-              })
-            : null}
-        </View>
-        <View className="flex-row items-center gap-2 pl-2.5">
-          <SheetField
-            label={copy.title}
-            placeholder={copy.placeholder}
-            value={text}
-            onChange={setText}
-            onSend={send}
-            disabled={sending}
-            minHeight={48}
-            testID="describe-sheet-field"
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copy.send}
-            accessibilityState={{ disabled: !can }}
-            disabled={!can}
-            onPress={send}
-            className="items-center justify-center rounded-pill bg-surface-sunk"
-            style={{ width: 40, height: 40, opacity: can ? 1 : 0.4 }}
-          >
-            <Icon name="forward" size={15} color={ink} />
-          </Pressable>
-        </View>
       </View>
     </FloatingSheet>
   );

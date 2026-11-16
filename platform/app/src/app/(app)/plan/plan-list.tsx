@@ -3,9 +3,9 @@
 import { useApi } from '@robes/api-client/react';
 import type { PlanEntry } from '@robes/contracts';
 import { plan } from '@robes/copy';
-import { daySummary, weekdayShort, weekGroups } from '@robes/core/calendar';
+import { daySummary, inviteDay, weekdayShort, weekGroups } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
-import { EmptyState, ErrorText, Skeleton } from '@robes/ui';
+import { ErrorText, Skeleton } from '@robes/ui';
 import Link from 'next/link';
 import { LookImage } from '@/components/looks/look-image';
 import { errorCopy } from '@/lib/error-copy';
@@ -23,19 +23,9 @@ export function PlanList({ today }: { today: string }) {
     return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   if (!query.data) return <PlanSkeleton />;
-  const any = query.data.days.some((d) => d.entries.length > 0 || d.name);
+  const invite = inviteDay(query.data.days);
   return (
     <div className="flex flex-col gap-3">
-      {any ? null : (
-        <EmptyState
-          title={
-            <>
-              {plan.empty.title} <em>{plan.empty.titleEm}</em>
-            </>
-          }
-          body={plan.empty.body}
-        />
-      )}
       {weekGroups(query.data.days, today).map((g) => {
         const label = g.range ?? (g.wholeWeek ? plan.list.thisWeek : plan.list.restOfWeek);
         return (
@@ -52,7 +42,13 @@ export function PlanList({ today }: { today: string }) {
             <ol className="flex flex-col">
               {g.days.map((day, i) => (
                 <li key={day.date} className={i ? 'border-t border-hairline' : undefined}>
-                  <DayRow date={day.date} today={today} name={day.name} entries={day.entries} />
+                  <DayRow
+                    date={day.date}
+                    today={today}
+                    name={day.name}
+                    entries={day.entries}
+                    invite={day.date === invite}
+                  />
                 </li>
               ))}
             </ol>
@@ -71,11 +67,14 @@ function DayRow({
   today,
   name,
   entries,
+  invite,
 }: {
   date: string;
   today: string;
   name: string | null;
   entries: PlanEntry[];
+  // The one empty row that says "Name the day" (inviteDay); the others show their date alone.
+  invite: boolean;
 }) {
   const isToday = date === today;
   const s = daySummary(entries, name);
@@ -93,9 +92,10 @@ function DayRow({
         isToday ? 'border-l-[3px] border-l-accent-inspire pl-[13px]' : 'pl-4'
       } ${focus}`}
     >
-      <span className="flex w-[34px] shrink-0 flex-col items-center">
+      {/* At least 34 wide, and as wide as TODAY needs: it never wraps (audit P1). */}
+      <span className="flex min-w-[34px] shrink-0 flex-col items-center">
         <span
-          className={`font-sans text-[9px] font-normal tracking-[0.14em] uppercase ${isToday ? 'text-accent-warm' : 'text-ink-faint'}`}
+          className={`whitespace-nowrap font-sans text-[9px] font-normal tracking-[0.14em] uppercase ${isToday ? 'text-accent-warm' : 'text-ink-faint'}`}
         >
           {label}
         </span>
@@ -118,11 +118,11 @@ function DayRow({
       <span className="flex min-w-0 grow flex-col gap-px">
         {title ? (
           <span className="truncate font-display text-lg leading-tight text-ink">{title}</span>
-        ) : (
+        ) : invite ? (
           <span className="font-display text-lg leading-tight text-ink-faint italic">
             {plan.list.nameTheDay}
           </span>
-        )}
+        ) : null}
         {s.looks ? (
           <span className="truncate font-sans text-[11px] text-ink-faint">
             {plan.list.looks(s.looks)}
