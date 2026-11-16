@@ -86,6 +86,21 @@ test('a reading piece says so in its bar, under ‹ and beside the star', async 
   expect(screen.queryByRole('button', { name: wardrobe.piece.stylePiece })).toBeNull();
 });
 
+// Audit F5: a piece that won't load says why and offers Try again.
+test('a piece that won’t load offers Try again', async () => {
+  let fail = true;
+  mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: () =>
+      fail ? errorReply(500, 'internal') : piece({ status: 'ready' }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  const retry = await screen.findByRole('button', { name: ui.retry }, { timeout: 4000 });
+  fail = false;
+  await fireEvent.press(retry);
+  expect(await screen.findByRole('tab', { name: wardrobe.piece.tabs.piece })).toBeTruthy();
+});
+
 // Audit F3: a piece Robes couldn't read is never a dead end: Try again reads its photo anew.
 test('a piece Robes couldn’t read offers Try again, which reads it anew', async () => {
   const calls = mockFetch({

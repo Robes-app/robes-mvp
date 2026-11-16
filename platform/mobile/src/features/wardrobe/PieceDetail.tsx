@@ -1,6 +1,6 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { UpdatePieceInput } from '@robes/contracts';
-import { wardrobe as copy, lookbook } from '@robes/copy';
+import { wardrobe as copy, lookbook, ui } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import {
@@ -59,6 +59,7 @@ export function PieceDetail({ id }: { id: string }) {
     isPending,
     isError,
     error,
+    refetch,
   } = useApi(
     'wardrobe.get',
     { params: { id } },
@@ -90,7 +91,15 @@ export function PieceDetail({ id }: { id: string }) {
       </View>
     );
   }
-  if (isError || !piece) return <EmptyState title={errorMessage(error)} />;
+  if (isError || !piece) {
+    // Audit F5: an error is never a dead end.
+    return (
+      <EmptyState
+        title={errorMessage(error)}
+        action={{ label: ui.retry, onPress: () => void refetch() }}
+      />
+    );
+  }
 
   const uri = renditionUri(piece.image, 400);
   // The photo she just picked stands in until its renditions land.
