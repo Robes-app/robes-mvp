@@ -100,7 +100,7 @@ import { ImageStack, useDressOnOpen } from './SavedLook';
 import { Scanning } from './ScanLine';
 import { SeasonsView } from './SeasonsView';
 import { type DockRest, PromptDock, StylingCard } from './StylingCard';
-import { localDate, useRemoveLook } from './saved-looks';
+import { useRemoveLook } from './saved-looks';
 import { TagsView, useLookDetails } from './TagsView';
 import { WornView } from './WornView';
 
@@ -716,8 +716,7 @@ function NewDraft({
       });
   });
   // The day's place, for the brief.
-  // The day's (or today's) place and weather for the box and the ask.
-  const diary = useApi('today.get');
+  const diary = useApi('today.get', undefined, { enabled: day !== undefined });
   const generate = async () => {
     const words = prompt.trim();
     if (words.length < 2 || busy) return;
@@ -731,10 +730,9 @@ function NewDraft({
         ok,
       });
     try {
-      // A look with no day is dressed for today (the server's default), so today's place and
-      // weather stand on its box too, and × leaves them out (audit P1, Prompt states).
-      const place =
-        diary.data?.diary?.days.find((x) => x.date === (day ?? localDate()))?.place ?? null;
+      const place = day
+        ? (diary.data?.diary?.days.find((x) => x.date === day)?.place ?? null)
+        : null;
       const { jobId } = await api.call('looks.prompt', {
         input: {
           prompt: words,
@@ -742,7 +740,7 @@ function NewDraft({
           draft: true,
           balance: src.balance,
           ...(place && !weatherOff ? { place } : {}),
-          ...(weatherOff ? { weather: false } : {}),
+          ...(day && weatherOff ? { weather: false } : {}),
         },
       });
       sent(true);
@@ -790,14 +788,17 @@ function NewDraft({
             onMinimise={() => setTyping(false)}
             box={
               <StylingCard
-                // The day's place and weather, or today's for a look with no day (Prompt states).
-                context={
-                  <DayContext
-                    date={day ?? localDate()}
-                    weatherOff={weatherOff}
-                    onWeatherOff={setWeatherOff}
-                  />
-                }
+                {...(day
+                  ? {
+                      context: (
+                        <DayContext
+                          date={day}
+                          weatherOff={weatherOff}
+                          onWeatherOff={setWeatherOff}
+                        />
+                      ),
+                    }
+                  : {})}
                 {...box}
                 onOpen={() => setTyping(true)}
                 onSend={() => (prompt.trim() ? void generate() : setTyping(true))}
@@ -918,10 +919,7 @@ function DraftBody({
   const [weatherOff, setWeatherOff] = useState(false);
   // A saved look carries no place and no weather, even on a day (look prompt PRD L1, L2): both
   // belong to the day, never to the look.
-  // A draft with no day is dressed for today (the server's default): its prompt shows and sends
-  // today's place and weather (audit P1, Prompt states).
-  const promptDay = mode === 'edit' ? null : (forDay ?? localDate());
-  const askContext = useAskContext(promptDay, weatherOff);
+  const askContext = useAskContext(mode === 'edit' ? null : forDay, weatherOff);
   const adjustRef = useRef<Adjust | null>(null);
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
   const adjust = useAdjust(look, editor, mode === 'edit' ? 'saved' : 'draft');
@@ -1251,7 +1249,7 @@ function DraftBody({
         : 'box';
   // Her first send carries the day's place and weather into the conversation (pin 13).
   const briefed = adjust.state.thread.some((l) => l.who === 'her');
-  const dayContext = mode === 'draft' ? promptDay : null;
+  const dayContext = forDay && mode === 'draft' ? forDay : null;
   const screen = useWindowDimensions();
   // What the resting box and the sheet's box share.
   const box = {

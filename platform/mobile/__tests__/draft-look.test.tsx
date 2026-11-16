@@ -2,7 +2,6 @@ import { diary, lookbook, wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { DraftLook } from '../src/features/looks/DraftLook';
-import { localDate } from '../src/features/looks/saved-looks';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { openPrompt } from './support/prompt';
@@ -167,70 +166,6 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
   expect(await screen.findByTestId('styling-card')).toBeTruthy();
   expect(screen.getByTestId('the-rack')).toBeTruthy();
   expect(onClose).not.toHaveBeenCalled();
-});
-
-// Audit P1 (Prompt states): a look with no day is dressed for today, so its box shows today's place
-// and weather; × leaves the weather out of what she sends.
-test('a new look with no day shows today’s place and weather, and × leaves the weather out', async () => {
-  const today = localDate();
-  const calls = mockFetch({
-    ...BASE,
-    'GET /today': {
-      date: today,
-      hour: 9,
-      firstName: null,
-      today: [],
-      week: Array.from({ length: 7 }, (_, i) => ({
-        date: `2026-10-0${i + 1}`,
-        looks: 0,
-        first: null,
-      })),
-      tray: [],
-      ideas: [],
-      inboxCount: 0,
-      overnight: null,
-      home: {
-        state: { styleConfirmed: true, twinOnFile: true, pics: 6, ownLookSaved: true, snoozed: {} },
-        rows: { brands: [], icons: [], styles: [] },
-        recent: [],
-        candidates: [],
-        receipts: null,
-        noticed: null,
-        saved: [],
-        suggested: [],
-      },
-      diary: {
-        from: today,
-        to: today,
-        days: [
-          {
-            date: today,
-            name: null,
-            place: null,
-            weather: { city: 'Dublin', tempRange: '9–14°C', condition: 'rain', code: 61 },
-            entries: [],
-            draft: null,
-          },
-        ],
-      },
-    },
-    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
-    'POST /looks/prompt': { jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', status: 'queued' },
-  });
-  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
-  expect(await screen.findByTestId('place-chip')).toBeTruthy();
-  expect(screen.getByText('Dublin')).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: diary.door.weatherOut }));
-  expect(await screen.findByTestId('weather-chip')).toBeTruthy();
-  await fireEvent.press(screen.getByTestId('prompt-rest'));
-  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'dinner with friends');
-  await fireEvent.press(screen.getByTestId('prompt-send'));
-  await waitFor(() =>
-    expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toMatchObject({
-      prompt: 'dinner with friends',
-      weather: false,
-    }),
-  );
 });
 
 // Annie and Felix, 12 Nov: the draft sheet's prompt box sat under the foot and would not scroll.
