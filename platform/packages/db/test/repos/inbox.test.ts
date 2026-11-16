@@ -227,13 +227,27 @@ describe('inbox repo', () => {
       categoryL2: 'Knitwear',
       categoryL3: 'Cardigans',
       color: 'Pink',
+      colourShade: null,
+      colourExtra: [],
+      print: null,
+      material: 'cashmere',
     });
     expect((await inboxIntake.line(niall, id, 0))?.item).toMatchObject({
       label: 'Everyday Cashmere Cardigan in Vibrant Pink',
       categoryL3: 'Cardigans',
       color: 'Pink',
+      material: 'cashmere',
       imageAssetId: queued?.assetId,
       photo: 'read',
+    });
+    // Filed, the piece keeps the shop's name, brand and price and the read's material and photo.
+    const added = await inbox.decide(niall, id, 'wardrobe', [0]);
+    expect(await wardrobe.get(niall, added?.filedIds[0] ?? '')).toMatchObject({
+      label: 'Everyday Cashmere Cardigan in Vibrant Pink',
+      brand: 'Toteme',
+      price: '450.00',
+      material: 'cashmere',
+      imageAssetId: queued?.assetId,
     });
 
     const other = await held(niall, 'Loafers');

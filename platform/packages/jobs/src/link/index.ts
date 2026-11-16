@@ -23,6 +23,11 @@ export const LinkFetchResult = z.discriminatedUnion('ok', [
       sourceUrl: z.url().max(2048),
       retailer: text(120),
       title: text(200),
+      // Hints for the photo read; defaulted so a reply from a fetcher before them still parses.
+      category: text(80).default(null),
+      color: text(60).default(null),
+      options: text(160).default(null),
+      description: text(600).default(null),
     }),
   }),
   z.object({ ok: z.literal(false), reason: z.string().regex(/^[a-z0-9_]{1,40}$/) }),

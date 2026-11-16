@@ -17,6 +17,14 @@ export const InboxItem = z.object({
   currency: z.string().nullable(),
   // The size the receipt printed ("6/7 years (122 cm)"), shown on the row and filed with the piece.
   size: z.string().nullable().default(null),
+  // What its photo read filed, with the shop's page as hints: Review opens on them.
+  categoryL2: z.string().nullable().default(null),
+  categoryL3: z.string().nullable().default(null),
+  color: z.string().nullable().default(null),
+  colourShade: z.string().nullable().default(null),
+  colourExtra: z.array(z.string()).default([]),
+  print: z.string().nullable().default(null),
+  material: z.string().nullable().default(null),
   // The line's photo once it is stored (pending while it renders); null shows the hanger.
   image: PieceImage.nullable().default(null),
   // Its photo has been asked for and not yet settled: Review keeps asking until it lands.
