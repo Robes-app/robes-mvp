@@ -560,9 +560,12 @@ test('Describe: a Style it job that fails ends the wait and says so', async () =
     }),
   );
   expect(await screen.findByText(copy.styleFailed)).toBeTruthy();
-  // She can ask again.
-  await waitFor(() => expect(screen.getByTestId('prompt-rest')).toBeTruthy());
-  expect((await openPrompt()).props.editable).not.toBe(false);
+  // She can ask again: the drawer is still open, her words back in its box (16 Nov).
+  await waitFor(() =>
+    expect(screen.getByTestId('draft-prompt').props.value).toBe('Dinner with friends'),
+  );
+  expect(screen.queryByTestId('her-line')).toBeNull();
+  expect(screen.getByTestId('draft-prompt').props.editable).not.toBe(false);
 });
 
 // Before her first send the prompt opens on the box she tapped, its place and weather standing,
@@ -824,6 +827,10 @@ test('her words with no day make one draft in the same sheet, and Robes asks abo
   await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
   await fireEvent.changeText(await openPrompt(), 'relaxed weekend brunch');
   await fireEvent.press(screen.getByTestId('prompt-send'));
+  // Sent, her words leave the box for the conversation, Robes at work under them (16 Nov).
+  expect(screen.getByTestId('her-line')).toHaveTextContent('relaxed weekend brunch');
+  expect(dock().getByText(lookbook.draft.dressing)).toBeTruthy();
+  expect(screen.getByTestId('draft-prompt').props.value).toBe('');
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
       prompt: 'relaxed weekend brunch',
@@ -834,11 +841,9 @@ test('her words with no day make one draft in the same sheet, and Robes asks abo
   await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
   expect(mockRouter.replace).not.toHaveBeenCalled();
   const fb = copy.feedback;
-  // The look is seen first: the closed bar asks, with the thumbs on it. Opened, her brief heads
-  // the conversation.
+  // The drawer stays open into the draft (B6): her brief heads the conversation, and Robes asks.
   expect(await screen.findByText(fb.questionFor('brunch'))).toBeTruthy();
-  expect(screen.getByTestId('prompt-pill')).toBeTruthy();
-  await openPrompt();
+  expect(screen.queryByTestId('prompt-pill')).toBeNull();
   expect(screen.getByText('relaxed weekend brunch')).toBeTruthy();
   // The question is open: two thumbs, and the box offers to take a change instead.
   expect(screen.getByTestId('thumb-up').props.accessibilityState.disabled).toBe(false);
@@ -872,6 +877,44 @@ test('with no occasion in her brief, Robes asks the plain question', async () =>
   await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(await screen.findByText(copy.feedback.question)).toBeTruthy();
 });
+
+test('while the draft her words made is still being dressed, Robes works and asks only after', async () => {
+  const JOB_DONE = {
+    id: MADE_JOB,
+    kind: 'key_piece',
+    status: 'succeeded',
+    stage: 'done',
+    output: { lookIds: [LOOK_ID], occasion: 'dinner' },
+    error: null,
+    cancelRequested: false,
+    createdAt: '2026-11-06T09:00:00.000Z',
+    updatedAt: '2026-11-06T09:00:05.000Z',
+    finishedAt: '2026-11-06T09:00:05.000Z',
+  };
+  const pieces = [{ piece: piece({ category: 'Tops' }), slot: null, role: null }];
+  const routes = {
+    ...BASE,
+    'POST /looks/prompt': { jobId: MADE_JOB, status: 'queued' },
+    [`GET /jobs/${MADE_JOB}`]: JOB_DONE,
+    [`GET /looks/${LOOK_ID}`]: draftOf({ pieces, onModel: 'pending' }),
+  };
+  mockFetch(routes);
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  await fireEvent.changeText(await openPrompt(), 'dinner with friends');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
+  // The model is still being dressed: no question, no thumbs, Robes at work under her words.
+  await waitFor(() => expect(screen.getByText(lookbook.draft.dressing)).toBeTruthy());
+  expect(screen.getByText('dinner with friends')).toBeTruthy();
+  expect(screen.queryByText(copy.feedback.questionFor('dinner'))).toBeNull();
+  expect(screen.queryByTestId('thumb-up')).toBeNull();
+  // The picture lands: the work line goes and Robes asks.
+  mockFetch({ ...routes, [`GET /looks/${LOOK_ID}`]: draftOf({ pieces, onModel: 'ready' }) });
+  expect(
+    await screen.findByText(copy.feedback.questionFor('dinner'), {}, { timeout: 6000 }),
+  ).toBeTruthy();
+  expect(screen.queryByText(lookbook.draft.dressing)).toBeNull();
+}, 15_000);
 
 test('turning Wardrobe off, the only source, turns Shop on: new pieces only', async () => {
   const calls = mockFetch({

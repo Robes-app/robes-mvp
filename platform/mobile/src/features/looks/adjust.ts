@@ -248,10 +248,18 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     restyleAll: () => dispatch({ type: 'restyle' }),
     // Robes made this look from her brief just now (the draft's first send): her words head the
     // thread and Robes asks its one question (F1, F3).
-    // With no words (a draft Robes made, opened again) only the question is asked.
-    opened: (words: string, occasion?: string) => {
+    // With no words (a draft Robes made, opened again) only the question is asked. `dressing`:
+    // the picture is still being drawn, so Robes is at work under her words and the question
+    // waits for `asks`, once the picture lands (16 Nov: never thumbs on an undressed model).
+    opened: (words: string, occasion?: string, dressing = false) => {
       brief.current = words;
       if (words) dispatch({ type: 'her', text: words });
+      if (dressing) dispatch({ type: 'work', text: d.dressing });
+      else dispatch({ type: 'question', text: occasion ? fb.questionFor(occasion) : fb.question });
+    },
+    // The picture `opened` waited for has landed: the work line goes and Robes asks.
+    asks: (occasion?: string) => {
+      dispatch({ type: 'settle' });
       dispatch({ type: 'question', text: occasion ? fb.questionFor(occasion) : fb.question });
     },
     redress: () => {
