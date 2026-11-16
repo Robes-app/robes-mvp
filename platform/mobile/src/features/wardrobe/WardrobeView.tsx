@@ -6,7 +6,7 @@ import { matchesSearch, rankCategories } from '@robes/core/wardrobe';
 import { Button, CardSkeleton, EmptyState, PrimaryScope, Text } from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { TabScreen, TabSticky, useTabScroll, useTabTop } from '@/components/TabScreen';
 import { BrandSelect } from '@/features/filters/BrandSelect';
 import { FilterRow } from '@/features/filters/FilterRow';
@@ -20,6 +20,7 @@ import { DeletePieceDialog } from './DeletePieceDialog';
 import { useWardrobeLayout } from './layout';
 import { CardRow, type CardStatus, CardTile, type RowMeta, Status } from './PieceCard';
 import { useDeletePiece, usePieces } from './pieces';
+import { useReread } from './reread';
 import { HeaderRow, SearchRow, type Segment } from './WardrobeHeader';
 import { WishlistView } from './WishlistView';
 
@@ -125,6 +126,7 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
   const tabScroll = useTabScroll();
   const top = useTabTop();
   const router = useRouter();
+  const reread = useReread();
   const [layout, setLayout] = useWardrobeLayout();
   const filters = useWardrobeFilters();
   const [sheet, setSheet] = useState(false);
@@ -250,7 +252,27 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
             <CardRow
               piece={item}
               meta={pieceMeta(item)}
-              lines={item.status === 'ready' ? null : <Status status={pieceStatus(item)} />}
+              lines={
+                item.status === 'ready' ? null : (
+                  <View className="flex-row items-center gap-2">
+                    <Status status={pieceStatus(item)} />
+                    {item.status === 'failed' ? (
+                      // Audit F3: Try again on the row too.
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={copy.readAgainLabel(item.label)}
+                        onPress={() => reread.mutate({ params: { id: item.id }, input: {} })}
+                        hitSlop={12}
+                        testID={`read-again-${item.id}`}
+                      >
+                        <Text size="small" className="underline">
+                          {copy.readAgain}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                )
+              }
               onOpen={open}
               swipe={{
                 text: copy.card.swipeDelete,

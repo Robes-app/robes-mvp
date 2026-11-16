@@ -29,6 +29,7 @@ import { type PieceField, PieceFieldSheet } from './PieceFieldSheet';
 import { PieceHeader } from './PieceHeader';
 import { PieceRow, RecordRows, type RecordTab } from './PieceRows';
 import { READING_REFRESH_MS, useDeletePiece, usePiecePhoto, useStarPiece } from './pieces';
+import { useReread } from './reread';
 
 const LOOKS_LIMIT = 30;
 const TABS = [copy.piece.tabs.piece, copy.piece.tabs.colour, copy.piece.tabs.wearing] as const;
@@ -71,6 +72,7 @@ export function PieceDetail({ id }: { id: string }) {
     },
   );
   const [choosing, setChoosing] = useState(false);
+  const reread = useReread();
   const remove = useDeletePiece();
   const star = useStarPiece();
   const update = useApiMutation('wardrobe.update', {
@@ -133,7 +135,22 @@ export function PieceDetail({ id }: { id: string }) {
         </View>
         <View className="gap-5 px-5">
           {reading ? <Text tone="muted">{copy.reading}</Text> : null}
-          {piece.status === 'failed' ? <ErrorText>{copy.noPieceFound}</ErrorText> : null}
+          {piece.status === 'failed' ? (
+            // Audit F3: never a dead end; Try again reads the photo anew, and the Name row (PIECE)
+            // names it by hand.
+            <View className="items-start gap-2">
+              <ErrorText>{copy.noPieceFound}</ErrorText>
+              <Button
+                variant="outline"
+                loading={reread.isPending}
+                onPress={() => reread.mutate({ params: { id: piece.id }, input: {} })}
+                testID="piece-read-again"
+              >
+                {copy.readAgain}
+              </Button>
+              {reread.isError ? <ErrorText>{errorMessage(reread.error)}</ErrorText> : null}
+            </View>
+          ) : null}
 
           {/* PIECE · COLOUR · WEARING (PRD §7.3): one tab's rows at a time. */}
           <Tabs items={TABS} value={tab} onChange={setTab} testID="piece-tabs" />

@@ -134,3 +134,31 @@ export async function createBatch(
   }
   return { pieces: await toPieces(userId, [...existing, ...created]), jobs };
 }
+
+// Try again on a piece Robes couldn't read (audit F3): back to reading, one analyse job that keeps
+// the piece whatever it finds (`keep`). Already reading, or not a failed read: as it stands.
+export async function rereadPiece(
+  userId: UserId,
+  id: string,
+  traceparent?: string,
+): Promise<Piece> {
+  if (await repos.capacity.isExhausted(['gemini-flash'])) throw new ApiError('capacity');
+  const row = await repos.wardrobe.rereadFailed(userId, id);
+  if (!row) return loadPiece(userId, id);
+  try {
+    await createAndEnqueueJob(
+      userId,
+      {
+        kind: 'wardrobe_analyse',
+        input: { pieceId: row.id, keep: true },
+        quota: { metric: 'analyse.photo', cost: 1 },
+      },
+      traceparent,
+    );
+  } catch (err) {
+    // No job means no reader: it goes back to how it was, never stuck in "reading".
+    await repos.wardrobe.unreread(userId, row.id);
+    throw err;
+  }
+  return loadPiece(userId, id);
+}

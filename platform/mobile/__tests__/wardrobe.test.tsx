@@ -86,6 +86,23 @@ test('a reading piece says so in its bar, under ‹ and beside the star', async 
   expect(screen.queryByRole('button', { name: wardrobe.piece.stylePiece })).toBeNull();
 });
 
+// Audit F3: a piece Robes couldn't read is never a dead end: Try again reads its photo anew.
+test('a piece Robes couldn’t read offers Try again, which reads it anew', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({ status: 'failed' }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`POST /wardrobe/items/${PIECE_ID}/read`]: piece({ status: 'reading' }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  expect(await screen.findByText(wardrobe.noPieceFound)).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('piece-read-again'));
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/read'))).toBe(true),
+  );
+  expect(await screen.findByText(wardrobe.reading)).toBeTruthy();
+});
+
 test('each fact is its own drawer: a brand saves and the PIECE row shows it at once', async () => {
   const calls = mockFetch({
     [`GET /wardrobe/items/${PIECE_ID}`]: piece({ brand: null }),

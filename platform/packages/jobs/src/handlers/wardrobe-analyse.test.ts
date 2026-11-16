@@ -17,6 +17,8 @@ function setup(
     aiError?: AiError;
     // The wait for renditions; short by default so the never-ready cases fail fast.
     assetWaitMs?: number;
+    // Try again on a piece already hers (audit F3).
+    keep?: boolean;
   } = {},
 ) {
   const statuses = [...(opts.assetStatus ?? ['ready'])];
@@ -30,6 +32,7 @@ function setup(
     })),
     apply: vi.fn(async () => {}),
     discard: vi.fn(async () => true),
+    markFailed: vi.fn(async () => true),
   };
   const ledger = { record: vi.fn(async () => {}) };
   const storage = {
@@ -64,7 +67,7 @@ function setup(
     handler.run({
       jobId: '44444444-4444-4444-8444-444444444444',
       userId: USER,
-      input: { pieceId: PIECE },
+      input: { pieceId: PIECE, ...(opts.keep ? { keep: true } : {}) },
       signal: new AbortController().signal,
       writeStage,
       isCancelled: async () => false,
@@ -172,6 +175,14 @@ describe('wardrobe_analyse handler', () => {
     const { run, pieces } = setup({ assetStatus: ['pending'] });
     await expect(run()).rejects.toMatchObject({ code: 'asset_not_ready' });
     expect(pieces.discard).toHaveBeenCalledWith(USER, PIECE);
+  });
+
+  // Audit F3, Try again on a piece already hers: a read that still finds nothing never discards it.
+  it('a read she asked for again keeps her piece when it finds nothing, marked failed', async () => {
+    const { run, pieces } = setup({ output: { no_item_detected: true }, keep: true });
+    await expect(run()).resolves.toEqual({ status: 'partial' });
+    expect(pieces.discard).not.toHaveBeenCalled();
+    expect(pieces.markFailed).toHaveBeenCalledWith(USER, PIECE);
   });
 
   it('files nothing for a photo with no piece: the placeholder goes, and the job ends partial', async () => {

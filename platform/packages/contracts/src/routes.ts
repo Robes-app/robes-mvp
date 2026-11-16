@@ -518,6 +518,15 @@ export const routes = {
     input: PiecePhotoInput,
     output: Piece,
   },
+  // Try again (audit F3): a piece Robes couldn't read goes back to reading; its photo is read anew.
+  'wardrobe.reread': {
+    method: 'POST',
+    path: '/wardrobe/items/:id/read',
+    auth: 'user',
+    params: PieceParams,
+    input: EmptyInput,
+    output: Piece,
+  },
   'wardrobe.delete': {
     method: 'DELETE',
     path: '/wardrobe/items/:id',
