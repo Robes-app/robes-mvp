@@ -159,9 +159,29 @@ describe('bell nudges', () => {
         hasLooks: true,
       }),
     ).toEqual(['2026-11-01', '2026-10-30', '2026-10-29']);
+    // A whole unlogged week names its five newest days, no more (Annie, 16 Nov).
     expect(
       bellNudgeDays({ today: '2026-11-02', since: '2026-01-01', wornDays: [], hasLooks: true }),
-    ).toHaveLength(7);
+    ).toEqual(['2026-11-01', '2026-10-31', '2026-10-30', '2026-10-29', '2026-10-28']);
+    // A logged day frees its place for an older one, inside the week.
+    expect(
+      bellNudgeDays({
+        today: '2026-11-02',
+        since: '2026-01-01',
+        wornDays: ['2026-11-01', '2026-10-30'],
+        hasLooks: true,
+      }),
+    ).toEqual(['2026-10-31', '2026-10-29', '2026-10-28', '2026-10-27', '2026-10-26']);
+    // A dismissed day holds no place either: the next older day takes it.
+    expect(
+      bellNudgeDays({
+        today: '2026-11-02',
+        since: '2026-01-01',
+        wornDays: [],
+        dismissed: ['2026-11-01'],
+        hasLooks: true,
+      }),
+    ).toEqual(['2026-10-31', '2026-10-30', '2026-10-29', '2026-10-28', '2026-10-27']);
     expect(
       bellNudgeDays({ today: '2026-11-02', since: '2026-01-01', wornDays: [], hasLooks: false }),
     ).toEqual([]);

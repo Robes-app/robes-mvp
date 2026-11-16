@@ -28,16 +28,20 @@ export function DiaryStrip({
 }) {
   const scroller = useRef<HTMLElement>(null);
   const pages = diaryPages(days);
-  const home = Math.max(
-    0,
-    pages.findIndex((p) => p.some((d) => d.date === today)),
-  );
-  // Today's page is the one on screen first; a swipe reaches the others.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scrolled once, when the strip mounts
+  const pageOf = (date: string) => pages.findIndex((p) => p.some((d) => d.date === date));
+  // The page on screen: the selected day's (a bell nudge lands on a day last week), else today's.
+  const home = Math.max(0, pageOf(selected) >= 0 ? pageOf(selected) : pageOf(today));
+  // On screen first without a scroll; after that a day picked from outside the strip (the bell)
+  // brings its page into view, and a tap inside the strip is already on the page in view.
+  const shown = useRef(false);
   useLayoutEffect(() => {
     const el = scroller.current;
-    if (el) el.scrollLeft = el.clientWidth * home;
-  }, []);
+    if (!el) return;
+    const left = el.clientWidth * home;
+    if (!shown.current) el.scrollLeft = left;
+    else if (Math.abs(el.scrollLeft - left) > 1) el.scrollTo({ left, behavior: 'smooth' });
+    shown.current = true;
+  }, [home]);
   return (
     <section
       ref={scroller}

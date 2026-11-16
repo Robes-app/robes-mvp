@@ -149,21 +149,26 @@ export const DAY_ONE_KEYS = { model: 'dayone:model', pieces: 'dayone:pieces' } a
 
 // The bell's diary nudges (plan 2026-11-02): the days of the last week she logged no wear on, newest
 // first — only days since her account began, and only once she has a look to log. Pure, so the
-// server and its test agree; the dates are plain YYYY-MM-DD in her timezone.
+// server and its test agree; the dates are plain YYYY-MM-DD in her timezone. At most the five
+// newest (Annie, 16 Nov): a week of nudges read as a backlog, not a reminder.
 export const BELL_NUDGE_DAYS = 7;
+export const BELL_NUDGE_MAX = 5;
 export function bellNudgeDays(o: {
   today: string;
   since: string;
   wornDays: Iterable<string>;
   hasLooks: boolean;
+  // Days whose nudge she dismissed: they never return, and never hold one of the five places.
+  dismissed?: Iterable<string>;
 }): string[] {
   if (!o.hasLooks) return [];
-  const worn = new Set(o.wornDays);
+  const worn = new Set([...o.wornDays, ...(o.dismissed ?? [])]);
   const out: string[] = [];
   for (let i = 1; i <= BELL_NUDGE_DAYS; i++) {
     const day = shiftDay(o.today, -i);
     if (day < o.since) break;
     if (!worn.has(day)) out.push(day);
+    if (out.length === BELL_NUDGE_MAX) break;
   }
   return out;
 }

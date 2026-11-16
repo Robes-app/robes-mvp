@@ -401,3 +401,20 @@ test('a day gone by keeps Capture and Pick, without Create', async () => {
   expect(screen.getByTestId('disc-pick')).toBeTruthy();
   expect(screen.queryByTestId('disc-create')).toBeNull();
 });
+
+// Annie, 16 Nov: a bell nudge opens its day's card; a day she picks clears the nudge's `?day=`, so
+// tapping the same nudge again lands on it again.
+test('a bell nudge lands on its day, and a day picked on the strip clears it', async () => {
+  mockFetch(ROUTES);
+  await renderWithApi(<DiaryHome day={PAST} />);
+  const past = await screen.findByTestId(`diary-day-${PAST}`);
+  expect(past.props.accessibilityState).toMatchObject({ selected: true });
+  expect(screen.getByTestId(`diary-day-${DATE}`).props.accessibilityState).toMatchObject({
+    selected: false,
+  });
+  await fireEvent.press(screen.getByTestId(`diary-day-${DATE}`));
+  expect(screen.getByTestId(`diary-day-${DATE}`).props.accessibilityState).toMatchObject({
+    selected: true,
+  });
+  expect(mockRouter.setParams).toHaveBeenCalledWith({ day: '' });
+});

@@ -73,7 +73,14 @@ describe('the bell', () => {
     repos.uiState.dismissed.mockResolvedValue({ 'diary:2026-11-01': '2026-11-02T08:00:00Z' });
     const { items } = await loadNotifications(ann, now);
     expect(items.map((i) => i.key)).not.toContain('diary:2026-11-01');
-    expect(items).toHaveLength(6);
+    // Five nudges at most (Annie, 16 Nov), the dismissed day's place taken by an older one.
+    expect(items.map((i) => i.key)).toEqual([
+      'diary:2026-10-31',
+      'diary:2026-10-30',
+      'diary:2026-10-29',
+      'diary:2026-10-28',
+      'diary:2026-10-27',
+    ]);
     repos.looks.count.mockResolvedValue(0);
     expect((await loadNotifications(ann, now)).items).toEqual([]);
     await dismissNotification(ann, { key: 'receipts:1' });
