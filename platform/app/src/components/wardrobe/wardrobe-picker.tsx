@@ -1,6 +1,6 @@
 'use client';
 
-import { useApi } from '@robes/api-client/react';
+import { useApiAll } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { diary } from '@robes/copy';
 import { Button, Sheet } from '@robes/ui';
@@ -29,7 +29,7 @@ export function WardrobePicker({
   onClose: () => void;
   onApply: (pieces: Piece[]) => void;
 }) {
-  const pieces = useApi('wardrobe.list', { input: { limit: 100 } }, { enabled: open });
+  const pieces = useApiAll('wardrobe.list', { input: { limit: 100 } }, { enabled: open });
   const all = (pieces.data?.items ?? []).filter((p) => p.status === 'ready');
   const [category, setCategory] = useState<string | null>(null);
   const [query, setQuery] = useState('');

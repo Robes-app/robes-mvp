@@ -1,6 +1,6 @@
 'use client';
 
-import { useApi, useApiMutation } from '@robes/api-client/react';
+import { useApiAll, useApiMutation } from '@robes/api-client/react';
 import { trips } from '@robes/copy';
 import { defaultTripDates, parseOccasions, tripDatesError } from '@robes/core/trips';
 import { Button, ErrorText, Field, Pill, Text, TextArea } from '@robes/ui';
@@ -19,7 +19,7 @@ export function TripForm({ initialBrief = '' }: { initialBrief?: string }) {
   const [occasions, setOccasions] = useState('');
   const [brief, setBrief] = useState(initialBrief);
   const [keyPieces, setKeyPieces] = useState<string[]>([]);
-  const pieces = useApi('wardrobe.list', { input: { limit: 60 } });
+  const pieces = useApiAll('wardrobe.list', { input: { limit: 100 } });
   const start = useApiMutation('travel.plan', {
     onSuccess: ({ jobId }) => router.push(`/trip/job/${jobId}`),
   });

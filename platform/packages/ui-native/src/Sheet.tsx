@@ -18,7 +18,6 @@ import {
 import { CloseDisc, PrimaryScope } from './Button';
 import { useColor } from './color';
 import { cx } from './cx';
-import { DrawerHeader, type DrawerHeaderDone } from './DrawerHeader';
 import { useNativeGlass } from './Glass';
 import { ModalInsets } from './ModalInsets';
 import { useReducedMotion } from './motion';
@@ -55,10 +54,10 @@ export interface SheetProps {
   // Felix's choice rows under the question: a 40pt disc with the glyph, a sentence-case label
   // and a ›, 56pt tall between `hairline` rules. Two or three; the sheet asks one question.
   rows?: readonly SheetRow[];
-  // The drawer header (× · the tracked title · the ink done disc) in place of the handle, the
-  // question and the × (Felix NotificationsSheet); a swipe down on it still closes. `null` keeps
-  // the × with a spacer.
-  done?: DrawerHeaderDone | null;
+  // The one sheet header (audit P2, 16 Nov) on a solid sheet: the × disc, the title centred and
+  // `done` as a word at the right (Notifications' Clear all, the LookPicker's Done), in place of
+  // the handle, the question and the ×; a swipe down on it still closes. `null`: no action.
+  done?: GlassAction | null;
   // The Front Door's glass sheet (PRD rev 3 §2.4, §2.5): on the bottom edge, its top corners on
   // the dock radius, cream glass over the dimmed screen, with its own header — the × disc at the left, a
   // sans title centred, a text action at the right (Clear). The question, eyebrow and × above
@@ -68,6 +67,8 @@ export interface SheetProps {
 
 export interface GlassAction {
   label: string;
+  // What the tap will do, when that is more than the word says (VoiceOver reads it after).
+  hint?: string;
   onPress: () => void;
   // Faint and inert while there is nothing to act on (Clear with no filter picked).
   disabled?: boolean;
@@ -346,13 +347,11 @@ export function Sheet({
                   <SheetHead {...glass} onClose={onClose} />
                 </View>
               ) : done !== undefined ? (
-                <View {...drag.panHandlers} className="mb-6 pt-3">
-                  <DrawerHeader
-                    inSheet
+                <View {...drag.panHandlers} className="mb-5 pt-3">
+                  <SheetHead
                     title={title ?? ''}
+                    {...(done ? { action: done } : {})}
                     onClose={onClose}
-                    closeLabel={ui.close}
-                    done={done}
                   />
                 </View>
               ) : (
@@ -454,9 +453,10 @@ function Rows({ rows }: { rows: readonly SheetRow[] }) {
   );
 }
 
-// The glass sheet's header: the 36pt × disc, the title in Inter 600 at 15 (the one bold
-// line on a glass sheet), and the text action at the right, ink while it can act, faint while
-// it can't. A spacer keeps the title centred when there is no action.
+// The one sheet header (audit P2: "× on the left, the title in one style, the action on the right
+// as a word"), on a glass sheet and a solid one alike: the 36pt × disc, the title in Inter 600 at
+// 15, and the text action at the right, ink while it can act, faint while it can't. A spacer
+// keeps the title centred when there is no action.
 function SheetHead({ title, action, onClose }: GlassHeader & { onClose: () => void }) {
   return (
     <View className="h-10 flex-row items-center justify-between gap-3">
@@ -474,6 +474,7 @@ function SheetHead({ title, action, onClose }: GlassHeader & { onClose: () => vo
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={action.label}
+          {...(action.hint ? { accessibilityHint: action.hint } : {})}
           accessibilityState={{ disabled: action.disabled === true }}
           disabled={action.disabled}
           onPress={action.onPress}

@@ -1,7 +1,13 @@
 'use client';
 
 import { isApiClientError } from '@robes/api-client';
-import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
+import {
+  queryKeys,
+  useApi,
+  useApiAll,
+  useApiClient,
+  useApiMutation,
+} from '@robes/api-client/react';
 import type {
   JobSnapshot,
   Look,
@@ -19,12 +25,13 @@ import { useAnalytics } from '@/components/analytics-provider';
 import { errorCopy } from './error-copy';
 import { useJob } from './use-job';
 
+// The API's largest page of looks; the Lookbook reads every page (TestFlight, 16 Nov).
 const LIMIT = 60;
 // A frame lands after its job (renditions run on the upload event): check while one is coming.
 export const FRAME_REFRESH_MS = 1500;
 
 export function useLooksByStatus(status: LookStatus, opts: { anchorPieceId?: string } = {}) {
-  return useApi(
+  return useApiAll(
     'looks.list',
     {
       input: {

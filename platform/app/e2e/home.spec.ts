@@ -285,11 +285,13 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   const drawer = page.getByRole('dialog').filter({
     has: page.getByRole('heading', { name: 'What are you wearing?' }),
   });
-  await expect(drawer.getByTestId('drawer-done')).toHaveAttribute('aria-disabled', 'true');
+  await expect(drawer.getByTestId('drawer-done')).toBeDisabled();
   await expect(drawer.getByRole('button', { name: 'Filter' })).toBeVisible();
   await expect(drawer.getByRole('searchbox', { name: 'Search your looks' })).toBeVisible();
   await drawer.getByRole('button', { name: /Office/ }).click();
-  await drawer.getByRole('button', { name: 'Schedule 1 Look' }).click();
+  // Done, with what it will do as its description (audit P2: one sheet header).
+  await expect(drawer.getByTestId('drawer-done')).toHaveAccessibleDescription('Schedule 1 Look');
+  await drawer.getByTestId('drawer-done').click();
   await expect(page.getByTestId('ootd-card')).toContainText('Office');
   await expect(page.getByTestId(`diary-day-${date}`)).toHaveAccessibleName('Today, 1 look planned');
 
@@ -298,7 +300,11 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   await expect(drawer.getByText('Scheduled')).toHaveCount(1);
   await drawer.getByRole('button', { name: /Office/ }).click();
   await drawer.getByRole('button', { name: /Dinner/ }).click();
-  await drawer.getByRole('button', { name: 'Wear this look today' }).click();
+  // Done, with what it will do as its description (audit P2: one sheet header).
+  await expect(drawer.getByTestId('drawer-done')).toHaveAccessibleDescription(
+    'Wear this look today',
+  );
+  await drawer.getByTestId('drawer-done').click();
   await expect(page.getByTestId('ootd-card')).toContainText('Dinner');
   await expect(page.getByTestId('ootd-card')).not.toContainText('Office');
   // Edit opens the Edit look drawer over the day (3k, D18): its photo strip on the Add a photo
@@ -333,7 +339,9 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
     has: page.getByRole('heading', { name: 'What did you wear?' }),
   });
   await past.getByRole('button', { name: /Office/ }).click();
-  await past.getByRole('button', { name: 'Schedule 1 Look' }).click();
+  // Done, with what it will do as its description (audit P2: one sheet header).
+  await expect(past.getByTestId('drawer-done')).toHaveAccessibleDescription('Schedule 1 Look');
+  await past.getByTestId('drawer-done').click();
   await expect(page.getByTestId('ootd-card')).toContainText('Office');
   const wears = await (
     await api.get(

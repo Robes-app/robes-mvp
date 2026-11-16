@@ -22,7 +22,7 @@ import {
   ScrollView,
   View,
 } from 'react-native';
-import { usePieces } from '@/features/wardrobe/pieces';
+import { useAllPieces } from '@/features/wardrobe/pieces';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 
@@ -60,7 +60,7 @@ function PieceChoice({
 // Style a piece: one of hers, or described in words, plus an optional occasion.
 export function StylePiece({ initialPieceId }: { initialPieceId?: string }) {
   const router = useRouter();
-  const { pieces } = usePieces();
+  const { pieces } = useAllPieces();
   const ready = pieces.filter((p) => p.status === 'ready');
   const [pieceId, setPieceId] = useState<string | null>(initialPieceId ?? null);
   const [text, setText] = useState('');

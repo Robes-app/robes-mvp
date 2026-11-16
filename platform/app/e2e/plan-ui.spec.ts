@@ -51,10 +51,12 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   const picker = page.getByRole('dialog').filter({
     has: page.getByRole('heading', { name: 'What are you wearing?' }),
   });
-  await expect(picker.getByTestId('drawer-done')).toHaveAttribute('aria-disabled', 'true');
+  await expect(picker.getByTestId('drawer-done')).toBeDisabled();
   await picker.getByRole('button', { name: /Office/ }).click();
   await picker.getByRole('button', { name: /Dinner/ }).click();
-  await picker.getByRole('button', { name: 'Schedule 2 Looks' }).click();
+  // Done, with what it will do as its description (audit P2: one sheet header).
+  await expect(picker.getByTestId('drawer-done')).toHaveAccessibleDescription('Schedule 2 Looks');
+  await picker.getByTestId('drawer-done').click();
   await expect(page.getByText(/^2 looks added to /).first()).toBeVisible();
   await expect(page.getByTestId('day-slot')).toContainText('Office');
   await expect(page.getByTestId('day-slot')).toContainText('Dinner');
@@ -67,7 +69,7 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   // A look already on the day opens ticked as Scheduled; unticking it takes it off.
   await page.getByTestId('disc-pick').click();
   await expect(picker.getByText('Scheduled')).toHaveCount(2);
-  await expect(picker.getByTestId('drawer-done')).toHaveAttribute('aria-disabled', 'true');
+  await expect(picker.getByTestId('drawer-done')).toBeDisabled();
   await picker.getByRole('button', { name: 'Close' }).click();
   await expect(picker).toBeHidden();
 
