@@ -49,6 +49,8 @@ appId: host.exp.Exponent
 - extendedWaitUntil:
     visible: '.*, Niall\.'
     timeout: 15000
+# The look prompt first: shell.yaml and looks-plan.yaml predate the Felix rebuild's copy.
+- runFlow: looks-prompt.yaml
 - runFlow: shell.yaml
 - runFlow: looks-plan.yaml
 - openLink: ${EXPO_URL}/--/you
