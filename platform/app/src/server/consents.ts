@@ -16,7 +16,10 @@ export async function getConsents(deps: ConsentDeps, userId: UserId): Promise<Co
   return toConsents(await deps.consents.current(userId));
 }
 
-// Replay rides on analytics: it can't be granted without it and goes when analytics goes.
+// Recordings ride on analytics: they can't be granted without it and go when analytics goes.
+// 'replay' (masked recordings, still sent by older phone builds) keeps the same rule.
+const RECORDING_KINDS = ['recordings', 'replay'] as const;
+
 export async function updateConsents(
   deps: ConsentDeps,
   userId: UserId,
@@ -24,13 +27,16 @@ export async function updateConsents(
 ): Promise<Consents> {
   const current = await deps.consents.current(userId);
   const answers: ConsentAnswers = { ...input.consents };
-  if (answers.replay === true && (answers.analytics ?? current.analytics) !== true) {
-    throw new ApiError('invalid_input', {
-      details: [{ path: 'consents.replay', message: 'needs analytics consent' }],
-    });
-  }
-  if (answers.analytics === false && answers.replay === undefined && current.replay === true) {
-    answers.replay = false;
+  const analytics = answers.analytics ?? current.analytics;
+  for (const kind of RECORDING_KINDS) {
+    if (answers[kind] === true && analytics !== true) {
+      throw new ApiError('invalid_input', {
+        details: [{ path: `consents.${kind}`, message: 'needs analytics consent' }],
+      });
+    }
+    if (answers.analytics === false && answers[kind] === undefined && current[kind] === true) {
+      answers[kind] = false;
+    }
   }
   await deps.consents.record(userId, answers, input.source);
   return toConsents({ ...current, ...answers });

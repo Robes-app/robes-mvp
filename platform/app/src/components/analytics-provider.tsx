@@ -57,7 +57,8 @@ export function AnalyticsProvider({
   const pathname = usePathname();
 
   const analyticsOn = Boolean(browser && userId && consents?.analytics === true);
-  const replayOn = consents?.replay === true;
+  // Only her yes to recordings that show her words; an older `replay` yes was to masked ones.
+  const replayOn = consents?.recordings === true;
 
   useEffect(() => {
     if (!browser) return;

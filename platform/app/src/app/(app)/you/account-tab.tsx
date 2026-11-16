@@ -1,5 +1,6 @@
 'use client';
 
+import { UNRECORDED } from '@robes/analytics';
 import { twin, you } from '@robes/copy';
 import { DrillList, DrillRowContent, drillRowClass } from '@robes/ui';
 import { DrillLink } from '@/components/settings/settings-chrome';
@@ -22,7 +23,8 @@ export function AccountTab({ name, email }: { name: string; email: string }) {
           value={name || twin.dnaPage.notYet}
           muted={!name}
         />
-        <div className={drillRowClass}>
+        {/* Her email never shows in a screen recording. Native twin: features/you/YouMenu.tsx. */}
+        <div className={`${drillRowClass} ${UNRECORDED}`}>
           <DrillRowContent label={you.account.email} value={email} trailing={null} />
         </div>
         <DrillLink
