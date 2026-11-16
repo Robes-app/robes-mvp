@@ -389,13 +389,12 @@ test('the Edit look sheet: Update look and the tick wait for a change, × asks f
   const onClose = jest.fn();
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={onClose} />);
   expect(await screen.findByText(copy.editTitle)).toBeTruthy();
-  const done = () => screen.getByTestId('draft-done');
   const update = () => screen.getByTestId('update-look');
-  expect(done().props.accessibilityLabel).toBe(copy.doneEdit);
+  // One confirm per screen (audit P1): Update look is the accept; the header has no ✓.
+  expect(screen.queryByTestId('draft-done')).toBeNull();
   // Its picture is the photo strip, on the Add a photo card (Capture PRD 3.1).
   expect(screen.getByTestId('image-manager')).toBeTruthy();
-  // Nothing waits: the tick and Update look both sit dimmed (PRD 3.1); × leaves.
-  expect(done().props.accessibilityState.disabled).toBe(true);
+  // Nothing waits: Update look sits dimmed (PRD 3.1); × leaves.
   expect(update().props.accessibilityLabel).toBe(copy.update);
   expect(update().props.accessibilityState.disabled).toBe(true);
   expect(screen.queryByTestId('update-model')).toBeNull();
@@ -405,18 +404,16 @@ test('the Edit look sheet: Update look and the tick wait for a change, × asks f
     screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
   expect(update().props.accessibilityState.disabled).toBe(false);
-  expect(done().props.accessibilityState.disabled).toBe(false);
   await fireEvent.press(screen.getByTestId('draft-close'));
   expect(await screen.findByText(copy.discardEdit.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: copy.discard.keep }));
-  // The tick is Update look by another name: it applies the change and she stays in the sheet,
-  // with both dimmed again; × then leaves without a question.
-  await fireEvent.press(done());
+  // Update look applies the change and she stays in the sheet, dimmed again; × then leaves
+  // without a question.
+  await fireEvent.press(update());
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(await screen.findByText(lookbook.updated)).toBeTruthy();
   expect(onClose).not.toHaveBeenCalled();
   await waitFor(() => expect(update().props.accessibilityState.disabled).toBe(true));
-  expect(done().props.accessibilityState.disabled).toBe(true);
   await fireEvent.press(screen.getByTestId('draft-close'));
   expect(onClose).toHaveBeenCalledTimes(1);
 });
@@ -862,10 +859,9 @@ test('add a photo to a look: camera, Retake or Another, Add to look, then the st
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   expect(await screen.findByTestId('image-manager')).toBeTruthy();
-  const done = () => screen.getByTestId('draft-done');
   const update = () => screen.getByTestId('update-look');
   expect(update().props.accessibilityState.disabled).toBe(true);
-  expect(done().props.accessibilityState.disabled).toBe(true);
+  expect(screen.queryByTestId('draft-done')).toBeNull();
   await fireEvent.press(screen.getByText(lookbook.savedLook.tabs.details));
   expect(screen.getByTestId('details-photos')).toHaveTextContent(/1/);
 
@@ -892,7 +888,6 @@ test('add a photo to a look: camera, Retake or Another, Add to look, then the st
   expect(screen.queryByTestId('capture-review')).toBeNull();
   expect(screen.getByTestId('details-photos')).toHaveTextContent(/2/);
   expect(update().props.accessibilityState.disabled).toBe(true);
-  expect(done().props.accessibilityState.disabled).toBe(true);
   // Nothing is written before the strip's ✓; the ✓ keeps the photograph and makes it the cover.
   expect(calls.some((c) => c.path.endsWith(`/looks/${LOOK_ID}/images`))).toBe(false);
   await fireEvent.press(screen.getByTestId('image-manager-done'));

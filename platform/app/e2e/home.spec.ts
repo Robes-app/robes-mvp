@@ -302,8 +302,8 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   await expect(page.getByTestId('ootd-card')).toContainText('Dinner');
   await expect(page.getByTestId('ootd-card')).not.toContainText('Office');
   // Edit opens the Edit look drawer over the day (3k, D18): its photo strip on the Add a photo
-  // card, and Update look and the tick both dimmed until something changes (Capture PRD 3.1);
-  // × leaves.
+  // card, and Update look dimmed until something changes (Capture PRD 3.1), the one confirm (no
+  // header ✓, audit P1); × leaves.
   await page.getByRole('link', { name: 'Edit Dinner' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/);
   const edit = page.getByTestId('draft-look');
@@ -311,7 +311,7 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   await expect(page.getByText('Edit look')).toBeVisible();
   await expect(edit.getByTestId('image-card-add')).toBeInViewport();
   await expect(page.getByTestId('update-look')).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.getByTestId('draft-done')).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.getByTestId('draft-done')).toHaveCount(0);
   await edit.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByTestId('draft-look')).toHaveCount(0);
   // The photograph's image stack opens the same drawer on Add a photo, never the look's page, so

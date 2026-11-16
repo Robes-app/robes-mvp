@@ -225,7 +225,6 @@ export const lookbook = {
     // The done disc: Save on a draft; on a saved look's edit it only closes, once nothing waits
     // for Update look (D18).
     done: 'Save look',
-    doneEdit: 'Done',
     // A saved look's one accept (3e's pill, the Edit look drawer's footer; D17, D18).
     update: 'Update look',
     doneForDay: 'Save and schedule for this day',
