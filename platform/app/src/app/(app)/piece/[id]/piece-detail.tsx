@@ -22,6 +22,7 @@ import { usePiecePhoto } from '@/components/wardrobe/use-piece-photo';
 import { useRemovePiece } from '@/components/wardrobe/use-remove-piece';
 import { useStarPiece } from '@/components/wardrobe/use-star-piece';
 import { errorCopy } from '@/lib/error-copy';
+import { useReread } from '@/lib/reread';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 import { invalidateWardrobe, pieceIsReading } from '@/lib/wardrobe';
 
@@ -44,6 +45,7 @@ const TAB_OF: Record<TabLabel, RecordTab> = {
 export function PieceDetail({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const reread = useReread();
   const star = useStarPiece();
   const [field, setField] = useState<PieceField | null>(null);
   const [tab, setTab] = useState<TabLabel>(TABS[0]);
@@ -114,7 +116,21 @@ export function PieceDetail({ id }: { id: string }) {
               {wardrobe.reading}
             </Text>
           ) : null}
-          {piece.status === 'failed' ? <ErrorText>{wardrobe.noPieceFound}</ErrorText> : null}
+          {piece.status === 'failed' ? (
+            // Audit F3: never a dead end; Try again reads the photo anew, and the Name row (PIECE)
+            // names it by hand.
+            <div className="flex flex-col items-start gap-2">
+              <ErrorText>{wardrobe.noPieceFound}</ErrorText>
+              <Button
+                variant="outline"
+                loading={reread.isPending}
+                onClick={() => reread.mutate({ params: { id: piece.id }, input: {} })}
+                data-testid="piece-read-again"
+              >
+                {wardrobe.readAgain}
+              </Button>
+            </div>
+          ) : null}
 
           {/* PIECE · COLOUR · WEARING (PRD §7.3): one tab's rows at a time. */}
           <Tabs items={TABS} value={tab} onChange={setTab} label={copy.sections.piece} />

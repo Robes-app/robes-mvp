@@ -17,7 +17,9 @@ export interface WardrobeAnalyseDeps {
   pollMs?: number;
 }
 
-const Input = z.object({ pieceId: z.uuid() });
+// `keep`: a read she asked for again on a piece already hers (Try again, audit F3); a read that
+// finds nothing leaves it "couldn't see a piece" rather than discarding it.
+const Input = z.object({ pieceId: z.uuid(), keep: z.boolean().optional() });
 
 // Reads a wardrobe photo and files the piece (legacy /api/wardrobe/analyse, now a job). A read
 // that finds no piece, or cannot run, discards the placeholder: nothing failed is ever filed.
@@ -30,7 +32,11 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
     async run(ctx) {
       const input = Input.safeParse(ctx.input);
       if (!input.success) throw new JobError('invalid_input');
-      const { pieceId } = input.data;
+      const { pieceId, keep = false } = input.data;
+      const giveUp = () =>
+        keep
+          ? deps.pieces.markFailed(ctx.userId, pieceId)
+          : deps.pieces.discard(ctx.userId, pieceId);
 
       // The batch can start before the photo is rendered; wait for its master server-side.
       const master = (assetId: string) => mediaKeys.master(ctx.userId, assetId);
@@ -42,7 +48,7 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
       );
       if (!piece?.imageAssetId) throw new JobError('not_found');
       if (!readable) {
-        await deps.pieces.discard(ctx.userId, pieceId);
+        await giveUp();
         throw new JobError(piece.assetStatus === 'failed' ? 'unreadable_photo' : 'asset_not_ready');
       }
 
@@ -77,7 +83,7 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
             });
           }
           if (err.code === 'cancelled') throw err;
-          await deps.pieces.discard(ctx.userId, pieceId);
+          await giveUp();
           throw new JobError(`ai_${err.code}`);
         }
         throw err;
@@ -94,7 +100,7 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
 
       const analysed = toPiece(result.data);
       if (analysed.noItemDetected) {
-        await deps.pieces.discard(ctx.userId, pieceId);
+        await giveUp();
         await ctx.writeStage('text', { pieceId, noItemDetected: true });
         return { status: 'partial' };
       }

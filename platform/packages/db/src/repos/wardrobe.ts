@@ -395,6 +395,32 @@ export function wardrobeRepo(db: Db) {
         .executeTakeFirst();
     },
 
+    // Try again on a piece Robes couldn't read (audit F3): back to reading, its photo read anew.
+    // Only a failed piece with a photo; anything else is left as it is (undefined).
+    async rereadFailed(userId: UserId, id: string) {
+      return db
+        .updateTable('wardrobeItems')
+        .set({ status: 'reading' })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('status', '=', 'failed')
+        .where('imageAssetId', 'is not', null)
+        .where('deletedAt', 'is', null)
+        .returning(PIECE_COLUMNS)
+        .executeTakeFirst();
+    },
+
+    // A re-read that couldn't be queued: back to failed, never stuck reading.
+    async unreread(userId: UserId, id: string): Promise<void> {
+      await db
+        .updateTable('wardrobeItems')
+        .set({ status: 'failed' })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('status', '=', 'reading')
+        .execute();
+    },
+
     // Soft delete (UX-15): undone by restore; purged after 30 days by maintenance.
     async remove(userId: UserId, id: string): Promise<boolean> {
       const res = await db

@@ -6,6 +6,9 @@ export const wardrobe = {
   newPiece: 'New piece',
   reading: 'Robes is reading this piece…',
   noPieceFound: 'Robes couldn’t see a piece in this photo.',
+  // Audit F3: read the photo again (naming it by hand is the Name row).
+  readAgain: 'Try again',
+  readAgainLabel: (name: string): string => `Read ${name} again`,
   // The empty wardrobe (Front Door PRD rev 3 §7.2): a hanger on a white disc, one line, one door.
   empty: {
     title: 'Your wardrobe is empty',
