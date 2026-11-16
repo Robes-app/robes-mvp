@@ -294,6 +294,9 @@ export function PromptDock({
   const muted = useColor('ink-muted');
   const onInk = useColor('bg');
   const scroll = useRef<ScrollViewInstance>(null);
+  // The resting row's height, held while the sheet is up so the screen behind never jumps as the
+  // row leaves (16 Nov).
+  const [restHeight, setRestHeight] = useState(0);
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrolls when a turn lands
   useEffect(() => {
     scroll.current?.scrollToEnd({ animated: true });
@@ -361,31 +364,37 @@ export function PromptDock({
       {box}
     </View>
   );
+  // The title and minimise under the sheet's slim handle (Prompt States: 20pt in on the left, 14pt
+  // on the right, 4pt under).
+  const head = (
+    <View className="flex-row items-center gap-3 pb-1" style={{ marginRight: -6 }}>
+      <Text
+        className="flex-1 uppercase text-ink-muted"
+        style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 9 * 0.22 }}
+      >
+        {copy.dock.title}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={copy.dock.minimise}
+        onPress={onMinimise}
+        hitSlop={6}
+        testID="prompt-minimise"
+        className="items-center justify-center rounded-pill bg-surface-sunk"
+        style={{ width: DISC, height: DISC }}
+      >
+        <Icon name="down" size={14} color={muted} />
+      </Pressable>
+    </View>
+  );
   return (
     <>
-      {resting}
-      <Sheet open={open} onClose={onMinimise} floating bare={bare} testID="prompt-dock">
-        {bare ? null : (
-          <View className="flex-row items-center gap-3 pb-2">
-            <Text
-              className="flex-1 uppercase text-ink-muted"
-              style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 9 * 0.22 }}
-            >
-              {copy.dock.title}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={copy.dock.minimise}
-              onPress={onMinimise}
-              hitSlop={6}
-              testID="prompt-minimise"
-              className="items-center justify-center rounded-pill bg-surface-sunk"
-              style={{ width: DISC, height: DISC }}
-            >
-              <Icon name="down" size={14} color={muted} />
-            </Pressable>
-          </View>
-        )}
+      {resting ? (
+        <View onLayout={(e) => setRestHeight(e.nativeEvent.layout.height)}>{resting}</View>
+      ) : (
+        <View style={{ height: restHeight }} />
+      )}
+      <Sheet open={open} onClose={onMinimise} floating bare={bare} head={head} testID="prompt-dock">
         {conversation ? (
           <ScrollView
             ref={scroll}
@@ -400,7 +409,8 @@ export function PromptDock({
         ) : null}
         {/* The box runs wider than the sheet's own gutter: 10pt from each side (pin 1). Bare, the
         sheet's gutter is those 10pt. */}
-        {bare ? children : <View style={{ marginHorizontal: -10 }}>{children}</View>}
+        {/* Open, the box stands 20pt in from the sheet's sides, as the turns do (Prompt States). */}
+        {children}
       </Sheet>
     </>
   );
