@@ -120,9 +120,10 @@ export function LookPicker({
       title={eyebrow}
       open={open}
       onOpenChange={(o) => (o ? undefined : onClose())}
-      // × · TODAY · MON 2 NOV · ✓: the ✓ is grey until her picks change the day, then ink (PRD §4.5).
+      // Done, with what it will do ("Schedule 2 Looks") as its hint (audit P2); twin of LookPicker.
       done={{
-        label: cta.ready ? cta.label : copy.drawer.done,
+        label: copy.drawer.done,
+        ...(cta.ready ? { hint: cta.label } : {}),
         onClick: () => void apply(),
         disabled: !cta.ready || saving,
         testId: 'drawer-done',

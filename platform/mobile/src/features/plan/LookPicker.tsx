@@ -136,9 +136,11 @@ export function LookPicker({
       open={open}
       onClose={onClose}
       title={eyebrow}
-      // × · TODAY · MON 2 NOV · ✓: the ✓ is grey until her picks change the day, then ink (PRD §4.5).
+      // × · the day · Done: faint until her picks change the day, then ink (PRD §4.5); what it will
+      // do ("Schedule 2 Looks") is its hint, too long to stand beside the title (audit P2).
       done={{
-        label: cta.ready ? cta.label : copy.drawer.done,
+        label: copy.drawer.done,
+        ...(cta.ready ? { hint: cta.label } : {}),
         onPress: () => void apply(),
         disabled: !cta.ready || saving,
       }}
