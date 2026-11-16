@@ -304,14 +304,21 @@ export function Sheet({
         {(insets) => (
           // A field in the sheet (a name, a search) rides above the keyboard, never under it.
           <Animated.View className="flex-1 justify-end" style={{ paddingBottom: lift }}>
+            {/* The shade fades; the tap that closes is its own layer, since iOS gives no touch to a
+            view faded to nothing (a bare sheet's shade never shows). */}
             <Animated.View
               className="absolute inset-0 bg-ink"
               style={{ opacity: backdrop }}
+              pointerEvents="none"
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
-            >
-              <Pressable className="flex-1" onPress={onClose} accessible={false} />
-            </Animated.View>
+            />
+            <Pressable
+              className="absolute inset-0"
+              onPress={onClose}
+              accessible={false}
+              testID={testID ? `${testID}-backdrop` : undefined}
+            />
             <Animated.View
               accessibilityViewIsModal
               className={cx(
