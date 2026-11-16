@@ -1,6 +1,6 @@
 'use client';
 
-import { queryKeys, useApi, useApiClient, useUndoableMutation } from '@robes/api-client/react';
+import { queryKeys, useApiAll, useApiClient, useUndoableMutation } from '@robes/api-client/react';
 import type { Wish } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
 import { shade } from '@robes/core/colour';
@@ -57,7 +57,7 @@ function wishMatches(
 export function Wishlist() {
   const client = useApiClient();
   const toast = useToast();
-  const list = useApi('wishlist.list', { input: { limit: 100 } });
+  const list = useApiAll('wishlist.list', { input: { limit: 100 } });
   const [layout, setLayout] = useWardrobeLayout();
   const filters = useWardrobeFilters();
   const [sheet, setSheet] = useState(false);

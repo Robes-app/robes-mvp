@@ -7,9 +7,9 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { addPiecesHref } from '@/features/wardrobe/add/flow';
-import { usePieces } from '@/features/wardrobe/pieces';
+import { useAllPieces } from '@/features/wardrobe/pieces';
 import { WardrobeGrid } from '@/features/wardrobe/WardrobeGrid';
-import { useWishes } from '@/features/wardrobe/wishlist';
+import { useAllWishes } from '@/features/wardrobe/wishlist';
 import { nativeAnalytics } from '@/lib/analytics';
 
 const copy = lookbook.draftLook.picker;
@@ -64,8 +64,9 @@ export function PiecePicker({
   const matching = mode && 'match' in mode ? mode.match : null;
   // One piece of hers, led by the row's category: a swap, or a match.
   const swapping = mode && 'swap' in mode ? mode.swap : matching;
-  const { pieces, isPending } = usePieces();
-  const wishlist = useWishes();
+  // Everything she has, never a first page (TestFlight, 16 Nov).
+  const { pieces, isPending } = useAllPieces({ enabled: open });
+  const wishlist = useAllWishes({ enabled: open });
   const ready = pieces.filter((p) => p.status === 'ready' && !onRack.includes(p.id));
   const wishes: WishItem[] = wishlist.wishes
     .filter((w) => !onRack.includes(w.id))

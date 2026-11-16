@@ -87,6 +87,52 @@ export function useApi<K extends QueryRouteKey>(
   });
 }
 
+// A list route paged by cursor: `items`, and `nextCursor` while there is more.
+type Paged = { items: readonly unknown[]; nextCursor: string | null };
+export type PagedRouteKey = {
+  [K in QueryRouteKey]: OutputOf<K> extends Paged ? K : never;
+}[QueryRouteKey];
+
+// Every page of a paged list, as one answer: `items` all of them, `nextCursor` null. For a picker,
+// a lookup or a count, which must see everything she has, never the first page (a wardrobe of 133
+// offered 7 of 17 accessories, TestFlight 16 Nov). `input.limit` is the page size. It stops only
+// when the server says there is no more (or repeats a cursor), never at a page count, so nothing is
+// cut off quietly. Invalidating the route (queryKeys.route) refetches it like any call.
+export function useApiAll<K extends PagedRouteKey>(
+  key: K,
+  args: CallArgs<K>,
+  options?: QueryOpts<K>,
+): UseQueryResult<OutputOf<K>, ApiClientError> {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: [...queryKeys.call(key, ...([args] as CallRest<K>)), 'all'],
+    queryFn: ({ signal }) => fetchAll(client, key, args, signal),
+    ...options,
+  });
+}
+
+async function fetchAll<K extends PagedRouteKey>(
+  client: ApiClient,
+  key: K,
+  args: CallArgs<K>,
+  signal: AbortSignal,
+): Promise<OutputOf<K>> {
+  const base = args as { input?: Record<string, unknown> };
+  const items: unknown[] = [];
+  const seen = new Set<string>();
+  let first: Paged | null = null;
+  let cursor: string | null = null;
+  do {
+    const call = { ...args, input: { ...base.input, ...(cursor ? { cursor } : {}) }, signal };
+    const page = (await client.call(key, ...([call] as CallRest<K>))) as Paged;
+    first ??= page;
+    items.push(...page.items);
+    seen.add(cursor ?? '');
+    cursor = page.nextCursor && !seen.has(page.nextCursor) ? page.nextCursor : null;
+  } while (cursor);
+  return { ...first, items, nextCursor: null } as OutputOf<K>;
+}
+
 // Carries one idempotency key per mutate() so TanStack retries replay rather than duplicate.
 interface Invocation<K extends JsonRouteKey> {
   args: CallArgs<K>;

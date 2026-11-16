@@ -1,6 +1,6 @@
 'use client';
 
-import { useApi, useApiClient } from '@robes/api-client/react';
+import { useApiAll, useApiClient } from '@robes/api-client/react';
 import { type Look, type Piece, pieceRow, type ReadPiece } from '@robes/contracts';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import {
@@ -74,7 +74,11 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   current.current = rows;
 
   const waiting = rows.some(isCaptureRow);
-  const wardrobe = useApi('wardrobe.list', { input: { limit: 100 } }, { enabled: on && waiting });
+  const wardrobe = useApiAll(
+    'wardrobe.list',
+    { input: { limit: 100 } },
+    { enabled: on && waiting },
+  );
 
   // The read lands once: its pieces join the rack, or it says there was nothing to find.
   const handled = useRef<string | null>(null);

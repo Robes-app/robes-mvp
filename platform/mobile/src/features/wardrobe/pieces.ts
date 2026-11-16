@@ -1,5 +1,6 @@
 import {
   queryKeys,
+  useApiAll,
   useApiClient,
   useApiMutation,
   useUndoableMutation,
@@ -13,6 +14,8 @@ import { type PhotoSource, pickOne } from '@/features/home/file-photo';
 import { uploadPhoto } from './add-pieces';
 
 const PAGE = 40;
+// The API's largest page: the fewest calls to read the whole wardrobe.
+const ALL_PAGE = 100;
 // While Robes is reading new photos the list refreshes until every piece has filled in.
 export const READING_REFRESH_MS = 2000;
 
@@ -41,6 +44,21 @@ export function usePieces(filters: PieceFilters = {}) {
   });
   const pieces: Piece[] = query.data?.pages.flatMap((p) => p.items) ?? [];
   return { ...query, pieces, total: query.data?.pages[0]?.total ?? null };
+}
+
+// Every piece she owns, for a picker, a match or a count: never the first page alone (TestFlight,
+// 16 Nov: a wardrobe of 133 offered 7 of 17 accessories). The grid pages with usePieces instead.
+export function useAllPieces(opts: { enabled?: boolean } = {}) {
+  const query = useApiAll(
+    'wardrobe.list',
+    { input: { limit: ALL_PAGE } },
+    {
+      ...(opts.enabled === undefined ? {} : { enabled: opts.enabled }),
+      refetchInterval: (q) =>
+        q.state.data?.items.some((i) => i.status === 'reading') ? READING_REFRESH_MS : false,
+    },
+  );
+  return { ...query, pieces: query.data?.items ?? [] };
 }
 
 function withoutPiece(old: unknown, id: string): unknown {

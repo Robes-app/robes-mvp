@@ -1,6 +1,6 @@
 'use client';
 
-import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
+import { queryKeys, useApi, useApiAll, useApiClient } from '@robes/api-client/react';
 import type { PlanEntry } from '@robes/contracts';
 import { diary as copy, filters as filterCopy } from '@robes/copy';
 import { weekdayDayMonth, weekdayLong } from '@robes/core/calendar';
@@ -47,7 +47,7 @@ export function LookPicker({
   const [picks, setPicks] = useState<string[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [sheet, setSheet] = useState(false);
-  const looks = useApi('looks.list', { input: { limit: 60 } }, { enabled: open });
+  const looks = useApiAll('looks.list', { input: { limit: 60 } }, { enabled: open });
   const day = useApi('plan.get', { input: { from: date ?? '', days: 1 } }, { enabled: open });
   const all = useMemo(() => (looks.data?.items ?? []).map(lookFacets), [looks.data]);
   const filters = useLookFilters(all);
