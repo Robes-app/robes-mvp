@@ -1,6 +1,7 @@
 import type { SystemRepositories } from '@robes/db';
 import { z } from 'zod';
 import { type LinkFetchResult, LinkFetchResult as Result } from '../link';
+import { pageFields } from '../link/page-fields';
 import type { JobLogger } from '../logger';
 import { askForPhotos, type RequestPhoto } from '../receipts/photos';
 import { JobError, type JobHandler } from '../runtime';
@@ -35,6 +36,12 @@ export function createLinkImportHandler(deps: LinkImportDeps): JobHandler {
       if (!result) throw new JobError('fetch_unavailable');
       if (!result.ok) throw new JobError(`fetch_${result.reason}`.slice(0, 60));
       const { product } = result;
+      const page = {
+        category: product.category,
+        options: product.options,
+        color: product.color,
+        description: product.description,
+      };
       const inboxId = await deps.intake.fromLink(ctx.userId, {
         jobId: ctx.jobId,
         retailer: product.retailer,
@@ -46,13 +53,11 @@ export function createLinkImportHandler(deps: LinkImportDeps): JobHandler {
           currency: product.currency,
           imageUrl: product.imageUrl,
           sourceUrl: product.sourceUrl,
-          // What the shop says of the piece, for its photo read (category, colour, material).
-          page: {
-            category: product.category,
-            options: product.options,
-            color: product.color,
-            description: product.description,
-          },
+          // What the shop's words settle now (category, a stated composition, a named shade); the
+          // photo read refines them, and they stand if it can't run.
+          ...pageFields(page),
+          // What the shop says of the piece, for its photo read.
+          page,
         },
       });
       if (deps.requestPhoto && product.imageUrl) {

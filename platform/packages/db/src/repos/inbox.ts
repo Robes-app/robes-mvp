@@ -495,13 +495,15 @@ export function inboxIntakeRepo(db: Db) {
           ? {
               ...item,
               label: row?.source === 'link' ? item.label : read.label.slice(0, 120),
-              categoryL2: read.categoryL2,
-              categoryL3: read.categoryL3,
+              // What the photo can't tell keeps what the line already had (a link's shop words).
+              categoryL2: read.categoryL2 ?? lineFields(item).categoryL2,
+              categoryL3: read.categoryL2 ? read.categoryL3 : lineFields(item).categoryL3,
               color: read.color ?? lineFields(item).color,
-              colourShade: read.colourShade ?? null,
-              colourExtra: read.colourExtra ?? [],
-              print: read.print ?? null,
-              material: read.material ?? null,
+              colourShade: read.colourShade ?? item.colourShade ?? null,
+              colourExtra: read.colourExtra ?? item.colourExtra ?? [],
+              print: read.print ?? item.print ?? null,
+              // A composition the shop states outranks what a photo suggests.
+              material: item.material ?? read.material ?? null,
               photo: 'read',
             }
           : opts.keepPhoto
