@@ -10,6 +10,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { mediaKeys } from './keys';
 
@@ -48,6 +49,13 @@ export interface UploadRequest {
   expiresAt: Date;
 }
 
+// A form upload of one object: the holder can write that key alone, an image within the size
+// range, until it expires, and holds no credentials of its own (SEC-40's fetcher).
+export interface UploadForm {
+  url: string;
+  fields: Record<string, string>;
+}
+
 export interface StoredObject {
   bytes: number;
   contentType: string | undefined;
@@ -55,6 +63,7 @@ export interface StoredObject {
 
 export interface MediaStorage {
   presignPut(key: string, opts: { contentType: string; bytes: number }): Promise<UploadRequest>;
+  presignPost(key: string, opts: { maxBytes: number; expiresIn: number }): Promise<UploadForm>;
   head(key: string): Promise<StoredObject | null>;
   getObject(key: string): Promise<Uint8Array | null>;
   putObject(
@@ -106,6 +115,19 @@ export function createMediaStorage({ client, bucket }: MediaBucket): MediaStorag
         headers: { 'content-type': contentType },
         expiresAt: new Date(Date.now() + UPLOAD_URL_TTL_SECONDS * 1000),
       };
+    },
+
+    async presignPost(key, { maxBytes, expiresIn }) {
+      const { url, fields } = await createPresignedPost(client, {
+        Bucket: bucket,
+        Key: key,
+        Conditions: [
+          ['content-length-range', 1, maxBytes],
+          ['starts-with', '$Content-Type', 'image/'],
+        ],
+        Expires: expiresIn,
+      });
+      return { url, fields };
     },
 
     async head(key) {

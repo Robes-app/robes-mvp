@@ -81,3 +81,11 @@ export function pieceName(line: {
   const name = brand ? `${brand} ${noun}` : noun;
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
+
+// A held piece whose product photo is still on its way: asked of the fetcher and not yet settled,
+// or stored and still rendering. Review asks again until it lands (web and native).
+export function photoLanding(
+  entry: { items: readonly { reading: boolean; image: { status: string } | null }[] } | undefined,
+): boolean {
+  return !!entry?.items.some((i) => i.reading || i.image?.status === 'pending');
+}

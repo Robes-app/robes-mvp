@@ -63,34 +63,28 @@ describe('generate handler', () => {
     expect(run.mock.calls.map((c) => c[0])).toEqual([JOB_A, JOB_A]);
   });
 
-  it('stores a fetched receipt photo as the job’s pending asset, then reads it', async () => {
+  it('attaches a photo the fetcher uploaded to its read, then reads it', async () => {
     const run = vi.fn(async (_jobId: string) => 'succeeded' as const);
     const attachPhoto = vi.fn(async (jobId: string, photo: { stored: boolean }) =>
       jobId === JOB_A ? { userId: JOB_B, assetId: JOB_A, photo } : undefined,
     );
-    const putObject = vi.fn(async () => {});
     const log = logger();
     const handler = createGenerateHandler(async () => ({
       run,
       logger: log,
       system: { jobs: { attachPhoto } } as never,
-      storage: { putObject } as never,
     }));
-    const bytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
     await handler({
       Records: [
         record('p1', {
           jobId: JOB_A,
-          photoResult: { ok: true, contentType: 'image/jpeg', data: bytes.toString('base64') },
+          photoResult: { ok: true, contentType: 'image/jpeg', bytes: 732_820 },
         }),
         // Refused photos are attached too, so the line keeps what the receipt printed.
         record('p2', { jobId: JOB_B, photoResult: { ok: false, reason: 'status_403' } }),
       ],
     });
     expect(attachPhoto).toHaveBeenCalledWith(JOB_A, { stored: true });
-    expect(putObject).toHaveBeenCalledWith(`uploads/${JOB_B}/${JOB_A}/original`, bytes, {
-      contentType: 'image/jpeg',
-    });
     expect(attachPhoto).toHaveBeenCalledWith(JOB_B, { stored: false, reason: 'status_403' });
     expect(log.warn).toHaveBeenCalledWith({ jobId: JOB_B }, 'photo_result_unmatched');
     expect(run.mock.calls.map((c) => c[0])).toEqual([JOB_A]);
@@ -117,8 +111,12 @@ describe('fetch handler (SEC-40 isolated fetcher)', () => {
     expect(fetchPhoto).not.toHaveBeenCalled();
   });
 
-  it('fetches a receipt photo and sends back its bytes, never anything else', async () => {
-    const photo = { ok: true as const, contentType: 'image/jpeg' as const, data: '/9j/4A==' };
+  it('uploads a photo through the request’s form and sends back only how it went', async () => {
+    const photo = { ok: true as const, contentType: 'image/jpeg' as const, bytes: 4 };
+    const upload = {
+      url: 'https://robes-media.s3.eu-west-1.amazonaws.com/',
+      fields: { key: `uploads/${JOB_B}/${JOB_A}/original` },
+    };
     const fetchLink = vi.fn();
     const fetchPhoto = vi.fn(async () => photo);
     const sendResult = vi.fn(async () => {});
@@ -126,14 +124,23 @@ describe('fetch handler (SEC-40 isolated fetcher)', () => {
     const handler = createFetchHandler(() => ({ fetchLink, fetchPhoto, sendResult, logger: log }));
     await handler({
       Records: [
-        record('f1', { jobId: JOB_A, url: 'https://static.shop.example/p.jpg', kind: 'photo' }),
+        record('f1', {
+          jobId: JOB_A,
+          url: 'https://static.shop.example/p.jpg',
+          kind: 'photo',
+          upload,
+        }),
         record('f2', { jobId: JOB_A, url: 'https://shop.example/', kind: 'script' }),
+        // A photo with nowhere to go is never fetched.
+        record('f3', { jobId: JOB_A, url: 'https://static.shop.example/p.jpg', kind: 'photo' }),
       ],
     });
-    expect(fetchPhoto).toHaveBeenCalledWith('https://static.shop.example/p.jpg');
+    expect(fetchPhoto).toHaveBeenCalledTimes(1);
+    expect(fetchPhoto).toHaveBeenCalledWith('https://static.shop.example/p.jpg', upload);
     expect(sendResult).toHaveBeenCalledWith({ jobId: JOB_A, photoResult: photo });
     expect(fetchLink).not.toHaveBeenCalled();
     expect(log.warn).toHaveBeenCalledWith({ messageId: 'f2' }, 'fetch_message_invalid');
+    expect(log.warn).toHaveBeenCalledWith({ messageId: 'f3' }, 'fetch_message_invalid');
   });
 });
 
@@ -198,7 +205,9 @@ describe('maintenance handler', () => {
     const requestPhoto = vi.fn(async () => {});
     const intake = {
       awaitingPhotos: vi.fn(async () => [{ userId: JOB_A, inboxId: JOB_B }]),
-      queuePhotoReads: vi.fn(async () => [{ jobId: JOB_A, url: 'https://static.shop.test/p.jpg' }]),
+      queuePhotoReads: vi.fn(async () => [
+        { jobId: JOB_A, url: 'https://static.shop.test/p.jpg', assetId: JOB_B },
+      ]),
     };
     const withPhotos = { ...ctx, system: { ...ctx.system, inboxIntake: intake }, requestPhoto };
     await createMaintenanceHandler(async () => withPhotos as never)({
@@ -207,6 +216,7 @@ describe('maintenance handler', () => {
     expect(requestPhoto).toHaveBeenCalledWith({
       jobId: JOB_A,
       url: 'https://static.shop.test/p.jpg',
+      key: `uploads/${JOB_A}/${JOB_B}/original`,
     });
     const res = await createMaintenanceHandler(async () => ctx)({
       Records: [record('r', { kind: 'receipt-photos' })],

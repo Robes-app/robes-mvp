@@ -101,15 +101,16 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     );
   });
 
-  it('maintenance writes data exports and nothing else new', () => {
+  it('maintenance writes data exports, and signs photo uploads, and nothing else new', () => {
     const fn = functionNamed(s, 'maintenance');
     const sts = roleStatements(s, roleOf(s, fn));
     const puts = sts
       .filter((st) => list(st.Action).includes('s3:PutObject'))
       .flatMap((st) => list(st.Resource))
       .map((r) => JSON.stringify(r));
-    expect(puts).toHaveLength(1);
-    expect(puts[0]).toContain('/exports/*');
+    expect(puts).toHaveLength(2);
+    expect(puts.find((r) => r.includes('/exports/*'))).toBeDefined();
+    expect(puts.find((r) => r.includes('/uploads/*'))).toBeDefined();
     expect(sts.some((st) => list(st.Action).includes('s3:GetObject'))).toBe(false);
   });
 
@@ -147,9 +148,17 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
   it('inbound can only read stored mail, send from the stage domain and ask the fetcher', () => {
     const fn = functionNamed(s, 'inbound');
     const sts = roleStatements(s, roleOf(s, fn));
+    const on = (action: string) =>
+      JSON.stringify(
+        sts.filter((st) => list(st.Action).includes(action)).flatMap((st) => list(st.Resource)),
+      );
     const s3 = sts.filter((st) => list(st.Action).some((a) => a.startsWith('s3:')));
-    expect(s3.flatMap((st) => list(st.Action))).toEqual(['s3:GetObject']);
-    expect(JSON.stringify(s3.flatMap((st) => list(st.Resource)))).toContain('/inbound/*');
+    expect(s3.flatMap((st) => list(st.Action)).sort()).toEqual(['s3:GetObject', 's3:PutObject']);
+    expect(on('s3:GetObject')).toContain('/inbound/*');
+    expect(on('s3:GetObject')).not.toContain('/uploads/*');
+    // Only to sign the form the fetcher uploads a line's photo through.
+    expect(on('s3:PutObject')).toContain('/uploads/*');
+    expect(on('s3:PutObject')).not.toContain('/inbound/*');
     const queues = sts
       .filter((st) => list(st.Action).includes('sqs:SendMessage'))
       .flatMap((st) => list(st.Resource))
