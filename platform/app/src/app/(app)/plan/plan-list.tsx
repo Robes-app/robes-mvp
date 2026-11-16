@@ -92,9 +92,10 @@ function DayRow({
         isToday ? 'border-l-[3px] border-l-accent-inspire pl-[13px]' : 'pl-4'
       } ${focus}`}
     >
-      <span className="flex w-[34px] shrink-0 flex-col items-center">
+      {/* At least 34 wide, and as wide as TODAY needs: it never wraps (audit P1). */}
+      <span className="flex min-w-[34px] shrink-0 flex-col items-center">
         <span
-          className={`font-sans text-[9px] font-normal tracking-[0.14em] uppercase ${isToday ? 'text-accent-warm' : 'text-ink-faint'}`}
+          className={`whitespace-nowrap font-sans text-[9px] font-normal tracking-[0.14em] uppercase ${isToday ? 'text-accent-warm' : 'text-ink-faint'}`}
         >
           {label}
         </span>

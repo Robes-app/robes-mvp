@@ -96,10 +96,6 @@ export default function SignIn() {
               <Button onPress={sendCode} loading={busy} loadingLabel={copy.sendingCode}>
                 {copy.sendCode}
               </Button>
-              {/* Web twin: app/src/app/auth/sign-in/sign-in-form.tsx. */}
-              <Text size="small" tone="muted" className="-mt-2 text-center">
-                {copy.noPassword}
-              </Text>
               {apple || google ? (
                 <View className="gap-3">
                   <Eyebrow className="text-center">{copy.or}</Eyebrow>

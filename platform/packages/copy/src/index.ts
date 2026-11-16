@@ -34,7 +34,6 @@ export const auth = {
   sendCode: 'Email me a code',
   sendingCode: 'Sending…',
   // For beta testers who signed in with a password (F4): one line, under the button.
-  noPassword: 'Used a password? Robes emails you a code now.',
   codeTitle: 'Check your email.',
   codeSubtitle: (email: string): string => `Robes sent a six-digit code to ${email}.`,
   codeLabel: 'Code',
@@ -562,6 +561,11 @@ export const you = {
     morningCue: 'A morning cue with today’s look',
     nudges: 'Gentle nudges to add pieces',
     receipts: 'When a receipt becomes a piece',
+    // The phone's own permission above the switches (audit F8): they do nothing while it's off.
+    systemOff: 'Notifications are off for Robes',
+    systemOffSub: 'Turn on in Settings',
+    systemAsk: 'Allow notifications',
+    systemAskSub: 'Robes asks your phone first',
   },
   // The row that holds her consents and her data export (decided 27 Oct: one "privacy" row only).
   privacy: 'Your data',

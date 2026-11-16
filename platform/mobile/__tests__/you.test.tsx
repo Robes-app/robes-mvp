@@ -133,6 +133,35 @@ test('a notification toggle flips at once and saves just that key', async () => 
   });
 });
 
+// Audit F8: the phone's own permission leads the page. Off, a row sends her to Settings; never
+// asked, a row asks; allowed, nothing stands above the switches.
+const pushMock = () => jest.requireMock('expo-notifications') as { getPermissionsAsync: jest.Mock };
+
+test.each([
+  ['denied', 'push-system-off'],
+  ['undetermined', 'push-system-ask'],
+  ['granted', null],
+] as const)('Notifications with the phone’s permission %s', async (status, row) => {
+  const openSettings = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+  pushMock().getPermissionsAsync.mockResolvedValue({ status });
+  try {
+    mockFetch({ 'GET /me': ME });
+    await renderWithApi(<Notifications />);
+    expect(await screen.findByLabelText(you.notifications.nudges)).toBeTruthy();
+    if (row) {
+      await fireEvent.press(await screen.findByTestId(row));
+      if (status === 'denied') expect(openSettings).toHaveBeenCalled();
+    } else {
+      await waitFor(() => expect(pushMock().getPermissionsAsync).toHaveBeenCalled());
+      expect(screen.queryByTestId('push-system-off')).toBeNull();
+      expect(screen.queryByTestId('push-system-ask')).toBeNull();
+    }
+  } finally {
+    pushMock().getPermissionsAsync.mockResolvedValue({ status: 'undetermined' });
+    openSettings.mockRestore();
+  }
+});
+
 test('turning usage counts off also withdraws recordings', async () => {
   const calls = mockFetch({
     'GET /me/consents': {

@@ -3,19 +3,69 @@ import type { Me, NotificationPrefs } from '@robes/contracts';
 import { you } from '@robes/copy';
 import { ErrorText } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { ScrollView, View } from 'react-native';
+import { getPermissionsAsync } from 'expo-notifications';
+import { useCallback, useEffect, useState } from 'react';
+import { AppState, Linking, ScrollView, View } from 'react-native';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
-import { SettingsGroup, SettingsToggleRow } from './Settings';
+import { askForPushNow } from '@/lib/push';
+import { SettingsGroup, SettingsRow, SettingsToggleRow } from './Settings';
 
 const copy = you.notifications;
 const KEYS = ['looksReady', 'morningCue', 'nudges', 'receipts'] as const satisfies ReadonlyArray<
   keyof NotificationPrefs
 >;
 
+type Permission = 'granted' | 'denied' | 'undetermined' | null;
+
+// The phone's own notification permission, read again whenever she comes back to the app (from
+// Settings, say).
+function usePushPermission(): [Permission, () => void] {
+  const [status, setStatus] = useState<Permission>(null);
+  const read = useCallback(() => {
+    getPermissionsAsync().then(
+      (p) => setStatus(p.status as Permission),
+      () => setStatus(null),
+    );
+  }, []);
+  useEffect(() => {
+    read();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') read();
+    });
+    return () => sub.remove();
+  }, [read]);
+  return [status, read];
+}
+
 export function Notifications() {
+  const [permission, reread] = usePushPermission();
   return (
-    <ScrollView contentContainerClassName="px-6 pt-6 pb-12">
+    <ScrollView contentContainerClassName="gap-4 px-6 pt-6 pb-12">
+      {/* Audit F8: the switches mean nothing while the phone says no, so its state leads. */}
+      {permission === 'denied' ? (
+        <SettingsGroup>
+          <SettingsRow
+            first
+            label={copy.systemOff}
+            sub={copy.systemOffSub}
+            external
+            onPress={() => void Linking.openSettings()}
+            testID="push-system-off"
+          />
+        </SettingsGroup>
+      ) : permission === 'undetermined' ? (
+        <SettingsGroup>
+          <SettingsRow
+            first
+            label={copy.systemAsk}
+            sub={copy.systemAskSub}
+            onPress={() => void askForPushNow(api).finally(reread)}
+            testID="push-system-ask"
+          />
+        </SettingsGroup>
+      ) : null}
       <SettingsGroup>
         <NotificationRows />
       </SettingsGroup>
