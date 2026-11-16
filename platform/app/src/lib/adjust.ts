@@ -322,6 +322,9 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     drawNow: () => {
       if (stale) updateModel(false, true);
     },
+    // A draft's rack, as she builds it by hand: the model wears it with nothing said and nothing
+    // in the thread; the picture shows its own progress (Annie, 16 Nov).
+    dress: () => updateModel(true),
     // Robes' first line once a draft lands (home's box): its note, and the pieces to find.
     landed: (fresh: Look) => {
       const line = noteShort(fresh.note, 1) || fresh.name;
