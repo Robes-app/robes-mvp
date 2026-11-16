@@ -49,6 +49,9 @@ export const mockRouterModule = {
   useRouter: () => mockRouter,
   useNavigation: () => mockNavigation,
   useLocalSearchParams: () => ({ ...mockParams }),
+  // The SessionGate reads where it is: a test's screen stands at Home unless it says otherwise.
+  usePathname: () => '/',
+  useSegments: () => ['(tabs)'],
   Redirect: () => null,
   // A screen in a test is always the focused one: the effect runs once it mounts.
   useFocusEffect: (effect: () => void) => require('react').useEffect(effect, [effect]),

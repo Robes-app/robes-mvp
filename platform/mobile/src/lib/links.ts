@@ -91,3 +91,12 @@ export function nativePath(pathOrUrl: string): string {
   if (!params.length) return route;
   return `${route}?${params.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')}`;
 }
+
+// Where sign-in sends her after the code (audit F6): the screen a link was opening, if it's one of
+// ours. Only an in-app path ("/look/…"), never another host or scheme; anything else is Home.
+export function afterSignIn(next: string | string[] | undefined): string {
+  const path = Array.isArray(next) ? next[0] : next;
+  if (!path?.startsWith('/') || path.startsWith('//') || path.includes('://')) return '/';
+  if (path.startsWith('/sign-in') || path.startsWith('/onboarding')) return '/';
+  return path;
+}
