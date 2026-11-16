@@ -1142,10 +1142,11 @@ function DraftBody({
     router.replace('/looks');
   };
   // The box's send (look prompt PRD P2): her words go through the thread and the picture is drawn
-  // once the rack is answered.
+  // once the rack is answered. The drawer stays open on the conversation, capped so the look shows
+  // above it (look prompt improvements B6, Annie 16 Nov).
   const generate = () => {
     if (busy || (!words && !picked)) return;
-    if (adjust.send(words, { ...sendOpts, draw: true })) setDockOpen(false);
+    if (adjust.send(words, { ...sendOpts, draw: true })) setDockOpen(true);
     setPrompt('');
   };
   // A saved look's send asks, and what Robes changes is kept and drawn as it lands.
@@ -1153,7 +1154,7 @@ function DraftBody({
     if (busy || (!words && !picked) || rows.length === 0) return;
     if (adjust.send(words, sendOpts)) {
       setApplying('asked');
-      setDockOpen(false);
+      setDockOpen(true);
     }
     setPrompt('');
   };
@@ -1252,8 +1253,8 @@ function DraftBody({
   // it never covers the look: the box on a draft with no conversation yet, the closed bar with
   // Robes' question and its thumbs once there is one, the sparkle on a saved look or after a
   // thumbs up (F6). Opened it is a sheet over the dimmed look. A thumbs down opens it on what to
-  // change; a send closes it, so the change is seen on the look; and it opens again when Robes
-  // answers in words. Native twin: DraftLook.tsx.
+  // change; a send keeps it open, the look above it (B6, 16 Nov); minimise, a tap on the look or a
+  // thumbs up folds it, and it opens again when Robes answers in words. Native twin: DraftLook.tsx.
   const verdict = adjust.state.verdict;
   const [dockOpen, setDockOpen] = useState(false);
   useEffect(() => {

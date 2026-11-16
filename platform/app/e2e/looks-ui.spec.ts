@@ -147,11 +147,10 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await expect(page.getByText('Swapped in · was the white wide-leg trouser')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open Dark straight jean' })).toBeVisible();
 
-  // The send closed the prompt to its bar, so the change is seen on the look (testing, 15 Nov);
-  // the bar's disc opens it again as a sheet over the dimmed look.
-  await expect(field).toHaveCount(0);
-  await page.getByTestId('prompt-expand').click();
+  // The send keeps the prompt open as a sheet over the dimmed look, the conversation in it
+  // (look prompt improvements B6, 16 Nov).
   await expect(page.getByTestId('prompt-scrim')).toBeVisible();
+  await expect(field).toBeVisible();
   // A rule waits under Robes noticed; it changes nothing. The thread's text names what landed,
   // and Robes' words open the sheet again by themselves.
   await field.fill("I don't wear double denim");

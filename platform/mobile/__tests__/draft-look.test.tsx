@@ -330,11 +330,11 @@ test('a draft Robes made is asked about; Restyle it all re-writes it from her wo
     expect(calls.find((c) => c.path.endsWith('/restyle'))?.body).toEqual({ note: 'more casual' }),
   );
   expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
-  // The send closes the sheet: the closed bar carries the work in hand, the conversation her choice.
-  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  // The send keeps the sheet open on the conversation (B6, 16 Nov): her choice, then the work in
+  // hand.
+  expect(screen.getByTestId('draft-prompt')).toBeTruthy();
+  expect(await screen.findByText(`${fb.restyle.label} · “more casual”`)).toBeTruthy();
   expect(screen.getByText(fb.restyle.work(''))).toBeTruthy();
-  await openPrompt();
-  expect(screen.getByText(`${fb.restyle.label} · “more casual”`)).toBeTruthy();
 });
 
 test('closing asks: Discard lets the draft go, Keep for later only closes', async () => {
