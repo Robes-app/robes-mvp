@@ -1,7 +1,14 @@
 import { lookbook } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import { palette } from '@robes/tokens';
-import { fonts, maxFontSizeMultiplier, Text, typeStyle, useColor } from '@robes/ui-native';
+import {
+  fonts,
+  maxFontSizeMultiplier,
+  photoSource,
+  Text,
+  typeStyle,
+  useColor,
+} from '@robes/ui-native';
 import { Image } from 'expo-image';
 import { Pressable, Text as RNText, View } from 'react-native';
 
@@ -72,7 +79,7 @@ export function DashedCard({
           style={{ width: 52, borderRightWidth: 1, borderStyle: 'dashed' }}
         >
           <Image
-            source={{ uri: photo }}
+            source={photoSource(photo)}
             contentFit="cover"
             contentPosition={{ left: '50%', top: '20%' }}
             accessible={false}

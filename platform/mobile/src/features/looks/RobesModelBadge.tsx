@@ -3,7 +3,15 @@ import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
-import { appCaps, fonts, Glass, maxFontSizeMultiplier, Sheet, useColor } from '@robes/ui-native';
+import {
+  appCaps,
+  fonts,
+  Glass,
+  maxFontSizeMultiplier,
+  photoSource,
+  Sheet,
+  useColor,
+} from '@robes/ui-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -126,7 +134,7 @@ function Row({
     >
       {thumb ? (
         <ExpoImage
-          source={{ uri: thumb }}
+          source={photoSource(thumb)}
           contentFit="cover"
           contentPosition={{ top: '12%', left: '50%' }}
           accessible={false}

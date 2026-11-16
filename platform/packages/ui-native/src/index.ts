@@ -28,6 +28,7 @@ export { useReducedMotion } from './motion';
 export { Chip, type ChipProps, Pill, type PillProps } from './Pill';
 export { PreferenceControl, type PreferenceControlProps } from './PreferenceControl';
 export { Progress, type ProgressProps } from './Progress';
+export { photoSource } from './photo-source';
 export {
   SegmentedControl,
   type SegmentedControlProps,

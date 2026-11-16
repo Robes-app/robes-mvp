@@ -19,7 +19,12 @@ function AccountForm({ me }: { me: Me }) {
     onSuccess: (next) => queryClient.setQueryData(queryKeys.call('me.get'), next),
   });
   return (
-    <ScrollView contentContainerClassName="gap-4 px-6 pb-12" keyboardShouldPersistTaps="handled">
+    // iOS insets the scroll by the keyboard, so the field she is typing in stays in view.
+    <ScrollView
+      contentContainerClassName="gap-4 px-6 pb-12"
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+    >
       <Field
         label={copy.firstName}
         value={firstName}

@@ -1,7 +1,7 @@
 import { ui } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import type { ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { PrimaryScope } from './Button';
 import { useColor } from './color';
 import { ModalInsets } from './ModalInsets';
@@ -90,11 +90,18 @@ export function Subview({
     >
       <ModalInsets>
         {(insets) => (
-          <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
+          // Full screen from the top, so the keyboard lifts the footer (TagsView's field) by its
+          // own height (audit, native: a field under the keyboard).
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            className="flex-1 bg-bg"
+            style={{ paddingTop: insets.top }}
+          >
             <SubviewHeader title={title} onBack={onBack} />
             <PrimaryScope>
               <ScrollView
                 keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
                 contentContainerClassName="px-5 pt-5 pb-8"
                 className="flex-1"
               >
@@ -109,7 +116,7 @@ export function Subview({
                 </View>
               ) : null}
             </PrimaryScope>
-          </View>
+          </KeyboardAvoidingView>
         )}
       </ModalInsets>
     </Modal>
