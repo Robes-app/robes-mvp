@@ -1,6 +1,6 @@
 import type { NotificationItem } from '@robes/contracts';
 import { bell, ui } from '@robes/copy';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Bell } from '../src/components/Bell';
 import { mockFetch, renderWithApi } from './support/api';
 import { mockRouter } from './support/router';
@@ -43,7 +43,7 @@ function routes() {
   });
 }
 
-test('two items render with where each leads; a tap routes, × dismisses and the card leaves', async () => {
+test('two items render with where each leads; a tap routes, the swipe’s Dismiss sends it and the card leaves', async () => {
   const calls = routes();
   await renderWithApi(<Bell />);
   const button = await screen.findByTestId('bell');
@@ -144,4 +144,26 @@ test('with nothing waiting there is no bell (PRD rev 3 §2.2)', async () => {
   await renderWithApi(<Bell />);
   await waitFor(() => expect(screen.queryByTestId('bell')).toBeNull());
   expect(screen.queryByTestId('bell-dot', { includeHiddenElements: true })).toBeNull();
+});
+
+test('a card swipes to dismiss as a Wardrobe row does: screen readers get Dismiss as its action', async () => {
+  const calls = routes();
+  await renderWithApi(<Bell />);
+  await fireEvent.press(await screen.findByTestId('bell'));
+  await screen.findByRole('link', {
+    name: `${bell.logWear('Wednesday')} · ${bell.dest.diary}`,
+  });
+  const row = screen.getByTestId('bell-item-2026-09-30');
+  expect(row.props.accessibilityActions).toEqual([
+    { name: 'remove', label: `${bell.dismiss}: ${bell.logWear('Wednesday')}` },
+  ]);
+  // The pan handlers tell the test renderer the row takes no touches at rest, so it will not
+  // fire events on it; VoiceOver calls the action itself.
+  await act(() => row.props.onAccessibilityAction({ nativeEvent: { actionName: 'remove' } }));
+  await waitFor(() => expect(screen.queryByText(bell.logWear('Wednesday'))).toBeNull());
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/notifications/dismiss'))?.body).toEqual({
+      key: '2026-09-30',
+    }),
+  );
 });

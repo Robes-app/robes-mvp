@@ -11,8 +11,9 @@ import {
   Skeleton,
   useColor,
 } from '@robes/ui-native';
-import { type ReactNode, useMemo, useRef } from 'react';
-import { Animated, PanResponder, Pressable, Text, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { Pressable, Text, View } from 'react-native';
+import { SwipeRow } from '@/components/SwipeRow';
 import { renditionUri } from '@/lib/images';
 
 export interface CardPiece {
@@ -164,89 +165,6 @@ export function StarButton({
   );
 }
 
-const OPEN_AT = 88;
-const REMOVE_AT = 160;
-
-// Swipe to let go (legacy _wrSwipeInit): past 44 it rests open at 88 over the action, past 160 it
-// acts; a tap on an open row closes it. The action reads Remove (a wish) or Delete (a piece she
-// owns, which asks first). Screen readers get it as an action on the row.
-function SwipeRow({
-  children,
-  removeText = copy.card.swipeRemove,
-  removeLabel,
-  onRemove,
-}: {
-  children: ReactNode;
-  removeText?: string;
-  removeLabel: string;
-  onRemove: () => void;
-}) {
-  const x = useRef(new Animated.Value(0)).current;
-  const rest = useRef(0);
-  const remove = useRef(onRemove);
-  remove.current = onRemove;
-  const pan = useMemo(() => {
-    const settle = (to: number) => {
-      rest.current = to;
-      Animated.spring(x, { toValue: to, useNativeDriver: true, bounciness: 0 }).start();
-    };
-    return {
-      settle,
-      responder: PanResponder.create({
-        // An open row takes the tap that would open the piece, and closes.
-        onStartShouldSetPanResponderCapture: () => rest.current !== 0,
-        onMoveShouldSetPanResponder: (_, g) =>
-          Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
-        onPanResponderMove: (_, g) =>
-          x.setValue(Math.max(-REMOVE_AT - 20, Math.min(0, rest.current + g.dx))),
-        onPanResponderRelease: (_, g) => {
-          if (rest.current !== 0 && Math.abs(g.dx) < 8) {
-            settle(0);
-            return;
-          }
-          const at = rest.current + g.dx;
-          if (at <= -REMOVE_AT) {
-            settle(0);
-            remove.current();
-          } else settle(at <= -44 ? -OPEN_AT : 0);
-        },
-        onPanResponderTerminate: () => settle(0),
-      }),
-    };
-  }, [x]);
-  return (
-    <View className="overflow-hidden rounded-[3px] bg-accent-warm">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={removeLabel}
-        onPress={() => {
-          pan.settle(0);
-          onRemove();
-        }}
-        className="absolute top-0 right-0 bottom-0 items-center justify-center"
-        style={{ width: OPEN_AT }}
-      >
-        <Text
-          className="text-[10px] text-bg uppercase"
-          style={{ fontFamily: fonts.sansMedium, letterSpacing: 2 }}
-        >
-          {removeText}
-        </Text>
-      </Pressable>
-      <Animated.View
-        {...pan.responder.panHandlers}
-        style={{ transform: [{ translateX: x }] }}
-        accessibilityActions={[{ name: 'remove', label: removeLabel }]}
-        onAccessibilityAction={(e) => {
-          if (e.nativeEvent.actionName === 'remove') onRemove();
-        }}
-      >
-        {children}
-      </Animated.View>
-    </View>
-  );
-}
-
 // What a row says at its right (Front Door canvas 3b and the Rack): an owned piece's wears behind
 // a calendar ("New" before the first), a wish's price, a piece to find's price behind a bag or —
 // on a look — a wish's price behind a heart. `label` is what a reader hears.
@@ -385,9 +303,9 @@ export function CardRow({
       <View className="overflow-hidden rounded-[3px]">
         {swipe ? (
           <SwipeRow
-            {...(swipe.text ? { removeText: swipe.text } : {})}
-            removeLabel={swipe.label}
-            onRemove={swipe.onRemove}
+            text={swipe.text ?? copy.card.swipeRemove}
+            label={swipe.label}
+            onAct={swipe.onRemove}
           >
             {face}
           </SwipeRow>
