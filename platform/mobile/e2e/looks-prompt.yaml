@@ -38,9 +38,12 @@ appId: host.exp.Exponent
       visible: 'Leave the weather out'
     commands:
       - tapOn: 'Leave the weather out'
-      - assertVisible: 'Add location & weather'
+      # "Add location & weather", read by its name: Bring the weather back.
+      - assertVisible:
+          id: 'weather-chip'
       - assertVisible: 'Dinner with friends'
-      - tapOn: 'Add location & weather'
+      - tapOn:
+          id: 'weather-chip'
       - assertVisible: 'Leave the weather out'
 - tapOn:
     id: 'prompt-send'
@@ -52,7 +55,8 @@ appId: host.exp.Exponent
     timeout: 10000
 - assertVisible: 'Dinner with friends'
 - assertVisible: '(?i)styling with robes'
-- assertVisible: 'Dressing it…'
+# Robes at work, or (when the draft comes back at once) already asking about it.
+- assertVisible: 'Dressing it…|How does this feel for .*|How is this look\?'
 # Fold the drawer and leave; a draft already made asks what to do with it.
 - tapOn:
     id: 'prompt-minimise'
@@ -67,3 +71,6 @@ appId: host.exp.Exponent
     visible:
       id: 'disc-create'
     timeout: 10000
+# The draft's sheet is still sliding away: the next flow's first tap would land on nothing.
+- waitForAnimationToEnd:
+    timeout: 5000
