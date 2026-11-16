@@ -18,6 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 import { SavedTile } from '@/features/looks/LookTiles';
 import { SuggestedRail } from '@/features/looks/SuggestedRail';
 import { SettingsRow } from '@/features/you/Settings';
@@ -199,22 +200,25 @@ export function PieceDetail({ id }: { id: string }) {
         }}
         onCancel={() => setConfirm(false)}
       />
-      <Sheet
+      {/* Her wears and the looks she wears it in run long: iOS's own sheet, pulled up to full. */}
+      <DetentSheet
         open={open === 'wears'}
         onClose={() => setOpen(null)}
         title={copy.piece.rows.worn}
-        closeButton
+        scroll
+        testID="piece-wears"
       >
         <Wears pieceId={piece.id} />
-      </Sheet>
-      <Sheet
+      </DetentSheet>
+      <DetentSheet
         open={open === 'looks'}
         onClose={() => setOpen(null)}
         title={copy.piece.rows.inLooks}
-        closeButton
+        scroll
+        testID="piece-looks"
       >
         <InLooks pieceId={piece.id} onOpen={() => setOpen(null)} />
-      </Sheet>
+      </DetentSheet>
       <PieceFieldSheet
         piece={piece}
         field={field}

@@ -33,12 +33,12 @@ import {
   MIN_TOUCH,
   maxFontSizeMultiplier,
   Pill,
-  Sheet,
   Text,
   useColor,
 } from '@robes/ui-native';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 import { ColourPicker, OptionRow, PrintPicker } from './ColourField';
 import { MaterialPicker } from './MaterialField';
 
@@ -224,7 +224,9 @@ export function PieceFieldSheet({
   const back = category?.back;
 
   return (
-    <Sheet
+    // A piece's lists run long (the colour families, the categories): iOS's own sheet at two
+    // heights, the list scrolling inside it (Annie, 16 Nov).
+    <DetentSheet
       open={field !== null}
       onClose={onClose}
       title={category?.title ?? (field ? TITLES[field] : '')}
@@ -241,9 +243,13 @@ export function PieceFieldSheet({
             ),
           }
         : {})}
+      // A tap on wearFor or a season is the answer, so Done at the right is the one way out: no ×
+      // (a spacer keeps the title centred).
       {...(field === 'wearFor' || field === 'season'
-        ? { closeLabel: copy.done }
-        : { closeButton: true })}
+        ? { done: { label: copy.done, onPress: onClose }, leading: <View style={{ width: 36 }} /> }
+        : {})}
+      scroll
+      testID="piece-field-sheet"
     >
       <View className="gap-4 pb-6">
         {field === 'wearFor' ? (
@@ -367,7 +373,7 @@ export function PieceFieldSheet({
           </Button>
         ) : null}
       </View>
-    </Sheet>
+    </DetentSheet>
   );
 }
 
