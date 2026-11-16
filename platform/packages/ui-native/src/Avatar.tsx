@@ -1,6 +1,7 @@
 import { Image as ExpoImage } from 'expo-image';
 import { Text, View } from 'react-native';
 import { cx } from './cx';
+import { photoSource } from './photo-source';
 import { fonts, maxFontSizeMultiplier } from './scale';
 
 const sizes = { sm: 32, md: 44, lg: 72 } as const;
@@ -53,7 +54,7 @@ export function Avatar({
     >
       {source ? (
         <ExpoImage
-          source={{ uri: source }}
+          source={photoSource(source)}
           contentFit="cover"
           accessible={false}
           style={{ width: px, height: px }}

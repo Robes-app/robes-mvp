@@ -54,7 +54,7 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
   const waiting = off ? 0 : (held.data?.count ?? 0);
 
   return (
-    <ScrollView contentContainerClassName="gap-4 px-6 pb-12">
+    <ScrollView contentContainerClassName="gap-4 px-6 pt-6 pb-12">
       <Eyebrow>{copy.eyebrow}</Eyebrow>
       <Heading style={{ fontSize: 26 }}>{copy.heading}</Heading>
       {value ? (

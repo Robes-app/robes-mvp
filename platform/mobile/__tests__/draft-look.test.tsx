@@ -151,7 +151,9 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
     screen.getByRole('tab', { name: wardrobe.segments.shop }).props.accessibilityState.disabled,
   ).toBe(true);
   expect(screen.getByLabelText(diary.flyout.search)).toBeTruthy();
-  expect(screen.getByRole('button', { name: diary.flyout.photograph })).toBeTruthy();
+  // Photograph one leads the grid once her pieces have loaded: wait for it, as for the pieces
+  // (it raced the load under a busy test run).
+  expect(await screen.findByRole('button', { name: diary.flyout.photograph })).toBeTruthy();
   await fireEvent.press(
     await screen.findByRole('checkbox', { name: diary.flyout.pick('Silk scarf') }),
   );

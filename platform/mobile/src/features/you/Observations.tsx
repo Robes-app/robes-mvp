@@ -41,7 +41,7 @@ export function Observations() {
     (x) => x.source !== 'typed',
   );
   return (
-    <ScrollView contentContainerClassName="gap-6 px-6 pb-12">
+    <ScrollView contentContainerClassName="gap-6 px-6 pt-6 pb-12">
       <Text size="caption" tone="muted" className="text-center">
         {copy.sub}
       </Text>

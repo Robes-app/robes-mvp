@@ -12,7 +12,7 @@ import {
   useColor,
 } from '@robes/ui-native';
 import type { ReactNode } from 'react';
-import { Pressable, Text as RNText, ScrollView, TextInput, View } from 'react-native';
+import { FlatList, Pressable, Text as RNText, ScrollView, TextInput, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
 
 const copy = diary.flyout;
@@ -135,92 +135,122 @@ export function WardrobeGrid<T extends GridItem>({
           <Skeleton width="31%" aspectRatio={3 / 4} />
         </View>
       ) : (
-        <ScrollView
+        // A list, so only the rows on screen are drawn: a wardrobe of hundreds stays quick
+        // (audit, native: lists). Photograph one leads as the first cell.
+        <FlatList<Cell<T>>
+          data={onSnap ? [SNAP, ...shown] : shown}
+          keyExtractor={(c) => (c === SNAP ? 'snap' : c.id)}
+          numColumns={3}
+          initialNumToRender={12}
+          windowSize={7}
           style={grow ? { flex: 1 } : { flexShrink: 1 }}
           className="-mx-1.5"
-          contentContainerClassName="flex-row flex-wrap gap-y-3 pb-4"
+          contentContainerClassName="pb-4"
           keyboardShouldPersistTaps="handled"
           accessibilityLabel={copy.eyebrow}
-        >
-          {shown.length === 0 && !onSnap ? empty : null}
-          {onSnap ? (
-            <View style={{ width: '33.333%' }} className="gap-1.5 px-1.5">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={copy.photograph}
-                onPress={onSnap}
-                className="aspect-[3/4] w-full items-center justify-center gap-2.5 rounded-input border border-dashed border-selected-line bg-surface px-2"
-                testID="flyout-snap"
-              >
-                <Icon name="camera" size={18} color={muted} />
-                <RNText
-                  maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-                  className="text-center text-ink uppercase"
-                  style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8 }}
-                >
-                  {copy.photograph}
-                </RNText>
-              </Pressable>
-              <Text size="caption" tone="muted" italic>
-                {copy.adds}
-              </Text>
-            </View>
-          ) : null}
-          {shown.map((piece) => {
-            const ticked = on(piece);
-            const uri = renditionUri(piece.image, 160);
-            return (
-              <View key={piece.id} style={{ width: '33.333%' }} className="gap-1.5 px-1.5">
+          {...(empty ? { ListEmptyComponent: <>{empty}</> } : {})}
+          renderItem={({ item: c }) =>
+            c === SNAP ? (
+              <View style={{ width: '33.333%' }} className="mb-3 gap-1.5 px-1.5">
                 <Pressable
-                  accessibilityRole="checkbox"
-                  accessibilityLabel={pickLabel(piece.label)}
-                  accessibilityState={{ checked: ticked }}
-                  onPress={() => onToggle(piece)}
-                  className={`overflow-hidden rounded-input border ${
-                    ticked ? 'border-selected-line' : 'border-hairline'
-                  }`}
-                  testID={`flyout-piece-${piece.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.photograph}
+                  onPress={onSnap}
+                  className="aspect-[3/4] w-full items-center justify-center gap-2.5 rounded-input border border-dashed border-selected-line bg-surface px-2"
+                  testID="flyout-snap"
                 >
-                  {/* The whole piece on a 3:4 white mat. */}
-                  {uri ? (
-                    <Image
-                      source={uri}
-                      alt=""
-                      aspect="3:4"
-                      contentFit="contain"
-                      blurhash={piece.image?.blurhash}
-                    />
-                  ) : (
-                    <View className="aspect-[3/4] w-full bg-surface-sunk" />
-                  )}
-                  <View
-                    className={`absolute top-1.5 right-1.5 size-5 items-center justify-center rounded-pill border ${
-                      ticked
-                        ? 'border-selected-line bg-selected'
-                        : 'border-surface-raised bg-surface-raised/70'
-                    }`}
+                  <Icon name="camera" size={18} color={muted} />
+                  <RNText
+                    maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+                    className="text-center text-ink uppercase"
+                    style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8 }}
                   >
-                    {ticked ? <Icon name="check" size={11} color={ink} /> : null}
-                  </View>
+                    {copy.photograph}
+                  </RNText>
                 </Pressable>
-                <Text
-                  size="small"
-                  numberOfLines={piece.meta ? 1 : 2}
-                  className="font-display"
-                  style={{ lineHeight: 16 }}
-                >
-                  {piece.label}
+                <Text size="caption" tone="muted" italic>
+                  {copy.adds}
                 </Text>
-                {piece.meta ? (
-                  <Text size="caption" tone="muted" numberOfLines={1}>
-                    {piece.meta}
-                  </Text>
-                ) : null}
               </View>
-            );
-          })}
-        </ScrollView>
+            ) : (
+              <PieceCell
+                piece={c}
+                ticked={on(c)}
+                label={pickLabel(c.label)}
+                onToggle={() => onToggle(c)}
+              />
+            )
+          }
+        />
       )}
+    </View>
+  );
+}
+
+const SNAP = 'snap' as const;
+type Cell<T> = T | typeof SNAP;
+
+// One piece in the grid: the whole piece on a 3:4 white mat with its tick disc, then its name.
+function PieceCell({
+  piece,
+  ticked,
+  label,
+  onToggle,
+}: {
+  piece: GridItem;
+  ticked: boolean;
+  label: string;
+  onToggle: () => void;
+}) {
+  const ink = useColor('ink');
+  const uri = renditionUri(piece.image, 160);
+  return (
+    <View style={{ width: '33.333%' }} className="mb-3 gap-1.5 px-1.5">
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityLabel={label}
+        accessibilityState={{ checked: ticked }}
+        onPress={onToggle}
+        className={`overflow-hidden rounded-input border ${
+          ticked ? 'border-selected-line' : 'border-hairline'
+        }`}
+        testID={`flyout-piece-${piece.id}`}
+      >
+        {/* The whole piece on a 3:4 white mat. */}
+        {uri ? (
+          <Image
+            source={uri}
+            alt=""
+            aspect="3:4"
+            contentFit="contain"
+            blurhash={piece.image?.blurhash}
+          />
+        ) : (
+          <View className="aspect-[3/4] w-full bg-surface-sunk" />
+        )}
+        <View
+          className={`absolute top-1.5 right-1.5 size-5 items-center justify-center rounded-pill border ${
+            ticked
+              ? 'border-selected-line bg-selected'
+              : 'border-surface-raised bg-surface-raised/70'
+          }`}
+        >
+          {ticked ? <Icon name="check" size={11} color={ink} /> : null}
+        </View>
+      </Pressable>
+      <Text
+        size="small"
+        numberOfLines={piece.meta ? 1 : 2}
+        className="font-display"
+        style={{ lineHeight: 16 }}
+      >
+        {piece.label}
+      </Text>
+      {piece.meta ? (
+        <Text size="caption" tone="muted" numberOfLines={1}>
+          {piece.meta}
+        </Text>
+      ) : null}
     </View>
   );
 }

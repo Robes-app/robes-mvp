@@ -1,7 +1,7 @@
 import { diary } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import { palette } from '@robes/tokens';
-import { MIN_TOUCH, useColor } from '@robes/ui-native';
+import { MIN_TOUCH, photoSource, useColor } from '@robes/ui-native';
 import { Image as ExpoImage } from 'expo-image';
 import { Pressable, View } from 'react-native';
 
@@ -59,7 +59,7 @@ export function ModelStack({
         {portrait ? (
           // Cropped to the face, as Felix's `450% auto` at `50% 9%` on a full-length 4:5 photo.
           <ExpoImage
-            source={{ uri: portrait }}
+            source={photoSource(portrait)}
             contentFit="cover"
             accessible={false}
             style={FACE}

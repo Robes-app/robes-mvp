@@ -127,7 +127,12 @@ export function DailyLookView({ id }: { id: string }) {
   const weather = weatherLine(look.weather);
   const value = name ?? look.headline;
   return (
-    <ScrollView contentContainerClassName="gap-6 px-6 py-6" keyboardShouldPersistTaps="handled">
+    // iOS insets the scroll by the keyboard, so the name field stays in view.
+    <ScrollView
+      contentContainerClassName="gap-6 px-6 py-6"
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+    >
       <View className="gap-2">
         <Eyebrow>{look.occasionLabel || copy.eyebrow}</Eyebrow>
         <Heading size="xl">{look.headline}</Heading>

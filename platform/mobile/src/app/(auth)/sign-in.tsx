@@ -14,7 +14,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
 import { authClient } from '@/lib/auth-client';
 import { LEGAL_URLS } from '@/lib/config';
 import { afterSignIn } from '@/lib/links';
@@ -74,9 +74,13 @@ export default function SignIn() {
     <PrimaryScope>
       <View className="flex-1 bg-bg">
         <WarmGround />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          className="flex-1 justify-center gap-8 px-6"
+        {/* A scroll, centred while it fits: on a small iPhone with the keyboard up, the legal
+            line and the Apple and Google buttons scroll into reach instead of standing under it
+            (audit, native: keyboard). */}
+        <ScrollView
+          automaticallyAdjustKeyboardInsets
+          keyboardShouldPersistTaps="handled"
+          contentContainerClassName="grow justify-center gap-8 px-6 py-10"
         >
           {step === 'email' ? (
             <>
@@ -180,7 +184,7 @@ export default function SignIn() {
               </View>
             </>
           )}
-        </KeyboardAvoidingView>
+        </ScrollView>
       </View>
     </PrimaryScope>
   );
