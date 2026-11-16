@@ -2,7 +2,7 @@ import type { DiaryDay } from '@robes/contracts';
 import { diary as copy } from '@robes/copy';
 import { diaryPages, weekdayLong, weekdayShort } from '@robes/core/calendar';
 import { fonts, maxFontSizeMultiplier, typeStyle } from '@robes/ui-native';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   Text as RNText,
@@ -37,10 +37,15 @@ export function DiaryStrip({
   const window = useWindowDimensions();
   const [width, setWidth] = useState(window.width);
   const pages = diaryPages(days);
-  const home = Math.max(
-    0,
-    pages.findIndex((p) => p.some((d) => d.date === today)),
-  );
+  const pageOf = (date: string) => pages.findIndex((p) => p.some((d) => d.date === date));
+  // The page on screen: the selected day's (a bell nudge lands on a day last week), else today's.
+  const home = Math.max(0, pageOf(selected) >= 0 ? pageOf(selected) : pageOf(today));
+  const laidOut = useRef(false);
+  // A day picked from outside the strip (the bell) brings its page into view; a tap inside the
+  // strip is already on the page in view, so this is still.
+  useEffect(() => {
+    if (laidOut.current) scroller.current?.scrollTo({ x: width * home, animated: true });
+  }, [home, width]);
   return (
     <ScrollView
       ref={scroller}
@@ -52,11 +57,12 @@ export function DiaryStrip({
       accessibilityLabel={copy.strip.label}
       testID="diary-strip"
       className="-mx-5"
-      // Today's page is the one on screen first; a swipe reaches the others.
+      // The selected day's page is the one on screen first; a swipe reaches the others.
       onLayout={(e) => {
         const w = e.nativeEvent.layout.width;
         if (w) setWidth(w);
         scroller.current?.scrollTo({ x: (w || width) * home, animated: false });
+        laidOut.current = true;
       }}
     >
       {pages.map((page, i) => (
