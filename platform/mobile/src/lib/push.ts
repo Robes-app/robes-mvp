@@ -61,6 +61,16 @@ export async function askForPushOnce(api: ApiClient): Promise<PushResult> {
   return status === 'granted' ? register(api) : 'denied';
 }
 
+// Her own ask (You › Notifications' Allow row): the system prompt now, if iOS hasn't asked yet.
+export async function askForPushNow(api: ApiClient): Promise<PushResult> {
+  if (!Device.isDevice) return 'unsupported';
+  const current = await Notifications.getPermissionsAsync();
+  if (current.status !== 'undetermined') return refreshPush(api);
+  await SecureStore.setItemAsync(ASKED_KEY, '1');
+  const { status } = await Notifications.requestPermissionsAsync();
+  return status === 'granted' ? register(api) : 'denied';
+}
+
 // Sign-out: this device stops getting her notifications. Best effort; the session is going anyway.
 export async function unregisterPush(api: ApiClient): Promise<void> {
   const token = await SecureStore.getItemAsync(TOKEN_KEY);

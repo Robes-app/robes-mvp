@@ -561,6 +561,11 @@ export const you = {
     morningCue: 'A morning cue with today’s look',
     nudges: 'Gentle nudges to add pieces',
     receipts: 'When a receipt becomes a piece',
+    // The phone's own permission above the switches (audit F8): they do nothing while it's off.
+    systemOff: 'Notifications are off for Robes',
+    systemOffSub: 'Turn on in Settings',
+    systemAsk: 'Allow notifications',
+    systemAskSub: 'Robes asks your phone first',
   },
   // The row that holds her consents and her data export (decided 27 Oct: one "privacy" row only).
   privacy: 'Your data',
