@@ -23,14 +23,29 @@ const AVATAR = 26;
 const DISC = 32;
 
 // The prompt row's placeholder turns through the suggestions while the field is empty.
+// Every box turns on one clock (look prompt improvements B8, 16 Nov): the resting box and the
+// open sheet's box show the same line, so opening the prompt never jumps back to the first.
+const turnNow = () => Math.floor(Date.now() / TURN_MS);
 export function useTurningPlaceholder(lines: readonly string[], on: boolean): string {
-  const [i, setI] = useState(0);
+  const [turn, setTurn] = useState(turnNow);
   useEffect(() => {
     if (!on || lines.length < 2) return;
-    const t = setInterval(() => setI((n) => n + 1), TURN_MS);
-    return () => clearInterval(t);
+    setTurn(turnNow());
+    // Wakes on the clock's next turn, then on each one after it.
+    let t: ReturnType<typeof setTimeout>;
+    const next = () => {
+      t = setTimeout(
+        () => {
+          setTurn(turnNow());
+          next();
+        },
+        TURN_MS - (Date.now() % TURN_MS),
+      );
+    };
+    next();
+    return () => clearTimeout(t);
   }, [on, lines.length]);
-  return lines[i % lines.length] ?? '';
+  return lines[turn % lines.length] ?? '';
 }
 
 // The prompt box (look prompt PRD P1–P8, S1, D1; redline 14 Nov pins 1, 5, 8, 9, 11): white on

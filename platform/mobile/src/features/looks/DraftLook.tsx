@@ -185,19 +185,24 @@ function useSources(
 }
 
 // A tap on Wardrobe while she owns nothing (S3): one line and the way in.
+// iOS shows one sheet at a time, so the prompt's sheet steps down for it; `onClosed` (once it has
+// gone) is where the prompt comes back (B7, 16 Nov).
 function EmptyWardrobeSheet({
   open,
   onClose,
+  onClosed,
   onAdd,
 }: {
   open: boolean;
   onClose: () => void;
+  onClosed: () => void;
   onAdd: () => void;
 }) {
   return (
     <Sheet
       open={open}
       onClose={onClose}
+      onClosed={onClosed}
       title={copy.emptyWardrobe.title}
       closeButton
       testID="empty-wardrobe"
@@ -628,6 +633,8 @@ function NewDraft({
   const hasWardrobe = owned !== null && owned > 0;
   const src = useSources(owned);
   const [emptyWardrobe, setEmptyWardrobe] = useState(false);
+  // The prompt was open when the empty-wardrobe sheet took its place: it comes back after (B7).
+  const backToPrompt = useRef(false);
   const [picker, setPicker] = useState<PickerMode | null>(pick ? { add: true } : null);
   const [adding, setAdding] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -784,6 +791,7 @@ function NewDraft({
     sources: src.sources,
     onSource: (which: Source) => {
       if (which === 'wardrobe' && src.empty) {
+        backToPrompt.current = typing;
         setTyping(false);
         setEmptyWardrobe(true);
       } else src.toggle(which);
@@ -872,7 +880,14 @@ function NewDraft({
       <EmptyWardrobeSheet
         open={emptyWardrobe}
         onClose={() => setEmptyWardrobe(false)}
-        onAdd={() => setAdding(true)}
+        onClosed={() => {
+          if (backToPrompt.current) setTyping(true);
+          backToPrompt.current = false;
+        }}
+        onAdd={() => {
+          backToPrompt.current = false;
+          setAdding(true);
+        }}
       />
       <PiecePicker
         mode={picker}
@@ -945,6 +960,8 @@ function DraftBody({
   const hasWardrobe = owned !== null && owned > 0;
   const src = useSources(owned, brief?.sources ?? null);
   const [emptyWardrobe, setEmptyWardrobe] = useState(false);
+  // The prompt was open when the empty-wardrobe sheet took its place: it comes back after (B7).
+  const backToPrompt = useRef(false);
   const [rackLayout, setRackLayout] = useState<WardrobeLayout>('list');
   const [editingPieces, setEditingPieces] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -1311,6 +1328,7 @@ function DraftBody({
     sources: src.sources,
     onSource: (which: Source) => {
       if (which === 'wardrobe' && src.empty) {
+        backToPrompt.current = dockOpen;
         setDockOpen(false);
         setEmptyWardrobe(true);
       } else src.toggle(which);
@@ -1523,7 +1541,14 @@ function DraftBody({
       <EmptyWardrobeSheet
         open={emptyWardrobe}
         onClose={() => setEmptyWardrobe(false)}
-        onAdd={() => setAdding(true)}
+        onClosed={() => {
+          if (backToPrompt.current) setDockOpen(true);
+          backToPrompt.current = false;
+        }}
+        onAdd={() => {
+          backToPrompt.current = false;
+          setAdding(true);
+        }}
       />
       <PiecePicker
         mode={picker}

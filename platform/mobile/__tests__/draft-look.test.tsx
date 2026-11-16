@@ -778,6 +778,27 @@ test('a tap on Wardrobe while it is empty says so and offers the way in', async 
   expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
 });
 
+test('Wardrobe tapped in the open prompt while it is empty: the prompt comes back after (B7)', async () => {
+  mockFetch({ ...BASE, 'GET /wardrobe/summary': { total: 0, categories: [] } });
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  await fireEvent.changeText(await openPrompt(), 'Gallery opening');
+  await waitFor(() =>
+    expect(dock().getByTestId('source-wardrobe').props.accessibilityLabel).toBe(
+      copy.sources.wardrobe.empty,
+    ),
+  );
+  await fireEvent.press(dock().getByTestId('source-wardrobe'));
+  expect(await screen.findByText(copy.emptyWardrobe.title)).toBeTruthy();
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  // Closed with its ×: once it has gone, the prompt is open again, her words still in it.
+  await fireEvent.press(
+    within(screen.getByTestId('empty-wardrobe')).getByRole('button', { name: ui.close }),
+  );
+  await waitFor(() =>
+    expect(screen.getByTestId('draft-prompt').props.value).toBe('Gallery opening'),
+  );
+});
+
 test('with a wardrobe it is the one source; Shop beside it is a mix, Shop alone is new', async () => {
   const calls = mockFetch({
     ...BASE,
