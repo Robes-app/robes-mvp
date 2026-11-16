@@ -248,8 +248,9 @@ export function RobesAvatar({ working = false }: { working?: boolean }) {
 // floats at the look's foot and never takes the keyboard: `box` is the prompt box before there is
 // a conversation, `pill` the closed bar — Robes' avatar, the line it is on, the thumbs while
 // Robes is asking, the disc that opens it — and `spark` the sparkle (a saved look, a draft after
-// a thumbs up). Opened, it is the app's own bottom sheet: anchored to the screen's foot, standing
-// on the keyboard, the look dimmed behind it and closed by a tap there — the tracked title and
+// a thumbs up). Opened before her first send on a draft (`bare`), the sheet holds only the box
+// she tapped, place and weather and all (16 Nov). Opened once there is a conversation, it is the
+// app's own bottom sheet: anchored to the screen's foot, standing on the keyboard, the look dimmed behind it and closed by a tap there — the tracked title and
 // the minimise disc, the turns scrolling newest-last, and the box with the field in focus. Web
 // twin: app/src/components/looks/styling-card.tsx.
 export type DockRest = 'box' | 'pill' | 'spark';
@@ -266,6 +267,7 @@ export function PromptDock({
   onOpen,
   onMinimise,
   box,
+  bare = false,
   children,
 }: {
   open: boolean;
@@ -283,6 +285,9 @@ export function PromptDock({
   onMinimise: () => void;
   // The resting prompt box (`rest` "box"): the sources, the day's chip, a line that opens the sheet.
   box?: ReactNode;
+  // Before her first send on a draft (Prompt states, the draft's open box): no title, no shade,
+  // no panel, only the box she tapped, rising on the keyboard with its place and weather.
+  bare?: boolean;
   // The sheet's box, its field in focus.
   children: ReactNode;
 }) {
@@ -359,26 +364,28 @@ export function PromptDock({
   return (
     <>
       {resting}
-      <Sheet open={open} onClose={onMinimise} floating testID="prompt-dock">
-        <View className="flex-row items-center gap-3 pb-2">
-          <Text
-            className="flex-1 uppercase text-ink-muted"
-            style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 9 * 0.22 }}
-          >
-            {copy.dock.title}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copy.dock.minimise}
-            onPress={onMinimise}
-            hitSlop={6}
-            testID="prompt-minimise"
-            className="items-center justify-center rounded-pill bg-surface-sunk"
-            style={{ width: DISC, height: DISC }}
-          >
-            <Icon name="down" size={14} color={muted} />
-          </Pressable>
-        </View>
+      <Sheet open={open} onClose={onMinimise} floating bare={bare} testID="prompt-dock">
+        {bare ? null : (
+          <View className="flex-row items-center gap-3 pb-2">
+            <Text
+              className="flex-1 uppercase text-ink-muted"
+              style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 9 * 0.22 }}
+            >
+              {copy.dock.title}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={copy.dock.minimise}
+              onPress={onMinimise}
+              hitSlop={6}
+              testID="prompt-minimise"
+              className="items-center justify-center rounded-pill bg-surface-sunk"
+              style={{ width: DISC, height: DISC }}
+            >
+              <Icon name="down" size={14} color={muted} />
+            </Pressable>
+          </View>
+        )}
         {conversation ? (
           <ScrollView
             ref={scroll}
@@ -391,8 +398,9 @@ export function PromptDock({
             {conversation}
           </ScrollView>
         ) : null}
-        {/* The box runs wider than the sheet's own gutter: 10pt from each side (pin 1). */}
-        <View style={{ marginHorizontal: -10 }}>{children}</View>
+        {/* The box runs wider than the sheet's own gutter: 10pt from each side (pin 1). Bare, the
+        sheet's gutter is those 10pt. */}
+        {bare ? children : <View style={{ marginHorizontal: -10 }}>{children}</View>}
       </Sheet>
     </>
   );

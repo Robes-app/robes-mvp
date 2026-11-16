@@ -2,9 +2,24 @@ import { lookbook } from '@robes/copy';
 import { ASK_MAX_CHARS } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import { shadowNative } from '@robes/tokens';
-import { FINE_EDGE, fonts, Text, useColor, useReducedMotion } from '@robes/ui-native';
+import {
+  FINE_EDGE,
+  fonts,
+  Text,
+  useColor,
+  useReducedMotion,
+  useSheetPresented,
+} from '@robes/ui-native';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Animated, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
+import {
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  TextInput,
+  type TextInputInstance,
+  View,
+} from 'react-native';
 
 // Felix's floating sheet shell (the AdjustSheet): a cream card 8pt from the drawer's
 // sides and bottom on a 0.5pt `rule-mid` edge, sheet corners and shadow, rising over 0.3s, with a
@@ -109,8 +124,15 @@ export function SheetField({
 }) {
   const ink = useColor('ink');
   const faint = useColor(faintHint ? 'placeholder' : 'ink-faint');
+  // `autoFocus` alone is dropped while a sheet is still presenting on iOS: ask again once it is up.
+  const input = useRef<TextInputInstance>(null);
+  const presented = useSheetPresented();
+  useEffect(() => {
+    if (autoFocus && presented) input.current?.focus();
+  }, [autoFocus, presented]);
   return (
     <TextInput
+      ref={input}
       accessibilityLabel={label}
       value={value}
       onChangeText={onChange}
