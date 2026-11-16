@@ -300,7 +300,11 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   await expect(drawer.getByText('Scheduled')).toHaveCount(1);
   await drawer.getByRole('button', { name: /Office/ }).click();
   await drawer.getByRole('button', { name: /Dinner/ }).click();
-  await drawer.getByRole('button', { name: 'Wear this look today' }).click();
+  // Done, with what it will do as its description (audit P2: one sheet header).
+  await expect(drawer.getByTestId('drawer-done')).toHaveAccessibleDescription(
+    'Wear this look today',
+  );
+  await drawer.getByTestId('drawer-done').click();
   await expect(page.getByTestId('ootd-card')).toContainText('Dinner');
   await expect(page.getByTestId('ootd-card')).not.toContainText('Office');
   // Edit opens the Edit look drawer over the day (3k, D18): its photo strip on the Add a photo

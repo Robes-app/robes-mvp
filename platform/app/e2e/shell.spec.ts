@@ -205,7 +205,6 @@ test('P0 routes have no serious accessibility violations', async ({ page }) => {
   for (const path of [
     '/',
     '/wardrobe',
-    '/wardrobe/camera',
     '/wardrobe/link',
     '/wardrobe/receipt',
     '/wardrobe/manual',
@@ -228,4 +227,8 @@ test('P0 routes have no serious accessibility violations', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     expect(await seriousViolations(page), path).toEqual([]);
   }
+  // The wardrobe camera is a full-screen dialog of its own, with no page heading under it.
+  await page.goto('/wardrobe/camera');
+  await expect(page.getByTestId('piece-camera')).toBeVisible();
+  expect(await seriousViolations(page), '/wardrobe/camera').toEqual([]);
 });
