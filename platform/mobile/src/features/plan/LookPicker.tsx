@@ -10,7 +10,6 @@ import {
   FINE_EDGE,
   fonts,
   Heading,
-  Sheet,
   Skeleton,
   Text,
   useColor,
@@ -20,6 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 import { FilterRow } from '@/features/filters/FilterRow';
 import { FilterSheet } from '@/features/filters/FilterSheet';
 import { useLookFilters } from '@/features/filters/use-look-filters';
@@ -133,7 +133,7 @@ export function LookPicker({
     ? copy.drawer.eyebrow(date === today ? copy.today : weekdayLong(date), weekdayDayMonth(date))
     : '';
   return (
-    <Sheet
+    <DetentSheet
       open={open}
       onClose={onClose}
       title={eyebrow}
@@ -145,8 +145,7 @@ export function LookPicker({
         onPress: () => void apply(),
         disabled: !cta.ready || saving,
       }}
-      // A tall drawer (design 3k): it stands near the top whatever it holds; the grid scrolls.
-      className="h-[92%]"
+      // iOS's own sheet at two heights: half the screen, pulled up to full; the grid scrolls.
       testID="look-picker"
     >
       {!looks.data ? (
@@ -280,6 +279,6 @@ export function LookPicker({
           />
         </>
       )}
-    </Sheet>
+    </DetentSheet>
   );
 }

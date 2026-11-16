@@ -40,6 +40,7 @@ export {
   GlassSheet,
   type GlassSheetProps,
   Sheet,
+  SheetHead,
   type SheetProps,
   useSheetPresented,
 } from './Sheet';

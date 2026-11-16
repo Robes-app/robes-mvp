@@ -2,18 +2,10 @@ import type { PieceImage } from '@robes/contracts';
 import { diary } from '@robes/copy';
 import { pieceMatches, sheetCategoryOf, sheetChips } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import {
-  fonts,
-  Image,
-  maxFontSizeMultiplier,
-  Pill,
-  Skeleton,
-  Text,
-  useColor,
-} from '@robes/ui-native';
+import { fonts, maxFontSizeMultiplier, Pill, Skeleton, Text, useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { FlatList, Pressable, Text as RNText, ScrollView, TextInput, View } from 'react-native';
-import { renditionUri } from '@/lib/images';
+import { Photo } from './PieceCard';
 
 const copy = diary.flyout;
 
@@ -203,7 +195,6 @@ function PieceCell({
   onToggle: () => void;
 }) {
   const ink = useColor('ink');
-  const uri = renditionUri(piece.image, 160);
   return (
     <View style={{ width: '33.333%' }} className="mb-3 gap-1.5 px-1.5">
       <Pressable
@@ -216,18 +207,9 @@ function PieceCell({
         }`}
         testID={`flyout-piece-${piece.id}`}
       >
-        {/* The whole piece on a 3:4 white mat. */}
-        {uri ? (
-          <Image
-            source={uri}
-            alt=""
-            aspect="3:4"
-            contentFit="contain"
-            blurhash={piece.image?.blurhash}
-          />
-        ) : (
-          <View className="aspect-[3/4] w-full bg-surface-sunk" />
-        )}
+        {/* The whole piece on a 3:4 white mat; no photo is the hanger and one still being made the
+            shimmer, as on the Wardrobe (never a blank tile). */}
+        <Photo piece={piece} width={160} aspect="3:4" fit="contain" />
         <View
           className={`absolute top-1.5 right-1.5 size-5 items-center justify-center rounded-pill border ${
             ticked

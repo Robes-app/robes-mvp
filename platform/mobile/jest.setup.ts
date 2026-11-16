@@ -61,3 +61,28 @@ jest.mock('expo-file-system', () => ({
     }
   },
 }));
+
+// iOS's own sheet (@expo/ui) is native: under jest the sheet is its content while presented, so
+// the pickers on DetentSheet read as they draw.
+jest.mock('@expo/ui/swift-ui', () => {
+  const { Fragment, createElement } = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
+  const pass = ({ children }: { children?: unknown }) => createElement(Fragment, null, children);
+  return {
+    Host: pass,
+    // The sheet's heights and grabber ride the Group's modifiers, kept for a test to read.
+    Group: ({ children, modifiers }: { children?: unknown; modifiers?: unknown }) =>
+      createElement(View, { testID: 'sheet-presentation', modifiers }, children),
+    RNHostView: pass,
+    BottomSheet: ({ isPresented, children }: { isPresented: boolean; children?: unknown }) =>
+      isPresented ? createElement(Fragment, null, children) : null,
+  };
+});
+jest.mock('@expo/ui/swift-ui/modifiers', () => ({
+  presentationBackground: (style: unknown) => ({ $type: 'presentationBackground', style }),
+  presentationDetents: (detents: unknown) => ({ $type: 'presentationDetents', detents }),
+  presentationDragIndicator: (visibility: unknown) => ({
+    $type: 'presentationDragIndicator',
+    visibility,
+  }),
+}));

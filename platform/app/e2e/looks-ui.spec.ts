@@ -271,6 +271,10 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
     });
     ids.push((await res.json()).id);
   }
+  // A wish she already has, so the picker's Wishlist holds it when it first loads.
+  const wish = await (
+    await api.post('/api/v1/wishlist/items', { data: { label: 'Silk scarf' } })
+  ).json();
   const draft = await (
     await api.post('/api/v1/looks', { data: { status: 'draft', pieces: [{ pieceId: ids[0] }] } })
   ).json();
@@ -294,6 +298,23 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
   // The toast's text is also echoed in its screen-reader live region: check the first (visible) one.
   await expect(page.getByText('Dark straight jean is on the look.').first()).toBeVisible();
   await expect.poll(pieces).toEqual([ids[1]]);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(pieces).toEqual([ids[0]]);
+
+  // The wishlist is always in reach (Annie, 16 Nov): a swap can take a wish, which stands in the
+  // row's place as a piece to find.
+  await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
+  await picker.getByRole('tab', { name: 'Wishlist' }).click();
+  await picker.getByRole('button', { name: 'Include Silk scarf from your wishlist' }).click();
+  await picker.getByRole('button', { name: 'Swap it in' }).click();
+  await expect.poll(pieces).toEqual([]);
+  await expect
+    .poll(async () =>
+      ((await read()).proposals as { wishlistItemId: string | null }[]).map(
+        (p) => p.wishlistItemId,
+      ),
+    )
+    .toEqual([wish.id]);
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(pieces).toEqual([ids[0]]);
 
