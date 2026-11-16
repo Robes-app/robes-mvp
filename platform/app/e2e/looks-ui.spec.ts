@@ -271,6 +271,10 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
     });
     ids.push((await res.json()).id);
   }
+  // A wish she already has, so the picker's Wishlist holds it when it first loads.
+  const wish = await (
+    await api.post('/api/v1/wishlist/items', { data: { label: 'Silk scarf' } })
+  ).json();
   const draft = await (
     await api.post('/api/v1/looks', { data: { status: 'draft', pieces: [{ pieceId: ids[0] }] } })
   ).json();
@@ -299,11 +303,6 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
 
   // The wishlist is always in reach (Annie, 16 Nov): a swap can take a wish, which stands in the
   // row's place as a piece to find.
-  const wish = await (
-    await api.post('/api/v1/wishlist/items', {
-      data: { label: 'Silk scarf' },
-    })
-  ).json();
   await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
   await picker.getByRole('tab', { name: 'Wishlist' }).click();
   await picker.getByRole('button', { name: 'Include Silk scarf from your wishlist' }).click();
