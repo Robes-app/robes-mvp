@@ -1,4 +1,3 @@
-import { useApi } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { diary } from '@robes/copy';
 import {
@@ -14,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text as RNText, View } from 'react-native';
 import { flyoutCta } from '@/features/home/diary';
 import { pickOne, usePhotoFiling } from '@/features/home/file-photo';
+import { useAllPieces } from './pieces';
 import { WardrobeGrid } from './WardrobeGrid';
 
 const copy = diary.flyout;
@@ -36,8 +36,9 @@ export function WardrobePicker({
   onClose: () => void;
   onApply: (pieces: Piece[]) => void;
 }) {
-  const pieces = useApi('wardrobe.list', { input: { limit: 100 } }, { enabled: open });
-  const all = (pieces.data?.items ?? []).filter((p) => p.status === 'ready');
+  // Every piece she owns: a first page of 100 left a wardrobe of 133 short (TestFlight, 16 Nov).
+  const { pieces, data } = useAllPieces({ enabled: open });
+  const all = pieces.filter((p) => p.status === 'ready');
   const [category, setCategory] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Piece[]>([]);
@@ -97,7 +98,7 @@ export function WardrobePicker({
       </View>
       <View className="gap-3" style={{ flexShrink: 1 }}>
         <WardrobeGrid
-          pieces={pieces.data ? all : undefined}
+          pieces={data ? all : undefined}
           picked={picked}
           onToggle={toggle}
           query={query}

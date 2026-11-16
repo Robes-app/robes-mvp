@@ -1,4 +1,4 @@
-import { queryKeys, useApiClient, useUndoableMutation } from '@robes/api-client/react';
+import { queryKeys, useApiAll, useApiClient, useUndoableMutation } from '@robes/api-client/react';
 import type { Wish, WishPage } from '@robes/contracts';
 import { wardrobe as copy, errors } from '@robes/copy';
 import { useToast } from '@robes/ui-native';
@@ -23,11 +23,22 @@ export function useWishes() {
   return { ...query, wishes: query.data?.pages.flatMap((p) => p.items) ?? [] };
 }
 
+// Every wish, for a picker or a lookup: never the first page alone (TestFlight, 16 Nov). The
+// Wishlist's list pages with useWishes instead.
+export function useAllWishes(opts: { enabled?: boolean } = {}) {
+  const query = useApiAll(
+    'wishlist.list',
+    { input: { limit: 100 } },
+    opts.enabled === undefined ? {} : { enabled: opts.enabled },
+  );
+  return { ...query, wishes: query.data?.items ?? [] };
+}
+
 // A wish on a look's rack is a proposal that names its wish (wishlistItemId): its photograph,
 // brand and page come from the wish itself (Annie, 15 Nov: a wish added to a draft showed no
 // thumbnail and couldn't be opened).
 export function useWishOf(): (id: string | null | undefined) => Wish | undefined {
-  const { wishes } = useWishes();
+  const { wishes } = useAllWishes();
   const byId = useMemo(() => new Map(wishes.map((w) => [w.id, w])), [wishes]);
   return useCallback((id) => (id ? byId.get(id) : undefined), [byId]);
 }

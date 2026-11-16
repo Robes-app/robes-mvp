@@ -1,4 +1,4 @@
-import { useApi } from '@robes/api-client/react';
+import { useApiAll } from '@robes/api-client/react';
 import { trips } from '@robes/copy';
 import { defaultTripDates, parseOccasions, tripDatesError } from '@robes/core/trips';
 import {
@@ -26,7 +26,7 @@ export function TripStart({ initialOccasions = '' }: { initialOccasions?: string
   const [destination, setDestination] = useState('');
   const [occasions, setOccasions] = useState(initialOccasions);
   const [keyPieces, setKeyPieces] = useState<string[]>([]);
-  const pieces = useApi('wardrobe.list', { input: { limit: 60 } });
+  const pieces = useApiAll('wardrobe.list', { input: { limit: 100 } });
   const start = useStartTrip();
   const valid = /^\d{4}-\d{2}-\d{2}$/;
   const dateError =

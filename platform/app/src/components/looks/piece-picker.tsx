@@ -1,6 +1,6 @@
 'use client';
 
-import { useApi } from '@robes/api-client/react';
+import { useApiAll } from '@robes/api-client/react';
 import type { Piece, Wish } from '@robes/contracts';
 import { lookbook, wardrobe } from '@robes/copy';
 import { theName } from '@robes/core/looks';
@@ -57,8 +57,8 @@ export function PiecePicker({
   const matching = mode && 'match' in mode ? mode.match : null;
   // One piece of hers, led by the row's category: a swap, or a match.
   const swapping = mode && 'swap' in mode ? mode.swap : matching;
-  const pieces = useApi('wardrobe.list', { input: { limit: 100 } }, { enabled: open });
-  const wishlist = useApi('wishlist.list', { input: { limit: 100 } }, { enabled: open });
+  const pieces = useApiAll('wardrobe.list', { input: { limit: 100 } }, { enabled: open });
+  const wishlist = useApiAll('wishlist.list', { input: { limit: 100 } }, { enabled: open });
   const ready = (pieces.data?.items ?? []).filter(
     (p) => p.status === 'ready' && !onRack.includes(p.id),
   );

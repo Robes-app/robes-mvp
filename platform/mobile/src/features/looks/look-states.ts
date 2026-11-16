@@ -1,5 +1,11 @@
 import { ApiClientError } from '@robes/api-client';
-import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
+import {
+  queryKeys,
+  useApi,
+  useApiAll,
+  useApiClient,
+  useApiMutation,
+} from '@robes/api-client/react';
 import type {
   JobSnapshot,
   Look,
@@ -18,10 +24,11 @@ import { api as appApi } from '@/lib/api';
 import { askForPushOnce } from '@/lib/push';
 import { isTerminal, JOB_REFRESH_MS } from './ideas';
 
+// The API's largest page of looks; the Lookbook reads every page (TestFlight, 16 Nov).
 const LIMIT = 60;
 
 export function useLooksByStatus(status: LookStatus, opts: { refetch?: boolean } = {}) {
-  return useApi(
+  return useApiAll(
     'looks.list',
     { input: { limit: LIMIT, status } },
     {

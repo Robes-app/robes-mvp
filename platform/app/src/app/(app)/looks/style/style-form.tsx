@@ -1,6 +1,6 @@
 'use client';
 
-import { useApi, useApiMutation } from '@robes/api-client/react';
+import { useApiAll, useApiMutation } from '@robes/api-client/react';
 import type { GenerateLookInput } from '@robes/contracts';
 import { looks } from '@robes/copy';
 import { defaultBalance } from '@robes/core/looks';
@@ -14,7 +14,7 @@ const copy = looks.stylePiece;
 // One of her pieces, or one described in words; choosing one clears the other.
 export function StyleForm() {
   const router = useRouter();
-  const pieces = useApi('wardrobe.list', { input: { limit: 60 } });
+  const pieces = useApiAll('wardrobe.list', { input: { limit: 100 } });
   const [pieceId, setPieceId] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [occasion, setOccasion] = useState('');
