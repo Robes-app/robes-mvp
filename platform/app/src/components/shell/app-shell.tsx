@@ -5,7 +5,14 @@ import type { Features } from '@robes/contracts';
 import { lookbook, nav, plan, shell, today, wardrobe } from '@robes/copy';
 import { greetingName } from '@robes/core/home';
 import { Icon } from '@robes/icons/web';
-import { Avatar, type Command, CommandBar, useCommandHotkey, Wordmark } from '@robes/ui';
+import {
+  Avatar,
+  type Command,
+  CommandBar,
+  useCommandHotkey,
+  useToastLiftOver,
+  Wordmark,
+} from '@robes/ui';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -133,6 +140,11 @@ export function AppShell({
   const back = backHidden ? null : backFor(pathname, search);
   const toggleCommand = useCallback(() => setCommandOpen((o) => !o), []);
   useCommandHotkey(toggleCommand);
+  // A toast stands above the phone dock, never on it: a tap meant for a tab landed on the toast,
+  // and on "Draft let go." its Undo brought the draft back (16 Nov). Hidden (md and up, or a flow
+  // without the dock), it lifts nothing. Native twin: components/TabScreen.tsx.
+  const dock = useRef<HTMLElement>(null);
+  useToastLiftOver(dock);
   useDeviceLocation();
   const current = activeRoot(pathname);
   // The Wardrobe's badge counts every piece she owns (Front Door PRD rev 3, Q1); an empty wardrobe
@@ -281,6 +293,7 @@ export function AppShell({
 
       {/* One capsule, 16 from each side and 24 above the screen edge; 4 inset round four tabs. */}
       <nav
+        ref={dock}
         aria-label={shell.primaryNav}
         hidden={inFlow}
         data-minimised={minimised ? 'true' : undefined}

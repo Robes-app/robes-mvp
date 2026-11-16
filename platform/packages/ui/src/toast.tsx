@@ -147,16 +147,26 @@ export function useToastLift(px: number): void {
   }, [liftToasts, px]);
 }
 
-// Lifts the toasts above a bar fixed at the foot, by the bar's own measured height.
+// Lifts the toasts clear of a bar fixed at the foot: by its height when it stands on the foot, by
+// its height and the gap under it when it floats (the phone dock, 16 Nov: a toast on it took the
+// tap meant for a tab). A hidden bar lifts nothing.
 export function useToastLiftOver(bar: RefObject<HTMLElement | null>): void {
-  const [height, setHeight] = useState(0);
+  const [lift, setLift] = useState(0);
   useEffect(() => {
     const el = bar.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => setHeight(el.getBoundingClientRect().height));
+    const measure = () => {
+      const box = el.getBoundingClientRect();
+      setLift(box.height > 0 ? Math.max(0, window.innerHeight - box.top) : 0);
+    };
+    const observer = new ResizeObserver(measure);
     observer.observe(el);
-    setHeight(el.getBoundingClientRect().height);
-    return () => observer.disconnect();
+    window.addEventListener('resize', measure);
+    measure();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, [bar]);
-  useToastLift(height);
+  useToastLift(lift);
 }
