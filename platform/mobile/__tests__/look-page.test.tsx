@@ -6,6 +6,7 @@ import { LookScreen } from '../src/features/looks/LookScreen';
 import { localDate, nextDays } from '../src/features/looks/saved-looks';
 import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
+import { drawnOnAsk } from './support/drawn';
 import { LOOK_ID, look, modelData, PIECE_ID, piece } from './support/fixtures';
 import { openPrompt } from './support/prompt';
 import { mockRouter } from './support/router';
@@ -370,8 +371,11 @@ test('Discard drops the unapplied change and leaves; nothing is written', async 
 });
 
 test('words sent from a saved look’s prompt are answered on the rack and kept, with no Update look', async () => {
+  const drawn = drawnOnAsk(twoPieces(), ASK_JOB);
   const calls = mockFetch({
     ...editRoutes(twoPieces()),
+    [`GET /looks/${LOOK_ID}`]: drawn.get,
+    [`POST /looks/${LOOK_ID}/render`]: drawn.render,
     [`POST /looks/${LOOK_ID}/ask`]: { jobId: ASK_JOB, status: 'queued' },
     [`GET /jobs/${ASK_JOB}`]: {
       id: ASK_JOB,
@@ -415,9 +419,11 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
   // what it did: the change is seen, and it only asks.
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(screen.queryByText('Collar up.')).toBeNull();
-  // The closed bar carries the thumbs while the model is drawn; the question stands in the sheet.
-  expect(screen.getByTestId('thumb-up')).toBeTruthy();
+  // While the model wears it Robes waits to ask (16 Nov): no thumbs yet. Once the picture lands
+  // the question comes, with its thumbs.
+  expect(screen.queryByTestId('thumb-up')).toBeNull();
   expect(screen.queryByTestId('update-look')).toBeNull();
+  expect(await screen.findByTestId('thumb-up', {}, { timeout: 8000 })).toBeTruthy();
   await openPrompt();
   expect(screen.getByText(lookbook.draftLook.feedback.again)).toBeTruthy();
   expect(calls.findIndex((c) => c.path.endsWith('/ask'))).toBeLessThan(
@@ -425,7 +431,7 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
   );
   const patch = calls.find((c) => c.method === 'PATCH')?.body as { styling: unknown };
   expect(patch.styling).toEqual({ [PIECE_ID]: 'collar up' });
-});
+}, 20_000);
 
 // The feedback thread on a saved look (look prompt PRD F3, F11, F13–F15, F22): the box's send
 // asks, Robes asks about the change it made, and what she taps next rides the following send.
