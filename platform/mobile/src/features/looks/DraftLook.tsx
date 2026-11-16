@@ -546,13 +546,17 @@ function SavedShell({
   useToastLift(barUp ? bar : 0);
   const root = useRef<HostInstance>(null);
   const keyboard = useKeyboardOverlap(root);
+  // The prompt never covers the look (15 Nov; audit P1): the body ends clear of the bar and the
+  // sparkle above it, as measured, so the last Rack row's wears and › and Details' rows show.
+  const [dockH, setDockH] = useState(0);
+  const clear = (barUp ? bar : insets.bottom) + (dock ? dockH : 0) + 24;
   return (
     <View ref={root} className="flex-1 bg-bg">
       <ScrollView
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        contentContainerClassName="pb-36"
+        contentContainerStyle={{ paddingBottom: Math.max(144, clear) }}
         testID="saved-look"
       >
         {children}
@@ -572,6 +576,7 @@ function SavedShell({
           pointerEvents="box-none"
           className="absolute inset-x-0"
           style={{ bottom: barUp ? bar + keyboard : keyboard || insets.bottom }}
+          onLayout={(e) => setDockH(e.nativeEvent.layout.height)}
           testID="floating-dock"
         >
           {dock.node}
@@ -1360,11 +1365,9 @@ function DraftBody({
       presentation={presentation}
       title={mode === 'edit' ? copy.editTitle : copy.title}
       onClose={close}
-      done={{
-        label: mode === 'edit' ? copy.doneEdit : copy.done,
-        onPress: done,
-        disabled: !canDone,
-      }}
+      // One confirm per screen (audit P1): Edit look's accept is Update look at the foot, so its
+      // header carries no ✓; a draft keeps the header ✓ that saves it.
+      done={mode === 'edit' ? null : { label: copy.done, onPress: done, disabled: !canDone }}
       {...(footButton ? { footer: footButton } : {})}
       dock={dock}
       over={

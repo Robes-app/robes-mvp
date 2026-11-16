@@ -1404,13 +1404,19 @@ function DraftBody({
       title={mode === 'edit' ? copy.editTitle : copy.title}
       h1={look.name}
       onClose={close}
-      done={{
-        label: mode === 'edit' ? copy.doneEdit : copy.done,
-        ...(forDay ? { hint: copy.doneForDay } : {}),
-        onClick: done,
-        disabled: !canDone,
-        testId: 'draft-done',
-      }}
+      // One confirm per screen (audit P1): Edit look's accept is Update look at the foot, so its
+      // header carries no ✓; a draft keeps the header ✓ that saves it.
+      done={
+        mode === 'edit'
+          ? null
+          : {
+              label: copy.done,
+              ...(forDay ? { hint: copy.doneForDay } : {}),
+              onClick: done,
+              disabled: !canDone,
+              testId: 'draft-done',
+            }
+      }
       {...(footButton ? { footer: footButton } : {})}
       dock={dock}
       over={
