@@ -565,6 +565,82 @@ test('Describe: a Style it job that fails ends the wait and says so', async () =
   expect((await openPrompt()).props.editable).not.toBe(false);
 });
 
+// Before her first send the prompt opens on the box she tapped, its place and weather standing,
+// with no tracked title over it (Prompt states; look prompt improvements B1, 16 Nov).
+const DAY = '2026-11-06';
+// A whole Today (it must parse), with the day's place and weather in its diary.
+const TODAY_WITH_WEATHER = {
+  date: DAY,
+  hour: 9,
+  firstName: null,
+  today: [],
+  week: Array.from({ length: 7 }, (_, i) => ({
+    date: `2026-11-${String(i + 6).padStart(2, '0')}`,
+    looks: 0,
+    first: null,
+  })),
+  tray: [],
+  ideas: [],
+  inboxCount: 0,
+  overnight: null,
+  home: {
+    state: { styleConfirmed: true, twinOnFile: true, pics: 6, ownLookSaved: true, snoozed: {} },
+    rows: { brands: [], icons: [], styles: [] },
+    recent: [],
+    candidates: [],
+    receipts: null,
+    noticed: null,
+    saved: [],
+    suggested: [],
+  },
+  diary: {
+    from: DAY,
+    to: DAY,
+    days: [
+      {
+        date: DAY,
+        name: null,
+        place: null,
+        weather: { city: 'Dublin', tempRange: '9–14°C', condition: 'light rain', code: 61 },
+        draft: null,
+        entries: [],
+      },
+    ],
+  },
+};
+const dock = () => within(screen.getByTestId('prompt-dock'));
+
+test('a new look for a day: typing keeps the place and weather, under no title', async () => {
+  mockFetch({ ...BASE, 'GET /today': TODAY_WITH_WEATHER });
+  await renderWithApi(
+    <DraftLook id="new" day={DAY} presentation="sheet" onClose={() => undefined} />,
+  );
+  expect(await screen.findByText('Dublin')).toBeTruthy();
+  await fireEvent.changeText(await openPrompt(), 'Dinner with friends');
+  expect(dock().getByText('Dublin')).toBeTruthy();
+  expect(dock().queryByText(copy.dock.title)).toBeNull();
+  // × still leaves the weather out while she types, and offers it back.
+  await fireEvent.press(dock().getByLabelText(diary.door.weatherOut));
+  expect(await dock().findByTestId('weather-chip')).toBeTruthy();
+});
+
+test('a draft for a day with no conversation yet opens on its box, place and weather and all', async () => {
+  mockFetch({
+    ...BASE,
+    'GET /today': TODAY_WITH_WEATHER,
+    [`GET /looks/${LOOK_ID}`]: draftOf({
+      pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+    }),
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={() => undefined} />,
+  );
+  expect(await screen.findByText('Dublin')).toBeTruthy();
+  await fireEvent.changeText(await openPrompt(), 'warmer');
+  expect(dock().getByText('Dublin')).toBeTruthy();
+  expect(dock().queryByText(copy.dock.title)).toBeNull();
+});
+
 // The Rack card and the two sources (look prompt PRD S1–S5): with nothing filed the card offers
 // Add your pieces, Wardrobe is faded and Shop is the one source; with a wardrobe it is the other
 // way round until she says otherwise.

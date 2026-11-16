@@ -756,6 +756,12 @@ function NewDraft({
     }
   };
   const stand = model.data?.stand?.imageUrl ?? null;
+  // The day's place and weather, on the resting box and the open one alike.
+  const context = day
+    ? {
+        context: <DayContext date={day} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />,
+      }
+    : {};
   // What the resting box and the sheet's box share.
   const box = {
     sources: src.sources,
@@ -785,23 +791,14 @@ function NewDraft({
           <PromptDock
             open={typing}
             rest="box"
+            bare
             line={copy.dock.rest}
             working={false}
             onOpen={() => setTyping(true)}
             onMinimise={() => setTyping(false)}
             box={
               <StylingCard
-                {...(day
-                  ? {
-                      context: (
-                        <DayContext
-                          date={day}
-                          weatherOff={weatherOff}
-                          onWeatherOff={setWeatherOff}
-                        />
-                      ),
-                    }
-                  : {})}
+                {...context}
                 {...box}
                 onOpen={() => setTyping(true)}
                 onSend={() => (prompt.trim() ? void generate() : setTyping(true))}
@@ -809,9 +806,10 @@ function NewDraft({
               />
             }
           >
+            {/* The box she tapped, her field in focus: its place and weather stay (16 Nov, B1). */}
             <StylingCard
+              {...context}
               {...box}
-              inline
               autoFocus
               onSend={() => void generate()}
               emptySend="blur"
@@ -1254,6 +1252,17 @@ function DraftBody({
   const briefed = adjust.state.thread.some((l) => l.who === 'her');
   const dayContext = forDay && mode === 'draft' ? forDay : null;
   const screen = useWindowDimensions();
+  // Before her first send on a draft the sheet holds the box she tapped, place and weather and
+  // all, under no title (Prompt states; 16 Nov, B1).
+  const pre = mode === 'draft' && !hasThread;
+  const context =
+    dayContext && !briefed
+      ? {
+          context: (
+            <DayContext date={dayContext} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
+          ),
+        }
+      : {};
   // What the resting box and the sheet's box share.
   const box = {
     sources: src.sources,
@@ -1309,19 +1318,10 @@ function DraftBody({
       }
       onOpen={() => setDockOpen(true)}
       onMinimise={() => setDockOpen(false)}
+      bare={pre}
       box={
         <StylingCard
-          {...(dayContext && !briefed
-            ? {
-                context: (
-                  <DayContext
-                    date={dayContext}
-                    weatherOff={weatherOff}
-                    onWeatherOff={setWeatherOff}
-                  />
-                ),
-              }
-            : {})}
+          {...context}
           {...box}
           onOpen={() => setDockOpen(true)}
           onSend={() => (words ? send() : setDockOpen(true))}
@@ -1330,8 +1330,8 @@ function DraftBody({
       }
     >
       <StylingCard
+        {...(pre ? context : { inline: true })}
         {...box}
-        inline
         autoFocus={verdict !== 'down'}
         tokens={<FeedbackTokens adjust={adjust} />}
         {...(picked
