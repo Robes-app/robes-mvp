@@ -3,6 +3,9 @@ import { shell } from '@robes/copy';
 import { declineConsent, isolateClientIp, seriousViolations, signIn } from './helpers';
 
 const ROOTS = ['Home', 'Lookbook', 'Diary', 'Wardrobe'];
+// A tab's text can lead with its badge (the Wardrobe's count, a red 0 when empty): match the
+// label at the end.
+const TABS = ROOTS.map((r) => new RegExp(`${r}$`));
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 
@@ -12,14 +15,14 @@ test('the roots match beta on desktop and phone, and each is reachable', async (
   await declineConsent(page);
   const nav = page.getByRole('navigation', { name: 'Main' });
   // Desktop: the wordmark is Home; Lookbook · Diary · Wardrobe sit beside it (beta's top nav).
-  await expect(nav.getByRole('link')).toHaveText(ROOTS.slice(1));
+  await expect(nav.getByRole('link')).toHaveText(TABS.slice(1));
   await expect(page.getByRole('banner').getByRole('link', { name: 'Home' })).toHaveAttribute(
     'href',
     '/',
   );
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(nav.getByRole('link')).toHaveText(ROOTS);
+  await expect(nav.getByRole('link')).toHaveText(TABS);
   // iOS navigation redline: one capsule, 16 from each side, 64 tall, 24 above the screen edge, and
   // no sparkle beside it (dressing starts from home's composer).
   await expect(nav.getByRole('button', { name: 'Create' })).toHaveCount(0);
@@ -76,17 +79,17 @@ test('the bar keeps its hairline; the grids minimise the dock on scroll down', a
   const current = nav.getByRole('button', { name: 'Wardrobe' });
   expect(await current.boundingBox()).toEqual(expect.objectContaining({ x: 16, width: 56 }));
   await scrollTo(200);
-  await expect(nav.getByRole('link')).toHaveText(ROOTS);
+  await expect(nav.getByRole('link')).toHaveText(TABS);
   // A tap restores it too.
   await scrollTo(900);
   await current.click();
-  await expect(nav.getByRole('link')).toHaveText(ROOTS);
+  await expect(nav.getByRole('link')).toHaveText(TABS);
 
   // Off by default: Home keeps its dock whole however far she scrolls.
   await page.goto('/');
   await scrollTo(900);
   await expect(banner).toHaveAttribute('data-scrolled', 'true');
-  await expect(nav.getByRole('link')).toHaveText(ROOTS);
+  await expect(nav.getByRole('link')).toHaveText(TABS);
 });
 
 test('a pushed page’s back pill: in the top bar on a phone, at the head of the page on desktop', async ({

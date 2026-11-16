@@ -13,12 +13,14 @@ export function daysBetween(from: string, date: string): number {
 }
 
 // The home diary's window (Front Door design 3k, plan 2026-11-02 D1; PRD rev 3 §3, R4): three
-// whole Monday weeks — last week, this week and next — so the strip's pages are calendar weeks and
-// today's page is the middle one.
+// seven-day pages with today in the middle of the middle one (Annie, 16 Nov: never first on a
+// Monday or last on a Sunday). Shared by the server's window and both apps' strips.
 export const DIARY_WEEKS = 3;
 export const DIARY_PAGE = 7;
 export function diaryWindow(today: string): { from: string; to: string; days: string[] } {
-  const from = addDays(mondayOf(today), -DIARY_PAGE);
+  // Today in the middle of the middle page, whatever the weekday (Annie, 16 Nov): it never sits
+  // first on a Monday or last on a Sunday. Three days either side on screen; a swipe a week more.
+  const from = addDays(today, -(DIARY_PAGE + Math.floor(DIARY_PAGE / 2)));
   const days = Array.from({ length: DIARY_WEEKS * DIARY_PAGE }, (_, i) => addDays(from, i));
   return { from, to: days[days.length - 1] ?? from, days };
 }

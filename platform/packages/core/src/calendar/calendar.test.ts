@@ -211,19 +211,19 @@ describe('names come from the tables', () => {
 });
 
 describe('the diary window', () => {
-  it('is three Monday weeks with today in the middle one, every date present', () => {
-    // 2 Nov 2026 is a Monday: last week, this week, next.
+  // Annie, 16 Nov: today is always centred, never first on a Monday or last on a Sunday.
+  it('is three pages with today in the middle of the middle one, every date present', () => {
+    // 2 Nov 2026 is a Monday: today sits fourth of seven, three days either side.
     const w = diaryWindow('2026-11-02');
-    expect([w.from, w.to]).toEqual(['2026-10-26', '2026-11-15']);
+    expect([w.from, w.to]).toEqual(['2026-10-23', '2026-11-12']);
     expect(w.days).toHaveLength(DIARY_WEEKS * DIARY_PAGE);
-    expect(w.days[DIARY_PAGE]).toBe('2026-11-02');
     const pages = diaryPages(w.days);
     expect(pages.map((p) => p.length)).toEqual([7, 7, 7]);
-    expect(pages[1]?.[0]).toBe('2026-11-02');
-    // A Sunday sits at the end of its week's page, the window the same three weeks.
+    expect(pages[1]?.[3]).toBe('2026-11-02');
+    // A Sunday is centred the same way.
     const sunday = diaryWindow('2026-11-08');
-    expect([sunday.from, sunday.to]).toEqual(['2026-10-26', '2026-11-15']);
-    expect(diaryPages(sunday.days)[1]?.[6]).toBe('2026-11-08');
+    expect([sunday.from, sunday.to]).toEqual(['2026-10-29', '2026-11-18']);
+    expect(diaryPages(sunday.days)[1]?.[3]).toBe('2026-11-08');
     expect(weekdayDay('2026-11-03')).toBe('Tue 3');
   });
 
