@@ -63,16 +63,14 @@ export function diaryPick(
   picked: string,
   today: string,
   on: { pinned: boolean; worn: boolean; filed: boolean },
-): { past: boolean; suffix: 'worn' | 'filed' | null; action: DiaryAction } {
+): { past: boolean; suffix: 'worn' | null; action: DiaryAction } {
   const past = picked < today;
   if (past) {
     return { past, suffix: 'worn', action: on.worn ? 'recorded' : 'record' };
   }
-  return {
-    past,
-    suffix: on.filed ? 'filed' : null,
-    action: on.pinned ? 'already' : 'put',
-  };
+  // A day that already holds a look says nothing of it (audit F4, Annie 16 Nov): a day can hold
+  // several looks, and its dot in the month already marks it.
+  return { past, suffix: null, action: on.pinned ? 'already' : 'put' };
 }
 
 // What the diary sheet's month marks for one look: every day carrying a look is filed, the days

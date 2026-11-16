@@ -471,14 +471,8 @@ export const lookbook = {
     prevMonth: 'Previous month',
     nextMonth: 'Next month',
     // "Today, Friday 17 October · records it as worn"
-    picked: (long: string, today: boolean, suffix: 'worn' | 'filed' | null): string =>
-      `${today ? 'Today, ' : ''}${long}${
-        suffix === 'worn'
-          ? ' · records it as worn'
-          : suffix === 'filed'
-            ? ' · something already filed'
-            : ''
-      }`,
+    picked: (long: string, today: boolean, suffix: 'worn' | null): string =>
+      `${today ? 'Today, ' : ''}${long}${suffix === 'worn' ? ' · records it as worn' : ''}`,
     put: 'Put it in the diary',
     already: 'Already in the diary · Open the day',
     record: 'Record it as worn',

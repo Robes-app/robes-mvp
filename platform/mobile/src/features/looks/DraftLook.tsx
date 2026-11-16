@@ -568,7 +568,10 @@ function SavedShell({
           onLayout={(e) => setBar(e.nativeEvent.layout.height)}
           testID="look-bar"
         >
-          <PrimaryScope>{footer}</PrimaryScope>
+          {/* Its one button spans the bar, label centred (Robes MVP; Annie, 16 Nov). */}
+          <View className="flex-1">
+            <PrimaryScope>{footer}</PrimaryScope>
+          </View>
         </View>
       ) : null}
       {dock ? (
