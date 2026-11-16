@@ -1,6 +1,6 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { lookbook as copy } from '@robes/copy';
+import { lookbook as copy, ui } from '@robes/copy';
 import { anchorName, noteShort } from '@robes/core/looks';
 import {
   Button,
@@ -52,7 +52,15 @@ export function LookScreen({
   // Save opens the diary every time; the sheet outlives the working page it was saved from.
   const [justSaved, setJustSaved] = useState<Look | null>(null);
   if (query.isPending) return <Skeleton width="100%" aspectRatio={4 / 5} />;
-  if (query.isError || !query.data) return <EmptyState title={errorMessage(query.error)} />;
+  if (query.isError || !query.data) {
+    // Audit F5: an error is never a dead end.
+    return (
+      <EmptyState
+        title={errorMessage(query.error)}
+        action={{ label: ui.retry, onPress: () => void query.refetch() }}
+      />
+    );
+  }
   const look = query.data;
   return (
     <>

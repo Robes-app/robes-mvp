@@ -603,6 +603,8 @@ export const lookbook = {
   },
   // Keep or pass (legacy F14).
   deck: {
+    // A styling job past its time limit (audit F5): said plainly, with Try again.
+    slow: 'This is taking longer than usual.',
     eyebrowAround: (piece: string): string => `Around your ${piece}`,
     eyebrowFor: (day: string): string => `For ${day}`,
     eyebrowPrompt: 'From your prompt',

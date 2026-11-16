@@ -22,6 +22,7 @@ import { Animated, PanResponder, Pressable, ScrollView, View } from 'react-nativ
 import { dayLabel } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { useTimedOut } from '@/lib/use-timed-out';
 import { isTerminal, JOB_REFRESH_MS } from './ideas';
 import { type SetLook, useInvalidateLooks, useLookSet, useRequestFrame } from './look-states';
 import { RobesModelBadge } from './RobesModelBadge';
@@ -223,6 +224,7 @@ export function Deck({
     data: set,
     isError,
     error,
+    refetch,
   } = useLookSet(setId, {
     waiting: !jobDone && deck.order.length === 0,
   });
@@ -275,12 +277,38 @@ export function Deck({
       .catch(() => toast.show({ message: errors.internal }));
   };
 
-  if (isError) return <EmptyState title={errorMessage(error)} />;
   const around = set?.anchor ? anchorName(set.anchor.label, set.anchor.brand) : '';
   // Done once she has decided every card (all passed included), or the job ended with none.
   const done =
     !top && (deck.order.length > 0 || (set !== undefined && jobDone && looks.length === 0));
   const composing = !set || (looks.length === 0 && !done);
+  // Audit F5: composing never spins forever; past its time it says so, with Try again.
+  const [slow, again] = useTimedOut(composing);
+  // Audit F5: an error is never a dead end.
+  if (isError) {
+    return (
+      <EmptyState
+        title={errorMessage(error)}
+        action={{ label: ui.retry, onPress: () => void refetch() }}
+      />
+    );
+  }
+  if (slow) {
+    return (
+      <EmptyState
+        title={copy.deck.slow}
+        action={{
+          label: ui.retry,
+          onPress: () => {
+            again();
+            void refetch();
+            void job.refetch();
+          },
+        }}
+        testID="deck-slow"
+      />
+    );
+  }
   const kept = deck.kept.map((id) => looks.find((l) => l.id === id)).filter((l) => l !== undefined);
   return (
     <ScrollView contentContainerClassName="gap-6 px-6 pb-12" testID="deck">
@@ -372,9 +400,34 @@ export function JobDeck({ jobId, home = false }: { jobId: string; home?: boolean
     },
   );
   const setId = job.data?.output.setId;
+  const waiting = !setId && !job.isError && !isTerminal(job.data);
+  // Audit F5: dressing never spins forever; past its time it says so, with Try again.
+  const [slow, again] = useTimedOut(waiting);
   // Looks minted before the job failed (a frame that ran out of time) still make the deck.
   if (setId) return <Deck setId={setId} home={home} />;
-  if (job.isError) return <EmptyState title={errorMessage(job.error)} />;
+  if (job.isError) {
+    return (
+      <EmptyState
+        title={errorMessage(job.error)}
+        action={{ label: ui.retry, onPress: () => void job.refetch() }}
+      />
+    );
+  }
+  if (slow) {
+    return (
+      <EmptyState
+        title={copy.deck.slow}
+        action={{
+          label: ui.retry,
+          onPress: () => {
+            again();
+            void job.refetch();
+          },
+        }}
+        testID="deck-slow"
+      />
+    );
+  }
   if (job.data?.status === 'failed' || job.data?.status === 'cancelled') {
     return <EmptyState title={copy.deck.failed} body={jobs.status.failed} />;
   }
