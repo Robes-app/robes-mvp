@@ -197,15 +197,49 @@ function useAskContext(date: string | null, weatherOff: boolean): LookAskInput['
   return { weather: `${shortRange(wx.tempRange)}${city ? ` in ${city}` : ''}`.slice(0, 60) };
 }
 
-// The Rack (PRD §4.6): its heading with the grid | list toggle, the rows or the tiles, and the
-// Rack card under them as the add slot. Before the first piece the card stands alone.
-function Rack({
-  rows,
-  imageOf,
+// The Rack's controls, at the end of the Pieces · Details line (Annie, 16 Nov): the grid | list
+// toggle and the pencil that turns on Edit pieces (PRD §6.2, plan R2), ink-filled while it is on.
+// Native twin: DraftLook.tsx RackControls.
+function RackControls({
   layout,
   onLayout,
   editing,
   onEditing,
+}: {
+  layout: WardrobeLayout;
+  onLayout: (next: WardrobeLayout) => void;
+  editing: boolean;
+  onEditing: (next: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <LayoutToggle layout={layout} onLayout={onLayout} />
+      <button
+        type="button"
+        aria-label={copy.editPieces}
+        title={copy.editPieces}
+        aria-pressed={editing}
+        onClick={() => onEditing(!editing)}
+        data-testid="rack-pencil"
+        className={`relative flex size-8 shrink-0 items-center justify-center rounded-pill border after:absolute after:-inset-1.5 after:content-[''] ${
+          editing
+            ? 'border-ink bg-ink text-bg'
+            : 'border-rule-mid bg-surface-raised text-ink hover:border-border-control'
+        } ${focus}`}
+      >
+        <Icon name="pencil" size={14} />
+      </button>
+    </div>
+  );
+}
+
+// The Rack (PRD §4.6): the rows or the tiles, and the add slot under them; its controls sit on the
+// Pieces · Details line. Before the first piece the Rack card stands alone.
+function Rack({
+  rows,
+  imageOf,
+  layout,
+  editing,
   hasWardrobe,
   onAdd,
   hrefOf,
@@ -216,10 +250,8 @@ function Rack({
   rows: readonly RackRow[];
   imageOf: Parameters<typeof RackGrid>[0]['imageOf'];
   layout: WardrobeLayout;
-  onLayout: (next: WardrobeLayout) => void;
-  // Edit-pieces mode (PRD §6.2, plan R2): the pencil ink-filled, the rows' swap and × out.
+  // Edit-pieces mode (PRD §6.2, plan R2): the rows' swap and × out.
   editing: boolean;
-  onEditing: (next: boolean) => void;
   hasWardrobe: boolean;
   onAdd: () => void;
   // Where a tile opens at rest (a piece's page, a wish's).
@@ -233,28 +265,6 @@ function Rack({
   if (rows.length === 0) return <RackCard hasWardrobe={hasWardrobe} onClick={onAdd} />;
   return (
     <div className="flex flex-col gap-2.5" data-testid="the-rack">
-      <div className="flex h-11 items-center justify-between gap-3">
-        {/* The canvas's heading (PRD §6.1): "The Rack" in the serif, warm and quiet. */}
-        <h2 className="flex-1 font-display font-normal text-[17px] text-ink-faint tracking-[0.01em]">
-          {copy.rack}
-        </h2>
-        <LayoutToggle layout={layout} onLayout={onLayout} />
-        <button
-          type="button"
-          aria-label={copy.editPieces}
-          title={copy.editPieces}
-          aria-pressed={editing}
-          onClick={() => onEditing(!editing)}
-          data-testid="rack-pencil"
-          className={`flex size-11 shrink-0 items-center justify-center rounded-pill border ${
-            editing
-              ? 'border-ink bg-ink text-bg'
-              : 'border-rule-mid bg-surface-raised text-ink hover:border-border-control'
-          } ${focus}`}
-        >
-          <Icon name="pencil" size={16} />
-        </button>
-      </div>
       {/* Once a piece hangs, the add slot is the small + hanger chip under the rows, on a draft as
           on a saved look; the big card is only for an empty rack (Annie, 15 Nov). */}
       {layout === 'grid' ? (
@@ -972,7 +982,11 @@ function DraftBody({
   const hasWardrobe = owned !== null && owned > 0;
   const src = useSources(owned, brief?.sources ?? null);
   const [emptyWardrobe, setEmptyWardrobe] = useState(false);
-  const [rackLayout, setRackLayout] = useState<WardrobeLayout>('list');
+  // A look Robes made from her words opens on its pieces' photographs; one she builds, on the list
+  // (Annie, 16 Nov). Native twin: DraftLook.tsx.
+  const [rackLayout, setRackLayout] = useState<WardrobeLayout>(
+    look.composedByRobes ? 'grid' : 'list',
+  );
   const [editingPieces, setEditingPieces] = useState(false);
   const [adding, setAdding] = useState(false);
   // Left out on New look, the weather stays out of the draft it made (look prompt improvements B4).
@@ -1024,6 +1038,8 @@ function DraftBody({
   const capture = useCaptureRack(look, editor);
   // A draft from her photograph is the photograph and its rack: no prompt card, no Generate.
   const captureDraft = capture.on && mode === 'draft';
+  // The capture rack lists its pieces as they are found: the Rack's controls wait for the rack.
+  const capturePieces = capture.on && (captureDraft || capture.stage !== 'rack');
   const [newPiece, setNewPiece] = useState<string | null>(null);
   useDressOnOpen(look);
   const save = useSaveLook((saved) => {
@@ -1509,10 +1525,25 @@ function DraftBody({
         />
       )}
       <div className="flex flex-col gap-3 px-5 pt-3">
-        <Tabs items={TABS} value={tab} onChange={setTab} label={lookbook.savedLook.tabs.pieces} />
+        <Tabs
+          items={TABS}
+          value={tab}
+          onChange={setTab}
+          label={lookbook.savedLook.tabs.pieces}
+          trailing={
+            tab === TABS[0] && rows.length > 0 && !capturePieces ? (
+              <RackControls
+                layout={rackLayout}
+                onLayout={setRackLayout}
+                editing={editingPieces}
+                onEditing={setEditingPieces}
+              />
+            ) : undefined
+          }
+        />
         {tab === TABS[0] ? (
           <div className="flex flex-col gap-3" data-testid="pieces-tab">
-            {capture.on && (captureDraft || capture.stage !== 'rack') ? (
+            {capturePieces ? (
               <CapturePieces look={look} capture={capture}>
                 {rackRows}
               </CapturePieces>
@@ -1522,9 +1553,7 @@ function DraftBody({
                   rows={rows}
                   imageOf={imageOf}
                   layout={rackLayout}
-                  onLayout={setRackLayout}
                   editing={editingPieces}
-                  onEditing={setEditingPieces}
                   hasWardrobe={hasWardrobe}
                   onAdd={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
                   hrefOf={hrefOf}
