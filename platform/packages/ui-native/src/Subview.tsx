@@ -68,8 +68,12 @@ export function Subview({
   footer,
   testID,
   onClosed,
+  scroll = true,
 }: {
   open: boolean;
+  // False when the body is a list that scrolls itself (the piece picker's grid): a list inside
+  // this scroll could not skip the rows off screen.
+  scroll?: boolean;
   title: string;
   onBack: () => void;
   // Once iOS has dismissed it: a sheet that follows (Add pieces from the picker's +) waits for
@@ -99,14 +103,18 @@ export function Subview({
           >
             <SubviewHeader title={title} onBack={onBack} />
             <PrimaryScope>
-              <ScrollView
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="interactive"
-                contentContainerClassName="px-5 pt-5 pb-8"
-                className="flex-1"
-              >
-                {children}
-              </ScrollView>
+              {scroll ? (
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="interactive"
+                  contentContainerClassName="px-5 pt-5 pb-8"
+                  className="flex-1"
+                >
+                  {children}
+                </ScrollView>
+              ) : (
+                <View className="flex-1 px-5 pt-5">{children}</View>
+              )}
               {footer ? (
                 <View
                   className="border-hairline bg-bg px-5 pt-3"

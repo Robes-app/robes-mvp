@@ -146,6 +146,8 @@ export function PiecePicker({
         onAddPieces?.();
       }}
       testID="piece-picker"
+      // The grid is a list that scrolls itself (it draws only the rows on screen).
+      scroll={false}
       footer={
         <PrimaryScope>
           <Button disabled={count === 0} onPress={confirm} testID="picker-confirm">

@@ -21,7 +21,7 @@ function AccountForm({ me }: { me: Me }) {
   return (
     // iOS insets the scroll by the keyboard, so the field she is typing in stays in view.
     <ScrollView
-      contentContainerClassName="gap-4 px-6 pb-12"
+      contentContainerClassName="gap-4 px-6 pt-6 pb-12"
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets
     >
