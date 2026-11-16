@@ -12,6 +12,7 @@ import {
   feedbackBubble,
   isWorking,
   noteShort,
+  pictureLanding,
   threadHistory,
 } from '@robes/core/looks';
 import { useToast } from '@robes/ui';
@@ -27,6 +28,8 @@ type Editor = Pick<ReturnType<typeof useLookEditor>, 'rack' | 'answer' | 'redraw
 
 // A picture asked for and never seen to land is let go of after this long.
 const DRAW_TIMEOUT_MS = 120_000;
+// A change no draw follows (nothing to draw it on): Robes asks after this long instead.
+const NO_DRAW_MS = 8_000;
 const fb = copy.draftLook.feedback;
 
 // Working a look through the prompt (Front Door design 3b, plan 2026-11-03 §1.4): the same on
@@ -73,12 +76,9 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     }
     // Robes asks once per returned look (look prompt PRD F3, F19), about the change it made:
     // "Do the pink jeans work?". After the draw's own line, so it stays open.
-    if (changed) {
-      dispatch({
-        type: 'question',
-        text: result.followUp || fb.again,
-      });
-    }
+    // Held until the picture wears the change (16 Nov: "How does the pink coat feel?" stood over
+    // the old picture while it was still being dressed).
+    if (changed) setHeldQuestion(result.followUp || fb.again);
   });
   const askFailed = useRef(ask.reading);
   useEffect(() => {
@@ -109,7 +109,22 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   // Update the model: the picture's landing is read off the look (it reads pending meanwhile).
   const [drawing, setDrawing] = useState(false);
   const sawPending = useRef(false);
-  const picturePending = look.framePending || look.onModel === 'pending';
+  // Landed means shown: drawn, renditions and all (pictureLanding).
+  const picturePending = pictureLanding(look);
+  // Robes' question about a change, waiting for the picture to wear it: asked once the draw has
+  // landed (or timed out), or straight away when no draw follows the change.
+  const [heldQuestion, setHeldQuestion] = useState<string | null>(null);
+  const askHeld = useRef(() => {});
+  askHeld.current = () => {
+    if (heldQuestion === null) return;
+    dispatch({ type: 'question', text: heldQuestion });
+    setHeldQuestion(null);
+  };
+  useEffect(() => {
+    if (heldQuestion === null || drawing || picturePending) return;
+    const t = setTimeout(() => askHeld.current(), NO_DRAW_MS);
+    return () => clearTimeout(t);
+  }, [heldQuestion, drawing, picturePending]);
   useEffect(() => {
     if (!drawing) return;
     if (picturePending) {
@@ -124,6 +139,7 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     dispatch({ type: 'drawn' });
     if (!hushed.current) dispatch({ type: 'robes', text: d.modelDone });
     hushed.current = false;
+    askHeld.current();
   }, [drawing, picturePending]);
   useEffect(() => {
     if (!drawing) return;
@@ -131,6 +147,7 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       sawPending.current = false;
       setDrawing(false);
       dispatch({ type: 'settle' });
+      askHeld.current();
     }, DRAW_TIMEOUT_MS);
     return () => clearTimeout(t);
   }, [drawing]);
@@ -167,6 +184,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     editor.redraw().catch((err) => {
       setDrawing(false);
       dispatch({ type: 'settle' });
+      // No picture is coming: Robes asks about the change as it stands.
+      askHeld.current();
       if (!quiet) toast({ message: errorCopy(err) });
     });
   };
