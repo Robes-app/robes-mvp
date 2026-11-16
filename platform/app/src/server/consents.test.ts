@@ -32,6 +32,7 @@ describe('consents', () => {
       marketing_email: null,
       photo_analysis: null,
       look_sharing: null,
+      recordings: null,
     });
   });
 
@@ -59,6 +60,41 @@ describe('consents', () => {
       consents: { analytics: true, replay: true },
     });
     expect(both).toMatchObject({ analytics: true, replay: true });
+  });
+
+  it('refuses recordings without analytics, and keeps an older replay yes apart', async () => {
+    const { deps, rows } = fakes();
+    const err = await updateConsents(deps, ALICE, {
+      source: 'web',
+      consents: { recordings: true },
+    }).catch((e: unknown) => e);
+    expect((err as ApiError).code).toBe('invalid_input');
+    expect(rows).toEqual([]);
+    // A yes to masked recordings (an older phone build) never reads as a yes to her words.
+    await updateConsents(deps, ALICE, {
+      source: 'ios',
+      consents: { analytics: true, replay: true },
+    });
+    expect(await getConsents(deps, ALICE)).toMatchObject({ replay: true, recordings: null });
+    const out = await updateConsents(deps, ALICE, {
+      source: 'web',
+      consents: { recordings: true },
+    });
+    expect(out).toMatchObject({ analytics: true, replay: true, recordings: true });
+  });
+
+  it('withdraws both recording answers when analytics is withdrawn', async () => {
+    const { deps, rows } = fakes();
+    await updateConsents(deps, ALICE, {
+      source: 'web',
+      consents: { analytics: true, replay: true, recordings: true },
+    });
+    const out = await updateConsents(deps, ALICE, {
+      source: 'android',
+      consents: { analytics: false },
+    });
+    expect(out).toMatchObject({ analytics: false, replay: false, recordings: false });
+    expect(rows.at(-1)?.answers).toEqual({ analytics: false, replay: false, recordings: false });
   });
 
   it('withdraws replay when analytics is withdrawn', async () => {

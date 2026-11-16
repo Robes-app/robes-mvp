@@ -291,8 +291,9 @@ export const consent = {
   askYes: 'Allow',
   askNo: 'Not now',
   replayLabel: 'Screen recordings',
+  // Her words show, her photos and email never do (owner, 16 Nov 2026).
   replayHint:
-    'Recordings of how you move through Robes, with every word, photo and typed answer hidden. Needs usage counts.',
+    'Recordings of how you move through Robes, including what you type. Never your photos or email. Needs usage counts.',
   // Her words and the looks made from them, shared with PostHog (owner, 15 Nov). Its own yes:
   // it needs no usage counts, and turning it off stops anything new being shared.
   sharingLabel: 'Share my looks with Robes',

@@ -18,6 +18,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Linking, ScrollView, View } from 'react-native';
 import { useNotifications } from '@/components/Bell';
+import { Unrecorded } from '@/components/Unrecorded';
 import { LEGAL_URLS } from '@/lib/config';
 import { useSignOut } from '@/lib/use-sign-out';
 import { useBriefRead } from './dna';
@@ -103,7 +104,10 @@ function Account() {
           {...(me ? { value: name || twin.dnaPage.notYet, muted: !name } : {})}
           onPress={() => router.push('/you/account')}
         />
-        <DrillRow label={you.account.email} {...(me ? { value: me.email } : {})} />
+        {/* Her email never shows in a screen recording. Web twin: you/account-tab.tsx. */}
+        <Unrecorded>
+          <DrillRow label={you.account.email} {...(me ? { value: me.email } : {})} />
+        </Unrecorded>
         <DrillRow
           label={you.rows.notifications}
           {...(waiting ? { value: you.rows.newAlerts(waiting) } : {})}

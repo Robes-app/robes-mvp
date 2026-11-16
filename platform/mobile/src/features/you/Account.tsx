@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { Unrecorded } from '@/components/Unrecorded';
 import { errorMessage } from '@/lib/errors';
 
 const copy = you.account;
@@ -46,7 +47,10 @@ function AccountForm({ me }: { me: Me }) {
         maxLength={120}
         hint={copy.homeCityHint}
       />
-      <Field label={copy.email} value={me.email} editable={false} hint={copy.emailHint} />
+      {/* Her email never shows in a screen recording. Web twin: you/account/account-form.tsx. */}
+      <Unrecorded>
+        <Field label={copy.email} value={me.email} editable={false} hint={copy.emailHint} />
+      </Unrecorded>
       {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
       {update.isSuccess ? <Text tone="success">{copy.saved}</Text> : null}
       <PrimaryScope>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createBrowserAnalytics, type LoadPostHog } from './browser';
+import { createBrowserAnalytics, type LoadPostHog, posthogOptions } from './browser';
 
 function fakePostHog() {
   const client = {
@@ -31,7 +31,7 @@ describe('browser analytics (SEC-84)', () => {
     expect(client.capture).not.toHaveBeenCalled();
   });
 
-  it('starts on the EU host with replay off and masked unless replay is granted', async () => {
+  it('starts on the EU host with replay off unless recordings are granted', async () => {
     const { client, load } = fakePostHog();
     const analytics = createBrowserAnalytics(config, load);
     await analytics.start({ userId: 'u1', replay: false });
@@ -43,13 +43,37 @@ describe('browser analytics (SEC-84)', () => {
       capture_exceptions: true,
       disable_external_dependency_loading: true,
       disable_session_recording: true,
-      session_recording: { maskAllInputs: true, blockSelector: expect.stringContaining('img') },
     });
     expect(client.register).toHaveBeenCalledWith({ environment: 'staging' });
     expect(client.stopSessionRecording).toHaveBeenCalled();
     expect(client.identify).toHaveBeenCalledWith('u1');
     analytics.track('job_started', { kind: 'fake' });
     expect(client.capture).toHaveBeenCalledWith('job_started', { kind: 'fake' });
+  });
+
+  it('records her words but never photos, file names, her email or what is marked', async () => {
+    const options = posthogOptions(config, true);
+    expect(options.session_recording).toMatchObject({
+      maskAllInputs: false,
+      maskInputOptions: { password: true, email: true },
+      blockClass: 'ph-no-capture',
+      recordHeaders: false,
+      recordBody: false,
+    });
+    expect(options.enable_recording_console_log).toBe(false);
+    const blocked = options.session_recording.blockSelector.split(', ');
+    for (const sel of [
+      'img',
+      'picture',
+      'video',
+      'canvas',
+      'svg image',
+      '[style*="background-image"]',
+      'input[type="file"]',
+    ]) {
+      expect(blocked).toContain(sel);
+    }
+    expect(options.session_recording).not.toHaveProperty('maskTextSelector');
   });
 
   it('records replay only with replay consent', async () => {

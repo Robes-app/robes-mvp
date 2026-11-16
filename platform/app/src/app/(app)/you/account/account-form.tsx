@@ -1,5 +1,6 @@
 'use client';
 
+import { UNRECORDED } from '@robes/analytics';
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import { errors, you } from '@robes/copy';
 import { Button, ErrorText, Field, Skeleton, Text } from '@robes/ui';
@@ -82,6 +83,8 @@ export function AccountForm() {
         name="email"
         value={me.data.email}
         readOnly
+        // Her email never shows in a screen recording. Native twin: features/you/Account.tsx.
+        className={UNRECORDED}
         hint={you.account.emailHint}
       />
       <Button
