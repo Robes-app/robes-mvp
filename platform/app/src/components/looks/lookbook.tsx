@@ -1,6 +1,5 @@
 'use client';
 
-import type { Look } from '@robes/contracts';
 import { lookbook as copy, filters as filterCopy, nav } from '@robes/copy';
 import { lookFacets } from '@robes/core/filters';
 import { Icon } from '@robes/icons/web';
@@ -10,10 +9,8 @@ import { useMemo, useState } from 'react';
 import { FilterRow } from '@/components/filters/filter-row';
 import { FilterSheet } from '@/components/filters/filter-sheet';
 import { useLookFilters } from '@/components/filters/use-look-filters';
-import { NewLookBox } from '@/components/home/home-box';
 import { errorCopy } from '@/lib/error-copy';
 import { useLetGo, useLooksByStatus, useRestyle, useSaveLook } from '@/lib/look-states';
-import { DiarySheet } from './diary-sheet';
 import { DraftTile, SavedTile, SuggestedTile } from './look-tiles';
 import { NewLookSheet } from './new-look-sheet';
 
@@ -39,8 +36,6 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   const save = useSaveLook(undefined, 'suggested');
   const [newLook, setNewLook] = useState(false);
   const [sheet, setSheet] = useState(false);
-  // The calendar on a card opens the same diary sheet, over the grid — she never leaves it.
-  const [diary, setDiary] = useState<Look | null>(null);
 
   const current = tab === 'saved' ? saved : suggested;
   const all = useMemo(() => (current.data?.items ?? []).map(lookFacets), [current.data]);
@@ -63,14 +58,17 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           }
           label={copy.title}
           icons={{ [copy.tabs.saved]: 'bookmark', [copy.tabs.suggested]: 'looks' }}
+          // New look only on Saved: Suggested is what Robes brings (Annie, P2 15 Nov).
           trailing={
-            <IconButton
-              framed
-              icon="plus"
-              label={copy.newLook}
-              onClick={() => setNewLook(true)}
-              data-testid="lookbook-new"
-            />
+            tab === 'saved' ? (
+              <IconButton
+                framed
+                icon="plus"
+                label={copy.newLook}
+                onClick={() => setNewLook(true)}
+                data-testid="lookbook-new"
+              />
+            ) : undefined
           }
         />
         <FilterRow
@@ -146,10 +144,9 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
             />
           )
         ) : (
-          <div className="flex flex-col gap-4">
-            <EmptyState title={copy.suggestedEmpty.title} body={copy.suggestedEmpty.body} />
-            <NewLookBox />
-          </div>
+          // No + New look here: Robes fills blank days with suggested looks (still to be
+          // designed; Annie, P2 15 Nov).
+          <EmptyState title={copy.suggestedEmpty.title} body={copy.suggestedEmpty.body} />
         )
       ) : (
         <ul aria-label={copy.tabs[tab]} className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
@@ -160,7 +157,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
                   look={look}
                   aspect="3:4"
                   priority={i < 3}
-                  onDiary={() => setDiary(look)}
+                  // No calendar on the photo (Annie, 15 Nov): she schedules from the look.
                   onDelete={() => letGo(look.id)}
                 />
               ) : (
@@ -203,7 +200,6 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
         ctaDisabled={items.length === 0}
       />
       <NewLookSheet open={newLook} onClose={() => setNewLook(false)} />
-      <DiarySheet look={diary} onClose={() => setDiary(null)} />
     </div>
   );
 }

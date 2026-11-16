@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { type Adjust, useAdjust } from '@/lib/adjust';
 import { onRackIds, useLookEditor } from '@/lib/look-editor';
 import { useLetGo, useRequestFrame, useSaveLook } from '@/lib/look-states';
+import { useWishOf } from '@/lib/wish-of';
 import { AdjustDock } from './adjust-dock';
 import { LookImage } from './look-image';
 import { LookVerdict } from './look-verdict';
@@ -87,6 +88,7 @@ export function Rack({
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
+  const wishOf = useWishOf();
   const swapRow = editor.rack.rows.find((r) => r.key === swapping) ?? null;
   // One picker for every + and every swap (plan 2026-11-09 PR 9: the older swap sheet is gone).
   const picker: PickerMode | null =
@@ -123,7 +125,14 @@ export function Rack({
             <RackRowCard
               key={row.key}
               row={row}
-              image={row.pieceId ? piecesById.get(row.pieceId)?.image : null}
+              image={
+                row.pieceId
+                  ? piecesById.get(row.pieceId)?.image
+                  : (wishOf(row.proposal?.wishlistItemId)?.image ?? null)
+              }
+              {...(!row.pieceId && wishOf(row.proposal?.wishlistItemId)
+                ? { wishHref: `/wardrobe/wishlist/${row.proposal?.wishlistItemId}` }
+                : {})}
               mark={editor.mark(row.key)}
               styled={editor.rack.styling[row.key]}
               {...(look.status === 'saved' && !editable && row.pieceId

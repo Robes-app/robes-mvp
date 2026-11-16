@@ -20,3 +20,8 @@ export const POSTHOG = posthogKey
 // The build variant's URL scheme (app.config.ts): robes, robes-staging or robes-dev.
 const scheme = Constants.expoConfig?.scheme;
 export const APP_SCHEME = (Array.isArray(scheme) ? scheme[0] : scheme) ?? 'robes';
+
+// Where "Update" goes when the server needs a newer app (426): the App Store page for the store
+// build, TestFlight for the staging and development builds.
+export const UPDATE_URL =
+  APP_SCHEME === 'robes' ? 'https://apps.apple.com/app/id6831989422' : 'itms-beta://';

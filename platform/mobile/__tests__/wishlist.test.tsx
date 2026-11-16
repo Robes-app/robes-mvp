@@ -38,11 +38,19 @@ test('an empty wishlist opens the Add pieces sheet on the wishlist', async () =>
   expect(await screen.findByText(wardrobe.wishlistEmpty.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: wardrobe.header.savePiece }));
   expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
-  // Add without a photo carries the wishlist as the destination.
-  await fireEvent.press(screen.getByTestId('add-sheet-manual'));
+  // Titled by where it files; a receipt is for pieces she bought, so From receipt is inactive.
+  expect(screen.getByRole('header', { name: wardrobe.addSheet.titleTo.wishlist })).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: wardrobe.addSheet.fromReceipt }).props.accessibilityState,
+  ).toEqual(expect.objectContaining({ disabled: true }));
+  // The sheet is the three tiles and nothing under them (3b); a link carries the wishlist.
+  expect(screen.queryByText(wardrobe.addSheet.manual)).toBeNull();
+  await fireEvent.press(screen.getByTestId('add-sheet-link'));
+  await fireEvent.changeText(screen.getByTestId('add-sheet-url'), 'https://shop.test/loafers');
+  await fireEvent.press(screen.getByTestId('add-sheet-read'));
   expect(mockRouter.push).toHaveBeenCalledWith({
-    pathname: '/wardrobe/manual',
-    params: { to: 'wishlist' },
+    pathname: '/wardrobe/link',
+    params: { to: 'wishlist', url: 'https://shop.test/loafers' },
   });
 });
 
@@ -100,7 +108,8 @@ test('a wish reads as the rack card: Category · Brand, its price and "Not yours
     },
   });
   await renderWithApi(<WishlistView />);
-  expect(await screen.findByText('2 wishlisted')).toBeTruthy();
+  // The search row under the glass (Robes MVP 3b) stands where the count line was.
+  expect(await screen.findByLabelText(wardrobe.search.wishlist)).toBeTruthy();
   await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.grid }));
   // The 3-up tile reads the price alone (PRD rev 3 §7.2); "Not yours yet" where there is none.
   expect(await screen.findByText('€27.95')).toBeTruthy();
@@ -111,8 +120,12 @@ test('a wish reads as the rack card: Category · Brand, its price and "Not yours
   ).toBeTruthy();
   // The category chips carry their counts and narrow the grid.
   await fireEvent.press(screen.getByRole('button', { name: 'Shoes 1' }));
-  expect(await screen.findByText('1 wishlisted')).toBeTruthy();
-  expect(screen.queryByText('Silk scarf')).toBeNull();
+  await waitFor(() => expect(screen.queryByText('Silk scarf')).toBeNull());
+  await fireEvent.press(screen.getByRole('button', { name: 'Shoes 1' }));
+  // Her search finds a wish by name, brand or shop.
+  await fireEvent.changeText(screen.getByLabelText(wardrobe.search.wishlist), 'scarf');
+  expect(await screen.findByText('Silk scarf')).toBeTruthy();
+  expect(screen.queryByText('Black leather loafers')).toBeNull();
 });
 
 // A wish's page (canvas 3b, PRD rev 3 §7.3): the piece's anatomy with Brand and Shop, WEARING with

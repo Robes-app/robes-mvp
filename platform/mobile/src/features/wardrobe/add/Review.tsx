@@ -44,7 +44,14 @@ import { CropThumb } from '@/features/photo-pieces/PhotoFrame';
 import { nativeAnalytics } from '@/lib/analytics';
 import { type PieceField, PieceFieldSheet } from '../PieceFieldSheet';
 import { RecordRows } from '../PieceRows';
-import { manualHref, READ_PATIENCE_MS, type ReviewShot, sitting, wardrobeHref } from './flow';
+import {
+  addPiecesHref,
+  manualHref,
+  READ_PATIENCE_MS,
+  type ReviewShot,
+  sitting,
+  wardrobeHref,
+} from './flow';
 import { type SessionShot, useShotSession } from './reads';
 
 const old = wardrobe.add.review;
@@ -163,7 +170,7 @@ export function Review({
 
   const leave = () => {
     if (router.canGoBack()) router.back();
-    else router.replace({ pathname: '/wardrobe/add', params: { to } });
+    else router.replace(addPiecesHref(to));
   };
   // The camera is beneath Review when she came from it: going back keeps its photographs.
   const toCamera = from === 'camera' ? leave : null;
@@ -176,7 +183,7 @@ export function Review({
     left.current = true;
     sitting.empty();
     if (router.canGoBack()) router.back();
-    else router.replace({ pathname: '/wardrobe/add', params: { to } });
+    else router.replace(addPiecesHref(to));
   }, [emptied, router, to]);
 
   const remove = (key: string) => {
@@ -299,7 +306,7 @@ export function Review({
       copy.title,
       leave,
       <>
-        <Heading size="md" style={{ fontSize: 28 }} accessibilityLiveRegion="polite">
+        <Heading size="md" style={{ fontSize: 26 }} accessibilityLiveRegion="polite">
           {old.unread}
         </Heading>
         <Text tone="muted">{session.shots.some((s) => s.failed) ? old.stalled : old.nothing}</Text>
@@ -315,7 +322,7 @@ export function Review({
       leave,
       <>
         <View className="gap-2">
-          <Heading size="md" style={{ fontSize: 28 }}>
+          <Heading size="md" style={{ fontSize: 26 }}>
             {copy.head(screen.count)}
           </Heading>
           <Text size="small" tone="muted">
@@ -480,7 +487,7 @@ function ReviewRow({
   return (
     <View
       testID="review-row"
-      className="flex-row items-center border-rule"
+      className="flex-row items-center border-hairline"
       style={{ minHeight: 76, paddingLeft: 12, paddingRight: 8, borderTopWidth: first ? 0 : 0.5 }}
     >
       <Pressable
@@ -564,7 +571,7 @@ function ReadingRow({ shot, first }: { shot: SessionShot | null; first: boolean 
   return (
     <Animated.View
       testID="review-reading"
-      className="flex-row items-center gap-3.5 border-rule px-3"
+      className="flex-row items-center gap-3.5 border-hairline px-3"
       style={{ minHeight: 76, borderTopWidth: first ? 0 : 0.5, opacity }}
     >
       {shot ? (

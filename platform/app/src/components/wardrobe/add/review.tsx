@@ -457,7 +457,7 @@ function ReviewRow({
       .join(' · ') || copy.details;
   return (
     <li
-      className="relative flex min-h-[76px] items-center gap-3.5 border-rule border-t-[0.5px] px-3 first:border-t-0"
+      className="relative flex min-h-[76px] items-center gap-3.5 border-hairline border-t-[0.5px] px-3 first:border-t-0"
       data-testid="review-row"
     >
       {entry.found.kind === 'read' ? (
@@ -504,7 +504,7 @@ function ReviewRow({
 function ReadingRow({ shot }: { shot: SessionShot | null }) {
   return (
     <li
-      className="flex min-h-[76px] items-center gap-3.5 border-rule border-t-[0.5px] px-3 first:border-t-0 motion-safe:animate-breathe"
+      className="flex min-h-[76px] items-center gap-3.5 border-hairline border-t-[0.5px] px-3 first:border-t-0 motion-safe:animate-breathe"
       data-testid="review-reading"
     >
       {shot ? (

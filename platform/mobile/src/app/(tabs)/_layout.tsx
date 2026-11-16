@@ -47,7 +47,17 @@ export default function TabsLayout() {
   const owned = summary.data?.total ?? 0;
 
   if (gate.state === 'loading') return <LoadingScreen />;
-  if (gate.state === 'signed-out') return <Redirect href="/sign-in" />;
+  // A tab opened by a link while signed out comes back after sign-in (audit F6).
+  if (gate.state === 'signed-out')
+    return (
+      <Redirect
+        href={
+          pathname && pathname !== '/'
+            ? { pathname: '/sign-in', params: { next: pathname } }
+            : '/sign-in'
+        }
+      />
+    );
   if (gate.state === 'onboarding') return <Redirect href="/onboarding" />;
 
   return (

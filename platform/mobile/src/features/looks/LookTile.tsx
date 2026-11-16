@@ -127,7 +127,7 @@ export function LookTile({
         accessibilityLabel={label ?? title}
         {...(selected || disabled ? { accessibilityState: { selected, disabled } } : {})}
       >
-        <View className={dashed ? 'overflow-hidden rounded-[8px]' : undefined}>
+        <View className={dashed ? 'overflow-hidden rounded-sm' : undefined}>
           <LookPhoto look={look} width={width} aspect={aspect} />
           {onImage}
         </View>

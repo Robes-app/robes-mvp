@@ -44,11 +44,15 @@ test('a selected pill carries the check, as on the web', async () => {
   expect(icons()).toHaveLength(0);
 });
 
-test('an active quick chip reads deep rose with a cream label and its count, no check', async () => {
+// Front Door 2b/3b: a quick chip is outlined at rest; picked, the pale fill on the umber line, no check.
+test('a filter chip: outlined at rest, picked on the umber line with its count, no check', async () => {
   await render(
     <>
-      <Pill selected tone="rose" count={2} onPress={() => {}}>
+      <Pill selected tone="filter" count={2} onPress={() => {}}>
         Everyday
+      </Pill>
+      <Pill tone="filter" count={3} onPress={() => {}}>
+        Work
       </Pill>
       <Pill count={0} disabled onPress={() => {}}>
         Active
@@ -57,8 +61,14 @@ test('an active quick chip reads deep rose with a cream label and its count, no 
   );
   const active = screen.getByRole('button', { name: 'Everyday 2' });
   const face = active.children[0] as unknown as { props: { className: string } };
-  expect(face.props.className).toContain('bg-accent-warm');
+  expect(face.props.className).toContain('bg-surface-sunk');
+  expect(face.props.className).toContain('border-token-line');
   expect(face.props.className).not.toContain('bg-selected');
+  const rest = screen.getByRole('button', { name: 'Work 3' }).children[0] as unknown as {
+    props: { className: string };
+  };
+  expect(rest.props.className).toContain('border-warm-line');
+  expect(rest.props.className).not.toContain('bg-surface-raised');
   expect(
     screen.container.queryAll((node) => node.props.accessibilityElementsHidden === true),
   ).toHaveLength(0);

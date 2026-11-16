@@ -48,9 +48,9 @@ test('capture → use photo → save: the look is in the Lookbook and on today, 
   const rack = drawer.getByTestId('capture-rack');
   await expect(rack).toHaveAttribute('data-stage', 'ask');
   await expect(rack.getByRole('button', { name: 'Find the pieces' })).toBeVisible();
-  // A draft from her photograph is the photograph and its rack: no prompt card, no Generate.
+  // A draft from her photograph is the photograph and its rack: no prompt box, no send.
   await expect(drawer.getByTestId('draft-prompt')).toHaveCount(0);
-  await expect(drawer.getByTestId('draft-generate')).toHaveCount(0);
+  await expect(drawer.getByTestId('prompt-send')).toHaveCount(0);
 
   // Skip, keep just the photo: the same card, optional now; Save stands ready.
   await rack.getByRole('button', { name: 'Skip, keep just the photo' }).click();

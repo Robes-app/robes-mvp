@@ -61,10 +61,26 @@ function appLinks(host: string | null) {
 }
 
 export default ({ config }: ConfigContext): ExpoConfig => {
-  const v = VARIANTS[variant()];
+  const name = variant();
+  const v = VARIANTS[name];
   const links = appLinks(v.linkHost);
+  // Push (P0, App Store review): the expo-notifications plugin writes the aps-environment
+  // entitlement. TestFlight and the store talk to Apple's production push service, so the staging
+  // and production builds say so; only the development build uses the sandbox.
+  const plugins = (config.plugins ?? []).map((p) =>
+    (Array.isArray(p) ? p[0] : p) === 'expo-notifications'
+      ? [
+          'expo-notifications',
+          {
+            ...(Array.isArray(p) ? (p[1] as object) : {}),
+            mode: name === 'development' ? 'development' : 'production',
+          },
+        ]
+      : p,
+  ) as ExpoConfig['plugins'];
   return {
     ...config,
+    plugins,
     name: v.name,
     slug: config.slug ?? 'robes',
     scheme: v.scheme,

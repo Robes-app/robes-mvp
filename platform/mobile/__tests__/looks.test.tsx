@@ -102,16 +102,9 @@ test('an idea can be saved, and removing it goes back', async () => {
   expect(calls.some((c) => c.method === 'DELETE')).toBe(true);
 });
 
-test('a saved look is worn today through the diary sheet (her local date) and removed with Undo', async () => {
-  const today = localDate();
+test('a saved look opens the diary from Schedule look, with one act, and is removed with Undo', async () => {
   const calls = mockFetch({
     [`GET /looks/${LOOK_ID}`]: look(),
-    [`POST /looks/${LOOK_ID}/wears`]: {
-      id: JOB_ID,
-      lookId: LOOK_ID,
-      wornOn: today,
-      pieceIds: [PIECE_ID],
-    },
     [`DELETE /looks/${LOOK_ID}`]: { ok: true },
     [`POST /looks/${LOOK_ID}/restore`]: look(),
     'GET /looks': { items: [], nextCursor: null },
@@ -127,13 +120,12 @@ test('a saved look is worn today through the diary sheet (her local date) and re
   expect(screen.queryByRole('button', { name: 'Save as new' })).toBeNull();
   // Schedule look (Felix 3e) is the one ink button, and opens the diary.
   await fireEvent.press(screen.getByRole('button', { name: lookbook.savedLook.schedule }));
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.diary.woreToday }));
-  // The record reads /wears too, so name the method: the wear itself is the POST.
-  expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/wears'))?.body).toEqual({
-    wornOn: today,
-  });
-  // Beta says so (L10): today's wear is "Worn today ✓", never silence.
-  expect(await screen.findByText(lookbook.diary.wornToday)).toBeTruthy();
+  // One act, the day she picked (look prompt PRD L6): no "I wore this today", and nothing is
+  // written until she takes it.
+  expect(await screen.findByRole('button', { name: lookbook.diary.put })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'I wore this today' })).toBeNull();
+  expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/wears'))).toBe(false);
+  await fireEvent.press(screen.getByRole('button', { name: ui.close }));
 
   // 3e edits in place (D17): no Edit chip; Delete waits at the foot of Details (D9).
   expect(screen.queryByRole('button', { name: looks.page.remove })).toBeNull();

@@ -10,6 +10,7 @@ import {
   diaryPages,
   diaryPick,
   diaryWindow,
+  inviteDay,
   longDate,
   monthGrid,
   monthLabel,
@@ -231,5 +232,23 @@ describe('the diary window', () => {
     expect(dayOotd([a, b])).toBe(b);
     expect(dayOotd([a, { worn: false, position: 1 }])).toBe(a);
     expect(dayOotd([])).toBeNull();
+  });
+});
+
+// "Name the day" on one row only: the first day with no name and no looks.
+describe('inviteDay', () => {
+  const look = { activity: null, look: { name: 'The Urban Uniform', pieces: [] } };
+  it('is the first day still empty', () => {
+    expect(
+      inviteDay([
+        { date: '2026-11-15', name: null, entries: [look] },
+        { date: '2026-11-16', name: 'Dublin', entries: [] },
+        { date: '2026-11-17', name: null, entries: [] },
+        { date: '2026-11-18', name: null, entries: [] },
+      ]),
+    ).toBe('2026-11-17');
+  });
+  it('is none when every day has a name or a look', () => {
+    expect(inviteDay([{ date: '2026-11-15', name: 'Office', entries: [] }])).toBeNull();
   });
 });

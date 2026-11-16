@@ -11,17 +11,20 @@ import {
   WarmGround,
   Wordmark,
 } from '@robes/ui-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { authClient } from '@/lib/auth-client';
 import { LEGAL_URLS } from '@/lib/config';
+import { afterSignIn } from '@/lib/links';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function SignIn() {
   const router = useRouter();
+  // The screen a link was opening when she had no session (SessionGate).
+  const { next } = useLocalSearchParams<{ next?: string }>();
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -53,7 +56,8 @@ export default function SignIn() {
     const res = await authClient.signIn.emailOtp({ email: email.trim(), otp: code.trim() });
     setBusy(false);
     if (res.error) return setError(copy.invalidCode);
-    router.replace('/');
+    // On to the screen a link was opening (audit F6), or Home.
+    router.replace(afterSignIn(next) as never);
   }
 
   // Better Auth's Expo client opens the provider in an auth session and keeps the session in
@@ -63,7 +67,7 @@ export default function SignIn() {
     const res = await authClient.signIn.social({ provider, callbackURL: '/' });
     if (res.error) return setSocialError(true);
     const session = await authClient.getSession();
-    if (session.data) router.replace('/');
+    if (session.data) router.replace(afterSignIn(next) as never);
   }
 
   return (
@@ -96,10 +100,6 @@ export default function SignIn() {
               <Button onPress={sendCode} loading={busy} loadingLabel={copy.sendingCode}>
                 {copy.sendCode}
               </Button>
-              {/* Web twin: app/src/app/auth/sign-in/sign-in-form.tsx. */}
-              <Text size="small" tone="muted" className="-mt-2 text-center">
-                {copy.noPassword}
-              </Text>
               {apple || google ? (
                 <View className="gap-3">
                   <Eyebrow className="text-center">{copy.or}</Eyebrow>

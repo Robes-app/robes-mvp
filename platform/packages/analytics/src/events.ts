@@ -1,7 +1,7 @@
 import { JOB_KINDS, LEGACY_CATEGORIES } from '@robes/core';
 import { ADD_DESTINATIONS } from '@robes/core/add-flow';
 import { HOME_STEPS } from '@robes/core/home';
-import { LOOK_STATUSES } from '@robes/core/looks';
+import { ASK_REASONS, LOOK_STATUSES } from '@robes/core/looks';
 import { z } from 'zod';
 
 // One catalogue for web, native and server (infrastructure.md §9). Props are ids, counts, booleans
@@ -108,6 +108,18 @@ export const EVENTS = {
   // another take; the model asked to wear `pending` changes.
   draft_redressed: z.object({ surface: askSurface, asked: z.boolean() }).strict(),
   draft_model_updated: z.object({ surface: askSurface, pending: count }).strict(),
+  // The feedback thread (look prompt PRD F, M): her thumb on Robes' question; and a change sent
+  // from it — the reason she tapped (`several` for more than one, `none` for words alone),
+  // whether words rode with it, and whether it adjusted the look or restyled it all.
+  look_feedback: z.object({ surface: askSurface, verdict: z.enum(['up', 'down']) }).strict(),
+  look_feedback_sent: z
+    .object({
+      surface: askSurface,
+      reason: z.enum([...ASK_REASONS, 'several', 'none']),
+      has_text: z.boolean(),
+      action: z.enum(['adjust', 'restyle']),
+    })
+    .strict(),
 
   // The new-look box: a look is asked for (a piece, or her words), and whether the ask was taken.
   prompt_submitted: z

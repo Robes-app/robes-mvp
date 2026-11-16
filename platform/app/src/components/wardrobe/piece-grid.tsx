@@ -18,6 +18,7 @@ import {
   type WardrobeFilters,
 } from '@/components/filters/use-wardrobe-filters';
 import { errorCopy } from '@/lib/error-copy';
+import { useReread } from '@/lib/reread';
 import { anyReading } from '@/lib/wardrobe';
 import { AddPiecesSheet } from './add/add-pieces-sheet';
 import { DeletePieceDialog } from './delete-piece-dialog';
@@ -332,6 +333,7 @@ function PieceCard({
 }) {
   const href = `/piece/${piece.id}`;
   const status = pieceStatus(piece);
+  const reread = useReread();
   if (layout === 'list') {
     return (
       // The shared piece row (canvas 3b): its wears at the right; the Hero Rack star lives on the
@@ -341,7 +343,24 @@ function PieceCard({
         href={href}
         thumb={<PieceImage piece={piece} sizes="52px" priority={priority} />}
         meta={pieceMeta(piece)}
-        lines={piece.status === 'ready' ? null : cardLines({ piece, status }).status}
+        lines={
+          piece.status === 'ready' ? null : (
+            <span className="flex items-center gap-2">
+              {cardLines({ piece, status }).status}
+              {piece.status === 'failed' ? (
+                // Audit F3: Try again on the row too, above the row's own link.
+                <button
+                  type="button"
+                  onClick={() => reread.mutate({ params: { id: piece.id }, input: {} })}
+                  aria-label={wardrobe.readAgainLabel(piece.label)}
+                  className="relative z-10 font-sans text-[11px] text-ink underline underline-offset-2"
+                >
+                  {wardrobe.readAgain}
+                </button>
+              ) : null}
+            </span>
+          )
+        }
         swipe={{
           text: wardrobe.card.swipeDelete,
           label: wardrobe.deletePiece(piece.label),

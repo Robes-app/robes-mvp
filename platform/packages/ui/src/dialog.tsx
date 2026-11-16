@@ -179,7 +179,7 @@ function Frame({
               <RadixDialog.Close asChild>
                 <CloseDisc label={ui.close} />
               </RadixDialog.Close>
-              <RadixDialog.Title className="min-w-0 flex-1 truncate text-center font-medium font-sans text-[15px] text-ink">
+              <RadixDialog.Title className="min-w-0 flex-1 truncate text-center font-semibold font-sans text-[15px] text-ink">
                 {title}
               </RadixDialog.Title>
               {glass.action ? (

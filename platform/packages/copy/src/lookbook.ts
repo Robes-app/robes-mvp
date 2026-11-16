@@ -22,10 +22,12 @@ export const lookbook = {
   title: 'Lookbook',
   tabs: { saved: 'Saved', suggested: 'Suggested' },
   newLook: 'New look',
-  // The New Look sheet (Front Door PRD rev 3 §5.5): three doors on glass.
+  // The New Look sheet (Front Door PRD rev 3 §5.5): three doors on glass. The first says Create,
+  // as Home's day does (Annie, audit notes 15 Nov).
   newLookSheet: {
-    describe: 'Describe',
-    photo: 'Photo',
+    describe: 'Create',
+    // Capture everywhere a look starts from a photograph (Annie, 15 Nov).
+    photo: 'Capture',
     fromPieces: 'From pieces',
   },
   // The Lookbook's hidden search, revealed by a pull (PRD Q6).
@@ -121,6 +123,8 @@ export const lookbook = {
   card: {
     diary: 'Put this look in the diary',
     delete: 'Delete this look',
+    // The long-press menu on a Lookbook card (iOS): short, as iOS menus read.
+    menu: { schedule: 'Schedule look', delete: 'Delete look' },
     // A look with pieces still to find (Front Door PRD rev 3 §5.2): the small bag on the card.
     shop: 'Includes pieces to find',
   },
@@ -225,26 +229,104 @@ export const lookbook = {
     // A saved look's one accept (3e's pill, the Edit look drawer's footer; D17, D18).
     update: 'Update look',
     doneForDay: 'Save and schedule for this day',
-    // The styling card (Front Door PRD rev 3 §4.6): the prompt row's placeholders turn while it
-    // is empty; a saved look's row asks for the change instead.
+    // The prompt box (look prompt PRD P, D4, L3): the draft's placeholders turn while the field is
+    // empty, the board's line first; a saved look's row asks for the change instead.
     placeholder: 'Describe look…',
     placeholders: [
+      'relaxed weekend brunch…',
       'dinner date, smart casual…',
       'the office, a long day…',
       'a walk, then lunch…',
       'drinks after work…',
     ],
-    editPlaceholder: 'more casual…',
-    // The sticky primary at the foot (PRD §4.6 draws it as GENERATE ✓), in Robes' words: Robes
-    // styles, it never generates (the voice guard in index.test.ts).
-    generate: 'Style it',
-    // The Shop toggle (PRD §4.6, plan R1): off keeps the look to her wardrobe; on lets Robes reach
-    // for her wishlist and new pieces. What a reader hears for each state.
-    shop: {
-      label: 'Shop',
-      on: 'Shop is on: looks can include your wishlist and new pieces',
-      off: 'Shop is off: looks use your wardrobe pieces only',
+    savedPlaceholder: 'add matching shoes…',
+    // The round send inside the box (P2). Robes styles, it never generates (index.test.ts).
+    send: 'Send',
+    // Past the limit (P4): said under the field, her words never cut.
+    tooLong: (max: number): string => `Keep it under ${max} characters.`,
+    // The two sources (S1–S5), each a glyph: what a reader hears for each state, and the short
+    // name a pointer shows.
+    sources: {
+      wardrobe: {
+        tip: 'Wardrobe',
+        on: 'Wardrobe is on: looks can add pieces you own',
+        off: 'Wardrobe is off: no pieces added from your wardrobe',
+        empty: 'Nothing in your wardrobe yet',
+      },
+      shop: {
+        tip: 'Shop',
+        on: 'Shop is on: looks can add wishlist and new pieces',
+        off: 'Shop is off: no wishlist or new pieces added',
+      },
     },
+    // The feedback thread (look prompt PRD F): Robes asks one question per returned look, two
+    // thumbs answer it, and after a thumbs down she taps what to change — up to three reasons, or
+    // Restyle it all alone. Each reason carries the example its placeholder shows and the line
+    // that stands while Robes changes it.
+    feedback: {
+      question: 'How is this look?',
+      // With the occasion Robes read in her brief (F3); the plain question when it read none.
+      questionFor: (occasion: string): string => `How does this feel for ${occasion}?`,
+      again: 'How about now?',
+      up: 'Love it',
+      down: 'Not quite',
+      change: 'What should I change?',
+      whichPiece: 'Which piece?',
+      placeholder: 'Or tell Robes what to change…',
+      placeholderDown: 'Or tell Robes what you need…',
+      reasons: {
+        dressy: {
+          label: 'Too dressy',
+          example: 'swap the heels for trainers…',
+          work: 'Changing how dressy it is, keeping the rest…',
+        },
+        casual: {
+          label: 'Too casual',
+          example: 'make it a bit more polished…',
+          work: 'Changing how casual it is, keeping the rest…',
+        },
+        colours: {
+          label: 'The colours',
+          example: 'I hate matching, give the coat some contrast…',
+          work: 'Changing the colours, keeping the rest…',
+        },
+        fit: {
+          label: 'Fit or shape',
+          example: 'something less boxy on top…',
+          work: 'Changing the fit, keeping the rest…',
+        },
+        piece: {
+          label: 'A piece I don’t like',
+          example: 'lose the bag…',
+          work: 'Changing that piece, keeping the rest…',
+        },
+        weather: {
+          label: 'Not for the weather',
+          example: 'it’ll rain, add a proper coat…',
+          work: 'Changing it for the weather, keeping the rest…',
+        },
+      },
+      // More than one reason, or her words alone after a thumbs down.
+      adjusting: 'Adjusting this look…',
+      restyle: {
+        label: 'Restyle it all',
+        example: 'try something with more colour…',
+        work: (brief: string): string =>
+          brief ? `Starting fresh from “${brief}”…` : 'Starting fresh…',
+      },
+      remove: (label: string): string => `Remove ${label}`,
+    },
+    // The prompt's dock at the foot of a look (look prompt PRD F23): open, it heads the thread;
+    // minimised, it is one line; closed, the sparkle that opens it again.
+    dock: {
+      title: 'Styling with Robes',
+      open: 'Style with Robes',
+      minimise: 'Minimise',
+      expand: 'Open the prompt',
+      rest: 'Tell Robes what you need',
+    },
+    // A tap on Wardrobe while she owns nothing (S3).
+    emptyWardrobe: { title: 'Your wardrobe is empty', add: 'Add pieces' },
     // The Rack card before the first piece (PRD §4.6): with a wardrobe it opens the picker; empty
     // it opens Add your pieces. The heading shows once a piece hangs.
     rack: 'The Rack',
@@ -332,15 +414,6 @@ export const lookbook = {
       placeholder: 'e.g: sleeves rolled up…',
       send: 'Send',
     },
-    describeSheet: {
-      title: 'Describe changes',
-      placeholder: 'e.g: more casual…',
-      send: 'Send',
-      pieces: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
-      show: 'Show the pieces',
-      hide: 'Hide the pieces',
-      remove: (name: string): string => `Remove ${name} from the prompt`,
-    },
     // The piece picker (Felix WardrobePicker): the wardrobe grid as a subview; its search, pills
     // and Photograph one read home's flyout copy.
     picker: {
@@ -411,9 +484,8 @@ export const lookbook = {
     already: 'Already in the diary · Open the day',
     record: 'Record it as worn',
     recorded: 'Already worn that day',
-    woreToday: 'I wore this today',
     recordedOn: (day: string): string => `Recorded — worn ${day}`,
-    // "I wore this today" says so (beta's __lkDiaryWoreToday).
+    // A wear recorded on today's date says so.
     wornToday: 'Worn today ✓',
     inDiaryFor: (look: string, day: string): string => `“${look}” is in your diary for ${day}`,
   },
@@ -597,11 +669,9 @@ export const lookbook = {
   // The look prompt: one box on every look.
   prompt: {
     doorLook: 'Change this look…',
-    doorNew: 'Where to, and how should it feel?',
     doorAfter: 'Anything else, or put something back…',
     doorDraft: 'Change this draft…',
     busyChange: 'Changing the look…',
-    busyRead: 'Reading it…',
     busyNote: 'Noting it…',
     doneNone: 'Nothing has changed yet, so there’s nothing to put back.',
     noticed: 'Waiting under Robes noticed — keep it there and it becomes a rule.',
@@ -609,7 +679,6 @@ export const lookbook = {
     send: 'Send',
     fold: 'Close',
     label: (name: string): string => `Change ${name}`,
-    newLabel: 'A new look',
     failed: 'Robes couldn’t read that just now. Try again.',
   },
   // F8: a verdict on a suggestion lands in her memory; "not quite" lets it go.

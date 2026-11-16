@@ -1,6 +1,13 @@
 import type { PlanEntry } from '@robes/contracts';
 import { plan as copy, ui } from '@robes/copy';
-import { daySummary, monthLabel, shiftMonth, weekdayShort, weekGroups } from '@robes/core/calendar';
+import {
+  daySummary,
+  inviteDay,
+  monthLabel,
+  shiftMonth,
+  weekdayShort,
+  weekGroups,
+} from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import {
   Card,
@@ -10,14 +17,14 @@ import {
   fonts,
   IconButton,
   MIN_TOUCH,
-  SegmentedControl,
+  Tabs,
   Text,
   useColor,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
-import { TabScreen, useTabScroll } from '@/components/TabScreen';
+import { TabScreen, TabSticky, useTabScroll, useTabTop } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { readPref, writePref } from '@/lib/prefs';
 import { usePullRefresh } from '@/lib/pull-refresh';
@@ -78,8 +85,11 @@ function MonthStep({
   );
 }
 
-// The Diary tab (beta parity canvas, 04 Diary): the List | Month track and the + pinned under
-// the header; the eyebrow names the window, or the month with its ‹ › on Month.
+const TABS = [copy.view.list, copy.view.month] as const;
+
+// The Diary tab (design "Diary & Day", 14 Nov; web twin plan-view.tsx): List · Month as the
+// underline Tabs the Lookbook and the Wardrobe carry, the framed + at the rail's end, pinned
+// under the header; the eyebrow names the window, or the month with its ‹ › on Month.
 export function PlanView() {
   const [stored, setView] = usePlanView();
   const view = stored ?? 'list';
@@ -89,42 +99,48 @@ export function PlanView() {
   const [picking, setPicking] = useState(false);
   return (
     <TabScreen
+      glass
       title={copy.title}
       toolbar={
-        <View className="flex-row items-center justify-between gap-4">
-          <SegmentedControl<View_>
-            label={copy.view.label}
-            options={[
-              { value: 'list', label: copy.view.list },
-              { value: 'month', label: copy.view.month },
-            ]}
-            value={view}
-            onChange={setView}
-          />
-          {/* The trip is hidden, so the + adds a look straight away (legacy 2eacfb4). */}
-          <IconButton framed icon="plus" label={copy.header.add} onPress={() => setPicking(true)} />
-        </View>
+        <Tabs
+          items={TABS}
+          value={view === 'month' ? copy.view.month : copy.view.list}
+          onChange={(label) => setView(label === copy.view.month ? 'month' : 'list')}
+          trailing={
+            // The trip is hidden, so the + adds a look straight away (legacy 2eacfb4).
+            <IconButton
+              framed
+              icon="plus"
+              label={copy.header.add}
+              onPress={() => setPicking(true)}
+            />
+          }
+          testID="plan-tabs"
+        />
       }
     >
-      <View className="mt-[22px] mb-3 min-h-8 flex-row items-center justify-between px-5">
-        <Eyebrow accessibilityRole="header">
-          {view === 'list' ? copy.header.window(PLAN_DAYS) : monthLabel(month)}
-        </Eyebrow>
-        {view === 'month' ? (
-          <View className="flex-row gap-2">
-            <MonthStep
-              label={copy.prevMonth}
-              icon="back"
-              onPress={() => setMonth(shiftMonth(month, -1))}
-            />
-            <MonthStep
-              label={copy.nextMonth}
-              icon="forward"
-              onPress={() => setMonth(shiftMonth(month, 1))}
-            />
-          </View>
-        ) : null}
-      </View>
+      {/* Pinned with the tabs in the glass chrome, as the Lookbook's and Wardrobe's filters are. */}
+      <TabSticky className="mt-[22px] mb-3 px-5">
+        <View className="min-h-8 flex-row items-center justify-between">
+          <Eyebrow accessibilityRole="header">
+            {view === 'list' ? copy.header.window(PLAN_DAYS) : monthLabel(month)}
+          </Eyebrow>
+          {view === 'month' ? (
+            <View className="flex-row gap-2">
+              <MonthStep
+                label={copy.prevMonth}
+                icon="back"
+                onPress={() => setMonth(shiftMonth(month, -1))}
+              />
+              <MonthStep
+                label={copy.nextMonth}
+                icon="forward"
+                onPress={() => setMonth(shiftMonth(month, 1))}
+              />
+            </View>
+          ) : null}
+        </View>
+      </TabSticky>
       {stored === null ? null : view === 'list' ? (
         <PlanList />
       ) : (
@@ -144,12 +160,15 @@ function DayRow({
   name,
   entries,
   first,
+  invite,
 }: {
   date: string;
   today: string;
   name: string | null;
   entries: PlanEntry[];
   first: boolean;
+  // The one empty row that says "Name the day" (inviteDay); the others show their date alone.
+  invite: boolean;
 }) {
   const router = useRouter();
   const muted = useColor('ink-muted');
@@ -172,8 +191,10 @@ function DayRow({
         isToday ? 'border-l-[3px] border-l-accent-inspire pl-[13px]' : 'pl-4'
       }`}
     >
-      <View className="w-[34px] items-center">
+      {/* At least 34 wide, and as wide as TODAY needs: it never wraps to "TODA / Y" (audit P1). */}
+      <View className="min-w-[34px] items-center">
         <Text
+          numberOfLines={1}
           className={`text-[9px] uppercase ${isToday ? 'text-accent-warm' : 'text-ink-faint'}`}
           style={{ fontFamily: fonts.sansRegular, letterSpacing: 1.26 }}
         >
@@ -200,13 +221,15 @@ function DayRow({
         </View>
       ) : null}
       <View className="flex-1 gap-px">
-        <Text
-          numberOfLines={1}
-          className={title ? 'text-ink' : 'text-ink-faint'}
-          style={{ fontFamily: title ? fonts.displayRegular : fonts.displayItalic, fontSize: 18 }}
-        >
-          {title ?? copy.list.nameTheDay}
-        </Text>
+        {title || invite ? (
+          <Text
+            numberOfLines={1}
+            className={title ? 'text-ink' : 'text-ink-faint'}
+            style={{ fontFamily: title ? fonts.displayRegular : fonts.displayItalic, fontSize: 18 }}
+          >
+            {title ?? copy.list.nameTheDay}
+          </Text>
+        ) : null}
         {s.looks ? (
           <Text
             numberOfLines={1}
@@ -237,11 +260,12 @@ function DayRow({
 // The rolling 30 days as summary rows grouped by week (legacy ff87e89): every row opens its day.
 export function PlanList() {
   const tabScroll = useTabScroll();
+  const top = useTabTop();
   const { data, isPending, isError, error, refetch } = usePlan();
   const pull = usePullRefresh(refetch);
   if (isPending) {
     return (
-      <View className="gap-3 px-5" accessibilityState={{ busy: true }}>
+      <View className="gap-3 px-5" style={{ marginTop: top }} accessibilityState={{ busy: true }}>
         <CardSkeleton />
         <CardSkeleton />
       </View>
@@ -249,13 +273,15 @@ export function PlanList() {
   }
   if (isError || !data) {
     return (
-      <EmptyState
-        title={errorMessage(error)}
-        action={{ label: ui.retry, onPress: () => void refetch() }}
-      />
+      <View style={{ paddingTop: top }}>
+        <EmptyState
+          title={errorMessage(error)}
+          action={{ label: ui.retry, onPress: () => void refetch() }}
+        />
+      </View>
     );
   }
-  const planned = data.days.some((d) => d.entries.length > 0 || d.name);
+  const invite = inviteDay(data.days);
   return (
     <ScrollView
       {...tabScroll}
@@ -263,9 +289,6 @@ export function PlanList() {
       contentContainerClassName="gap-3 px-5 pb-12"
       refreshControl={<RefreshControl {...pull} />}
     >
-      {planned ? null : (
-        <EmptyState title={copy.empty.title} titleEm={copy.empty.titleEm} body={copy.empty.body} />
-      )}
       {weekGroups(data.days, data.from).map((g) => (
         // A week is one white card: its range (or "Rest of this week") then a row per day.
         <Card key={g.monday}>
@@ -284,6 +307,7 @@ export function PlanList() {
               name={day.name}
               entries={day.entries}
               first={i === 0}
+              invite={day.date === invite}
             />
           ))}
         </Card>

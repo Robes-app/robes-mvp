@@ -141,15 +141,19 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   const field = page.getByTestId('draft-prompt');
   await field.fill('swap the trouser for the dark straight jean');
   await field.press('Enter');
-  await expect(
-    page.getByText('Done. The change is on the look now.', { exact: false }),
-  ).toBeVisible({
-    timeout: 30_000,
-  });
+  // The change is seen on the rack, never told (redline 14 Nov): Robes only asks about it.
+  await expect(page.getByText(/^How does (it|the change) look/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Done.', { exact: false })).toHaveCount(0);
   await expect(page.getByText('Swapped in · was the white wide-leg trouser')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open Dark straight jean' })).toBeVisible();
 
-  // A rule waits under Robes noticed; it changes nothing. The thread's text names what landed.
+  // The send closed the prompt to its bar, so the change is seen on the look (testing, 15 Nov);
+  // the bar's disc opens it again as a sheet over the dimmed look.
+  await expect(field).toHaveCount(0);
+  await page.getByTestId('prompt-expand').click();
+  await expect(page.getByTestId('prompt-scrim')).toBeVisible();
+  // A rule waits under Robes noticed; it changes nothing. The thread's text names what landed,
+  // and Robes' words open the sheet again by themselves.
   await field.fill("I don't wear double denim");
   await field.press('Enter');
   const noticed = 'Waiting under Robes noticed — keep it there and it becomes a rule.';
@@ -164,7 +168,10 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   expect(thread, thread).toContain(noticed);
   expect(await seriousViolations(page), 'a draft with its thread').toEqual([]);
 
-  // The done disc saves; the saved look opens with the diary up.
+  // The sheet stands over the dimmed look until she minimises it; then the done disc saves, and
+  // the saved look opens with the diary up.
+  await page.getByTestId('prompt-minimise').click();
+  await expect(page.getByTestId('prompt-scrim')).toHaveCount(0);
   await page.getByTestId('draft-done').click();
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible({
     timeout: 30_000,
@@ -222,7 +229,8 @@ test('the draft look at 390: her model, the piece picker, and the done disc', as
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('list', { name: 'The rack · 1 piece' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
-  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
+  // With a piece hanging, the small + hanger chip adds the next (Annie, 15 Nov).
+  await page.getByRole('button', { name: '+ Add a piece' }).click();
   await picker.getByRole('button', { name: 'Include White wide-leg trouser' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();
@@ -274,6 +282,9 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
   await expect(page.getByText('Draft look')).toBeVisible();
   // L10: the pencil shows the hanger (plan R2); it opens the picker on the row; Swap it in lands
   // at once; Undo (6 s) puts it back.
+  // Edit mode rocks the cards (Robes MVP 2b), and Playwright only clicks what holds still: this
+  // test is about the swap, so it runs as a browser with Reduce Motion (no rocking) would.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.getByRole('button', { name: 'Edit pieces' }).click();
   await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
   const picker = page.getByTestId('piece-picker');

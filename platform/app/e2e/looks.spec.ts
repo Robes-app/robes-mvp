@@ -127,7 +127,7 @@ test('styling a piece mints three suggestions; one is saved as is, one edited in
   const drafts = await (await api.get('/api/v1/looks?status=draft')).json();
   expect(drafts.items.map((l: { id: string }) => l.id)).toEqual([second.id]);
 
-  // ↻ re-writes a suggestion in place; Dress it again does the same to a draft Robes made (plan
+  // ↻ re-writes a suggestion in place; Restyle it all does the same to a draft Robes made (plan
   // 2026-11-03 D2); a saved look is never re-rolled.
   const restyle = await api.post(`/api/v1/looks/${third.id}/restyle`, { headers: key() });
   expect(restyle.status()).toBe(202);

@@ -248,7 +248,7 @@ test('a draft from her photo: the Find the pieces card, and Skip keeps just the 
   expect(screen.getByText(copy.card.sub)).toBeTruthy();
   // The photograph and its rack: no prompt card, no Generate.
   expect(screen.queryByTestId('styling-card')).toBeNull();
-  expect(screen.queryByTestId('draft-generate')).toBeNull();
+  expect(screen.queryByTestId('prompt-send')).toBeNull();
   await fireEvent.press(screen.getByTestId('capture-skip'));
   expect(await screen.findByTestId('capture-rack-photo')).toBeTruthy();
   expect(screen.getByText(copy.card.later)).toBeTruthy();

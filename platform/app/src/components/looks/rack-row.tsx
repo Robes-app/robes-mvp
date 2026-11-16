@@ -4,8 +4,9 @@ import type { PieceImage as PieceImageData } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { nameNoBrand, type RackRow, type RowNote, theName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { IconButton, Image, Text } from '@robes/ui';
+import { IconButton, Image } from '@robes/ui';
 import { CardRow, type RowMeta } from '@/components/wardrobe/piece-card';
+import { NoPhoto } from '@/components/wardrobe/piece-image';
 import { imageSources } from '@/lib/image';
 
 export type RowMark = RowNote | { kind: 'added' };
@@ -35,6 +36,32 @@ function Disc({
   );
 }
 
+// Edit mode's small discs (Robes MVP 2b): 22px on the bg veil with a lift, an ink glyph; the hit
+// area reaches 44.
+function EditDisc({
+  icon,
+  label,
+  onClick,
+  className,
+}: {
+  icon: 'wardrobe' | 'close';
+  label: string;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={`relative flex size-[22px] items-center justify-center rounded-pill border-[0.5px] border-rule-mid bg-veil text-ink shadow-disc after:absolute after:-inset-[11px] after:content-[''] focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${className ?? ''}`}
+    >
+      <Icon name={icon} size={11} />
+    </button>
+  );
+}
+
 // One piece on a look's rack: the shared piece row (CardRow, PRD §6.1) with the look's own say —
 // its role in the small caps, a find's retailer under the name, and at the right the wears behind a
 // calendar (a piece she owns), a wish's price behind a heart, or a piece to find's price behind a
@@ -50,9 +77,15 @@ export function RackRowCard({
   onSwap,
   onWish,
   onRemove,
+  wishHref,
+  editing = false,
 }: {
   row: RackRow;
   image?: PieceImageData | null;
+  // A wish on the rack opens its own page at rest (Annie, 15 Nov).
+  wishHref?: string;
+  // The Rack's pencil is down (Robes MVP 2b): the card rocks, × on its corner, swap and chevron.
+  editing?: boolean;
   mark?: RowMark | null;
   styled?: string | null;
   // The piece's own wear count, on a saved look at rest (beta's ledger, L19).
@@ -74,23 +107,50 @@ export function RackRowCard({
           ? copy.rack.added
           : null;
   const resting = !onSwap && !onRemove;
-  const actions =
-    (proposal && onWish) || onSwap || onRemove ? (
-      <div className="-mr-1.5 flex items-center gap-1">
-        {proposal && onWish ? (
-          <IconButton
-            icon="heart"
-            label={copy.rack.save(name)}
-            aria-pressed={proposal.wishlisted}
-            onClick={onWish}
-          />
-        ) : null}
-        {onSwap ? <Disc icon="wardrobe" label={copy.rack.swap(name)} onClick={onSwap} /> : null}
-        {onRemove ? <Disc icon="close" label={copy.rack.remove(name)} onClick={onRemove} /> : null}
-      </div>
-    ) : null;
+  const actions = editing ? (
+    <div className="flex items-center gap-2">
+      {proposal && onWish && !proposal.wishlisted ? (
+        <IconButton
+          icon="heart"
+          label={copy.rack.save(name)}
+          aria-pressed={false}
+          onClick={onWish}
+        />
+      ) : null}
+      {onSwap ? <EditDisc icon="wardrobe" label={copy.rack.swap(name)} onClick={onSwap} /> : null}
+      <Icon name="forward" size={14} className="text-ink-faint" />
+    </div>
+  ) : (proposal && onWish) || onSwap || onRemove ? (
+    <div className="-mr-1.5 flex items-center gap-1">
+      {proposal && onWish ? (
+        <IconButton
+          icon="heart"
+          label={copy.rack.save(name)}
+          aria-pressed={proposal.wishlisted}
+          onClick={onWish}
+        />
+      ) : null}
+      {onSwap ? <Disc icon="wardrobe" label={copy.rack.swap(name)} onClick={onSwap} /> : null}
+      {onRemove ? <Disc icon="close" label={copy.rack.remove(name)} onClick={onRemove} /> : null}
+    </div>
+  ) : null;
   return (
-    <li data-testid={`rack-row-${row.key}`}>
+    <li
+      data-testid={`rack-row-${row.key}`}
+      className={
+        editing
+          ? 'relative motion-safe:animate-[rack-jig-row_130ms_ease-in-out_infinite_alternate]'
+          : undefined
+      }
+    >
+      {editing && onRemove ? (
+        <EditDisc
+          icon="close"
+          label={copy.rack.remove(name)}
+          onClick={onRemove}
+          className="absolute -top-1.5 -left-1.5 z-20"
+        />
+      ) : null}
       <CardRow
         piece={{
           label: name,
@@ -102,17 +162,13 @@ export function RackRowCard({
           sources ? (
             <Image src={sources.src} srcSet={sources.srcSet} sizes="52px" alt="" aspect="4:5" />
           ) : (
-            <div aria-hidden className="flex aspect-[4/5] items-center justify-center">
-              <Text size="small" tone="muted">
-                {name.charAt(0)}
-              </Text>
-            </div>
+            <NoPhoto className="aspect-[4/5]" size={18} />
           )
         }
         {...(row.role ? { role: copy.rack.roles[row.role] } : {})}
         maker={brand || proposal?.retailerHint?.trim() || ''}
         dashed={!!proposal}
-        meta={rackMeta(row, wears)}
+        meta={editing ? null : rackMeta(row, wears)}
         action={actions}
         lines={
           markText || styled ? (
@@ -128,7 +184,11 @@ export function RackRowCard({
             </>
           ) : null
         }
-        {...(row.pieceId && resting ? { href: `/piece/${row.pieceId}` } : {})}
+        {...(resting && row.pieceId
+          ? { href: `/piece/${row.pieceId}` }
+          : resting && wishHref
+            ? { href: wishHref }
+            : {})}
         openLabel={copy.rack.open(name)}
         highlight={mark !== null && mark !== undefined}
       />

@@ -133,6 +133,35 @@ test('a notification toggle flips at once and saves just that key', async () => 
   });
 });
 
+// Audit F8: the phone's own permission leads the page. Off, a row sends her to Settings; never
+// asked, a row asks; allowed, nothing stands above the switches.
+const pushMock = () => jest.requireMock('expo-notifications') as { getPermissionsAsync: jest.Mock };
+
+test.each([
+  ['denied', 'push-system-off'],
+  ['undetermined', 'push-system-ask'],
+  ['granted', null],
+] as const)('Notifications with the phone’s permission %s', async (status, row) => {
+  const openSettings = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+  pushMock().getPermissionsAsync.mockResolvedValue({ status });
+  try {
+    mockFetch({ 'GET /me': ME });
+    await renderWithApi(<Notifications />);
+    expect(await screen.findByLabelText(you.notifications.nudges)).toBeTruthy();
+    if (row) {
+      await fireEvent.press(await screen.findByTestId(row));
+      if (status === 'denied') expect(openSettings).toHaveBeenCalled();
+    } else {
+      await waitFor(() => expect(pushMock().getPermissionsAsync).toHaveBeenCalled());
+      expect(screen.queryByTestId('push-system-off')).toBeNull();
+      expect(screen.queryByTestId('push-system-ask')).toBeNull();
+    }
+  } finally {
+    pushMock().getPermissionsAsync.mockResolvedValue({ status: 'undetermined' });
+    openSettings.mockRestore();
+  }
+});
+
 test('turning usage counts off also withdraws recordings', async () => {
   const calls = mockFetch({
     'GET /me/consents': {
@@ -140,12 +169,14 @@ test('turning usage counts off also withdraws recordings', async () => {
       replay: true,
       marketing_email: null,
       photo_analysis: null,
+      look_sharing: null,
     },
     'POST /me/consents': {
       analytics: false,
       replay: false,
       marketing_email: null,
       photo_analysis: null,
+      look_sharing: null,
     },
   });
   await renderWithApi(<Privacy />);
@@ -155,6 +186,27 @@ test('turning usage counts off also withdraws recordings', async () => {
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     source: 'ios',
     consents: { analytics: false, replay: false },
+  });
+});
+
+test('sharing her looks is its own yes, with no usage counts needed', async () => {
+  const unanswered = {
+    analytics: false,
+    replay: false,
+    marketing_email: null,
+    photo_analysis: null,
+    look_sharing: null,
+  };
+  const calls = mockFetch({
+    'GET /me/consents': unanswered,
+    'POST /me/consents': { ...unanswered, look_sharing: true },
+  });
+  await renderWithApi(<Privacy />);
+  await fireEvent.press(await screen.findByLabelText(consent.sharingLabel));
+  await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
+  expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+    source: 'ios',
+    consents: { look_sharing: true },
   });
 });
 
@@ -175,6 +227,7 @@ test('Download your data: prepare, then the ready file opens to download (SEC-81
       replay: false,
       marketing_email: null,
       photo_analysis: null,
+      look_sharing: null,
     },
     'GET /me/exports': () => ({
       export: ready ? exp({ status: 'ready', downloadUrl: 'https://files.test/robes.zip' }) : null,

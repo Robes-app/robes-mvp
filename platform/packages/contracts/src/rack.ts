@@ -118,9 +118,14 @@ export function askRack(state: RackState, anchorPieceId: string | null): LookAsk
 
 // True when an answer changes the rack (and so a suggestion becomes a draft).
 export function askChanges(
-  result: Pick<LookAskResult, 'swaps' | 'back' | 'backAll' | 'styled'>,
+  result: Pick<LookAskResult, 'swaps' | 'back' | 'backAll' | 'styled'> &
+    Partial<Pick<LookAskResult, 'adds'>>,
 ): boolean {
   return (
-    result.swaps.length > 0 || result.back.length > 0 || result.backAll || result.styled.length > 0
+    result.swaps.length > 0 ||
+    (result.adds?.length ?? 0) > 0 ||
+    result.back.length > 0 ||
+    result.backAll ||
+    result.styled.length > 0
   );
 }

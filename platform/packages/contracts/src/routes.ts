@@ -122,6 +122,7 @@ import {
   DailyItemParams,
   DailyLook,
   DailyLookParams,
+  DayCard,
   HomeLater,
   HomeLaterInput,
   SaveDailyLookInput,
@@ -515,6 +516,15 @@ export const routes = {
     auth: 'user',
     params: PieceParams,
     input: PiecePhotoInput,
+    output: Piece,
+  },
+  // Try again (audit F3): a piece Robes couldn't read goes back to reading; its photo is read anew.
+  'wardrobe.reread': {
+    method: 'POST',
+    path: '/wardrobe/items/:id/read',
+    auth: 'user',
+    params: PieceParams,
+    input: EmptyInput,
     output: Piece,
   },
   'wardrobe.delete': {
@@ -1020,6 +1030,15 @@ export const routes = {
     params: PlanDayParams,
     input: SetOotdInput,
     output: PinnedEntries,
+  },
+  // One day as the Diary's day card draws it: Home's day, for any date.
+  'plan.day': {
+    method: 'GET',
+    path: '/plan/days/:date',
+    auth: 'user',
+    params: PlanDayParams,
+    input: EmptyInput,
+    output: DayCard,
   },
   // Where she is on a day (the prompt's place chip); null clears it back to home.
   'plan.place': {

@@ -80,7 +80,7 @@ export function FilterSheet({
                   return (
                     <Pill
                       key={option.value}
-                      tone="ink"
+                      tone="option"
                       selected={on}
                       {...(section.counts === false ? {} : { count: option.count })}
                       onClick={() => section.onToggle(option.value)}

@@ -56,7 +56,7 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
   return (
     <ScrollView contentContainerClassName="gap-4 px-6 pb-12">
       <Eyebrow>{copy.eyebrow}</Eyebrow>
-      <Heading style={{ fontSize: 28 }}>{copy.heading}</Heading>
+      <Heading style={{ fontSize: 26 }}>{copy.heading}</Heading>
       {value ? (
         <View className="gap-4">
           <View className="gap-3 rounded-soft border border-hairline bg-surface-raised px-4 py-4">

@@ -268,6 +268,22 @@ export function daySummary(
   };
 }
 
+// The one row that invites her to name it: the first day still empty (no name, no looks). Every
+// other empty row shows its date alone; the line said on every row was noise (UX audit, 15 Nov).
+export function inviteDay(
+  days: ReadonlyArray<{
+    date: string;
+    name: string | null;
+    entries: ReadonlyArray<{ activity: string | null; look: { name: string; pieces: unknown[] } }>;
+  }>,
+): string | null {
+  const day = days.find((d) => {
+    const s = daySummary(d.entries, d.name);
+    return !s.name && !s.looks;
+  });
+  return day?.date ?? null;
+}
+
 export interface TripBand {
   id: string;
   title: string;

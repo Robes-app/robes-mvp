@@ -5,15 +5,7 @@ import type { Features } from '@robes/contracts';
 import { lookbook, nav, plan, shell, today, wardrobe } from '@robes/copy';
 import { greetingName } from '@robes/core/home';
 import { Icon } from '@robes/icons/web';
-import {
-  Avatar,
-  type Command,
-  CommandBar,
-  Eyebrow,
-  Sheet,
-  useCommandHotkey,
-  Wordmark,
-} from '@robes/ui';
+import { Avatar, type Command, CommandBar, useCommandHotkey, Wordmark } from '@robes/ui';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -27,12 +19,10 @@ import {
   useState,
 } from 'react';
 import { BackLink } from '@/components/back-link';
-import { NewLookBox } from '@/components/home/home-box';
 import { Bell } from '@/components/shell/bell';
 import {
   activeRoot,
   backFor,
-  CREATE_GROUPS,
   createItems,
   GO_TO_ITEMS,
   isFlowPath,
@@ -123,7 +113,8 @@ const MINIMISES = new Set(['/looks', '/wardrobe']);
 // Signed-in chrome (iOS navigation redline, 2026-11-04): the top bar on every width, the roots
 // beside the wordmark ≥768; below it one full-width capsule of the four roots. No sparkle beside
 // it on a phone: dressing starts from home's composer. Native twins: TabScreen (the bar) and
-// app/(tabs)/_layout.tsx (the system tab bar). Create sheet from the desktop bar; ⌘K everywhere.
+// app/(tabs)/_layout.tsx (the system tab bar). ⌘K everywhere; its Create group adds and dresses.
+// The desktop bar's Create button and sheet are retired (Annie, 15 Nov): each screen's own +.
 export function AppShell({
   name,
   features,
@@ -135,7 +126,6 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [createOpen, setCreateOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [pushed, setPushed] = useState(false);
   const [backHidden, setBackHidden] = useState(false);
@@ -151,10 +141,6 @@ export function AppShell({
   const inFlow = isFlowPath(pathname) || pushed;
   const { scrolled, minimised, restore } = useScrollChrome(MINIMISES.has(current), pathname);
   const create = useMemo(() => createItems(features), [features]);
-  // The new-look box in the sheet navigates to the deck; the sheet goes with the page it opened on.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: closes on every route change
-  useEffect(() => setCreateOpen(false), [pathname]);
-
   const commands = useMemo<Command[]>(
     () => [
       ...GO_TO_ITEMS.map((i) => ({
@@ -262,14 +248,6 @@ export function AppShell({
             >
               <Icon name="search" size={18} />
             </button>
-            <button
-              type="button"
-              onClick={() => setCreateOpen(true)}
-              className={`hidden min-h-11 items-center gap-2 rounded-pill border border-border-control px-5 font-sans text-sm font-medium text-ink hover:border-ink md:inline-flex ${focus}`}
-            >
-              <Icon name="looks" size={16} />
-              {nav.create}
-            </button>
             {/* The bell (design 3k): alerts leave home for here, a dot while anything waits. */}
             <Bell />
             <Link
@@ -322,40 +300,6 @@ export function AppShell({
           </ul>
         )}
       </nav>
-
-      <Sheet title={shell.create.title} open={createOpen} onOpenChange={setCreateOpen}>
-        <div className="flex flex-col gap-5">
-          {/* Beta's sparkle opens the new-look box (legacy __rbHbOpen({fresh})): here it leads the sheet. */}
-          <FeaturesProvider value={features}>
-            <NewLookBox autoFocus={createOpen} />
-          </FeaturesProvider>
-          {CREATE_GROUPS.map((group) => (
-            <section
-              key={group}
-              aria-labelledby={`create-${group}`}
-              className="flex flex-col gap-1"
-            >
-              <Eyebrow id={`create-${group}`}>{shell.create.groups[group]}</Eyebrow>
-              <ul className="flex flex-col">
-                {create
-                  .filter((item) => item.group === group)
-                  .map((item) => (
-                    <li key={item.id}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setCreateOpen(false)}
-                        className={`flex min-h-12 items-center gap-4 rounded-crisp px-2 font-sans text-base text-ink hover:bg-surface-sunk ${focus}`}
-                      >
-                        <Icon name={item.icon} size={20} className="text-ink-muted" />
-                        {item.label}
-                      </Link>
-                    </li>
-                  ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-      </Sheet>
 
       <CommandBar
         open={commandOpen}

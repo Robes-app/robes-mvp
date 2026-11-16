@@ -1,5 +1,6 @@
 import { AiError, type AiProvider } from '@robes/ai';
 import {
+  type Answer,
   type AskContext,
   buildSystem,
   buildUser,
@@ -7,6 +8,7 @@ import {
   MAX_OUTPUT_TOKENS,
   normaliseAnswer,
   Output,
+  REASONS,
   TEMPERATURE,
 } from '@robes/ai/prompts/look-ask';
 import { LookAskJobInput, type LookAskResult } from '@robes/contracts';
@@ -82,9 +84,10 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
         ];
       });
       if (rows.length === 0) throw new JobError('empty_look');
-      // The pool: her wardrobe minus the rack. With Shop on (`mix`, plan 2026-11-09 R1) the
-      // pieces on her wishlist follow it, each marked; with Shop off (`owned`) no new piece may
-      // be proposed. A wish already on the rack stays off the pool.
+      // The pool follows the prompt's sources (look prompt PRD S5): her wardrobe minus the rack,
+      // unless Shop is the one source (`new`), when nothing she owns is offered. With Shop on
+      // (`mix`, `new`) the pieces on her wishlist follow, each marked; with Shop off (`owned`) no
+      // new piece may be proposed. A wish already on the rack stays off the pool.
       type PoolEntry =
         | { kind: 'piece'; piece: (typeof her.closet)[number] }
         | { kind: 'wish'; wish: NonNullable<typeof her.wishes>[number] };
@@ -92,11 +95,14 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
       const wishedOnRack = new Set(
         input.rack.flatMap((r) => (r.proposal ? [r.proposal.name.trim().toLowerCase()] : [])),
       );
+      const shopOn = input.balance === 'mix' || input.balance === 'new';
       const pool: PoolEntry[] = [
-        ...her.closet
-          .filter((c) => !onRack.has(c.id))
-          .map((piece): PoolEntry => ({ kind: 'piece', piece })),
-        ...(input.balance === 'mix'
+        ...(input.balance === 'new'
+          ? []
+          : her.closet
+              .filter((c) => !onRack.has(c.id))
+              .map((piece): PoolEntry => ({ kind: 'piece', piece }))),
+        ...(shopOn
           ? (her.wishes ?? [])
               .filter((w) => !wishedOnRack.has(w.label.trim().toLowerCase()))
               .map((wish): PoolEntry => ({ kind: 'wish', wish }))
@@ -128,19 +134,25 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
         rack: rows.map((r) => r.row),
         context: input.context ?? null,
         thread: input.thread,
+        // What she tapped after a thumbs down (look prompt PRD F11): the aspects to change.
+        ...(input.reasons?.length ? { reasons: input.reasons } : {}),
       };
+      const system = buildSystem(askCtx);
+      const user = buildUser({
+        name: found.look.name,
+        surface: input.surface,
+        text: input.text,
+        thread: input.thread,
+      });
+      // What Robes asked and its answer are kept 30 days (SEC-82), so a change can be replayed.
+      const prompt = `${system}\n\n${user}`;
       let out: Output;
       try {
         const res = await deps.ai.generateJson({
           feature: FEATURE,
           capability: 'text.fast',
-          system: buildSystem(askCtx),
-          user: buildUser({
-            name: found.look.name,
-            surface: input.surface,
-            text: input.text,
-            thread: input.thread,
-          }),
+          system,
+          user,
           schema: Output,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           temperature: TEMPERATURE,
@@ -152,6 +164,8 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
           userId: ctx.userId,
           feature: FEATURE,
           status: 'ok',
+          prompt,
+          response: res.data,
         });
         out = res.data;
       } catch (err) {
@@ -163,6 +177,7 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
               userId: ctx.userId,
               feature: FEATURE,
               status: err.code === 'timeout' ? 'timeout' : 'error',
+              prompt,
             });
           }
           if (err.code === 'cancelled') throw err;
@@ -172,52 +187,47 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
       }
       const answer = normaliseAnswer(out, askCtx);
       const keyAt = (i: number) => rows[i]?.key;
+      // What a swap or an add lands as: a piece she owns, a wish (which keeps its identity), or a
+      // new piece Robes proposes.
+      const target = (
+        to: Answer['swaps'][number]['to'],
+      ): LookAskResult['swaps'][number]['to'] | null => {
+        if (!('poolIndex' in to)) return { proposal: { ...to.proposal, color: '' } };
+        const entry = pool[to.poolIndex];
+        if (!entry) return null;
+        if (entry.kind === 'wish') {
+          const w = entry.wish;
+          return {
+            proposal: {
+              name: w.label,
+              category: w.category,
+              color: w.color ?? '',
+              brand: w.brand ?? '',
+              retailerHint: w.sourceLabel ?? '',
+              pricePoint: priceOf(w.price, w.currency),
+              wishlisted: true,
+              wishlistItemId: w.id,
+            },
+          };
+        }
+        const piece = entry.piece;
+        return {
+          pieceId: piece.id,
+          name: piece.label,
+          category: piece.category ?? '',
+          categoryL2: piece.categoryL2 ?? null,
+          brand: piece.brand,
+        };
+      };
       const result: LookAskResult = {
         intent: answer.intent,
         reply: answer.reply,
         swaps: answer.swaps.flatMap((s): LookAskResult['swaps'] => {
           const key = keyAt(s.i);
-          if (!key) return [];
-          if ('poolIndex' in s.to) {
-            const entry = pool[s.to.poolIndex];
-            if (!entry) return [];
-            if (entry.kind === 'wish') {
-              const w = entry.wish;
-              const price = priceOf(w.price, w.currency);
-              return [
-                {
-                  key,
-                  to: {
-                    proposal: {
-                      name: w.label,
-                      category: w.category,
-                      color: w.color ?? '',
-                      brand: w.brand ?? '',
-                      retailerHint: w.sourceLabel ?? '',
-                      pricePoint: price,
-                      wishlisted: true,
-                      wishlistItemId: w.id,
-                    },
-                  },
-                },
-              ];
-            }
-            const piece = entry.piece;
-            return [
-              {
-                key,
-                to: {
-                  pieceId: piece.id,
-                  name: piece.label,
-                  category: piece.category ?? '',
-                  categoryL2: piece.categoryL2 ?? null,
-                  brand: piece.brand,
-                },
-              },
-            ];
-          }
-          return [{ key, to: { proposal: { ...s.to.proposal, color: '' } } }];
+          const to = key ? target(s.to) : null;
+          return key && to ? [{ key, to }] : [];
         }),
+        adds: answer.adds.flatMap((a) => target(a) ?? []),
         back: answer.back.flatMap((i) => keyAt(i) ?? []),
         backAll: answer.intent === 'back' && answer.back.length === 0,
         styled: answer.styled.flatMap((s) => {
@@ -227,13 +237,18 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
         draft: answer.draft,
         rule: answer.rule,
         noticed: false,
+        ...(answer.followUp ? { followUp: answer.followUp } : {}),
       };
       // Every line she sends is a verdict on the look: it lands in her memory (legacy k:'ask').
       await deps.lookPrompt.remember(ctx.userId, {
         kind: 'ask',
         surface: input.surface,
         subject: found.look.name.slice(0, 120),
-        body: input.text.slice(0, 240),
+        // What she tapped rides in front of her words, in plain words.
+        body: [...(input.reasons ?? []).map((r) => REASONS[r]), input.text]
+          .filter(Boolean)
+          .join(' · ')
+          .slice(0, 240),
         lookId: input.lookId,
       });
       // Her rule waits under Robes noticed; it is a rule only once she keeps it (legacy 2026-10-13).

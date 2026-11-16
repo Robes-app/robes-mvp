@@ -100,6 +100,8 @@ export interface ListPiecesQuery {
   colourFamilies?: readonly string[] | undefined;
   wearFor?: readonly string[] | string | undefined;
   brand?: string | undefined;
+  // The search field: name, brand or category holds these words (case-insensitive, as typed).
+  q?: string | undefined;
 }
 
 export type PieceFilters = Omit<ListPiecesQuery, 'limit' | 'cursor'>;
@@ -200,6 +202,14 @@ export function wardrobeRepo(db: Db) {
     }
     // Refine by brand (case-insensitive) and by what she wears it for (wear_for tags of hers).
     if (q.brand) query = query.where(sql<boolean>`lower(brand) = lower(${q.brand})`);
+    // Her search: the words as typed, anywhere in the name, brand or category (% and _ literal).
+    const words = q.q?.trim();
+    if (words) {
+      const like = `%${words.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      query = query.where(
+        sql<boolean>`(label ilike ${like} or coalesce(brand, '') ilike ${like} or coalesce(category_l2, '') ilike ${like} or coalesce(category_l3, '') ilike ${like})`,
+      );
+    }
     const wearFor = (typeof q.wearFor === 'string' ? [q.wearFor] : (q.wearFor ?? [])).map((w) =>
       w.toLowerCase(),
     );
@@ -383,6 +393,32 @@ export function wardrobeRepo(db: Db) {
         .where('deletedAt', 'is', null)
         .returning(PIECE_COLUMNS)
         .executeTakeFirst();
+    },
+
+    // Try again on a piece Robes couldn't read (audit F3): back to reading, its photo read anew.
+    // Only a failed piece with a photo; anything else is left as it is (undefined).
+    async rereadFailed(userId: UserId, id: string) {
+      return db
+        .updateTable('wardrobeItems')
+        .set({ status: 'reading' })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('status', '=', 'failed')
+        .where('imageAssetId', 'is not', null)
+        .where('deletedAt', 'is', null)
+        .returning(PIECE_COLUMNS)
+        .executeTakeFirst();
+    },
+
+    // A re-read that couldn't be queued: back to failed, never stuck reading.
+    async unreread(userId: UserId, id: string): Promise<void> {
+      await db
+        .updateTable('wardrobeItems')
+        .set({ status: 'failed' })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('status', '=', 'reading')
+        .execute();
     },
 
     // Soft delete (UX-15): undone by restore; purged after 30 days by maintenance.

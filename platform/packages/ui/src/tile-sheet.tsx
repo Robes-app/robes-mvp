@@ -12,6 +12,8 @@ export interface SheetTile {
   onClick: () => void;
   // A count waiting behind the tile (receipts to review), on an ink disc at its corner.
   badge?: number;
+  // Shown but inactive at 45% (From receipt on the Wishlist: a receipt is for pieces she bought).
+  disabled?: boolean;
   testId?: string;
 }
 
@@ -39,6 +41,7 @@ export function TileSheet({ tiles, selected, children, ...sheet }: TileSheetProp
               key={tile.label}
               type="button"
               onClick={tile.onClick}
+              disabled={tile.disabled}
               aria-pressed={dimmed ? picked : undefined}
               aria-label={tile.badge !== undefined ? `${tile.label}, ${tile.badge}` : tile.label}
               data-testid={tile.testId}
@@ -47,7 +50,8 @@ export function TileSheet({ tiles, selected, children, ...sheet }: TileSheetProp
                 picked
                   ? 'border-[1.5px] border-ink'
                   : 'border-[0.5px] border-rule-mid hover:border-ink',
-                dimmed && !picked && 'opacity-45',
+                (tile.disabled || (dimmed && !picked)) && 'opacity-45',
+                'disabled:cursor-default disabled:hover:border-rule-mid',
                 focusRing,
               )}
             >
@@ -56,7 +60,7 @@ export function TileSheet({ tiles, selected, children, ...sheet }: TileSheetProp
               {tile.badge !== undefined && tile.badge > 0 ? (
                 <span
                   aria-hidden
-                  className="type-label absolute -top-1.5 -right-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-pill bg-ink px-1 tracking-normal text-bg"
+                  className="type-label absolute -top-1.5 -right-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-pill bg-ink px-1 font-semibold tracking-normal text-bg"
                 >
                   {tile.badge}
                 </span>

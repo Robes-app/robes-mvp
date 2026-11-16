@@ -13,7 +13,7 @@ import {
 } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import { palette, shadowNative } from '@robes/tokens';
-import { Image, Text, useColor, useReducedMotion } from '@robes/ui-native';
+import { Glass, Image, Text, useColor, useReducedMotion } from '@robes/ui-native';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -171,9 +171,10 @@ export function ImageManager({
                   accessibilityLabel={`${copy.remove} · ${label}`}
                   hitSlop={8}
                   onPress={() => onStage((s) => stageRemove(base, s, card))}
-                  className="absolute items-center justify-center rounded-pill bg-veil-mid"
+                  className="absolute items-center justify-center rounded-pill"
                   style={{ top: 10, right: 10, width: 28, height: 28 }}
                 >
+                  <Glass tone="veil-mid" className="absolute inset-0 rounded-pill" />
                   <Icon name="close" size={12} color={muted} />
                 </Pressable>
               ) : null}
@@ -212,9 +213,10 @@ export function ImageManager({
           onPress={onBack}
           hitSlop={10}
           testID="saved-look-back"
-          className="absolute items-center justify-center rounded-pill bg-veil-soft"
+          className="absolute items-center justify-center rounded-pill"
           style={{ top: top + 10, left: 12, width: 36, height: 36 }}
         >
+          <Glass tone="veil-soft" className="absolute inset-0 rounded-pill" />
           <Icon name="back" size={20} color={ink} />
         </Pressable>
       ) : null}
