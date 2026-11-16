@@ -4,17 +4,20 @@ appId: host.exp.Exponent
 - tapOn:
     id: 'wardrobe-tab'
 - extendedWaitUntil:
-    visible: 'Every look starts with a photograph.'
+    visible: 'Your wardrobe is empty'
     timeout: 10000
 - tapOn:
     id: 'looks-tab'
+# Saved · Suggested (the draft looks-prompt.yaml left may be in progress).
 - extendedWaitUntil:
-    visible: 'Your ideas land here.'
+    visible:
+      id: 'lookbook-tabs'
     timeout: 10000
 - tapOn:
     id: 'plan-tab'
 - extendedWaitUntil:
-    visible: 'Nothing planned yet.'
+    visible:
+      id: 'plan-list'
     timeout: 10000
 - assertNotVisible:
     id: 'create-tab'
