@@ -134,9 +134,11 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await picker.getByRole('button', { name: 'Include White wide-leg trouser' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
-  // The draft carries on in the same drawer: the piece on the rack, the styling card under it.
+  // The draft carries on in the same drawer: the piece on the rack, the model dressed in it and
+  // the prompt at rest as its sparkle (Annie, 16 Nov).
   await expect(page.getByText('Draft look')).toBeVisible();
   await expect(page.getByRole('list', { name: 'The rack · 1 piece' })).toBeVisible();
+  await page.getByTestId('prompt-spark').click();
   // Her words go through the look prompt (plan 2026-11-03) and the picture follows (D14).
   const field = page.getByTestId('draft-prompt');
   await field.fill('swap the trouser for the dark straight jean');

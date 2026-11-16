@@ -136,6 +136,7 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
     },
     'POST /looks': draftOf(),
     [`GET /looks/${LOOK_ID}`]: draftOf(),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: MADE_JOB, status: 'queued' },
   });
   const onClose = jest.fn();
   await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={onClose} />);
@@ -164,9 +165,14 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
     status: 'draft',
     pieces: [{ pieceId: SCARF }],
   });
-  // The draft carries on in the same sheet: its rack under its heading, the styling card.
-  expect(await screen.findByTestId('styling-card')).toBeTruthy();
-  expect(screen.getByTestId('the-rack')).toBeTruthy();
+  // The draft carries on in the same sheet: its rack under its heading, the model dressed in it
+  // at once and the prompt closed to its sparkle (Annie, 16 Nov).
+  expect(await screen.findByTestId('the-rack')).toBeTruthy();
+  expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
+  await waitFor(
+    () => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(true),
+    { timeout: 3000 },
+  );
   expect(onClose).not.toHaveBeenCalled();
 });
 
@@ -217,9 +223,9 @@ test('a sixth draft asks to let the oldest go, and only then makes room', async 
   });
 });
 
-// The one draft (D14): the picture is drawn only when she asks — here through the Generate chip,
-// which reads "Update the model · 1" while the picture is behind.
-test('a swap from the picker leaves the picture behind; the chip draws the model', async () => {
+// A draft's model wears the rack as she builds it (Annie, 16 Nov): a swap by hand dresses it at
+// once, with no button to press and nothing said in the conversation.
+test('a swap from the picker dresses the model at once', async () => {
   const draft = draftOf({
     pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
     model: piece().image,
@@ -258,16 +264,26 @@ test('a swap from the picker leaves the picture behind; the chip draws the model
   );
   await fireEvent.press(screen.getByTestId('picker-confirm'));
   expect(await screen.findByText(lookbook.swap.swapped('Navy silk top'))).toBeTruthy();
-  expect(await screen.findByTestId('draft-picture-stale')).toBeTruthy();
-  // The picture shows it's behind on its own; no count disc rides it (Annie, 9 Nov).
-  expect(screen.queryByText('1')).toBeNull();
-  expect(renders()).toHaveLength(0);
-  expect(screen.getByText(lookbook.draft.updateModel(1))).toBeTruthy();
-  await fireEvent.press(screen.getByTestId('update-model'));
-  await waitFor(() => expect(renders()).toHaveLength(1));
-  // Her ask stands in the conversation, behind the closed bar.
-  await openPrompt();
-  expect(screen.getByText(lookbook.draft.modelAsked)).toBeTruthy();
+  // Dressed again for the new rack, with no button and no line in the conversation.
+  await waitFor(() => expect(renders()).toHaveLength(1), { timeout: 3000 });
+  expect(screen.queryByTestId('update-model')).toBeNull();
+  expect(screen.queryByText(lookbook.draft.modelAsked)).toBeNull();
+});
+
+// Dressing is never retried on its own: a picture that failed says so and waits for her.
+test('a draft whose picture failed is not dressed again by itself', async () => {
+  const calls = mockFetch({
+    ...BASE,
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    [`GET /looks/${LOOK_ID}`]: draftOf({ onModel: 'failed' }),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: MADE_JOB, status: 'queued' },
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  expect(await screen.findByTestId('the-rack')).toBeTruthy();
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 1500));
+  });
+  expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(false);
 });
 
 test('the adjust disc opens the AdjustSheet; her sentence redraws the picture alone (D21)', async () => {
@@ -348,7 +364,7 @@ test('closing asks: Discard lets the draft go, Keep for later only closes', asyn
   });
   const onClose = jest.fn();
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={onClose} />);
-  expect(await screen.findByTestId('styling-card')).toBeTruthy();
+  expect(await screen.findByTestId('the-rack')).toBeTruthy();
   await fireEvent.press(screen.getByTestId('draft-close'));
   expect(await screen.findByText(copy.discard.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: copy.discard.later }));
@@ -637,7 +653,7 @@ test('a new look for a day: typing keeps the place and weather, under no title',
   expect(await dock().findByTestId('weather-chip')).toBeTruthy();
 });
 
-test('a draft for a day with no conversation yet opens on its box, place and weather and all', async () => {
+test('a draft for a day with no conversation yet: its sparkle opens the box, place and weather and all', async () => {
   mockFetch({
     ...BASE,
     'GET /today': TODAY_WITH_WEATHER,
@@ -648,9 +664,10 @@ test('a draft for a day with no conversation yet opens on its box, place and wea
   await renderWithApi(
     <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={() => undefined} />,
   );
-  expect(await screen.findByText('Dublin')).toBeTruthy();
+  // With pieces on its rack it rests as the sparkle (Annie, 16 Nov).
+  expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
   await fireEvent.changeText(await openPrompt(), 'warmer');
-  expect(dock().getByText('Dublin')).toBeTruthy();
+  expect(await dock().findByText('Dublin')).toBeTruthy();
   expect(dock().queryByText(copy.dock.title)).toBeNull();
 });
 
@@ -670,8 +687,8 @@ test('a hand-built draft for a day: her first line carries the place and weather
   await renderWithApi(
     <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={() => undefined} />,
   );
-  await screen.findByText('Dublin');
   await fireEvent.changeText(await openPrompt(), 'warmer');
+  await dock().findByText('Dublin');
   await fireEvent.press(dock().getByTestId('prompt-send'));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/ask'))?.body).toMatchObject({

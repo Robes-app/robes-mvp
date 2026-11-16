@@ -88,6 +88,8 @@ import { WornView } from './worn-view';
 
 const copy = lookbook.draftLook;
 const d = lookbook.draft;
+// Picks made together dress the model once: the wait after the last before it is drawn.
+const DRESS_SETTLE_MS = 800;
 const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const TABS = [lookbook.savedLook.tabs.pieces, lookbook.savedLook.tabs.details] as const;
@@ -1204,10 +1206,22 @@ function DraftBody({
     }
     setPrompt('');
   };
-  // "Update the model · N" keeps its place at the draft's foot while the picture is behind: it is
-  // not a prompt send. A saved look's changes wait for Update look (D17) instead.
-  // Never while Robes is at work: a prompt change draws its own picture (testing, 14 Nov).
-  const modelFoot = mode === 'draft' && !captureDraft && adjust.stale && !adjust.busy;
+  // A draft's model wears the rack as she builds it (Annie, 16 Nov): pieces added, swapped or
+  // taken off by hand dress it at once, the picks of one moment in one picture, and a draft that
+  // has pieces but no picture yet is dressed as it opens. Not while a picture is being drawn, nor
+  // again after one failed; Robes' own photograph is the picture of a look it made, and her
+  // photograph of a captured one. A saved look's changes still wait for Update look (D17).
+  // Native twin: DraftLook.tsx.
+  const handBuilt = mode === 'draft' && !captureDraft && !look.frame && rows.length > 0;
+  const undressed = look.model === null && (look.onModel ?? null) === null;
+  const toDress =
+    handBuilt && !adjust.busy && look.onModel !== 'pending' && (adjust.stale || undressed);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: another pick restarts the wait
+  useEffect(() => {
+    if (!toDress) return;
+    const t = setTimeout(() => adjustRef.current?.dress(), DRESS_SETTLE_MS);
+    return () => clearTimeout(t);
+  }, [toDress, adjust.badge]);
   const dialog =
     confirm === 'delete'
       ? {
@@ -1325,12 +1339,13 @@ function DraftBody({
     adjust.busy ||
     (mode === 'draft' && hasThread && verdict !== 'up')
       ? 'pill'
-      : mode === 'edit' || hasThread
+      : mode === 'edit' || hasThread || handBuilt
         ? 'spark'
         : 'box';
-  // The box with no conversation is typed into where it stands; everything else opens the sheet.
-  const asSheet = rest !== 'box';
-  const dockState: DockState = !asSheet || dockOpen ? 'open' : rest;
+  // The box with no conversation is typed into where it stands (a hand-built draft's sparkle opens
+  // it there too); everything else opens the sheet.
+  const asSheet = rest !== 'box' && (hasThread || mode === 'edit' || rest === 'pill');
+  const dockState: DockState = rest === 'box' || dockOpen ? 'open' : rest;
   // Her first send carries the day's place and weather into the conversation (pin 13).
   const briefed = adjust.state.thread.some((l) => l.who === 'her');
   const dayContext = forDay && mode === 'draft' ? forDay : null;
@@ -1430,20 +1445,6 @@ function DraftBody({
         data-testid="update-look"
       >
         {copy.update}
-        <Icon name="undo" size={12} className="-scale-x-100" />
-      </Button>
-    ) : modelFoot ? (
-      <Button
-        variant="primary"
-        block
-        onClick={() => {
-          if (!busy) adjust.updateModel();
-        }}
-        aria-disabled={busy}
-        className={busy ? 'opacity-40' : undefined}
-        data-testid="update-model"
-      >
-        {d.updateModel(adjust.badge)}
         <Icon name="undo" size={12} className="-scale-x-100" />
       </Button>
     ) : undefined;
