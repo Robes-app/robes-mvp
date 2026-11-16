@@ -49,6 +49,10 @@ export interface SheetProps {
   // down or a tap on the backdrop closes it (no ×). Like every sheet it stands on the bottom edge,
   // its top corners on the sheet radius (Felix, 12 Nov: the 8pt inset read as detached).
   floating?: boolean;
+  // Only its content, riding the keyboard 10pt off the screen's edges: no shade over the screen,
+  // no panel, no handle (the look prompt's box before her first send, Prompt states, 16 Nov). A
+  // tap beside it still closes it.
+  bare?: boolean;
   // The eyebrow's colour: Felix's rose (the darkened rose for small text) by default.
   eyebrowTone?: 'faint' | 'warm';
   // Felix's choice rows under the question: a 40pt disc with the glyph, a sentence-case label
@@ -98,6 +102,7 @@ const EASE = Easing.bezier(0.4, 0, 0.7, 1);
 const SHEET_MAX = '92%';
 // Space under the last row; the home indicator's inset is added below it.
 const SHEET_PAD = 24;
+const BARE_GAP = 10;
 // Longest wait for iOS to confirm a dismissal before `onClosed` fires anyway.
 const DISMISS_FALLBACK_MS = 500;
 
@@ -179,6 +184,7 @@ export function Sheet({
   className,
   testID,
   floating = false,
+  bare = false,
   eyebrowTone = 'warm',
   rows,
   done,
@@ -227,7 +233,7 @@ export function Sheet({
   useEffect(() => {
     if (!visible) return;
     const to = open ? 0 : OFFSCREEN;
-    const shade = open ? BACKDROP_OPACITY : 0;
+    const shade = open && !bare ? BACKDROP_OPACITY : 0;
     if (reduced) {
       translateY.setValue(to);
       backdrop.setValue(shade);
@@ -252,7 +258,7 @@ export function Sheet({
       if (finished && !open) setVisible(false);
     });
     return () => animation.stop();
-  }, [open, visible, reduced, translateY, backdrop]);
+  }, [open, visible, reduced, translateY, backdrop, bare]);
 
   const eyebrowClass = eyebrowTone === 'warm' ? 'text-accent-warm' : undefined;
   const close = floats ? null : closeLabel ? (
@@ -309,11 +315,16 @@ export function Sheet({
             <Animated.View
               accessibilityViewIsModal
               className={cx(
-                glass
-                  ? cx('rounded-t-dock border-rule-mid px-5', liquid ? 'overflow-hidden' : 'bg-bg')
-                  : floating
-                    ? 'rounded-t-sheet border-rule-mid bg-bg px-5'
-                    : 'rounded-t-sheet bg-bg px-5',
+                bare
+                  ? 'px-2.5'
+                  : glass
+                    ? cx(
+                        'rounded-t-dock border-rule-mid px-5',
+                        liquid ? 'overflow-hidden' : 'bg-bg',
+                      )
+                    : floating
+                      ? 'rounded-t-sheet border-rule-mid bg-bg px-5'
+                      : 'rounded-t-sheet bg-bg px-5',
                 className,
               )}
               // Every sheet stands on the screen's bottom edge, edge to edge (Felix, 12 Nov). A tall
@@ -322,11 +333,13 @@ export function Sheet({
               style={[
                 {
                   maxHeight: SHEET_MAX,
-                  paddingBottom: SHEET_PAD + (keyboard ? 0 : insets.bottom),
+                  paddingBottom: bare
+                    ? BARE_GAP + (keyboard ? 0 : insets.bottom)
+                    : SHEET_PAD + (keyboard ? 0 : insets.bottom),
                   transform: [{ translateY }],
                 },
                 // The fine edge runs over the top and down the sides; the bottom is the screen's.
-                floats
+                floats && !bare
                   ? {
                       borderTopWidth: FINE_EDGE,
                       borderLeftWidth: FINE_EDGE,
@@ -342,7 +355,7 @@ export function Sheet({
                   pointerEvents="none"
                 />
               ) : null}
-              {glass ? (
+              {bare ? null : glass ? (
                 <View {...drag.panHandlers} className="mb-5 pt-3">
                   <SheetHead {...glass} onClose={onClose} />
                 </View>

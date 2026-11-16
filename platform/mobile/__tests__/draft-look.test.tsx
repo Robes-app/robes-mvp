@@ -1,4 +1,4 @@
-import { diary, lookbook, wardrobe } from '@robes/copy';
+import { diary, lookbook, ui, wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { DraftLook } from '../src/features/looks/DraftLook';
@@ -619,6 +619,8 @@ test('a new look for a day: typing keeps the place and weather, under no title',
   await fireEvent.changeText(await openPrompt(), 'Dinner with friends');
   expect(dock().getByText('Dublin')).toBeTruthy();
   expect(dock().queryByText(copy.dock.title)).toBeNull();
+  // Bare: no panel's grab bar over the box either.
+  expect(dock().queryByLabelText(ui.close)).toBeNull();
   // × still leaves the weather out while she types, and offers it back.
   await fireEvent.press(dock().getByLabelText(diary.door.weatherOut));
   expect(await dock().findByTestId('weather-chip')).toBeTruthy();

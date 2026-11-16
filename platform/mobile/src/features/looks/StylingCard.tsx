@@ -285,8 +285,8 @@ export function PromptDock({
   onMinimise: () => void;
   // The resting prompt box (`rest` "box"): the sources, the day's chip, a line that opens the sheet.
   box?: ReactNode;
-  // Before her first send on a draft (Prompt states, the draft's open box): no tracked title and
-  // no minimise, only the box she tapped, rising on the keyboard with its place and weather.
+  // Before her first send on a draft (Prompt states, the draft's open box): no title, no shade,
+  // no panel, only the box she tapped, rising on the keyboard with its place and weather.
   bare?: boolean;
   // The sheet's box, its field in focus.
   children: ReactNode;
@@ -364,7 +364,7 @@ export function PromptDock({
   return (
     <>
       {resting}
-      <Sheet open={open} onClose={onMinimise} floating testID="prompt-dock">
+      <Sheet open={open} onClose={onMinimise} floating bare={bare} testID="prompt-dock">
         {bare ? null : (
           <View className="flex-row items-center gap-3 pb-2">
             <Text
@@ -398,8 +398,9 @@ export function PromptDock({
             {conversation}
           </ScrollView>
         ) : null}
-        {/* The box runs wider than the sheet's own gutter: 10pt from each side (pin 1). */}
-        <View style={{ marginHorizontal: -10, paddingTop: bare ? 10 : 0 }}>{children}</View>
+        {/* The box runs wider than the sheet's own gutter: 10pt from each side (pin 1). Bare, the
+        sheet's gutter is those 10pt. */}
+        {bare ? children : <View style={{ marginHorizontal: -10 }}>{children}</View>}
       </Sheet>
     </>
   );
