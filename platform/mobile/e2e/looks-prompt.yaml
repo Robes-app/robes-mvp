@@ -71,6 +71,9 @@ appId: host.exp.Exponent
     visible:
       id: 'disc-create'
     timeout: 10000
-# The draft's sheet is still sliding away: the next flow's first tap would land on nothing.
-- waitForAnimationToEnd:
-    timeout: 5000
+# "Draft let go." with its Undo sits over the tab bar until it times out: a tap on a tab before
+# then is a tap on Undo, and the draft comes back.
+- extendedWaitUntil:
+    notVisible:
+      id: 'toast-frame'
+    timeout: 20000

@@ -71,13 +71,14 @@ appId: host.exp.Exponent
     timeout: 10000
 - tapOn:
     id: 'saved-look-back'
-# A hand-built look saves as the day's date, and the Diary's today holds it. The first tap after
-# the look's page closes can be lost while the screen settles: try it again.
-- retry:
-    maxRetries: 2
-    commands:
-      - tapOn:
-          id: 'plan-tab'
-      - extendedWaitUntil:
-          visible: 'Open Today \d+: .+'
-          timeout: 5000
+# The diary's toast sits over the tab bar until it times out, and takes a tap meant for a tab.
+- extendedWaitUntil:
+    notVisible:
+      id: 'toast-frame'
+    timeout: 20000
+- tapOn:
+    id: 'plan-tab'
+# A hand-built look saves as the day's date, and the Diary's today holds it.
+- extendedWaitUntil:
+    visible: 'Open Today \d+: .+'
+    timeout: 10000

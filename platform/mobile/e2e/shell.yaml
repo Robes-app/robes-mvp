@@ -1,15 +1,11 @@
 # Signed in on Home: every tab and You are reachable (sign-out is in sign-in.yaml). No Create button.
 appId: host.exp.Exponent
 ---
-# The first tap after a sheet closes can be lost while the screen settles: try it again.
-- retry:
-    maxRetries: 2
-    commands:
-      - tapOn:
-          id: 'wardrobe-tab'
-      - extendedWaitUntil:
-          visible: 'Your wardrobe is empty'
-          timeout: 5000
+- tapOn:
+    id: 'wardrobe-tab'
+- extendedWaitUntil:
+    visible: 'Your wardrobe is empty'
+    timeout: 10000
 - tapOn:
     id: 'looks-tab'
 # Saved · Suggested (the draft looks-prompt.yaml left may be in progress).
