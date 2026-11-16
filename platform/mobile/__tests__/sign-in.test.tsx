@@ -33,7 +33,8 @@ test('rejects a malformed email without calling the server', async () => {
   mockFetch(EMAIL_ONLY);
   await renderWithApi(<SignIn />);
   // One line for testers who signed in with a password on beta (F4).
-  expect(screen.getByText('Used a password? Robes emails you a code now.')).toBeTruthy();
+  // No password line (audit P1, 15 Nov): sign-in is the email code alone.
+  expect(screen.queryByText('Used a password? Robes emails you a code now.')).toBeNull();
   await fireEvent.changeText(screen.getByLabelText('Email'), 'not-an-email');
   await fireEvent.press(screen.getByRole('button', { name: 'Email me a code' }));
   expect(await screen.findByText('That email doesn’t look quite right.')).toBeTruthy();

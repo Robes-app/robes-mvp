@@ -191,8 +191,10 @@ function DayRow({
         isToday ? 'border-l-[3px] border-l-accent-inspire pl-[13px]' : 'pl-4'
       }`}
     >
-      <View className="w-[34px] items-center">
+      {/* At least 34 wide, and as wide as TODAY needs: it never wraps to "TODA / Y" (audit P1). */}
+      <View className="min-w-[34px] items-center">
         <Text
+          numberOfLines={1}
           className={`text-[9px] uppercase ${isToday ? 'text-accent-warm' : 'text-ink-faint'}`}
           style={{ fontFamily: fonts.sansRegular, letterSpacing: 1.26 }}
         >

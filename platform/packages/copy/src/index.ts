@@ -34,7 +34,6 @@ export const auth = {
   sendCode: 'Email me a code',
   sendingCode: 'Sending…',
   // For beta testers who signed in with a password (F4): one line, under the button.
-  noPassword: 'Used a password? Robes emails you a code now.',
   codeTitle: 'Check your email.',
   codeSubtitle: (email: string): string => `Robes sent a six-digit code to ${email}.`,
   codeLabel: 'Code',
