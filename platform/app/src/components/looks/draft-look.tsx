@@ -282,6 +282,10 @@ function Rack({
 // and draw the picture once it lands; a look Robes made is restyled whole from the thread's
 // Restyle it all. `id` is a look,
 // or 'new' before the first piece. The native twin is mobile/src/features/looks/DraftLook.tsx.
+// Her words, when Robes made the draft from them just now: what heads its thread, and what she
+// chose in the box they went from. Native twin: DraftLook.tsx.
+type DraftBrief = { words: string; occasion?: string; sources?: Sources; weatherOff?: boolean };
+
 export function DraftLook({
   id,
   pieceId,
@@ -307,11 +311,7 @@ export function DraftLook({
 }) {
   const [lookId, setLookId] = useState<string | null>(id === 'new' ? null : id);
   // Her words, when Robes made this draft from them just now: they head its thread.
-  const [brief, setBrief] = useState<{
-    words: string;
-    occasion?: string;
-    sources?: Sources;
-  } | null>(null);
+  const [brief, setBrief] = useState<DraftBrief | null>(null);
   const query = useApi(
     'looks.get',
     { params: { id: lookId ?? '' } },
@@ -655,7 +655,7 @@ function NewDraft({
   presentation: DraftPresentation;
   onClose: () => void;
   // `from`: her brief, and the occasion Robes read in it, when Robes made the draft from it.
-  onCreated: (look: Look, from?: { words: string; occasion?: string; sources?: Sources }) => void;
+  onCreated: (look: Look, from?: DraftBrief) => void;
 }) {
   const api = useApiClient();
   const toast = useToast();
@@ -741,6 +741,7 @@ function NewDraft({
           words: prompt.trim(),
           ...(occasion ? { occasion } : {}),
           sources: src.sources,
+          ...(weatherOff ? { weatherOff } : {}),
         });
       })
       .catch((err) => {
@@ -914,7 +915,7 @@ function DraftBody({
   images?: 'add';
   // Her words, when Robes made this draft from them just now (the draft's first send), and the
   // occasion Robes read in them.
-  brief?: { words: string; occasion?: string; sources?: Sources };
+  brief?: DraftBrief;
   schedule: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
@@ -935,7 +936,8 @@ function DraftBody({
   const [rackLayout, setRackLayout] = useState<WardrobeLayout>('list');
   const [editingPieces, setEditingPieces] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [weatherOff, setWeatherOff] = useState(false);
+  // Left out on New look, the weather stays out of the draft it made (look prompt improvements B4).
+  const [weatherOff, setWeatherOff] = useState(brief?.weatherOff === true);
   // A saved look carries no place and no weather, even on a day (look prompt PRD L1, L2): both
   // belong to the day, never to the look.
   const askContext = useAskContext(mode === 'edit' ? null : forDay, weatherOff);
@@ -1303,9 +1305,7 @@ function DraftBody({
             <ThreadLines
               thread={adjust.state.thread}
               compact
-              {...(dayContext && !weatherOff && brief?.words
-                ? { meta: <DayMeta date={dayContext} /> }
-                : {})}
+              {...(dayContext && !weatherOff ? { meta: <DayMeta date={dayContext} /> } : {})}
             />
             <Feedback
               adjust={adjust}

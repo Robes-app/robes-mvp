@@ -651,6 +651,78 @@ test('a draft for a day with no conversation yet opens on its box, place and wea
   expect(dock().queryByText(copy.dock.title)).toBeNull();
 });
 
+// Once she sends, the place and weather her words went with stand under her first line, on every
+// draft for a day; left out on New look, they stay out of the draft it makes (B3, B4, 16 Nov).
+const ASK_JOB = '99999999-9999-4999-8999-999999999999';
+
+test('a hand-built draft for a day: her first line carries the place and weather', async () => {
+  const calls = mockFetch({
+    ...BASE,
+    'GET /today': TODAY_WITH_WEATHER,
+    [`GET /looks/${LOOK_ID}`]: draftOf({
+      pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+    }),
+    [`POST /looks/${LOOK_ID}/ask`]: { jobId: ASK_JOB, status: 'queued' },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={() => undefined} />,
+  );
+  await screen.findByText('Dublin');
+  await fireEvent.changeText(await openPrompt(), 'warmer');
+  await fireEvent.press(dock().getByTestId('prompt-send'));
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/ask'))?.body).toMatchObject({
+      context: { weather: expect.stringContaining('Dublin') },
+    }),
+  );
+  await openPrompt();
+  expect(await screen.findByTestId('her-meta')).toBeTruthy();
+});
+
+test('the weather left out on New look stays out of the draft it makes', async () => {
+  const calls = mockFetch({
+    ...BASE,
+    'GET /today': TODAY_WITH_WEATHER,
+    'POST /looks/prompt': { jobId: MADE_JOB, status: 'queued' },
+    [`GET /jobs/${MADE_JOB}`]: {
+      id: MADE_JOB,
+      kind: 'key_piece',
+      status: 'succeeded',
+      stage: 'done',
+      output: { lookIds: [LOOK_ID], occasion: 'dinner' },
+      error: null,
+      cancelRequested: false,
+      createdAt: '2026-11-06T09:00:00.000Z',
+      updatedAt: '2026-11-06T09:00:05.000Z',
+      finishedAt: '2026-11-06T09:00:05.000Z',
+    },
+    [`GET /looks/${LOOK_ID}`]: draftOf({
+      pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+    }),
+    [`POST /looks/${LOOK_ID}/ask`]: { jobId: ASK_JOB, status: 'queued' },
+  });
+  await renderWithApi(
+    <DraftLook id="new" day={DAY} presentation="sheet" onClose={() => undefined} />,
+  );
+  await fireEvent.changeText(await openPrompt(), 'Dinner with friends');
+  await fireEvent.press(dock().getByLabelText(diary.door.weatherOut));
+  await fireEvent.press(dock().getByTestId('prompt-send'));
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toMatchObject({
+      weather: false,
+    }),
+  );
+  await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
+  await screen.findByText(copy.feedback.questionFor('dinner'));
+  // No place or weather under her brief, and none sent with her next words.
+  await openPrompt();
+  expect(screen.queryByTestId('her-meta')).toBeNull();
+  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'warmer');
+  await fireEvent.press(dock().getByTestId('prompt-send'));
+  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(true));
+  expect(calls.find((c) => c.path.endsWith('/ask'))?.body).not.toHaveProperty('context');
+});
+
 // The Rack card and the two sources (look prompt PRD S1–S5): with nothing filed the card offers
 // Add your pieces, Wardrobe is faded and Shop is the one source; with a wardrobe it is the other
 // way round until she says otherwise.
