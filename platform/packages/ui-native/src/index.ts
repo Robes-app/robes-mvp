@@ -40,6 +40,7 @@ export {
   type GlassSheetProps,
   Sheet,
   type SheetProps,
+  useSheetPresented,
 } from './Sheet';
 export { Skeleton, type SkeletonProps } from './Skeleton';
 export { OptionList, OptionRow, Subview, SubviewHeader } from './Subview';
