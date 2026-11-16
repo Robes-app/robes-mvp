@@ -20,7 +20,7 @@ import {
 import { errorCopy } from '@/lib/error-copy';
 import { useReread } from '@/lib/reread';
 import { anyReading } from '@/lib/wardrobe';
-import { AddPiecesSheet } from './add/add-pieces-sheet';
+import { AddPiecesSheet, useAddPiecesOpen } from './add/add-pieces-sheet';
 import { DeletePieceDialog } from './delete-piece-dialog';
 import { CardRow, type CardStatus, CardTile, cardLines, type RowMeta } from './piece-card';
 import { PieceImage } from './piece-image';
@@ -144,7 +144,7 @@ export function PieceGrid() {
   const [sheet, setSheet] = useState(false);
   // Every way in starts on the Add pieces sheet (Front Door PRD rev 3 §7.4): the three tiles
   // over the Wardrobe.
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useAddPiecesOpen();
   // The chips count under the sheet's filters (the category itself set aside); the last answer
   // stands while the next loads, so the sheet's brand list never blinks away between picks.
   const summary = useApi(

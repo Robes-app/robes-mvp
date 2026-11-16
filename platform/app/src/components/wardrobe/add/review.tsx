@@ -36,6 +36,7 @@ import { useAnalytics } from '@/components/analytics-provider';
 import { CropThumb } from '@/components/photo-pieces/photo-frame';
 import { PinnedAction } from '@/components/pinned-action';
 import {
+  addPiecesHref,
   isTerminal,
   READ_PATIENCE_MS,
   type SessionShot,
@@ -254,7 +255,7 @@ export function Review({
     }
   }
 
-  const back = onCamera ?? onAnother ?? (() => router.push(`/wardrobe/add?to=${to}`));
+  const back = onCamera ?? onAnother ?? (() => router.push(addPiecesHref(to)));
   const another = onCamera ? (
     <button type="button" onClick={onCamera} className={link} data-testid="review-another">
       {copy.another}

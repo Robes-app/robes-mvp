@@ -149,7 +149,6 @@ test('every shell route renders its heading', async ({ page }) => {
     ['/wardrobe', 'Your wardrobe'],
     ['/wardrobe/wishlist', 'Your wardrobe'],
     ['/wardrobe/inbox', 'Inbox'],
-    ['/wardrobe/add', 'Add pieces'],
     ['/wardrobe/link', 'Add from a shop page.'],
     ['/wardrobe/manual', 'Add a piece.'],
     ['/looks', 'Lookbook'],
@@ -206,7 +205,7 @@ test('P0 routes have no serious accessibility violations', async ({ page }) => {
   for (const path of [
     '/',
     '/wardrobe',
-    '/wardrobe/add',
+    '/wardrobe/camera',
     '/wardrobe/link',
     '/wardrobe/receipt',
     '/wardrobe/manual',

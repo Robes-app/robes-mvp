@@ -24,16 +24,18 @@ test.beforeEach(async ({ context }) => isolateClientIp(context));
 test('paste a link from Add pieces, review it, and it files to the wishlist', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
+  // The old Add pieces address opens the Add pieces sheet over the Wardrobe (audit P2).
   await page.goto('/wardrobe/add');
-  await page.getByRole('link', { name: 'Paste a link' }).click();
+  await expect(page).toHaveURL(/\/wardrobe\?add=wardrobe$/);
+  await expect(page.getByRole('dialog', { name: 'Add pieces to Wardrobe' })).toBeVisible();
+  await page.goto('/wardrobe/link?to=wardrobe');
   await expect(page.getByRole('heading', { name: 'Add from a shop page.' })).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
 
-  // Where it goes is chosen once, on the Add pieces sheet; the link screen says so (redline 04).
+  // Where it goes was chosen on the Add pieces sheet; the link screen says so (redline 04), and
+  // Change toggles it in place, as on the iPhone.
   await expect(page.getByText(/Filing to your wardrobe/)).toBeVisible();
   await page.getByRole('link', { name: 'Change' }).click();
-  await page.getByRole('radio', { name: 'Wishlist' }).click();
-  await page.getByRole('link', { name: 'Paste a link' }).click();
   await expect(page.getByText(/Filing to your wishlist/)).toBeVisible();
   await page.getByLabel('Link to the piece').fill(shopUrl);
   await page.getByRole('button', { name: 'Read the page' }).click();
