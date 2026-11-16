@@ -81,6 +81,7 @@ export function createReceiptReadHandler(deps: ReceiptReadDeps): JobHandler {
             brand: line.item.brand ?? null,
             size: lineFields(line.item).size,
             retailer: line.retailer,
+            page: line.source === 'link' ? (line.item.page ?? null) : null,
           }),
           images: [{ mimeType: 'image/jpeg', data: image }],
           schema: Output,

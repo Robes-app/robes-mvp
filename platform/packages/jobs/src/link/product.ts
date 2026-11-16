@@ -9,6 +9,13 @@ export interface ParsedProduct {
   sourceUrl: string;
   retailer: string | null;
   title: string | null;
+  // What the shop says of the piece, as hints for the photo read (never shown as-is): its own
+  // category ("Cardigans"), colour, the variant's options ("Small / 100% Cashmere / Vibrant Pink")
+  // and description, where the composition usually is.
+  category: string | null;
+  color: string | null;
+  options: string | null;
+  description: string | null;
 }
 
 const ENTITIES: Record<string, string> = {
@@ -90,8 +97,30 @@ function findProduct(node: unknown): Json | null {
   if (!node || typeof node !== 'object') return null;
   const obj = node as Json;
   const type = obj['@type'];
-  if (type === 'Product' || (Array.isArray(type) && type.includes('Product'))) return obj;
+  const types = Array.isArray(type) ? type : [type];
+  if (types.includes('Product') || types.includes('ProductGroup')) return obj;
   return findProduct(obj['@graph'] ?? null);
+}
+
+// Shopify and others publish a ProductGroup: the piece (name, brand, category, description) with
+// its sizes and colours as variants carrying the offer and image. The variant is the one the link
+// names (?variant=…), else the first.
+function variantOf(group: Json, pageUrl: string): Json | null {
+  const raw = group.hasVariant;
+  const variants = (Array.isArray(raw) ? raw : raw ? [raw] : []).filter(
+    (v): v is Json => !!v && typeof v === 'object',
+  );
+  const id = new URL(pageUrl).searchParams.get('variant');
+  const named = id
+    ? variants.find((v) => {
+        const offers = v.offers as Json | Json[] | undefined;
+        const offer = Array.isArray(offers) ? offers[0] : offers;
+        return [v['@id'], v.url, offer?.url].some(
+          (u) => typeof u === 'string' && u.includes(`variant=${id}`),
+        );
+      })
+    : undefined;
+  return named ?? variants[0] ?? null;
 }
 
 function jsonLdProduct(html: string): Json | null {
@@ -113,7 +142,13 @@ export function parseProduct(html: string, pageUrl: string): ParsedProduct | nul
   const doc = html.slice(0, 2_000_000);
   const meta = metaTags(doc);
   const title = clip(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(doc)?.[1], 200);
-  const product = jsonLdProduct(doc);
+  const found = jsonLdProduct(doc);
+  const variant = found?.hasVariant ? variantOf(found, pageUrl) : null;
+  // The group names the piece; the variant carries what she would buy.
+  const product =
+    found && variant
+      ? { ...variant, ...found, offers: variant.offers, image: variant.image ?? found.image }
+      : found;
   const offers = product?.offers;
   const offer = (Array.isArray(offers) ? offers[0] : offers) as Json | undefined;
   const brandNode = product?.brand;
@@ -144,5 +179,14 @@ export function parseProduct(html: string, pageUrl: string): ParsedProduct | nul
     retailer:
       clip(meta.get('og:site_name'), 120) ?? new URL(pageUrl).hostname.replace(/^www\./, ''),
     title,
+    category: clip(product?.category, 80),
+    color: clip(variant?.color ?? product?.color, 60),
+    options: clip(
+      typeof variant?.name === 'string' && typeof found?.name === 'string'
+        ? variant.name.replace(found.name, '').replace(/^\s*[-–:]\s*/, '')
+        : null,
+      160,
+    ),
+    description: clip(product?.description ?? meta.get('og:description'), 600),
   };
 }

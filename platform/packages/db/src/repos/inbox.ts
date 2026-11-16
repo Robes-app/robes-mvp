@@ -28,6 +28,18 @@ export interface InboxItem {
   // asset; `photo` says how its read went ('reading' until the receipt_read job settles).
   imageAssetId?: string | null;
   photo?: 'reading' | 'read' | 'none';
+  // A pasted link's page, as the photo read's hints: what the shop says of the piece.
+  page?: {
+    category: string | null;
+    options: string | null;
+    color: string | null;
+    description: string | null;
+  } | null;
+  // The colour model and material the photo read filed (receipt-photo v2).
+  colourShade?: string | null;
+  colourExtra?: string[];
+  print?: string | null;
+  material?: string | null;
   // Decided on its own (Front Door PRD rev 3 §7.5): added as a piece or wish (`filedId`), or
   // discarded. Unset is waiting in the Inbox.
   state?: InboxItemState;
@@ -201,7 +213,10 @@ export function inboxRepo(db: Db) {
             categoryL2,
             categoryL3,
             color,
-            colourShade: shadeByName(color)?.id ?? null,
+            colourShade: item.colourShade ?? shadeByName(color)?.id ?? null,
+            colourExtra: item.colourExtra ?? [],
+            print: item.print ?? null,
+            material: item.material ?? null,
             // The line's photo, once fetched into her own asset, is the piece's photo too.
             imageAssetId: item.imageAssetId ?? null,
           };
@@ -458,6 +473,10 @@ export function inboxIntakeRepo(db: Db) {
         categoryL2: string | null;
         categoryL3: string | null;
         color: string | null;
+        colourShade?: string | null;
+        colourExtra?: string[];
+        print?: string | null;
+        material?: string | null;
       } | null,
       opts: { keepPhoto?: boolean } = {},
     ): Promise<boolean> {
@@ -479,6 +498,10 @@ export function inboxIntakeRepo(db: Db) {
               categoryL2: read.categoryL2,
               categoryL3: read.categoryL3,
               color: read.color ?? lineFields(item).color,
+              colourShade: read.colourShade ?? null,
+              colourExtra: read.colourExtra ?? [],
+              print: read.print ?? null,
+              material: read.material ?? null,
               photo: 'read',
             }
           : opts.keepPhoto

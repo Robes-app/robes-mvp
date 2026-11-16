@@ -157,13 +157,8 @@ export function Review({
         group: `inbox:${held?.id}`,
         index: item.index,
         found: { kind: 'link', item },
-        base: readDraft({
-          ...item,
-          notes: null,
-          categoryL2: null,
-          categoryL3: null,
-          color: null,
-        }) as PieceValues,
+        // What the link's photo read filed, with the shop's page as hints (receipt-photo v2).
+        base: readDraft({ ...item, notes: null }) as PieceValues,
       });
     }
     return out;

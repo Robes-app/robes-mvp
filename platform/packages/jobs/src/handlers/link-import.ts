@@ -46,6 +46,13 @@ export function createLinkImportHandler(deps: LinkImportDeps): JobHandler {
           currency: product.currency,
           imageUrl: product.imageUrl,
           sourceUrl: product.sourceUrl,
+          // What the shop says of the piece, for its photo read (category, colour, material).
+          page: {
+            category: product.category,
+            options: product.options,
+            color: product.color,
+            description: product.description,
+          },
         },
       });
       if (deps.requestPhoto && product.imageUrl) {

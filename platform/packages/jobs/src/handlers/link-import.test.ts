@@ -14,6 +14,10 @@ const product = {
   sourceUrl: 'https://shop.example/coat',
   retailer: 'Shop',
   title: 'Wool coat | Shop',
+  category: 'Coats',
+  color: 'Camel',
+  options: 'M / Wool',
+  description: '100% wool',
 };
 
 const INBOX = '55555555-5555-4555-8555-555555555555';
@@ -58,7 +62,12 @@ describe('link_import handler', () => {
       jobId: JOB,
       retailer: 'Shop',
       subject: 'Wool coat | Shop',
-      item: expect.objectContaining({ label: 'Wool coat', sourceUrl: 'https://shop.example/coat' }),
+      item: expect.objectContaining({
+        label: 'Wool coat',
+        sourceUrl: 'https://shop.example/coat',
+        // The shop's words ride along as the photo read's hints.
+        page: { category: 'Coats', options: 'M / Wool', color: 'Camel', description: '100% wool' },
+      }),
     });
     expect(writeStage).toHaveBeenCalledWith(
       'text',
