@@ -52,6 +52,7 @@ function toEntry(row: Row, images: Images, state?: InboxItemState): InboxEntry {
         currency: item.currency ?? null,
         size: lineFields(item).size,
         image: item.imageAssetId ? (images.get(item.imageAssetId) ?? null) : null,
+        reading: item.photo === 'reading',
         sourceUrl: item.sourceUrl ?? null,
         state: itemState(item),
         filedId: item.filedId ?? null,

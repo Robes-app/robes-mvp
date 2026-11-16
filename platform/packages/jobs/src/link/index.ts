@@ -42,57 +42,114 @@ export async function fetchLink(
   }
 }
 
-// A receipt line's product photo (SEC-40): the fetcher hands back the bytes, never decoded there.
-// The cap keeps the reply, base64 in JSON, inside one SQS message (256 KiB); an email's product
-// photo is a small thumbnail, and a bigger one is refused rather than read.
-export const PHOTO_MAX_BYTES = 170_000;
+// A product photo (SEC-40): a receipt line's or a pasted link's. The fetcher fetches it with the
+// same guard and uploads it, undecoded, through a presigned form that can write only that photo's
+// own key, so it still holds no credentials; the rendition pipeline then checks it like an upload.
+// The reply says only how it went. The cap is the photo's, not the queue's: a shop's product shot
+// runs to a few MB.
+export const PHOTO_MAX_BYTES = 10_000_000;
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const PhotoFetchResult = z.discriminatedUnion('ok', [
   z.object({
     ok: z.literal(true),
     contentType: z.enum(PHOTO_TYPES),
-    data: z.base64().max(Math.ceil(PHOTO_MAX_BYTES / 3) * 4),
+    bytes: z.number().int().positive().max(PHOTO_MAX_BYTES),
   }),
   z.object({ ok: z.literal(false), reason: z.string().regex(/^[a-z0-9_]{1,40}$/) }),
 ]);
 export type PhotoFetchResult = z.infer<typeof PhotoFetchResult>;
 
+// The presigned form a photo is uploaded through (`MediaStorage.presignPost`).
+export const PhotoUpload = z.object({
+  url: z.url().max(2048),
+  fields: z
+    .record(z.string().max(64), z.string().max(4096))
+    .refine((f) => Object.keys(f).length <= 20),
+});
+export type PhotoUpload = z.infer<typeof PhotoUpload>;
+
+// Only our bucket's own endpoint takes the bytes; locally (allowPrivate) that is MinIO.
+function uploadTarget(raw: string, allowPrivate: boolean): URL | null {
+  try {
+    const url = new URL(raw);
+    if (allowPrivate) return url.protocol === 'https:' || url.protocol === 'http:' ? url : null;
+    return url.protocol === 'https:' && url.hostname.endsWith('.amazonaws.com') ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+// Shops still print http:// image addresses beside the https one; the fetch only goes over TLS.
+const overTls = (url: string, allowPrivate: boolean): string =>
+  allowPrivate ? url : url.replace(/^http:\/\//i, 'https://');
+
 export async function fetchPhoto(
   url: string,
-  options: SafeFetchOptions = {},
+  upload: PhotoUpload,
+  // localUpload: dev only, the form posts to MinIO on localhost.
+  options: SafeFetchOptions & { localUpload?: boolean } = {},
 ): Promise<PhotoFetchResult> {
+  const { localUpload, ...fetchOptions } = options;
+  const target = uploadTarget(upload.url, (localUpload || options.allowPrivate) ?? false);
+  if (!target) return { ok: false, reason: 'upload_target' };
+  let res: Awaited<ReturnType<typeof safeFetch>>;
   try {
-    const res = await safeFetch(url, { ...options, kind: 'image', maxBytes: PHOTO_MAX_BYTES });
-    const contentType = PHOTO_TYPES.find((t) => res.contentType.startsWith(t));
-    if (!contentType || !res.bytes?.length) return { ok: false, reason: 'content_type' };
-    return { ok: true, contentType, data: res.bytes.toString('base64') };
+    res = await safeFetch(overTls(url, options.allowPrivate ?? false), {
+      ...fetchOptions,
+      kind: 'image',
+      maxBytes: PHOTO_MAX_BYTES,
+    });
   } catch (err) {
     return { ok: false, reason: err instanceof FetchRefused ? err.reason : 'network' };
   }
+  const contentType = PHOTO_TYPES.find((t) => res.contentType.startsWith(t));
+  if (!contentType || !res.bytes?.length) return { ok: false, reason: 'content_type' };
+  const form = new FormData();
+  for (const [k, v] of Object.entries(upload.fields)) form.append(k, v);
+  form.append('Content-Type', contentType);
+  form.append('file', new Blob([new Uint8Array(res.bytes)], { type: contentType }));
+  try {
+    const stored = await fetch(target, { method: 'POST', body: form, redirect: 'error' });
+    await stored.body?.cancel();
+    if (!stored.ok) return { ok: false, reason: `upload_${stored.status}` };
+  } catch {
+    return { ok: false, reason: 'upload_network' };
+  }
+  return { ok: true, contentType, bytes: res.bytes.length };
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // fetch queue → fetcher: the job and the URL (the fetcher has no DB to look them up), and what
-// to fetch: a product page (link import, the default) or a receipt line's photo.
-export function parseFetchRequest(
-  body: string,
-): { jobId: string; url: string; kind: 'page' | 'photo' } | null {
+// to fetch: a product page (link import, the default) or a product photo with its upload form.
+export type FetchRequest =
+  | { jobId: string; url: string; kind: 'page' }
+  | { jobId: string; url: string; kind: 'photo'; upload: PhotoUpload };
+
+export function parseFetchRequest(body: string): FetchRequest | null {
   try {
-    const v = JSON.parse(body) as { jobId?: unknown; url?: unknown; kind?: unknown };
-    if (v.kind !== undefined && v.kind !== 'page' && v.kind !== 'photo') return null;
-    return typeof v.jobId === 'string' &&
-      UUID.test(v.jobId) &&
-      typeof v.url === 'string' &&
-      v.url.length <= 2048
-      ? { jobId: v.jobId, url: v.url, kind: v.kind ?? 'page' }
+    const v = JSON.parse(body) as {
+      jobId?: unknown;
+      url?: unknown;
+      kind?: unknown;
+      upload?: unknown;
+    };
+    if (typeof v.jobId !== 'string' || !UUID.test(v.jobId)) return null;
+    if (typeof v.url !== 'string' || v.url.length > 2048) return null;
+    if (v.kind === undefined || v.kind === 'page') {
+      return { jobId: v.jobId, url: v.url, kind: 'page' };
+    }
+    if (v.kind !== 'photo') return null;
+    const upload = PhotoUpload.safeParse(v.upload);
+    return upload.success
+      ? { jobId: v.jobId, url: v.url, kind: 'photo', upload: upload.data }
       : null;
   } catch {
     return null;
   }
 }
 
-// fetcher → jobs-interactive: a receipt photo's bytes, or why it couldn't be fetched.
+// fetcher → jobs-interactive: whether a photo was stored, or why it couldn't be.
 export function parsePhotoResultMessage(
   body: string,
 ): { jobId: string; photoResult: PhotoFetchResult } | null {

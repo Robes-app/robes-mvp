@@ -44,4 +44,13 @@ describe('parseProduct', () => {
     });
     expect(parseProduct('<p>nothing here</p>', url)).toBeNull();
   });
+
+  it('takes the https twin of an http:// og:image (a Shopify product page)', () => {
+    const html = `<meta property="og:title" content="Everyday Cashmere Cardigan">
+      <meta property="og:image" content="http://www.lucynagle.com/cdn/shop/files/look.jpg?v=1">
+      <meta property="og:image:secure_url" content="https://www.lucynagle.com/cdn/shop/files/look.jpg?v=1">`;
+    expect(parseProduct(html, url)?.imageUrl).toBe(
+      'https://www.lucynagle.com/cdn/shop/files/look.jpg?v=1',
+    );
+  });
 });

@@ -16,10 +16,12 @@ function setup(
     asset?: { userId: string; status: string } | null;
     output?: object;
     aiError?: AiError;
+    source?: 'receipt' | 'link';
   } = {},
 ) {
   const intake = {
     line: vi.fn(async () => ({
+      source: opts.source ?? 'receipt',
       retailer: 'Zara',
       item: { label: 'REF 02335709800', brand: 'Zara', size: '6/7 years (122 cm)' },
     })),
@@ -105,7 +107,7 @@ describe('receipt_read handler', () => {
       photo: { stored: false, reason: 'status_403' },
     });
     await expect(run()).resolves.toEqual({ status: 'partial' });
-    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null);
+    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, { keepPhoto: false });
     expect(ledger.record).not.toHaveBeenCalled();
     expect(writeStage).toHaveBeenCalledWith('text', {
       inboxId: INBOX,
@@ -121,22 +123,36 @@ describe('receipt_read handler', () => {
     ]) {
       const { run, intake, storage } = setup({ asset });
       await expect(run()).resolves.toEqual({ status: 'partial' });
-      expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null);
+      expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, {
+        keepPhoto: false,
+      });
       expect(storage.getObject).not.toHaveBeenCalled();
     }
+  });
+
+  it("keeps a link's rendered product shot even when the read finds nothing", async () => {
+    const { run, intake } = setup({ source: 'link', output: { no_item_detected: true } });
+    await expect(run()).resolves.toEqual({ status: 'partial' });
+    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, { keepPhoto: true });
+  });
+
+  it("drops a link's photo that never rendered", async () => {
+    const { run, intake } = setup({ source: 'link', asset: { userId: USER, status: 'failed' } });
+    await expect(run()).resolves.toEqual({ status: 'partial' });
+    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, { keepPhoto: false });
   });
 
   it('drops a photo that shows no piece (a banner, a logo)', async () => {
     const { run, intake } = setup({ output: { no_item_detected: true } });
     await expect(run()).resolves.toEqual({ status: 'partial' });
-    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null);
+    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, { keepPhoto: false });
   });
 
   it('records a failed model call and keeps the line as printed', async () => {
     const usage = { model: 'gemini-2.5-flash', inputTokens: 10, outputTokens: 0 } as never;
     const { run, intake, ledger } = setup({ aiError: new AiError('invalid_output', usage) });
     await expect(run()).resolves.toEqual({ status: 'partial' });
-    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null);
+    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, { keepPhoto: false });
     expect(ledger.record).toHaveBeenCalledWith(expect.objectContaining({ status: 'error' }));
   });
 

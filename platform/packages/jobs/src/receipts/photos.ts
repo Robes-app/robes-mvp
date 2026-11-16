@@ -1,10 +1,14 @@
 import type { SystemRepositories, UserId } from '@robes/db';
+import { mediaKeys } from '@robes/media';
 import type { JobLogger } from '../logger';
 
-export type RequestPhoto = (photo: { jobId: string; url: string }) => Promise<void>;
+// `key` is where the photo lands: the original of the line's pending asset, under uploads/, so
+// the rendition pipeline checks it like her own upload. The sender presigns that key alone.
+export type RequestPhoto = (photo: { jobId: string; url: string; key: string }) => Promise<void>;
 
-// One receipt's photos: a receipt_read job per waiting line with a photo, each asked of the
-// isolated fetcher (SEC-40). Returns how many were asked for.
+// One held entry's photos (a receipt's lines, or a pasted link's one piece): a receipt_read job
+// per waiting line with a photo, each asked of the isolated fetcher (SEC-40). Returns how many
+// were asked for.
 export async function askForPhotos(
   deps: {
     intake: Pick<SystemRepositories['inboxIntake'], 'queuePhotoReads'>;
@@ -14,7 +18,9 @@ export async function askForPhotos(
   inboxId: string,
 ): Promise<number> {
   const queued = await deps.intake.queuePhotoReads(userId, inboxId);
-  for (const photo of queued) await deps.requestPhoto(photo);
+  for (const { jobId, url, assetId } of queued) {
+    await deps.requestPhoto({ jobId, url, key: mediaKeys.original(userId, assetId) });
+  }
   return queued.length;
 }
 

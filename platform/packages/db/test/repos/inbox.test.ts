@@ -209,6 +209,42 @@ describe('inbox repo', () => {
     });
   });
 
+  // A pasted link's photo goes the same way; the shop's name for the piece stands, and its
+  // product shot stays once rendered even when the read finds nothing.
+  it("queues a pasted link's photo and keeps the shop's name", async () => {
+    const id = await held(niall, 'Everyday Cashmere Cardigan in Vibrant Pink');
+    expect(await inboxIntake.queuePhotoReads(bea, id)).toEqual([]);
+    const [queued, ...rest] = await inboxIntake.queuePhotoReads(niall, id);
+    expect(rest).toEqual([]);
+    expect(queued?.url).toBe('https://shop.test/coat.jpg');
+    expect(await inboxIntake.line(niall, id, 0)).toMatchObject({
+      source: 'link',
+      item: { imageAssetId: queued?.assetId, photo: 'reading' },
+    });
+
+    await inboxIntake.applyPhotoRead(niall, id, 0, {
+      label: 'Pink cardigan',
+      categoryL2: 'Knitwear',
+      categoryL3: 'Cardigans',
+      color: 'Pink',
+    });
+    expect((await inboxIntake.line(niall, id, 0))?.item).toMatchObject({
+      label: 'Everyday Cashmere Cardigan in Vibrant Pink',
+      categoryL3: 'Cardigans',
+      color: 'Pink',
+      imageAssetId: queued?.assetId,
+      photo: 'read',
+    });
+
+    const other = await held(niall, 'Loafers');
+    const [photo] = await inboxIntake.queuePhotoReads(niall, other);
+    await inboxIntake.applyPhotoRead(niall, other, 0, null, { keepPhoto: true });
+    expect((await inboxIntake.line(niall, other, 0))?.item).toMatchObject({
+      imageAssetId: photo?.assetId,
+      photo: 'none',
+    });
+  });
+
   it("reads a line's fields whichever app wrote them", () => {
     // Rows carried over from beta keep its snake_case keys.
     const beta = { label: 'Pink bustier top', size: ' L ', category_l2: 'Tops', color: 'Pink' };

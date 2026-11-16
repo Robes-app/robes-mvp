@@ -17,8 +17,10 @@ export const InboxItem = z.object({
   currency: z.string().nullable(),
   // The size the receipt printed ("6/7 years (122 cm)"), shown on the row and filed with the piece.
   size: z.string().nullable().default(null),
-  // The line's photo once it is read and rendered; null shows the hanger.
+  // The line's photo once it is stored (pending while it renders); null shows the hanger.
   image: PieceImage.nullable().default(null),
+  // Its photo has been asked for and not yet settled: Review keeps asking until it lands.
+  reading: z.boolean().default(false),
   sourceUrl: z.string().nullable(),
   state: InboxItemState.default('inbox'),
   // The piece or wish it became, once added.

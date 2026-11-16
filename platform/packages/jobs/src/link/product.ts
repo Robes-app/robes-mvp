@@ -135,7 +135,11 @@ export function parseProduct(html: string, pageUrl: string): ParsedProduct | nul
     currency: currencyOf(
       offer?.priceCurrency ?? meta.get('product:price:currency') ?? meta.get('og:price:currency'),
     ),
-    imageUrl: httpUrl(product?.image ?? meta.get('og:image'), pageUrl),
+    // Shops often print og:image as http:// beside its https twin.
+    imageUrl: httpUrl(
+      product?.image ?? meta.get('og:image:secure_url') ?? meta.get('og:image'),
+      pageUrl,
+    ),
     sourceUrl: pageUrl.slice(0, 2048),
     retailer:
       clip(meta.get('og:site_name'), 120) ?? new URL(pageUrl).hostname.replace(/^www\./, ''),

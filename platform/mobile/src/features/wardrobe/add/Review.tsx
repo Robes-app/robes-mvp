@@ -15,6 +15,7 @@ import {
   withTagDefaults,
 } from '@robes/core/add-flow';
 import { shade } from '@robes/core/colour';
+import { photoLanding } from '@robes/core/inbox';
 import { material } from '@robes/core/material';
 import { Icon } from '@robes/icons/native';
 import {
@@ -26,6 +27,7 @@ import {
   MIN_TOUCH,
   maxFontSizeMultiplier,
   PrimaryScope,
+  Skeleton,
   SubviewHeader,
   Text,
   useColor,
@@ -42,6 +44,7 @@ import { PinnedAction } from '@/components/PinnedAction';
 import { isTerminal } from '@/features/looks/ideas';
 import { CropThumb } from '@/features/photo-pieces/PhotoFrame';
 import { nativeAnalytics } from '@/lib/analytics';
+import { Photo } from '../PieceCard';
 import { type PieceField, PieceFieldSheet } from '../PieceFieldSheet';
 import { RecordRows } from '../PieceRows';
 import {
@@ -58,6 +61,7 @@ const old = wardrobe.add.review;
 const copy = wardrobe.capture.review;
 // How long the toast that follows "Add N to wardrobe" stands (Capture PRD 3c.5).
 const ADDED_MS = 2800;
+const PHOTO_REFRESH_MS = 2000;
 const WHOLE = { x: 0, y: 0, w: 1, h: 1 };
 
 type Found =
@@ -99,18 +103,27 @@ export function Review({
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const session = useShotSession(shots);
-  // A link's own entry (links never sit in the Inbox list, which holds receipts).
-  const inbox = useApi('inbox.get', { params: { id: link ?? '' } }, { enabled: link !== null });
+  // A link's own entry (links never sit in the Inbox list, which holds receipts), asked again
+  // while its product photo is on its way from the isolated fetcher.
+  const inbox = useApi(
+    'inbox.get',
+    { params: { id: link ?? '' } },
+    {
+      enabled: link !== null,
+      refetchInterval: (q) => (photoLanding(q.state.data) ? PHOTO_REFRESH_MS : false),
+    },
+  );
   const [removed, setRemoved] = useState<ReadonlySet<string>>(() => new Set());
   const [changes, setChanges] = useState<Record<string, RowChanges>>({});
   const [open, setOpen] = useState<string | null>(null);
   const [field, setField] = useState<PieceField | null>(null);
   const [adding, setAdding] = useState(false);
   const [failed, setFailed] = useState(false);
-  // A link's Inbox entry leaves the Inbox once filed, so Review keeps the one it saw.
+  // A link's Inbox entry leaves the Inbox once filed, so Review keeps the last one it saw before
+  // she tapped Add (a newer one only brings its photo).
   const [held, setHeld] = useState<InboxEntry | null>(null);
   const seen = link && inbox.data?.id === link ? inbox.data : undefined;
-  if (seen && !held) setHeld(seen);
+  if (seen && seen !== held && !adding) setHeld(seen);
 
   // The pieces, in the order she took the photos and Robes found them.
   const entries = useMemo<Entry[]>(() => {
@@ -379,7 +392,11 @@ export function Review({
         single ? leave : () => setOpen(null),
         <>
           <View className="items-center" testID="review-piece">
-            {shot ? (
+            {entry?.found.kind === 'link' ? (
+              <View style={{ width: 236 }}>
+                <LinkPhoto item={entry.found.item} width={236} />
+              </View>
+            ) : shot ? (
               <CropThumb
                 photo={shot}
                 box={entry?.found.kind === 'read' ? entry.found.piece.box : WHOLE}
@@ -500,6 +517,10 @@ function ReviewRow({
           <View style={{ width: 44, height: 55 }} className="items-center justify-center">
             <CropThumb photo={entry.found.photo} box={entry.found.piece.box} size={55} />
           </View>
+        ) : entry.found.kind === 'link' ? (
+          <View style={{ width: 44 }}>
+            <LinkPhoto item={entry.found.item} width={44} />
+          </View>
         ) : (
           <View style={{ width: 44, height: 55 }} className="rounded-crisp bg-surface-sunk" />
         )}
@@ -602,4 +623,19 @@ function FillIn({ to, shot }: { to: AddDestination; shot: ReviewShot | undefined
       {old.fillIn}
     </Button>
   );
+}
+
+// A link's product shot, stored as her own photo: a skeleton while it is on its way, the hanger
+// when the shop had none. Web twin: components/wardrobe/add/review.tsx LinkPhoto.
+function LinkPhoto({ item, width }: { item: InboxEntry['items'][number]; width: number }) {
+  if (item.reading && !item.image) return <Skeleton width="100%" aspectRatio={3 / 4} />;
+  const piece = {
+    id: `inbox:${item.index}`,
+    label: item.label,
+    category: '',
+    categoryL2: null,
+    brand: item.brand,
+    image: item.image,
+  };
+  return <Photo piece={piece} width={width} aspect="3:4" fit="contain" />;
 }

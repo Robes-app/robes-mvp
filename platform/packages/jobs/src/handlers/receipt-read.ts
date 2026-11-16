@@ -32,10 +32,11 @@ export const ReceiptReadInput = z.object({
   photo: z.object({ stored: z.boolean(), reason: z.string().max(60).optional() }).optional(),
 });
 
-// One receipt line's photo (legacy inbox.js visionPass): the fetcher stored its bytes as her own
-// pending asset, the rendition pipeline checked them like any upload, and here the photograph
-// names the piece. A photo that couldn't be fetched, rendered or read leaves the line as the
-// receipt printed it: nothing a photo can't confirm is ever invented.
+// One receipt line's photo (legacy inbox.js visionPass), or a pasted link's: the fetcher stored
+// its bytes as her own pending asset, the rendition pipeline checked them like any upload, and
+// here the photograph names the piece. A photo that couldn't be fetched, rendered or read leaves
+// the line as the receipt printed it: nothing a photo can't confirm is ever invented. A link's
+// photo is the shop's own product shot, so once rendered it stays whatever the read says.
 export function createReceiptReadHandler(deps: ReceiptReadDeps): JobHandler {
   const assetWaitMs = deps.assetWaitMs ?? 30_000;
   const pollMs = deps.pollMs ?? 500;
@@ -46,8 +47,10 @@ export function createReceiptReadHandler(deps: ReceiptReadDeps): JobHandler {
       const input = ReceiptReadInput.safeParse(ctx.input);
       if (!input.success) throw new JobError('invalid_input');
       const { inboxId, index, assetId, photo } = input.data;
+      let rendered = false;
       const keep = async (stage: string): Promise<{ status: 'partial' }> => {
-        await deps.intake.applyPhotoRead(ctx.userId, inboxId, index, null);
+        const keepPhoto = rendered && line?.source === 'link';
+        await deps.intake.applyPhotoRead(ctx.userId, inboxId, index, null, { keepPhoto });
         await ctx.writeStage('text', { inboxId, index, photo: stage });
         return { status: 'partial' };
       };
@@ -65,6 +68,7 @@ export function createReceiptReadHandler(deps: ReceiptReadDeps): JobHandler {
       if (!asset || asset.userId !== ctx.userId || !readable) return keep('unreadable');
       const image = await deps.storage.getObject(mediaKeys.master(ctx.userId, assetId));
       if (!image) return keep('unreadable');
+      rendered = true;
 
       let result: { data: Output; usage: Usage };
       try {

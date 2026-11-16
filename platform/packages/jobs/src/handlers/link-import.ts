@@ -1,10 +1,16 @@
 import type { SystemRepositories } from '@robes/db';
 import { z } from 'zod';
 import { type LinkFetchResult, LinkFetchResult as Result } from '../link';
+import type { JobLogger } from '../logger';
+import { askForPhotos, type RequestPhoto } from '../receipts/photos';
 import { JobError, type JobHandler } from '../runtime';
 
 export interface LinkImportDeps {
   intake: SystemRepositories['inboxIntake'];
+  // The product's photo goes to the isolated fetcher like a receipt line's (SEC-40). Without it
+  // (the web's dev inline worker) the piece arrives without its photo.
+  requestPhoto?: RequestPhoto;
+  logger?: Pick<JobLogger, 'warn'>;
   // Dev only: fetch in-process (same SSRF guard). In AWS the isolated fetcher attaches `fetched`.
   fetchLink?: (url: string) => Promise<LinkFetchResult>;
 }
@@ -42,6 +48,22 @@ export function createLinkImportHandler(deps: LinkImportDeps): JobHandler {
           sourceUrl: product.sourceUrl,
         },
       });
+      if (deps.requestPhoto && product.imageUrl) {
+        // Review opens on the text; the photo lands after. One that isn't asked for (a queue
+        // error) is settled by the job sweeper, and the piece keeps its text.
+        try {
+          await askForPhotos(
+            { intake: deps.intake, requestPhoto: deps.requestPhoto },
+            ctx.userId,
+            inboxId,
+          );
+        } catch (err) {
+          deps.logger?.warn(
+            { reason: err instanceof Error ? err.message : 'unknown' },
+            'link_photo_failed',
+          );
+        }
+      }
       await ctx.writeStage('text', { inboxId, suggested: input.data.as, label: product.label });
       return { status: 'succeeded' };
     },
