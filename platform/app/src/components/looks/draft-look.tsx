@@ -1093,7 +1093,7 @@ function DraftBody({
   useEffect(() => {
     if (!filed) return;
     photo.reset();
-    if ('swap' in snapFor.current) editor.swap(snapFor.current.swap.key, filed);
+    if ('swap' in snapFor.current) editor.swap(snapFor.current.swap.key, { piece: filed });
     else editor.add(filed);
   });
   const reading = photo.filing.phase === 'uploading' || photo.filing.phase === 'reading';
@@ -1610,7 +1610,9 @@ function DraftBody({
           if (!picker) return;
           if ('swap' in picker) {
             const [piece] = pieces;
-            if (piece) editor.swap(picker.swap.key, piece);
+            const [wish] = wishes;
+            if (piece) editor.swap(picker.swap.key, { piece });
+            else if (wish) editor.swap(picker.swap.key, { wish });
             return;
           }
           if ('match' in picker) {

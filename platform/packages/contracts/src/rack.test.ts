@@ -1,7 +1,7 @@
 import { applyAsk } from '@robes/core/looks';
 import { pieceEyebrow } from '@robes/core/wardrobe';
 import { describe, expect, it } from 'vitest';
-import { askChanges, askRack, rackFromLook, rackUpdate } from './rack';
+import { askChanges, askRack, rackFromLook, rackUpdate, swapForWish } from './rack';
 
 const coat = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -128,5 +128,52 @@ describe('the rack, shared by both clients', () => {
       category: 'Knitwear',
       brand: 'COS',
     });
+  });
+});
+
+describe('a swap for a wish', () => {
+  const look = {
+    pieces: [
+      { piece: coat, role: 'anchor' as const },
+      { piece: tee, role: 'canvas' as const },
+    ],
+    proposals: [],
+    styling: { [tee.id]: 'tucked at the front' },
+    edits: {},
+  };
+  const wish = {
+    id: '33333333-3333-4333-8333-333333333333',
+    label: 'Silk shirt',
+    category: 'Tops' as const,
+    color: 'ivory',
+    brand: 'Toteme',
+    sourceLabel: 'toteme.com',
+    price: 290,
+    currency: 'EUR',
+  };
+
+  it('puts the wish in the row’s place and role, as a piece to find that remembers the row', () => {
+    const rack = rackFromLook(look as never);
+    const next = swapForWish(rack, tee.id, wish);
+    const at = rack.rows.findIndex((r) => r.key === tee.id);
+    expect(next.rows.map((r) => r.name)).toEqual(
+      rack.rows.map((r) => (r.key === tee.id ? 'Silk shirt' : r.name)),
+    );
+    const row = next.rows[at];
+    expect(row?.pieceId).toBeNull();
+    expect(row?.role).toBe('canvas');
+    expect(row?.proposal).toMatchObject({
+      wishlisted: true,
+      wishlistItemId: wish.id,
+      role: 'canvas',
+    });
+    expect(next.edits[row?.key ?? '']?.was?.name).toBe('Cream tee');
+    expect(next.edits[tee.id]).toBeUndefined();
+    expect(next.styling[tee.id]).toBeUndefined();
+  });
+
+  it('changes nothing for a row that is not on the rack', () => {
+    const rack = rackFromLook(look as never);
+    expect(swapForWish(rack, 'p-missing0', wish)).toBe(rack);
   });
 });

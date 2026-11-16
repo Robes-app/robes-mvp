@@ -297,6 +297,28 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(pieces).toEqual([ids[0]]);
 
+  // The wishlist is always in reach (Annie, 16 Nov): a swap can take a wish, which stands in the
+  // row's place as a piece to find.
+  const wish = await (
+    await api.post('/api/v1/wishlist/items', {
+      data: { label: 'Silk scarf' },
+    })
+  ).json();
+  await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
+  await picker.getByRole('tab', { name: 'Wishlist' }).click();
+  await picker.getByRole('button', { name: 'Include Silk scarf from your wishlist' }).click();
+  await picker.getByRole('button', { name: 'Swap it in' }).click();
+  await expect.poll(pieces).toEqual([]);
+  await expect
+    .poll(async () =>
+      ((await read()).proposals as { wishlistItemId: string | null }[]).map(
+        (p) => p.wishlistItemId,
+      ),
+    )
+    .toEqual([wish.id]);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(pieces).toEqual([ids[0]]);
+
   // D19, D20: the image stack opens the manager; Add a photo lands in the frame at once, and a
   // draft keeps it only as it is saved.
   await page.getByTestId('saved-look-stack').click();

@@ -1,5 +1,5 @@
 import type { Look, LookSet } from '@robes/contracts';
-import { diary, filters, lookbook, ui } from '@robes/copy';
+import { diary, filters, lookbook, ui, wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { Deck, JobDeck } from '../src/features/looks/Deck';
@@ -260,6 +260,62 @@ test('↻ on a suggested look swaps through the picker, stays suggested, and Und
   expect(JSON.stringify(patches()[1]?.body)).not.toContain(COAT);
   // Still a suggestion: Save to lookbook, never a draft's Save.
   expect(screen.getByRole('button', { name: lookbook.bar.saveToLookbook })).toBeTruthy();
+});
+
+test('a swap can take a wish: the WISHLIST tab stays open, and the wish lands as a piece to find', async () => {
+  const WISH = '88888888-8888-4888-8888-888888888888';
+  const wish = {
+    id: WISH,
+    label: 'Silk scarf',
+    category: 'Accessories',
+    categoryL2: null,
+    categoryL3: null,
+    color: 'ivory',
+    brand: 'Toteme',
+    note: null,
+    price: 190,
+    currency: 'EUR',
+    size: null,
+    sourceUrl: null,
+    sourceLabel: 'toteme.com',
+    image: null,
+    createdAt: '2026-09-24T10:00:00.000Z',
+    updatedAt: '2026-09-24T10:00:00.000Z',
+  };
+  const shown = suggestion({ pieces: [{ piece: piece(), slot: null, role: 'anchor' }] });
+  const calls = mockFetch({
+    'GET /me': ME,
+    [`GET /looks/${LOOK_ID}`]: shown,
+    [`PATCH /looks/${LOOK_ID}`]: shown,
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    'GET /wishlist/items': { items: [wish], nextCursor: null },
+    'GET /looks': byStatus({}),
+    'GET /looks/sets/:id': {},
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
+  );
+  const tab = await screen.findByRole('tab', { name: wardrobe.segments.wishlist });
+  expect(tab.props.accessibilityState?.disabled).not.toBe(true);
+  await fireEvent.press(tab);
+  await fireEvent.press(
+    await screen.findByRole('checkbox', { name: lookbook.draftLook.picker.pickWish('Silk scarf') }),
+  );
+  await fireEvent.press(screen.getByTestId('picker-confirm'));
+  const patches = () => calls.filter((c) => c.method === 'PATCH');
+  await waitFor(() => expect(patches()).toHaveLength(1));
+  // The coat leaves her pieces; the scarf stands in its place and role as a piece to find, and the
+  // row remembers the coat ("Swapped in · was …").
+  const body = patches()[0]?.body as {
+    pieces: unknown[];
+    proposals: { wishlistItemId: string | null; role: string }[];
+    edits: Record<string, { was?: { pieceId: string } }>;
+  };
+  expect(body.pieces).toEqual([]);
+  expect(body.proposals[0]).toMatchObject({ wishlistItemId: WISH, role: 'anchor' });
+  expect(Object.values(body.edits)[0]?.was?.pieceId).toBe(PIECE_ID);
 });
 
 test('the Robes model tag follows the picture, opens its sheet; Adjust navigates, Capture opens the camera', async () => {

@@ -37,18 +37,7 @@ export function RackGrid({
         const tile = (
           <View className="overflow-hidden rounded-sm bg-surface-raised" style={shadowNative.row}>
             <View className="overflow-hidden rounded-sm">
-              <Photo
-                piece={{
-                  id: row.key,
-                  label,
-                  category: row.category,
-                  categoryL2: row.categoryL2 ?? null,
-                  brand: brand || null,
-                  image: imageOf(row) ?? null,
-                }}
-                width={90}
-                aspect="3:4"
-              />
+              <Photo piece={{ id: row.key, image: imageOf(row) ?? null }} width={90} aspect="3:4" />
             </View>
           </View>
         );

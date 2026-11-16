@@ -512,8 +512,9 @@ function Rows({ rows }: { rows: readonly SheetRow[] }) {
 // The one sheet header (audit P2: "× on the left, the title in one style, the action on the right
 // as a word"), on a glass sheet and a solid one alike: the 36pt × disc, the title in Inter 600 at
 // 15, and the text action at the right, ink while it can act, faint while it can't. A spacer
-// keeps the title centred when there is no action.
-function SheetHead({ title, action, onClose }: GlassHeader & { onClose: () => void }) {
+// keeps the title centred when there is no action. The iOS detent sheet (mobile DetentSheet) draws
+// the same row.
+export function SheetHead({ title, action, onClose }: GlassHeader & { onClose: () => void }) {
   return (
     <View className="h-10 flex-row items-center justify-between gap-3">
       <CloseDisc label={ui.close} onPress={onClose} />

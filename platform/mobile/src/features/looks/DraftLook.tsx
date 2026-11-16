@@ -1081,7 +1081,7 @@ function DraftBody({
   // A photograph filed from the picker lands where the picker was opened.
   const snapFor = useRef<PickerMode>({ add: true });
   const snap = useSnap((piece) => {
-    if ('swap' in snapFor.current) editor.swap(snapFor.current.swap.key, piece);
+    if ('swap' in snapFor.current) editor.swap(snapFor.current.swap.key, { piece });
     else editor.add(piece);
   });
   const busy = adjust.busy || save.isPending || editor.saving || stack.committing;
@@ -1593,7 +1593,9 @@ function DraftBody({
           if (!picker) return;
           if ('swap' in picker) {
             const [piece] = pieces;
-            if (piece) editor.swap(picker.swap.key, piece);
+            const [wish] = wishes;
+            if (piece) editor.swap(picker.swap.key, { piece });
+            else if (wish) editor.swap(picker.swap.key, { wish });
             return;
           }
           if ('match' in picker) {

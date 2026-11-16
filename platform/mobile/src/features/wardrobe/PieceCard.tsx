@@ -104,14 +104,15 @@ export function NoPhoto({ aspect = '4:5', size = 28 }: { aspect?: '4:5' | '3:4';
   );
 }
 
-// A piece's photograph at a width, or the hanger / the skeleton (also the Rack's small grid).
+// A piece's photograph at a width, or the hanger / the skeleton (also the Rack's small grid and the
+// pickers' WardrobeGrid).
 export function Photo({
   piece,
   width,
   aspect = '4:5',
   fit = 'cover',
 }: {
-  piece: CardPiece;
+  piece: Pick<CardPiece, 'id' | 'image'>;
   width: number;
   aspect?: '4:5' | '3:4';
   fit?: 'cover' | 'contain';
