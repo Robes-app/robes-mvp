@@ -9,7 +9,11 @@ const mockGetSession = jest.fn(async (): Promise<{ data: unknown }> => ({ data: 
 const mockReplace = jest.fn();
 const mockOpenBrowser = jest.fn(async (_url: string) => ({}));
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace }) }));
+const mockSearch: { next?: string } = {};
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ replace: mockReplace }),
+  useLocalSearchParams: () => ({ ...mockSearch }),
+}));
 jest.mock('expo-web-browser', () => ({
   openBrowserAsync: (url: string) => mockOpenBrowser(url),
 }));
@@ -58,6 +62,27 @@ test('sends a code, then shows the code step and a wrong-code message', async ()
   );
   expect(await screen.findByText('That code didn’t match. Check it and try again.')).toBeTruthy();
   expect(mockReplace).not.toHaveBeenCalled();
+});
+
+// Audit F6: a link opened while signed out comes back after the code; only one of ours.
+test.each([
+  ['/look/0a1b', '/look/0a1b'],
+  ['https://evil.test/x', '/'],
+  ['//evil.test', '/'],
+])('after the code, a link to %s lands on %s', async (next, lands) => {
+  mockSearch.next = next;
+  mockSignInEmailOtp.mockResolvedValueOnce({ error: null } as never);
+  try {
+    mockFetch(EMAIL_ONLY);
+    await renderWithApi(<SignIn />);
+    await fireEvent.changeText(screen.getByLabelText('Email'), 'niall@test.dev');
+    await fireEvent.press(screen.getByRole('button', { name: 'Email me a code' }));
+    await fireEvent.changeText(await screen.findByLabelText('Code'), '123456');
+    await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(lands));
+  } finally {
+    delete mockSearch.next;
+  }
 });
 
 // F5: the phone shows the providers the server runs, in the web's order (Apple, then Google).

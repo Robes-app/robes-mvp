@@ -14,7 +14,12 @@ jest.mock('expo-router', () => {
 });
 jest.mock('../src/global.css', () => ({}));
 jest.mock('expo-font', () => ({ useFonts: () => [true, null] }));
-jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
+jest.mock('../src/lib/auth-client', () => ({
+  authClient: {
+    getCookie: () => null,
+    useSession: () => ({ isPending: false, data: { user: { id: 'u' } } }),
+  },
+}));
 
 // The draft rises as a native sheet at full height; Add pieces is never a route sheet: the old
 // address redirects to the glass sheet over the Wardrobe (addPiecesHref).
