@@ -63,6 +63,32 @@ const planWith = (entries: boolean) => ({
   ],
 });
 
+test('a day with looks swipes to take them off, with Undo; an empty day does not swipe', async () => {
+  let cleared = false;
+  const calls = mockFetch({
+    'GET /plan': () => planWith(!cleared),
+    [`DELETE /plan/entries/${ENTRY_ID}`]: () => {
+      cleared = true;
+      return { ok: true };
+    },
+    [`POST /plan/entries/${ENTRY_ID}/restore`]: () => {
+      cleared = false;
+      return { ok: true };
+    },
+  });
+  await renderWithApi(<PlanView />);
+  const row = await screen.findByTestId('plan-day-swipe-2026-10-01');
+  expect(screen.queryByTestId('plan-day-swipe-2026-10-02')).toBeNull();
+  expect(row.props.accessibilityActions).toEqual([{ name: 'remove', label: plan.list.clearToday }]);
+  // VoiceOver calls the action the swipe does (the test renderer fires no pans).
+  await act(() => row.props.onAccessibilityAction({ nativeEvent: { actionName: 'remove' } }));
+  await fireEvent.press(await screen.findByRole('button', { name: ui.undo }));
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/restore'))).toBe(true),
+  );
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(true);
+});
+
 test('days read as today or a short date', () => {
   expect(dayLabel('2026-10-01', '2026-10-01')).toBe(plan.today);
   expect(dayLabel('2026-10-02', '2026-10-01')).toBe('Fri 2 Oct');

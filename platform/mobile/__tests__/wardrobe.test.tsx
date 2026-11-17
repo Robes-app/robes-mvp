@@ -693,6 +693,14 @@ test('grid | list switches the layout; the list swipes (or acts) to Delete, aske
   expect(screen.getByText(wardrobe.card.swipeDelete)).toBeTruthy();
   await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.grid }));
   expect(screen.queryByRole('button', { name: removeLabel })).toBeNull();
+  // The grid's tile is held for its menu (iOS): Delete piece asks first, and Cancel keeps it.
+  const tile = await screen.findByTestId(`piece-tile-${PIECE_ID}`);
+  expect(tile.props.accessibilityActions).toEqual([
+    { name: 'delete', label: wardrobe.card.menu.delete },
+  ]);
+  await act(() => tile.props.onAccessibilityAction({ nativeEvent: { actionName: 'delete' } }));
+  expect(await screen.findByText(wardrobe.piece.deleteTitle)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.cancel }));
   await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.list }));
   // Cancel keeps the piece.
   await fireEvent(screen.getByRole('button', { name: removeLabel }), 'press');
