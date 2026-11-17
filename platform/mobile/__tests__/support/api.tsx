@@ -16,6 +16,7 @@ export const ME: Me = {
   homeCity: null,
   onboarded: true,
   notifications: { looksReady: true, morningCue: true, nudges: false, receipts: true },
+  firstRun: { version: 2, step: null, skipped: [] },
 };
 
 type Reply = unknown | ((init: RequestInit, url: string) => unknown);

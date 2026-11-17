@@ -27,8 +27,6 @@ const copy = twin.twinPage.consent;
 export function TwinConsent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const ink = useColor('ink');
-  const bg = useColor('bg');
   const [agreed, setAgreed] = useState(false);
   const { give, saving, error } = useConsents();
 
@@ -52,45 +50,13 @@ export function TwinConsent() {
               {copy.sub}
             </Text>
           </View>
-          <SettingsGroup>
-            {copy.rows.map(([label, value], i) => (
-              <View
-                key={label}
-                className="gap-1 border-hairline px-3.5 py-2.5"
-                style={{ borderTopWidth: i === 0 ? 0 : 0.5 }}
-              >
-                <Eyebrow>{label}</Eyebrow>
-                <Text size="small">{value}</Text>
-              </View>
-            ))}
-          </SettingsGroup>
-          <Pressable
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: agreed }}
-            accessibilityLabel={copy.agree}
-            onPress={() => setAgreed((a) => !a)}
-            className="min-h-11 flex-row items-start gap-2.5"
-            testID="twin-consent-agree"
-          >
-            <View
-              className="size-5 items-center justify-center rounded-xs border border-border-control bg-surface-raised"
-              style={agreed ? { backgroundColor: ink, borderColor: ink } : undefined}
-            >
-              {agreed ? <Icon name="check" size={12} color={bg} /> : null}
-            </View>
-            <Text size="small" tone="muted" className="flex-1">
-              {copy.agree}{' '}
-              <Text
-                size="small"
-                tone="faint"
-                accessibilityRole="link"
-                className="underline"
-                onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.privacy)}
-              >
-                {copy.privacy}
-              </Text>
-            </Text>
-          </Pressable>
+          <ConsentRows rows={copy.rows} />
+          <AgreeBox
+            agreed={agreed}
+            label={copy.agree}
+            onToggle={() => setAgreed((a) => !a)}
+            onPrivacy={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.privacy)}
+          />
           {error ? <ErrorText>{consent.failed}</ErrorText> : null}
         </ScrollView>
         <View
@@ -114,5 +80,69 @@ export function TwinConsent() {
         </View>
       </View>
     </PrimaryScope>
+  );
+}
+
+// What the twin collects, uses and keeps, one row each (shared with Getting to know you's
+// Privacy sheet, which names the close-up only).
+export function ConsentRows({ rows }: { rows: readonly (readonly [string, string])[] }) {
+  return (
+    <SettingsGroup>
+      {rows.map(([label, value], i) => (
+        <View
+          key={label}
+          className="gap-1 border-hairline px-3.5 py-2.5"
+          style={{ borderTopWidth: i === 0 ? 0 : 0.5 }}
+        >
+          <Eyebrow>{label}</Eyebrow>
+          <Text size="small">{value}</Text>
+        </View>
+      ))}
+    </SettingsGroup>
+  );
+}
+
+// The box she ticks herself, its line ending on Privacy (App Store 5.1.2).
+export function AgreeBox({
+  agreed,
+  label,
+  onToggle,
+  onPrivacy,
+}: {
+  agreed: boolean;
+  label: string;
+  onToggle: () => void;
+  onPrivacy: () => void;
+}) {
+  const ink = useColor('ink');
+  const bg = useColor('bg');
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: agreed }}
+      accessibilityLabel={label}
+      onPress={onToggle}
+      className="min-h-11 flex-row items-start gap-2.5"
+      testID="twin-consent-agree"
+    >
+      <View
+        className="size-5 items-center justify-center rounded-xs border border-border-control bg-surface-raised"
+        style={agreed ? { backgroundColor: ink, borderColor: ink } : undefined}
+      >
+        {agreed ? <Icon name="check" size={12} color={bg} /> : null}
+      </View>
+      <Text size="small" tone="muted" className="flex-1">
+        {label}{' '}
+        <Text
+          size="small"
+          tone="faint"
+          accessibilityRole="link"
+          className="underline"
+          onPress={onPrivacy}
+        >
+          {copy.privacy}
+        </Text>
+      </Text>
+    </Pressable>
   );
 }

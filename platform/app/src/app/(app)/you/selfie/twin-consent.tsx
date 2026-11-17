@@ -4,7 +4,7 @@ import { consent, twin } from '@robes/copy';
 import { Button, ErrorText, Eyebrow, Heading, Text } from '@robes/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 import { SettingsGroup } from '@/components/settings/settings-chrome';
 import { SelfieCamera } from './selfie-camera';
@@ -52,32 +52,12 @@ function TwinConsent() {
             {copy.sub}
           </Text>
         </div>
-        <SettingsGroup>
-          <dl>
-            {copy.rows.map(([label, value]) => (
-              <div
-                key={label}
-                className="flex flex-col gap-1 border-hairline border-t-[0.5px] px-3.5 py-2.5 first:border-t-0"
-              >
-                <dt>
-                  <Eyebrow>{label}</Eyebrow>
-                </dt>
-                <dd>
-                  <Text size="small">{value}</Text>
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </SettingsGroup>
-        <label className="flex min-h-11 cursor-pointer items-start gap-2.5 text-ink-muted text-sm">
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-            className="size-5 flex-none accent-ink"
-          />
-          <span>
-            {copy.agree}{' '}
+        <ConsentRows rows={copy.rows} />
+        <AgreeBox
+          agreed={agreed}
+          label={copy.agree}
+          onToggle={setAgreed}
+          privacy={
             <Link
               href="/legal/privacy"
               target="_blank"
@@ -85,8 +65,8 @@ function TwinConsent() {
             >
               {copy.privacy}
             </Link>
-          </span>
-        </label>
+          }
+        />
         {status === 'failed' ? <ErrorText>{consent.failed}</ErrorText> : null}
         <div className="mt-auto grid grid-cols-[1fr_2fr] gap-2 border-hairline border-t-[0.5px] pt-3">
           <Button
@@ -109,5 +89,56 @@ function TwinConsent() {
         </div>
       </div>
     </div>
+  );
+}
+
+// What the twin collects, uses and keeps, one row each (shared with Getting to know you's Privacy
+// sheet, which names the close-up only). Native twin: TwinConsent.tsx ConsentRows.
+export function ConsentRows({ rows }: { rows: readonly (readonly [string, string])[] }) {
+  return (
+    <SettingsGroup>
+      <dl>
+        {rows.map(([label, value]) => (
+          <div
+            key={label}
+            className="flex flex-col gap-1 border-hairline border-t-[0.5px] px-3.5 py-2.5 first:border-t-0"
+          >
+            <dt>
+              <Eyebrow>{label}</Eyebrow>
+            </dt>
+            <dd>
+              <Text size="small">{value}</Text>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </SettingsGroup>
+  );
+}
+
+// The box she ticks herself, its line ending on Privacy (App Store 5.1.2).
+export function AgreeBox({
+  agreed,
+  label,
+  onToggle,
+  privacy,
+}: {
+  agreed: boolean;
+  label: string;
+  onToggle: (agreed: boolean) => void;
+  privacy: ReactNode;
+}) {
+  return (
+    <label className="flex min-h-11 cursor-pointer items-start gap-2.5 text-ink-muted text-sm">
+      <input
+        type="checkbox"
+        checked={agreed}
+        onChange={(e) => onToggle(e.target.checked)}
+        className="size-5 flex-none accent-ink"
+      />
+      <span>
+        {label} {privacy}
+      </span>
+    </label>
   );
 }

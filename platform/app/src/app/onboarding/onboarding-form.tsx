@@ -1,116 +1,72 @@
 'use client';
 
 import { useApiClient } from '@robes/api-client/react';
+import {
+  FIRST_RUN_STEPS,
+  FIRST_RUN_VERSION,
+  type FirstRunCapture,
+  type FirstRunStep,
+} from '@robes/contracts';
 import { firstRun as copy, onboarding } from '@robes/copy';
 import { onboardingBrands, type StyleType } from '@robes/core/style-dna';
-import { Button, ErrorText, Field, Heading, Wordmark } from '@robes/ui';
+import { Button, ErrorText, Field, Wordmark } from '@robes/ui';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
-import {
-  BrandsStep,
-  type Colours,
-  ColoursStep,
-  type Identity,
-  IdentityStep,
-  StylesStep,
-} from './steps';
+import { CaptureStep } from './capture-step';
+import { Frame } from './frame';
+import { OutfitStep } from './outfit-step';
+import { BrandsStep, type Identity, IdentityStep, StylesStep } from './steps';
+import { TwinStep } from './twin-step';
 
-type Step = 1 | 2 | 3 | 4 | 5;
-const STEPS = 5;
-const STEP_NAMES = { 1: 'name', 2: 'identity', 3: 'styles', 4: 'brands', 5: 'colours' } as const;
 const SPLASH_MS = 2_000;
+const _isCapture = (s: FirstRunStep): s is FirstRunCapture =>
+  s === 'looks' || s === 'pieces' || s === 'twin' || s === 'outfit';
+const after = (s: FirstRunStep): FirstRunStep | null =>
+  FIRST_RUN_STEPS[FIRST_RUN_STEPS.indexOf(s) + 1] ?? null;
+const before = (s: FirstRunStep): FirstRunStep | null =>
+  FIRST_RUN_STEPS[FIRST_RUN_STEPS.indexOf(s) - 1] ?? null;
 
 const firstWord = (name: string): string | null => name.trim().split(/\s+/)[0] || null;
 const toggle = <T,>(list: readonly T[], v: T): T[] =>
   list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
-// The step chrome (handoff 30 Oct; twin: mobile features/home/FirstRunFrame.tsx): back · the
-// eyebrow · five segments · the title · the body · one ink button docked at the foot.
-function Frame({
-  step,
-  title,
-  titleEm,
-  onBack,
-  children,
-  footer,
-}: {
-  step: Step;
-  title: string;
-  titleEm: string;
-  onBack?: () => void;
-  children: ReactNode;
-  footer: ReactNode;
-}) {
-  return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
-      <header className="grid min-h-11 grid-cols-[64px_1fr_64px] items-center px-3.5 pt-1">
-        <span>
-          {onBack ? (
-            // The design's back: a 32px white circle on a hairline, in a 44px target.
-            <button
-              type="button"
-              aria-label={copy.backLabel}
-              onClick={onBack}
-              className="flex size-11 items-center justify-center rounded-full focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >
-              <span
-                aria-hidden
-                className="flex size-8 items-center justify-center rounded-full border border-rule-mid bg-surface-raised pr-px pb-0.5 font-display text-ink text-xl leading-none"
-              >
-                {copy.backGlyph}
-              </span>
-            </button>
-          ) : null}
-        </span>
-        {/* Rose eyebrow, 500 9px at .26em: the deep rose, the one that reads at 4.5:1 this small. */}
-        <p className="whitespace-nowrap text-center font-medium font-sans text-[9px] text-accent-warm uppercase leading-none tracking-[0.26em]">
-          {copy.eyebrow}
-        </p>
-        <span />
-      </header>
-      <div
-        className="grid grid-cols-5 gap-1.5 px-6 pt-3.5"
-        role="progressbar"
-        aria-valuemin={1}
-        aria-valuemax={STEPS}
-        aria-valuenow={step}
-        aria-label={copy.progress(step, STEPS)}
-      >
-        {[1, 2, 3, 4, 5].map((n) => (
-          <span
-            key={n}
-            className={`h-px motion-safe:transition-colors motion-safe:duration-[400ms] ${n <= step ? 'bg-ink' : 'bg-hairline'}`}
-          />
-        ))}
-      </div>
-      <main className="flex flex-1 flex-col gap-7 px-6 pt-7 pb-6">
-        <Heading level={1} size="lg">
-          {title} <em>{titleEm}</em>
-        </Heading>
-        {children}
-      </main>
-      <footer className="sticky bottom-0 flex flex-col gap-3 border-hairline border-t bg-bg px-6 pt-3.5 pb-8">
-        {footer}
-      </footer>
-    </div>
-  );
+export interface FirstRunStart {
+  // Where she left off (a capture step), or null to start at the splash.
+  step: FirstRunCapture | null;
+  // Back from the selfie camera with its read: the twin step, straight away.
+  twin: boolean;
+  skipped: FirstRunCapture[];
+  identity: Identity | null;
+  styles: StyleType[];
+  brands: string[];
 }
 
-// Splash → name → identity → styles → brands → colours → Home (handoff 30 Oct; twin: mobile
-// app/onboarding/). Name and identity are required; the rest may be left empty. Her name saves on
-// its own step; everything else saves once, on Get started.
-export function OnboardingForm({ initialFirstName }: { initialFirstName: string }) {
+// Getting to know you, eight steps (onboarding PRD, 17 Nov; twin: mobile app/onboarding/): Splash
+// → name → identity → styles → brands → saved looks → pieces you love → digital twin → today's
+// outfit → Home. The first four as live since the handoff of 30 Oct; her answers save on Brands
+// without onboarding her; each capture step is skippable; she is onboarded as she leaves for
+// Home. Her step is on her profile, so she resumes where she left; an account onboarded before
+// walks it once, its answers prefilled.
+export function OnboardingForm({
+  initialFirstName,
+  start,
+}: {
+  initialFirstName: string;
+  start: FirstRunStart;
+}) {
   const router = useRouter();
   const api = useApiClient();
   const { track } = useAnalytics().analytics;
-  const [step, setStep] = useState<Step | 'splash'>('splash');
+  const [step, setStep] = useState<FirstRunStep | 'splash'>(
+    start.twin ? 'twin' : (start.step ?? 'splash'),
+  );
   const [name, setName] = useState(initialFirstName);
   const [saved, setSaved] = useState(initialFirstName);
-  const [identity, setIdentity] = useState<Identity | null>(null);
-  const [styles, setStyles] = useState<StyleType[]>([]);
-  const [brands, setBrands] = useState<string[]>([]);
-  const [colours, setColours] = useState<Colours>({});
+  const [identity, setIdentity] = useState<Identity | null>(start.identity);
+  const [styles, setStyles] = useState<StyleType[]>(start.styles);
+  const [brands, setBrands] = useState<string[]>(start.brands);
+  const [skipped, setSkipped] = useState<FirstRunCapture[]>(start.skipped);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -122,26 +78,51 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
 
   useEffect(() => {
     if (step !== 'splash') return;
-    const t = setTimeout(() => setStep(1), SPLASH_MS);
+    const t = setTimeout(() => setStep('name'), SPLASH_MS);
     return () => clearTimeout(t);
   }, [step]);
   useEffect(() => {
-    if (step !== 'splash') track('onboarding_step', { step: STEP_NAMES[step], outcome: 'shown' });
+    if (step !== 'splash') track('onboarding_step', { step, outcome: 'shown' });
   }, [track, step]);
+  // Her step on the server as she goes (R-S3), so leaving and returning resumes there.
+  const first = useRef(true);
+  useEffect(() => {
+    if (step === 'splash') return;
+    if (first.current && start.step === step) {
+      first.current = false;
+      return;
+    }
+    first.current = false;
+    void api.call('me.onboarding.save', { input: { step, skipped } }).catch(() => {});
+  }, [api, step, skipped, start.step]);
 
-  const answered = (s: Step, skipped = false) =>
-    track('onboarding_step', { step: STEP_NAMES[s], outcome: skipped ? 'skipped' : 'answered' });
+  const answered = (s: FirstRunStep, outcome: 'answered' | 'skipped' = 'answered') =>
+    track('onboarding_step', { step: s, outcome });
+  const go = (s: FirstRunStep | null) => {
+    setError(null);
+    if (s) setStep(s);
+  };
+  const skip = (s: FirstRunCapture) => {
+    answered(s, 'skipped');
+    setSkipped((all) => (all.includes(s) ? all : [...all, s]));
+    go(after(s));
+  };
+  const done = (s: FirstRunCapture) => {
+    answered(s);
+    setSkipped((all) => all.filter((x) => x !== s));
+    go(after(s));
+  };
 
   async function saveName(event: FormEvent) {
     event.preventDefault();
-    const first = firstWord(name);
-    if (!first) return;
+    const firstName = firstWord(name);
+    if (!firstName) return;
     setError(null);
-    if (first !== saved) {
+    if (firstName !== saved) {
       setBusy(true);
       try {
-        await api.call('me.update', { input: { firstName: first } });
-        setSaved(first);
+        await api.call('me.update', { input: { firstName } });
+        setSaved(firstName);
       } catch {
         setError(onboarding.failed);
         return;
@@ -149,29 +130,42 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
         setBusy(false);
       }
     }
-    answered(1);
-    setStep(2);
+    answered('name');
+    go('identity');
   }
 
-  async function finish() {
+  // Brands' Continue saves 01–04 (R-4.2): her answers are safe if she leaves; she is not
+  // onboarded until she goes on to Home.
+  async function saveAnswers() {
     setError(null);
     setBusy(true);
     try {
-      await api.call('me.onboarding.complete', {
-        input: { ...(identity ? { identity } : {}), styles, brands, colours },
+      await api.call('me.onboarding.save', {
+        input: { ...(identity ? { identity } : {}), styles, brands, step: 'looks' },
       });
     } catch {
       setError(onboarding.failed);
       setBusy(false);
       return;
     }
-    answered(5, Object.keys(colours).length === 0);
-    track('onboarding_answered', {
-      styles: styles.length,
-      brands: brands.length,
-      colours: Object.keys(colours).length,
-    });
-    router.replace('/');
+    setBusy(false);
+    answered('brands', brands.length === 0 ? 'skipped' : 'answered');
+    track('onboarding_answered', { styles: styles.length, brands: brands.length, colours: 0 });
+    go('looks');
+  }
+
+  // Onboarded as she leaves for Home.
+  async function finish(to: string) {
+    setError(null);
+    setBusy(true);
+    try {
+      await api.call('me.onboarding.complete', { input: { firstRun: FIRST_RUN_VERSION } });
+    } catch {
+      setError(onboarding.failed);
+      setBusy(false);
+      return;
+    }
+    router.replace(to);
     router.refresh();
   }
 
@@ -179,7 +173,7 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
     return (
       <button
         type="button"
-        onClick={() => setStep(1)}
+        onClick={() => setStep('name')}
         className="flex min-h-dvh w-full items-center justify-center bg-ink text-bg"
       >
         <Wordmark size="hero" />
@@ -187,7 +181,55 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
     );
   }
 
-  const back = step > 1 ? () => setStep((step - 1) as Step) : undefined;
+  const n = FIRST_RUN_STEPS.indexOf(step) + 1;
+  const back = () => go(before(step));
+
+  if (step === 'looks' || step === 'pieces') {
+    return (
+      <CaptureStep
+        key={step}
+        mode={step}
+        step={n}
+        onBack={back}
+        onDone={() => done(step)}
+        onSkip={() => skip(step)}
+      />
+    );
+  }
+  if (step === 'twin') {
+    return (
+      <TwinStep
+        step={n}
+        onBack={back}
+        onDone={(own) => {
+          track('onboarding_captured', { step: 'twin', n: own ? 1 : 0 });
+          if (own) done('twin');
+          else skip('twin');
+        }}
+        onSkip={() => skip('twin')}
+      />
+    );
+  }
+  if (step === 'outfit') {
+    return (
+      <OutfitStep
+        step={n}
+        busy={busy}
+        error={error}
+        onBack={back}
+        onSaved={(day, lookId) => {
+          answered('outfit');
+          track('onboarding_captured', { step: 'outfit', n: 1 });
+          void finish(`/?day=${day}&saved=${lookId}`);
+        }}
+        onSkip={() => {
+          answered('outfit', 'skipped');
+          void finish('/');
+        }}
+      />
+    );
+  }
+
   const cta = (label: string, onClick?: () => void, disabled = false) => (
     <>
       {error ? <ErrorText>{error}</ErrorText> : null}
@@ -204,11 +246,11 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
     </>
   );
 
-  if (step === 1) {
+  if (step === 'name') {
     return (
       <form onSubmit={saveName}>
         <Frame
-          step={1}
+          step={n}
           title={copy.name.title}
           titleEm={copy.name.titleEm}
           footer={cta(copy.continue, undefined, !name.trim())}
@@ -231,18 +273,18 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
     );
   }
 
-  if (step === 2) {
+  if (step === 'identity') {
     return (
       <Frame
-        step={2}
+        step={n}
         title={copy.identity.title}
         titleEm={copy.identity.titleEm}
         onBack={back}
         footer={cta(
           copy.continue,
           () => {
-            answered(2);
-            setStep(3);
+            answered('identity');
+            go('styles');
           },
           !identity,
         )}
@@ -252,16 +294,16 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
     );
   }
 
-  if (step === 3) {
+  if (step === 'styles') {
     return (
       <Frame
-        step={3}
+        step={n}
         title={copy.styles.title}
         titleEm={copy.styles.titleEm}
         onBack={back}
         footer={cta(copy.continue, () => {
-          answered(3, styles.length === 0);
-          setStep(4);
+          answered('styles', styles.length === 0 ? 'skipped' : 'answered');
+          go('brands');
         })}
       >
         <StylesStep
@@ -273,40 +315,15 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
     );
   }
 
-  if (step === 4) {
-    return (
-      <Frame
-        step={4}
-        title={copy.brands.title}
-        titleEm={copy.brands.titleEm}
-        onBack={back}
-        footer={cta(copy.continue, () => {
-          answered(4, brands.length === 0);
-          setStep(5);
-        })}
-      >
-        <BrandsStep wall={wall} value={brands} onToggle={(b) => setBrands((s) => toggle(s, b))} />
-      </Frame>
-    );
-  }
-
   return (
     <Frame
-      step={5}
-      title={copy.colours.title}
-      titleEm={copy.colours.titleEm}
+      step={n}
+      title={copy.brands.title}
+      titleEm={copy.brands.titleEm}
       onBack={back}
-      footer={cta(copy.finish, finish)}
+      footer={cta(copy.continue, () => void saveAnswers())}
     >
-      <ColoursStep
-        value={colours}
-        onChange={(family, v) =>
-          setColours((c) => {
-            const { [family]: _, ...rest } = c;
-            return v === 0 ? rest : { ...rest, [family]: v };
-          })
-        }
-      />
+      <BrandsStep wall={wall} value={brands} onToggle={(b) => setBrands((s) => toggle(s, b))} />
     </Frame>
   );
 }

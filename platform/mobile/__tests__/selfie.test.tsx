@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { SelfieCamera } from '../src/features/you/SelfieCamera';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, JOB_ID } from './support/fixtures';
-import { mockRouter } from './support/router';
+import { mockParams, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
@@ -110,6 +110,24 @@ test('Use photo reads it as her close-up and opens Your digital twin on the read
     kind: 'colour',
     assetId: ASSET_ID,
   });
+});
+
+test('from Getting to know you, the close-up goes back there with its read', async () => {
+  mockFetch(UPLOAD);
+  mockParams.from = 'onboarding';
+  try {
+    await renderWithApi(<SelfieCamera />);
+    await fireEvent.press(screen.getByRole('button', { name: copy.shutter }));
+    await fireEvent.press(await screen.findByRole('button', { name: copy.use }));
+    await waitFor(() =>
+      expect(mockRouter.replace).toHaveBeenCalledWith({
+        pathname: '/onboarding',
+        params: { read: JOB_ID },
+      }),
+    );
+  } finally {
+    delete mockParams.from;
+  }
 });
 
 test('her photos: the system picker, then review; Retake opens the picker again', async () => {

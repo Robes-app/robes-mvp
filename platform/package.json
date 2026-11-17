@@ -27,6 +27,7 @@
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:new": "dbmate --migrations-dir db/migrations new",
     "db:reset": "node scripts/db-reset.mjs",
+    "first-run:reset": "node scripts/first-run-reset.mjs",
     "db:types": "pnpm --filter @robes/db gen:types",
     "db:test": "turbo run test:db --concurrency=1",
     "maintenance": "pnpm --filter @robes/workers maintenance",

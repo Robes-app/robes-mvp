@@ -1,69 +1,106 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
-import type { Me } from '@robes/contracts';
-import { firstRun as copy, onboarding, ui, you } from '@robes/copy';
-import { onboardingBrands, type StyleType } from '@robes/core/style-dna';
-import { Button, ErrorText, Field, PrimaryScope, Text, Wordmark } from '@robes/ui-native';
+import {
+  FIRST_RUN_CAPTURES,
+  FIRST_RUN_STEPS,
+  FIRST_RUN_VERSION,
+  type FirstRunCapture,
+  type FirstRunStep,
+  type Me,
+} from '@robes/contracts';
+import { firstRun as copy, onboarding, ui } from '@robes/copy';
+import { onboardingBrands, STYLE_TYPES, type StyleType } from '@robes/core/style-dna';
+import { Button, ErrorText, Field, PrimaryScope, Wordmark } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
+import { CaptureStep } from '@/features/onboarding/CaptureStep';
+import { OutfitStep } from '@/features/onboarding/OutfitStep';
 import {
   BrandsStep,
-  type Colours,
-  ColoursStep,
+  IDENTITIES,
   type Identity,
   IdentityStep,
   StylesStep,
 } from '@/features/onboarding/Steps';
+import { TwinStep } from '@/features/onboarding/TwinStep';
+import { READ_PARAM } from '@/features/you/use-selfie';
 import { nativeAnalytics } from '@/lib/analytics';
 import { readPref, writePref } from '@/lib/prefs';
-import { useSignOut } from '@/lib/use-sign-out';
 
-type Step = 1 | 2 | 3 | 4 | 5;
-const STEP_NAMES = { 1: 'name', 2: 'identity', 3: 'styles', 4: 'brands', 5: 'colours' } as const;
 const SPLASH_MS = 2_000;
+const isCapture = (s: FirstRunStep): s is FirstRunCapture =>
+  (FIRST_RUN_CAPTURES as readonly string[]).includes(s);
+const after = (s: FirstRunStep): FirstRunStep | null =>
+  FIRST_RUN_STEPS[FIRST_RUN_STEPS.indexOf(s) + 1] ?? null;
+const before = (s: FirstRunStep): FirstRunStep | null =>
+  FIRST_RUN_STEPS[FIRST_RUN_STEPS.indexOf(s) - 1] ?? null;
 
 // Her answers so far, kept on the phone as she goes (audit F7): closing the app mid-way brings
-// her back to the step she was on, never to step 1. Per account; cleared once she finishes.
+// her back to the step she was on, never to step 1. Per account; cleared once she finishes. Past
+// Brands her answers are on her profile and her step on the server (R-S3), so any phone resumes.
 interface Draft {
-  step: Step;
+  step: FirstRunStep;
   identity: Identity | null;
   styles: StyleType[];
   brands: string[];
-  colours: Colours;
 }
 const draftKey = (userId: string) => `robes.onboarding.${userId}`;
 
 const toggle = <T,>(list: readonly T[], v: T): T[] =>
   list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
-// Splash → name → identity → styles → brands → colours → Home (handoff 30 Oct; twin:
-// app/src/app/onboarding/onboarding-form.tsx). One screen holds every answer, so Back (and the
-// Android back button) never loses one. Her name saves on its own step; the rest on Get started.
+// Getting to know you, eight steps (onboarding PRD, 17 Nov; design "Robes onboarding — prototype";
+// the first four as live since the handoff of 30 Oct): Splash → name → identity → styles → brands
+// → saved looks → pieces you love → digital twin → today's outfit → Home. Her answers save on
+// Brands without onboarding her; each capture step is skippable; she is onboarded as she leaves
+// for Home. An account onboarded before walks it once, its answers prefilled.
+// Web twin: app/src/app/onboarding/onboarding-form.tsx.
 export default function Onboarding() {
   const router = useRouter();
   const api = useApiClient();
   const queryClient = useQueryClient();
+  const params = useLocalSearchParams<{ [READ_PARAM]?: string }>();
   const me = useApi('me.get');
-  const [step, setStep] = useState<Step | 'splash'>('splash');
+  const [step, setStep] = useState<FirstRunStep | 'splash'>('splash');
   const [firstName, setFirstName] = useState('');
   const [touched, setTouched] = useState(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [styles, setStyles] = useState<StyleType[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
-  const [colours, setColours] = useState<Colours>({});
+  const [skipped, setSkipped] = useState<FirstRunCapture[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const signOut = useSignOut();
   const name = touched ? firstName : firstName || me.data?.firstName || '';
   const userId = me.data?.id;
+  // Past Brands, or a re-run: her answers as her profile holds them.
+  const answered = me.data ? me.data.onboarded || me.data.firstRun.step !== null : false;
+  const dna = useApi('me.dna.get', undefined, { enabled: answered });
 
-  // Back where she left off (audit F7): the draft, once, as soon as we know whose it is.
+  // Back where she left off (audit F7, R-S3), decided once we know whose it is: the close-up
+  // coming back to the twin step, else her step on the server, else this phone's draft.
   const restored = useRef(false);
   useEffect(() => {
-    if (!userId || restored.current) return;
+    if (!userId || !me.data || restored.current) return;
+    if (answered && !dna.data && !dna.isError) return;
     restored.current = true;
+    const server = me.data.firstRun;
+    setSkipped(server.skipped);
+    if (dna.data) {
+      const g = dna.data.gender;
+      setIdentity((IDENTITIES as readonly string[]).includes(g) ? (g as Identity) : null);
+      setStyles(dna.data.types.filter((t): t is StyleType => STYLE_TYPES.includes(t as StyleType)));
+      setBrands(dna.data.brands);
+    }
+    if (params[READ_PARAM]) {
+      setStep('twin');
+      return;
+    }
+    if (server.step && isCapture(server.step)) {
+      setStep(server.step);
+      return;
+    }
     void readPref(draftKey(userId)).then((raw) => {
       if (!raw) return;
       try {
@@ -71,19 +108,25 @@ export default function Onboarding() {
         setIdentity(d.identity ?? null);
         setStyles(d.styles ?? []);
         setBrands(d.brands ?? []);
-        setColours(d.colours ?? {});
-        if (d.step >= 2 && d.step <= 5) setStep(d.step);
+        if (FIRST_RUN_STEPS.includes(d.step) && d.step !== 'name') setStep(d.step);
       } catch {
         // A draft that doesn't read starts her afresh.
       }
     });
-  }, [userId]);
-  // Each answer is kept as she gives it.
+  }, [userId, me.data, answered, dna.data, dna.isError, params]);
+
+  // Each answer is kept on the phone as she gives it, and her step on the server.
   useEffect(() => {
-    if (!userId || !restored.current || step === 'splash' || step === 1) return;
-    const draft: Draft = { step, identity, styles, brands, colours };
-    void writePref(draftKey(userId), JSON.stringify(draft));
-  }, [userId, step, identity, styles, brands, colours]);
+    if (!userId || !restored.current || step === 'splash') return;
+    if (!isCapture(step)) {
+      const draft: Draft = { step, identity, styles, brands };
+      void writePref(draftKey(userId), JSON.stringify(draft));
+    }
+  }, [userId, step, identity, styles, brands]);
+  useEffect(() => {
+    if (!restored.current || step === 'splash') return;
+    void api.call('me.onboarding.save', { input: { step, skipped } }).catch(() => {});
+  }, [api, step, skipped]);
 
   // Her houses lead; one she picked stays on the wall when her styles change.
   const wall = useMemo(() => {
@@ -93,31 +136,39 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (step !== 'splash') return;
-    const t = setTimeout(() => setStep(1), SPLASH_MS);
+    const t = setTimeout(() => setStep('name'), SPLASH_MS);
     return () => clearTimeout(t);
   }, [step]);
   useEffect(() => {
-    if (step !== 'splash')
-      nativeAnalytics.track('onboarding_step', { step: STEP_NAMES[step], outcome: 'shown' });
+    if (step !== 'splash') nativeAnalytics.track('onboarding_step', { step, outcome: 'shown' });
   }, [step]);
   useEffect(() => {
-    if (step === 'splash' || step === 1) return;
+    if (step === 'splash') return;
+    const back = before(step);
+    if (!back) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       setError(null);
-      setStep((step - 1) as Step);
+      setStep(back);
       return true;
     });
     return () => sub.remove();
   }, [step]);
 
-  const answered = (s: Step, skipped = false) =>
-    nativeAnalytics.track('onboarding_step', {
-      step: STEP_NAMES[s],
-      outcome: skipped ? 'skipped' : 'answered',
-    });
-  const go = (s: Step) => {
+  const track = (s: FirstRunStep, outcome: 'answered' | 'skipped') =>
+    nativeAnalytics.track('onboarding_step', { step: s, outcome });
+  const go = (s: FirstRunStep | null) => {
     setError(null);
-    setStep(s);
+    if (s) setStep(s);
+  };
+  const skip = (s: FirstRunCapture) => {
+    track(s, 'skipped');
+    setSkipped((all) => (all.includes(s) ? all : [...all, s]));
+    go(after(s));
+  };
+  const done = (s: FirstRunCapture) => {
+    track(s, 'answered');
+    setSkipped((all) => all.filter((x) => x !== s));
+    go(after(s));
   };
 
   async function saveName() {
@@ -130,8 +181,8 @@ export default function Onboarding() {
         await api.call('me.update', { input: { firstName: first } });
         await queryClient.invalidateQueries({ queryKey: queryKeys.route('me.get') });
       }
-      answered(1);
-      setStep(2);
+      track('name', 'answered');
+      go('identity');
     } catch {
       setError(onboarding.failed);
     } finally {
@@ -139,26 +190,50 @@ export default function Onboarding() {
     }
   }
 
-  async function finish() {
+  // Brands' Continue saves 01–04 (R-4.2), so her answers are safe if she leaves; she is not
+  // onboarded until she goes on to Home.
+  async function saveAnswers() {
     setBusy(true);
     setError(null);
     try {
-      await api.call('me.onboarding.complete', {
-        input: { ...(identity ? { identity } : {}), styles, brands, colours },
+      await api.call('me.onboarding.save', {
+        input: { ...(identity ? { identity } : {}), styles, brands, step: 'looks' },
       });
-      // No /me observer is mounted on the tabs gate yet; the cache must already say onboarded.
-      queryClient.setQueryData<Me>(queryKeys.call('me.get'), (old) =>
-        old ? { ...old, onboarded: true } : old,
-      );
-      await queryClient.invalidateQueries({ queryKey: queryKeys.route('me.get') });
-      answered(5, Object.keys(colours).length === 0);
-      if (userId) void writePref(draftKey(userId), '');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.dna.get') });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') });
+      track('brands', brands.length === 0 ? 'skipped' : 'answered');
       nativeAnalytics.track('onboarding_answered', {
         styles: styles.length,
         brands: brands.length,
-        colours: Object.keys(colours).length,
+        colours: 0,
       });
-      router.replace('/');
+      go('looks');
+    } catch {
+      setError(onboarding.failed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Onboarded as she leaves for Home (or for Home's Capture, which ends there).
+  async function finish(to: Href) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.call('me.onboarding.complete', { input: { firstRun: FIRST_RUN_VERSION } });
+      // No /me observer is mounted on the tabs gate yet; the cache must already say she is done.
+      queryClient.setQueryData<Me>(queryKeys.call('me.get'), (old) =>
+        old
+          ? {
+              ...old,
+              onboarded: true,
+              firstRun: { version: FIRST_RUN_VERSION, step: null, skipped },
+            }
+          : old,
+      );
+      await queryClient.invalidateQueries({ queryKey: queryKeys.route('me.get') });
+      if (userId) void writePref(draftKey(userId), '');
+      router.replace(to);
     } catch {
       setError(onboarding.failed);
       setBusy(false);
@@ -170,7 +245,7 @@ export default function Onboarding() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={ui.wordmark}
-        onPress={() => setStep(1)}
+        onPress={() => setStep('name')}
         className="flex-1 items-center justify-center bg-ink"
         testID="splash"
       >
@@ -179,7 +254,61 @@ export default function Onboarding() {
     );
   }
 
-  const back = step > 1 ? () => go((step - 1) as Step) : undefined;
+  const n = FIRST_RUN_STEPS.indexOf(step) + 1;
+  const back = () => go(before(step));
+
+  if (step === 'looks' || step === 'pieces') {
+    return (
+      <PrimaryScope>
+        <CaptureStep
+          key={step}
+          mode={step}
+          step={n}
+          onBack={back}
+          onDone={() => done(step)}
+          onSkip={() => skip(step)}
+        />
+      </PrimaryScope>
+    );
+  }
+  if (step === 'twin') {
+    return (
+      <PrimaryScope>
+        <TwinStep
+          step={n}
+          onBack={back}
+          onDone={(own) => {
+            nativeAnalytics.track('onboarding_captured', { step: 'twin', n: own ? 1 : 0 });
+            if (own) done('twin');
+            else skip('twin');
+          }}
+          onSkip={() => skip('twin')}
+        />
+      </PrimaryScope>
+    );
+  }
+  if (step === 'outfit') {
+    return (
+      <PrimaryScope>
+        <OutfitStep
+          step={n}
+          busy={busy}
+          error={error}
+          onBack={back}
+          onSaved={(day, lookId) => {
+            track('outfit', 'answered');
+            nativeAnalytics.track('onboarding_captured', { step: 'outfit', n: 1 });
+            void finish({ pathname: '/', params: { day, saved: lookId } });
+          }}
+          onSkip={() => {
+            track('outfit', 'skipped');
+            void finish('/');
+          }}
+        />
+      </PrimaryScope>
+    );
+  }
+
   const footer = (label: string, onPress: () => void, disabled = false): ReactNode => (
     <>
       {error ? <ErrorText>{error}</ErrorText> : null}
@@ -192,26 +321,15 @@ export default function Onboarding() {
       >
         {label}
       </Button>
-      {/* A way out before she's done (audit F7): sign out, her answers so far kept. */}
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => void signOut()}
-        hitSlop={8}
-        className="min-h-11 items-center justify-center self-center"
-        testID="onboarding-sign-out"
-      >
-        <Text size="small" tone="muted" className="underline">
-          {you.signOut}
-        </Text>
-      </Pressable>
+      {/* No sign out here (Annie, 17 Nov: unnecessary); her answers are kept as she goes. */}
     </>
   );
 
   const screens: Record<
-    Step,
+    'name' | 'identity' | 'styles' | 'brands',
     { title: string; titleEm: string; footer: ReactNode; body: ReactNode }
   > = {
-    1: {
+    name: {
       ...copy.name,
       footer: footer(copy.continue, saveName, name.trim().length === 0),
       body: (
@@ -232,23 +350,23 @@ export default function Onboarding() {
         />
       ),
     },
-    2: {
+    identity: {
       ...copy.identity,
       footer: footer(
         copy.continue,
         () => {
-          answered(2);
-          go(3);
+          track('identity', 'answered');
+          go('styles');
         },
         !identity,
       ),
       body: <IdentityStep value={identity} onChange={setIdentity} />,
     },
-    3: {
+    styles: {
       ...copy.styles,
       footer: footer(copy.continue, () => {
-        answered(3, styles.length === 0);
-        go(4);
+        track('styles', styles.length === 0 ? 'skipped' : 'answered');
+        go('brands');
       }),
       body: (
         <StylesStep
@@ -258,29 +376,11 @@ export default function Onboarding() {
         />
       ),
     },
-    4: {
+    brands: {
       ...copy.brands,
-      footer: footer(copy.continue, () => {
-        answered(4, brands.length === 0);
-        go(5);
-      }),
+      footer: footer(copy.continue, () => void saveAnswers()),
       body: (
         <BrandsStep wall={wall} value={brands} onToggle={(b) => setBrands((s) => toggle(s, b))} />
-      ),
-    },
-    5: {
-      ...copy.colours,
-      footer: footer(copy.finish, finish),
-      body: (
-        <ColoursStep
-          value={colours}
-          onChange={(family, v) =>
-            setColours((c) => {
-              const { [family]: _, ...rest } = c;
-              return v === 0 ? rest : { ...rest, [family]: v };
-            })
-          }
-        />
       ),
     },
   };
@@ -293,10 +393,10 @@ export default function Onboarding() {
         className="flex-1 bg-bg"
       >
         <FirstRunFrame
-          step={step}
+          step={n}
           title={s.title}
           titleEm={s.titleEm}
-          onBack={back}
+          onBack={step === 'name' ? undefined : back}
           footer={s.footer}
         >
           {s.body}

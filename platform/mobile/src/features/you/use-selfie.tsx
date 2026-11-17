@@ -10,6 +10,9 @@ const copy = you.style;
 // The read's job, carried in the route params from the camera to Your digital twin.
 export const READ_PARAM = 'read';
 export const SELFIE_ROUTE = '/you/selfie';
+// Getting to know you's twin step opens the camera with this, and the close-up comes back there
+// with its read rather than going on to Your digital twin (onboarding PRD R-7.3).
+export const FROM_ONBOARDING = 'onboarding';
 
 // The one door to her twin (plan 2026-11-05 §2.6), behind every selfie button: the selfie camera
 // (designs 03–05), with her photo library a tap away. Web twin: app/src/lib/use-selfie.tsx.
@@ -47,6 +50,7 @@ export function useSelfieSend(): {
 } {
   const api = useApiClient();
   const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function send(photo: PickedPhoto) {
@@ -58,7 +62,10 @@ export function useSelfieSend(): {
       const started = await api.call('me.style.analyse', {
         input: { kind: 'colour', assetId },
       });
-      router.replace({ pathname: '/you/model', params: { [READ_PARAM]: started.jobId } });
+      router.replace({
+        pathname: from === FROM_ONBOARDING ? '/onboarding' : '/you/model',
+        params: { [READ_PARAM]: started.jobId },
+      });
     } catch {
       setError(copy.failed);
     } finally {

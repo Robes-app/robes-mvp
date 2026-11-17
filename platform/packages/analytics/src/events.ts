@@ -31,9 +31,25 @@ export const EVENTS = {
   // 'piece' stays for builds that still carry the first-piece step.
   onboarding_step: z
     .object({
-      step: z.enum(['name', 'identity', 'styles', 'brands', 'colours', 'piece']),
+      step: z.enum([
+        'name',
+        'identity',
+        'styles',
+        'brands',
+        'colours',
+        'piece',
+        // The eight-step flow's capture steps (onboarding PRD, 17 Nov).
+        'looks',
+        'pieces',
+        'twin',
+        'outfit',
+      ]),
       outcome: z.enum(['shown', 'answered', 'skipped']),
     })
+    .strict(),
+  // A capture step done (onboarding PRD): how many photos she kept there; never which.
+  onboarding_captured: z
+    .object({ step: z.enum(['looks', 'pieces', 'twin', 'outfit']), n: count })
     .strict(),
   // Get started: how many styles, brands and colours she marked; never which.
   onboarding_answered: z.object({ styles: count, brands: count, colours: count }).strict(),

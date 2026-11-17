@@ -1,16 +1,12 @@
 'use client';
 
 import { firstRun as copy, you } from '@robes/copy';
-import { COLOUR_FAMILIES } from '@robes/core/colour';
 import { brandMark, STYLE_TYPES, type StyleType } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/web';
-import { PreferenceControl } from '@robes/ui';
-import { FamilyTile } from '@/components/wardrobe/colour-field';
 import { archetypeImages } from './archetype-images';
 
 export const IDENTITIES = ['woman', 'man', 'non_binary', 'unspecified'] as const;
 export type Identity = (typeof IDENTITIES)[number];
-export type Colours = Partial<Record<string, 1 | -1>>;
 
 const cn = (...parts: Array<string | false | null | undefined>): string =>
   parts.filter(Boolean).join(' ');
@@ -177,52 +173,6 @@ export function BrandsStep({
                   : name}
               </span>
             </button>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-// 05 Colours (twin: mobile app/onboarding/colours.tsx): You › Colours' families without shades.
-export function ColoursStep({
-  value,
-  onChange,
-}: {
-  value: Colours;
-  onChange: (family: string, v: -1 | 0 | 1) => void;
-}) {
-  return (
-    <ul className="flex flex-col border-hairline border-t">
-      {COLOUR_FAMILIES.map((f) => {
-        const v = value[f.id] ?? 0;
-        return (
-          <li
-            key={f.id}
-            className={cn(
-              'flex items-center gap-4 border-hairline border-b px-2.5 py-2 motion-safe:transition-colors',
-              v === 1 && 'bg-surface-sunk',
-            )}
-          >
-            {/* Avoid greys the swatch; the name softens to ink-muted, which still reads at 4.5:1. */}
-            <span className={cn('block shrink-0', v === -1 && 'opacity-40 grayscale-[.6]')}>
-              <FamilyTile family={f} size={34} shape="tile" />
-            </span>
-            <span
-              className={cn(
-                'flex-1 font-light font-sans text-sm',
-                v === 1 && 'font-medium',
-                v === -1 ? 'text-ink-muted' : 'text-ink',
-              )}
-            >
-              {f.name}
-            </span>
-            <PreferenceControl
-              label={copy.colours.control(f.name)}
-              value={v}
-              labels={you.style.palette.states}
-              onChange={(next) => onChange(f.id, next)}
-            />
           </li>
         );
       })}
