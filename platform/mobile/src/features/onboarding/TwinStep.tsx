@@ -1,5 +1,4 @@
 import { consent, firstRun, twin } from '@robes/copy';
-import { Icon } from '@robes/icons/native';
 import { Button, Em, ErrorText, Heading, Sheet, Text, useColor } from '@robes/ui-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -150,27 +149,21 @@ export function TwinStep({
             ) : null}
           </View>
           {model ? (
-            <View className="flex-row gap-1.5">
-              {model.filed ? null : (
-                <YouTile on={own} onPress={() => (onRobes ? pick({ preset: null }) : undefined)} />
-              )}
-              <View className="flex-1">
-                {/* The lineup rings what this step shows: a Robes model only once she picks one. */}
-                <Lineup
-                  model={{
-                    ...model,
-                    stand: {
-                      imageUrl: null,
-                      generic: false,
-                      ...model.stand,
-                      on: own ? 'twin' : 'robes',
-                    },
-                  }}
-                  pick={pick}
-                  pending={pending}
-                />
-              </View>
-            </View>
+            // No tile for her before she has a twin (Annie, 17 Nov): a blank one read as the way to
+            // take the close-up, which is the agreed box and Take my close-up below.
+            <Lineup
+              model={{
+                ...model,
+                stand: {
+                  imageUrl: null,
+                  generic: false,
+                  ...model.stand,
+                  on: own ? 'twin' : 'robes',
+                },
+              }}
+              pick={pick}
+              pending={pending}
+            />
           ) : null}
         </View>
       </FirstRunFrame>
@@ -223,24 +216,6 @@ function FaceGuide({ label, onPress }: { label: string; onPress?: () => void }) 
           fill="none"
         />
       </Svg>
-    </Pressable>
-  );
-}
-
-// Her own place in the lineup before she has a twin: a dashed tile with the camera (design Q5).
-function YouTile({ on, onPress }: { on: boolean; onPress: () => void }) {
-  const faint = useColor('ink-faint');
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ checked: on }}
-      accessibilityLabel={twin.twinPage.you}
-      onPress={onPress}
-      style={{ width: 56, height: 70, borderStyle: 'dashed', borderWidth: on ? 1.5 : 1 }}
-      className={`items-center justify-center rounded-sm ${on ? 'border-ink' : 'border-selected-line'}`}
-      testID="lineup-you"
-    >
-      <Icon name="camera" size={16} color={faint} />
     </Pressable>
   );
 }
