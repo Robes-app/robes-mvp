@@ -8,12 +8,12 @@ import {
   Heading,
   Image,
   PrimaryScope,
-  Sheet,
   Skeleton,
   Text,
 } from '@robes/ui-native';
 import { useRef, useState } from 'react';
 import { FlatList, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 import { renditionUri } from '@/lib/images';
 
 const GAP = 12;
@@ -300,31 +300,39 @@ export function IdeaView({
           </Button>
         </View>
       </PrimaryScope>
-      <Sheet
+      {/* A way, piece by piece, on iOS's own sheet (Annie, 17 Nov); Save stays held at its foot. */}
+      <DetentSheet
         open={way !== null}
         onClose={() => setOpen(null)}
-        title={way?.title}
+        title={way?.title ?? ''}
+        scroll
         testID="way-sheet"
+        {...(way && open !== null
+          ? {
+              footer: (
+                <PrimaryScope>
+                  <Button
+                    onPress={() => {
+                      onSaveWay(open);
+                      setOpen(null);
+                    }}
+                    loading={savingWay === open}
+                    loadingLabel={copy.saveWay}
+                  >
+                    {copy.saveWay}
+                  </Button>
+                </PrimaryScope>
+              ),
+            }
+          : {})}
       >
         {way && open !== null ? (
-          <PrimaryScope>
-            <View className="gap-4">
-              <Text size="caption" tone="muted">{`${way.eyebrow} · ${kp.sheetLine}`}</Text>
-              <PieceByPiece way={way} />
-              <Button
-                onPress={() => {
-                  onSaveWay(open);
-                  setOpen(null);
-                }}
-                loading={savingWay === open}
-                loadingLabel={copy.saveWay}
-              >
-                {copy.saveWay}
-              </Button>
-            </View>
-          </PrimaryScope>
+          <View className="gap-4">
+            <Text size="caption" tone="muted">{`${way.eyebrow} · ${kp.sheetLine}`}</Text>
+            <PieceByPiece way={way} />
+          </View>
         ) : null}
-      </Sheet>
+      </DetentSheet>
     </ScrollView>
   );
 }

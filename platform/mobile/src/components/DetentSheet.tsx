@@ -27,7 +27,8 @@ const OPEN_AT = { fraction: 0.66 };
 // sheet is about something, the body (`scroll` for one that does not scroll itself), and a
 // `footer` held above the home indicator. The long sheets stand on it: the LookPicker, the
 // PiecePicker, the WardrobePicker, a piece's fields, Worn and In looks, and the DiarySheet (Annie,
-// 16 Nov); the short ones keep the shared `Sheet`. Off iOS it is that `Sheet`. The web's drawers
+// 16 Nov); then Seasons, the Bell, the Place sheet and an Idea's way (17 Nov). Short asks (a
+// confirm, the photo choice) and the floating prompt dock keep the shared `Sheet`. Off iOS it is that `Sheet`. The web's drawers
 // have no heights to pull between: their twins are unchanged.
 export function DetentSheet({
   open,
@@ -47,7 +48,8 @@ export function DetentSheet({
   onClose: () => void;
   // Once the sheet has fully gone (iOS presents nothing over a sheet still leaving).
   onClosed?: () => void;
-  title: string;
+  // Left out for a sheet whose body is its own head (the Place sheet's search, with its ×).
+  title?: string;
   done?: GlassAction | null;
   // In the ×'s place: a drill's back chevron.
   leading?: ReactNode;
@@ -71,7 +73,7 @@ export function DetentSheet({
         open={open}
         onClose={onClose}
         {...(onClosed ? { onClosed } : {})}
-        title={title}
+        {...(title !== undefined ? { title } : {})}
         done={done}
         {...(eyebrow ? { eyebrow } : {})}
         {...(media ? { media } : {})}
@@ -113,12 +115,14 @@ export function DetentSheet({
                 with the page, so the sheet starts outside any. */}
             <ScrollView.Context.Provider value={null}>
               <View className="flex-1 bg-bg px-5 pt-5" testID={testID}>
-                <SheetHead
-                  title={title}
-                  {...(done ? { action: done } : {})}
-                  {...(leading ? { leading } : {})}
-                  onClose={onClose}
-                />
+                {title !== undefined ? (
+                  <SheetHead
+                    title={title}
+                    {...(done ? { action: done } : {})}
+                    {...(leading ? { leading } : {})}
+                    onClose={onClose}
+                  />
+                ) : null}
                 {eyebrow || media ? (
                   <View className="mt-3 flex-row items-center gap-3">
                     {media}
@@ -135,7 +139,7 @@ export function DetentSheet({
                 ) : null}
                 {scroll ? (
                   <ScrollView
-                    className="mt-3 flex-1"
+                    className={title !== undefined ? 'mt-3 flex-1' : 'flex-1'}
                     automaticallyAdjustKeyboardInsets
                     keyboardShouldPersistTaps="handled"
                     contentContainerStyle={{ paddingBottom: footer ? 8 : insets.bottom + 16 }}
@@ -143,7 +147,7 @@ export function DetentSheet({
                     {children}
                   </ScrollView>
                 ) : (
-                  <View className="mt-3 flex-1">{children}</View>
+                  <View className={title !== undefined ? 'mt-3 flex-1' : 'flex-1'}>{children}</View>
                 )}
                 {footer ? (
                   <View className="pt-3" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
