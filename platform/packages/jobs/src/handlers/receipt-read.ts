@@ -85,7 +85,9 @@ export function createReceiptReadHandler(deps: ReceiptReadDeps): JobHandler {
           }),
           images: [{ mimeType: 'image/jpeg', data: image }],
           schema: Output,
-          maxOutputTokens: 1200,
+          // v2 files the colour model and material too: wardrobe.analyse's allowance, since
+          // thinking counts inside it and a cut-off answer fails the whole read.
+          maxOutputTokens: 2400,
           temperature: 0,
           signal: ctx.signal,
         });

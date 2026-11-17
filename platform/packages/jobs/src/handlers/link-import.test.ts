@@ -67,6 +67,8 @@ describe('link_import handler', () => {
         sourceUrl: 'https://shop.example/coat',
         // The shop's words ride along as the photo read's hints.
         page: { category: 'Coats', options: 'M / Wool', color: 'Camel', description: '100% wool' },
+        // …and what they settle stands until the photo read refines it.
+        material: 'wool',
       }),
     });
     expect(writeStage).toHaveBeenCalledWith(
