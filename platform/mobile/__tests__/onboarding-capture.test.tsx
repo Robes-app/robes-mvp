@@ -5,7 +5,7 @@ import { CaptureStep } from '../src/features/onboarding/CaptureStep';
 import { OutfitStep } from '../src/features/onboarding/OutfitStep';
 import { TwinStep } from '../src/features/onboarding/TwinStep';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
-import { look, modelData, PIECE_ID, piece, todayData } from './support/fixtures';
+import { look, modelData, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -161,7 +161,7 @@ test('Digital twin: no close-up before her yes, which is saved before the camera
 
 test('Today’s outfit hands on to Home’s Capture for today', async () => {
   const onCapture = jest.fn();
-  mockFetch({ 'GET /today': todayData('2026-11-17') });
+  mockFetch({});
   await renderWithApi(
     <OutfitStep
       step={8}
@@ -170,9 +170,10 @@ test('Today’s outfit hands on to Home’s Capture for today', async () => {
       onBack={jest.fn()}
       onCapture={onCapture}
       onSkip={jest.fn()}
+      today="2026-11-17"
     />,
   );
-  expect(await screen.findByText(copy.outfit.today('Tue 17 Nov'))).toBeTruthy();
+  expect(screen.getByText(copy.outfit.today('Tue 17 Nov'))).toBeTruthy();
   await fireEvent.press(screen.getByTestId('onboarding-capture'));
   expect(onCapture).toHaveBeenCalledWith('2026-11-17');
 });

@@ -60,8 +60,11 @@ export function ShotCamera({
   onRemove,
   onDone,
   onClose,
+  rollFirst = false,
 }: {
   copy: ShotCameraCopy;
+  // Opens her photos at once (Saved looks' "Choose saved looks"), the camera behind them.
+  rollFirst?: boolean;
   shots: readonly CameraShot[];
   max: number;
   canDone: boolean;
@@ -87,6 +90,12 @@ export function ShotCamera({
   }, [permission, requestPermission]);
 
   const full = shots.length >= max;
+  const rolled = useRef(false);
+  useEffect(() => {
+    if (!rollFirst || rolled.current) return;
+    rolled.current = true;
+    void roll();
+  });
 
   async function shoot() {
     if (shooting || !ready || full) return;

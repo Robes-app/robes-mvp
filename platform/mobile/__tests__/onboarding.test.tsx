@@ -1,13 +1,15 @@
 import { queryKeys } from '@robes/api-client/react';
 import type { Consents, Me } from '@robes/contracts';
 import { firstRun as copy, onboarding } from '@robes/copy';
+import { dayMonth, weekdayShort } from '@robes/core/calendar';
 import { SEED_WEARERS, STYLE_TYPES } from '@robes/core/style-dna';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import Onboarding from '../src/app/onboarding/index';
+import { localDate } from '../src/features/looks/saved-looks';
 import { archetypeImages } from '../src/features/onboarding/archetype-images';
 import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, ME, mockFetch, type Routes, renderWithApi } from './support/api';
-import { modelData, styleDna, todayData } from './support/fixtures';
+import { modelData, styleDna } from './support/fixtures';
 import { mockParams, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -43,7 +45,6 @@ const STEPS: Routes = {
   'PATCH /me/onboarding': { ok: true },
   'GET /me/model': modelData(),
   'GET /me/consents': CONSENTS,
-  'GET /today': todayData('2026-11-17'),
 };
 const saves = (calls: { method: string; path: string; body: unknown }[]) =>
   calls.filter((c) => c.method === 'PATCH' && c.path.endsWith('/me/onboarding')).map((c) => c.body);
@@ -118,7 +119,10 @@ test('eight steps: answers saved on Brands without onboarding her, each capture 
   ).toBe(true);
   await fireEvent.press(skip());
   await waitFor(() => expect(title(copy.outfit.title, copy.outfit.titleEm)).toBeTruthy());
-  expect(await screen.findByText(copy.outfit.today('Tue 17 Nov'))).toBeTruthy();
+  const today = localDate();
+  expect(
+    screen.getByText(copy.outfit.today(`${weekdayShort(today)} ${dayMonth(today)}`)),
+  ).toBeTruthy();
   await act(async () => {
     await fireEvent.press(skip());
   });

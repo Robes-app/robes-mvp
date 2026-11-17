@@ -143,6 +143,7 @@ export function CaptureStep({
         onAdd={sitting.add}
         onRemove={sitting.remove}
         onDone={() => void save()}
+        rollFirst={mode === 'looks' && sitting.shots.length === 0 && saved.length === 0}
         onClose={() => {
           for (const s of sitting.shots) sitting.remove(s.key);
           setView(saved.length ? 'saved' : 'intro');

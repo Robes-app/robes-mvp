@@ -1,10 +1,10 @@
-import { useApi } from '@robes/api-client/react';
 import { firstRun as copy } from '@robes/copy';
 import { dayMonth, weekdayShort } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import { Button, ErrorText, Text, useColor } from '@robes/ui-native';
 import { Pressable, View } from 'react-native';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
+import { localDate } from '@/features/looks/saved-looks';
 import { QuietLink } from './CaptureStep';
 
 // 08 Today's outfit (onboarding PRD R-8; design Q6): the intro, then Home's own Capture for today
@@ -18,7 +18,10 @@ export function OutfitStep({
   onBack,
   onCapture,
   onSkip,
+  today = localDate(),
 }: {
+  // Her calendar date on this phone, as the Diary's drawer reads it.
+  today?: string;
   step: number;
   busy: boolean;
   error: string | null;
@@ -26,10 +29,8 @@ export function OutfitStep({
   onCapture: (day: string) => void;
   onSkip: () => void;
 }) {
-  const today = useApi('today.get');
   const ink = useColor('ink');
-  const date = today.data?.date ?? null;
-  const capture = () => (date ? onCapture(date) : undefined);
+  const capture = () => onCapture(today);
   return (
     <FirstRunFrame
       step={step}
@@ -39,13 +40,7 @@ export function OutfitStep({
       footer={
         <>
           {error ? <ErrorText>{error}</ErrorText> : null}
-          <Button
-            variant="primary"
-            disabled={!date}
-            loading={busy}
-            onPress={capture}
-            testID="onboarding-capture"
-          >
+          <Button variant="primary" loading={busy} onPress={capture} testID="onboarding-capture">
             {copy.outfit.capture}
           </Button>
           <QuietLink label={copy.skip} onPress={onSkip} testID="onboarding-skip" />
@@ -55,18 +50,16 @@ export function OutfitStep({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={copy.outfit.capture}
-        disabled={!date || busy}
+        disabled={busy}
         onPress={capture}
         className="h-[380px] items-center justify-center gap-4 rounded-card border border-rule-mid bg-surface-raised"
       >
         <View className="size-14 items-center justify-center rounded-full border border-rule-mid bg-bg">
           <Icon name="camera" size={24} color={ink} />
         </View>
-        {date ? (
-          <Text size="small" tone="muted">
-            {copy.outfit.today(`${weekdayShort(date)} ${dayMonth(date)}`)}
-          </Text>
-        ) : null}
+        <Text size="small" tone="muted">
+          {copy.outfit.today(`${weekdayShort(today)} ${dayMonth(today)}`)}
+        </Text>
       </Pressable>
     </FirstRunFrame>
   );
