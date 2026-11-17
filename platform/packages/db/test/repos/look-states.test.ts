@@ -357,6 +357,23 @@ describe('suggested looks (look states)', () => {
     expect(await looks.claimFrame(ann, id, 'k1', { force: true })).toBe(true);
     expect(await system.suggested.setFrame(ann, id, 'k1', asset.id)).toBe(true);
     expect(await looks.get(ann, id)).toMatchObject({ robesHidden: false, recordImage: 'photo' });
+    // Which model it stood on lands with it, so a re-dress anchors to that portrait (17 Nov); a
+    // re-dress that names none keeps it, and a model named without its cell clears it.
+    expect(await looks.claimFrame(ann, id, 'k1', { force: true })).toBe(true);
+    expect(await system.suggested.setFrame(ann, id, 'k1', asset.id, 'robes', 'w-r4')).toBe(true);
+    expect((await system.suggested.look(ann, id))?.look).toMatchObject({
+      stoodOn: 'robes',
+      stoodOnCell: 'w-r4',
+    });
+    expect(await looks.claimFrame(ann, id, 'k1', { force: true })).toBe(true);
+    expect(await system.suggested.setFrame(ann, id, 'k1', asset.id)).toBe(true);
+    expect((await system.suggested.look(ann, id))?.look).toMatchObject({ stoodOnCell: 'w-r4' });
+    expect(await looks.claimFrame(ann, id, 'k1', { force: true })).toBe(true);
+    expect(await system.suggested.setFrame(ann, id, 'k1', asset.id, 'cell')).toBe(true);
+    expect((await system.suggested.look(ann, id))?.look).toMatchObject({
+      stoodOn: 'cell',
+      stoodOnCell: null,
+    });
   });
 
   it('claims the frame its own job draws when the set is minted', async () => {

@@ -1,5 +1,5 @@
 import { AiError, type AiProvider, type InlineImage } from '@robes/ai';
-import { withPictureNote } from '@robes/ai/prompts/avatar';
+import { twinFigureLine, withPictureNote } from '@robes/ai/prompts/avatar';
 import {
   buildImagePrompt,
   FEATURE,
@@ -8,7 +8,14 @@ import {
   MAX_REFERENCES,
   type Mode,
 } from '@robes/ai/prompts/style-piece';
-import { catalogKey, robesModelId, type StoodOn, standOf } from '@robes/core/avatar';
+import {
+  catalogKey,
+  robesModelId,
+  type StoodOn,
+  standOf,
+  twinInputsOf,
+  twinSpec,
+} from '@robes/core/avatar';
 import type { SystemRepositories, UserId } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -47,11 +54,58 @@ async function read(storage: FrameDeps['storage'], key: string): Promise<Uint8Ar
 
 export interface ModelReference {
   image: InlineImage | null;
+  // Her close-up beside her twin, the face (legacy modelRefsForUser); null on any other model.
+  face: InlineImage | null;
+  // Her figure in words beside her twin (a reference carries a face, not proportions); else ''.
+  figure: string;
   // What the image is (plan 2026-11-05 §2.4), recorded on the look when the frame lands; null
   // with no image.
   on: StoodOn | null;
+  // The catalog cell it is, recorded beside `on` so a re-dress anchors to that portrait; null on
+  // her twin (a re-dress reads her twin as it is then).
+  cellId: string | null;
 }
-const NO_MODEL: ModelReference = { image: null, on: null };
+const NO_MODEL: ModelReference = { image: null, face: null, figure: '', on: null, cellId: null };
+
+type ModelRow = NonNullable<
+  Awaited<ReturnType<NonNullable<NonNullable<FrameDeps['cells']>['model']>>>
+>;
+
+// Her twin, with her close-up and her figure line: every picture of her starts from these, so a
+// redraw is never a copy of the last picture (beta's modelRefsForUser; testing 17 Nov).
+async function twinReference(
+  deps: Pick<FrameDeps, 'storage'>,
+  userId: UserId,
+  row: ModelRow,
+): Promise<ModelReference | null> {
+  if (!row.twinAssetId) return null;
+  const data = await read(deps.storage, mediaKeys.master(userId, row.twinAssetId));
+  if (!data) return null;
+  const inputs = twinInputsOf(row);
+  const face = inputs.closeUpAssetId
+    ? await read(deps.storage, mediaKeys.master(userId, inputs.closeUpAssetId))
+    : null;
+  return {
+    image: { mimeType: 'image/jpeg', data },
+    face: face ? { mimeType: 'image/jpeg', data: face } : null,
+    figure: twinFigureLine(twinSpec(inputs, face !== null)),
+    on: 'twin',
+    cellId: null,
+  };
+}
+
+async function cellReference(
+  deps: Pick<FrameDeps, 'storage' | 'cells'>,
+  cellId: string,
+  on: 'cell' | 'robes',
+): Promise<ModelReference | null> {
+  const cell = await deps.cells?.cell(catalogKey(cellId));
+  if (cell?.status !== 'ready' || !cell.bucketKey) return null;
+  const data = await read(deps.storage, cell.bucketKey);
+  if (!data) return null;
+  const mimeType = (cell.contentType ?? 'image/png') as InlineImage['mimeType'];
+  return { image: { mimeType, data }, face: null, figure: '', on, cellId };
+}
 
 // What she stands on, as IMAGE 1 when ready (standOf, plan 2026-11-05): her twin, else her
 // hand-built cell, else a Robes model. With none chosen, the k-th way of a set stands on the k-th
@@ -67,9 +121,9 @@ export async function modelReference(
     ? standOf(row)
     : { on: 'cell' as const, cellId: await deps.styling.modelCellId(userId) };
   // Her twin first: it is her (legacy modelRefsForUser, 2026-10-20).
-  if (stand.on === 'twin' && row?.twinAssetId) {
-    const data = await read(deps.storage, mediaKeys.master(userId, row.twinAssetId));
-    if (data) return { image: { mimeType: 'image/jpeg', data }, on: 'twin' };
+  if (stand.on === 'twin' && row) {
+    const twin = await twinReference(deps, userId, row);
+    if (twin) return twin;
   }
   let cellId: string | null = stand.on === 'twin' ? null : stand.cellId;
   const unchosen = stand.on === 'robes' ? row?.modelPreset == null : !cellId;
@@ -78,12 +132,28 @@ export async function modelReference(
     cellId = robesModelId(generic.wearer, (n + 1) as 1 | 2 | 3 | 4 | 5);
   }
   if (!cellId) return NO_MODEL;
-  const cell = await deps.cells.cell(catalogKey(cellId));
-  if (cell?.status !== 'ready' || !cell.bucketKey) return NO_MODEL;
-  const data = await read(deps.storage, cell.bucketKey);
-  if (!data) return NO_MODEL;
-  const mimeType = (cell.contentType ?? 'image/png') as InlineImage['mimeType'];
-  return { image: { mimeType, data }, on: unchosen || stand.on === 'robes' ? 'robes' : 'cell' };
+  return (
+    (await cellReference(deps, cellId, unchosen || stand.on === 'robes' ? 'robes' : 'cell')) ??
+    NO_MODEL
+  );
+}
+
+// The person a re-dressed frame shows, from the model it was first drawn on: her twin as it is
+// now, or the catalog cell recorded with the frame. Null when nothing was recorded (a frame from
+// before `stood_on_cell`, or one drawn on no model) or the model is gone (she deleted her twin).
+export async function frameAnchor(
+  deps: Pick<FrameDeps, 'storage' | 'styling' | 'cells'>,
+  userId: UserId,
+  stood: { on: StoodOn | null; cellId: string | null },
+): Promise<ModelReference | null> {
+  if (stood.on === 'twin') {
+    const row = deps.cells?.model ? await deps.cells.model(userId) : undefined;
+    return row ? twinReference(deps, userId, row) : null;
+  }
+  if ((stood.on === 'cell' || stood.on === 'robes') && stood.cellId) {
+    return cellReference(deps, stood.cellId, stood.on);
+  }
+  return null;
 }
 
 export async function drawSuggestedFrame(
@@ -96,6 +166,9 @@ export async function drawSuggestedFrame(
     pieceLabel: string | null;
     piecePhoto: Uint8Array | null;
     model: InlineImage | null;
+    // Beside her twin: her close-up (IMAGE 2) and her figure in words.
+    face?: InlineImage | null;
+    figure?: string;
     styleIcons: string[];
     brief: string | null;
     way: { title: string; eyebrow: string; scene: string };
@@ -109,6 +182,8 @@ export async function drawSuggestedFrame(
 ): Promise<string> {
   const references: InlineImage[] = [];
   if (opts.model) references.push(opts.model);
+  const face = opts.model ? (opts.face ?? null) : null;
+  if (face) references.push(face);
   if (opts.piecePhoto && !opts.fallback)
     references.push({ mimeType: 'image/jpeg', data: opts.piecePhoto });
   const pieces: FramePiece[] = [];
@@ -146,6 +221,8 @@ export async function drawSuggestedFrame(
           fallback: opts.fallback,
           pieceLabel: opts.pieceLabel,
           hasModel: Boolean(opts.model),
+          hasFace: face !== null,
+          figure: opts.model ? (opts.figure ?? '') : '',
           hasPiecePhoto: Boolean(opts.piecePhoto),
           styleIcons: opts.styleIcons,
           brief: opts.brief,

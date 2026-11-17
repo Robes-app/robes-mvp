@@ -356,6 +356,7 @@ export interface Looks {
   source: Generated<string>;
   status: Generated<string>;
   stoodOn: string | null;
+  stoodOnCell: string | null;
   styling: Json | null;
   updatedAt: Generated<Timestamp>;
   userId: string;
