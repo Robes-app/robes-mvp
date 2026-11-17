@@ -1,8 +1,9 @@
 import { firstRun as copy } from '@robes/copy';
 import { dayMonth, weekdayShort } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
-import { Button, ErrorText, Text, useColor } from '@robes/ui-native';
-import { Pressable, View } from 'react-native';
+import { palette } from '@robes/tokens';
+import { Button, ErrorText, fonts, maxFontSizeMultiplier, useColor } from '@robes/ui-native';
+import { Pressable, Text as RNText, View } from 'react-native';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
 import { localDate } from '@/features/looks/saved-looks';
 import { QuietLink } from './CaptureStep';
@@ -37,6 +38,7 @@ export function OutfitStep({
       title={copy.outfit.title}
       titleEm={copy.outfit.titleEm}
       onBack={onBack}
+      fill
       footer={
         <>
           {error ? <ErrorText>{error}</ErrorText> : null}
@@ -47,19 +49,54 @@ export function OutfitStep({
         </>
       }
     >
+      {/* Design Q6: a dashed warm card to the footer, a head-to-toe outline in it, the camera disc
+          at its centre and today's date on a pill in its corner. */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={copy.outfit.capture}
         disabled={busy}
         onPress={capture}
-        className="h-[380px] items-center justify-center gap-4 rounded-card border border-rule-mid bg-surface-raised"
+        className="min-h-[300px] flex-1 items-center justify-center overflow-hidden rounded-card border border-selected-line border-dashed bg-selected"
       >
-        <View className="size-14 items-center justify-center rounded-full border border-rule-mid bg-bg">
+        <View
+          accessible={false}
+          className="absolute border border-selected-line border-dashed"
+          style={{
+            width: 150,
+            height: '80%',
+            maxHeight: 330,
+            borderTopLeftRadius: 80,
+            borderTopRightRadius: 80,
+            borderBottomLeftRadius: 18,
+            borderBottomRightRadius: 18,
+          }}
+        />
+        <View
+          className="size-16 items-center justify-center rounded-full bg-surface-raised"
+          style={{
+            shadowColor: palette.ink,
+            shadowOffset: { width: 0, height: 6 },
+            shadowRadius: 10,
+            shadowOpacity: 0.18,
+            elevation: 4,
+          }}
+        >
           <Icon name="camera" size={24} color={ink} />
         </View>
-        <Text size="small" tone="muted">
-          {copy.outfit.today(`${weekdayShort(today)} ${dayMonth(today)}`)}
-        </Text>
+        <View className="absolute top-3.5 left-3.5 h-7 justify-center rounded-pill bg-surface-raised px-3">
+          <RNText
+            maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+            style={{
+              fontFamily: fonts.sansMedium,
+              fontSize: 9,
+              letterSpacing: 9 * 0.22,
+              textTransform: 'uppercase',
+              color: ink,
+            }}
+          >
+            {copy.outfit.today(`${weekdayShort(today)} ${dayMonth(today)}`)}
+          </RNText>
+        </View>
       </Pressable>
     </FirstRunFrame>
   );

@@ -18,7 +18,10 @@ export function FirstRunFrame({
   onBack,
   children,
   footer,
+  fill = false,
 }: {
+  // The body takes the height left under the title (a capture card, design Q6).
+  fill?: boolean;
   step: number;
   title: string;
   titleEm: string;
@@ -91,6 +94,7 @@ export function FirstRunFrame({
       <ScrollView
         className="flex-1"
         contentContainerClassName="gap-7 px-6 pt-7 pb-6"
+        contentContainerStyle={fill ? { flexGrow: 1 } : undefined}
         keyboardShouldPersistTaps="handled"
       >
         <Heading style={{ fontSize: 30, lineHeight: 33 }}>
