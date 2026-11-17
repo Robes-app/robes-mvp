@@ -1148,6 +1148,13 @@ function DraftBody({
   // The strip's ✓ (design "Add a photo to a look"): the card in focus goes in front. A saved
   // look keeps its photographs and cover there and then, never waiting for Update look; a
   // draft's are kept as it is saved.
+  // Her photographs are managed in the Edit look frame (design 1b): from the look's page a tap on
+  // the stack or the Photos row opens it on Add a photo, as Home's stack does, so the strip's ✓
+  // never stands beside Schedule look (Annie, 17 Nov). In the frame the strip opens in place.
+  const openPhotos = () => {
+    if (presentation === 'saved') router.push(`/looks/draft/${look.id}?images=add`);
+    else setManaging(true);
+  };
   const keepStrip = (front: StageCard | null) => {
     const next = front ? stageInFront(stack.stage, front) : stack.stage;
     if (mode === 'draft') {
@@ -1477,7 +1484,6 @@ function DraftBody({
           onDone={keepStrip}
           busy={stack.committing}
           focusAdd={stripFirst}
-          {...(presentation === 'saved' ? { onBack: close } : {})}
         />
       ) : (
         <DraftPhoto
@@ -1489,7 +1495,7 @@ function DraftBody({
           chip={snap.reading ? lookbook.figure.reading : null}
           pronoun={pronoun(model.data)}
           onAdjust={() => setSheet('adjust')}
-          onImages={() => setManaging(true)}
+          onImages={openPhotos}
           onRetry={adjust.updateModel}
           stage={stack.stage}
           {...(presentation === 'saved' ? { onBack: close } : {})}
@@ -1553,7 +1559,7 @@ function DraftBody({
                 ? {
                     photos: {
                       count: stageCards(lookStack(look), stack.stage).length,
-                      onOpen: () => setManaging(true),
+                      onOpen: openPhotos,
                     },
                   }
                 : {})}

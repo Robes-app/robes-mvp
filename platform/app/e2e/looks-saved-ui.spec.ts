@@ -234,8 +234,11 @@ test('the image stack (D19, D20): a photograph lands in focus and the strip’s 
   await page.goto(`/look/${look.id}`);
   // No photograph yet: the stack badge reads +, and no You · Model anywhere.
   await expect(page.getByRole('radiogroup', { name: 'The record of this look' })).toHaveCount(0);
+  // The stack opens the Edit look frame on Add a photo (design 1b, 17 Nov): the strip never
+  // opens on the page beside Schedule look.
   await page.getByTestId('saved-look-stack').click();
-  const manager = page.getByTestId('image-manager');
+  const drawer = page.getByTestId('draft-look');
+  const manager = drawer.getByTestId('image-manager');
   await expect(manager).toBeVisible();
   // One card: the last one left has no ×.
   await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(0);
@@ -255,12 +258,11 @@ test('the image stack (D19, D20): a photograph lands in focus and the strip’s 
   await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(2);
   // Nothing is written before the strip's ✓.
   expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).images).toEqual([]);
-  // ✓ keeps the card in view as the cover there and then (Annie, 11 Nov): the foot stays
-  // Schedule look, with no Update look to ask for.
-  await page.getByTestId('image-manager-done').click();
+  // ✓ keeps the card in view as the cover there and then (Annie, 11 Nov): nothing waits for
+  // Update look.
+  await manager.getByTestId('image-manager-done').click();
   await expect(manager).toBeHidden();
-  await expect(page.getByTestId('update-look')).toHaveCount(0);
-  await expect(page.getByTestId('schedule-look')).toBeVisible();
+  await expect(drawer.getByTestId('update-look')).toBeDisabled();
   await expect
     .poll(async () => {
       const now = await (await api.get(`/api/v1/looks/${look.id}`)).json();
@@ -269,12 +271,12 @@ test('the image stack (D19, D20): a photograph lands in focus and the strip’s 
     .toEqual([1, 'photo']);
   // Adding a photograph never reads its pieces: the rack is as it was, nothing proposed.
   expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).proposals).toEqual([]);
-  await expect(page.getByTestId('saved-look-stack')).toContainText('1');
+  await expect(drawer.getByTestId('saved-look-stack')).toContainText('1');
   // Hiding Robes' picture leaves her photograph as the only card: it keeps no ×.
-  await page.getByTestId('saved-look-stack').click();
+  await drawer.getByTestId('saved-look-stack').click();
   await manager.getByRole('button', { name: 'Remove this image · Robes’ picture' }).click();
   await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(0);
-  await page.getByTestId('image-manager-done').click();
+  await manager.getByTestId('image-manager-done').click();
   await expect
     .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).robesHidden)
     .toBe(true);

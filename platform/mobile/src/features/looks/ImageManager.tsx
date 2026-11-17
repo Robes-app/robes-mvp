@@ -25,7 +25,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CaptureCamera } from '@/features/capture/CaptureCamera';
 import { type PickedPhoto, uploadPhoto } from '@/features/wardrobe/add-pieces';
 import { renditionUri } from '@/lib/images';
@@ -56,7 +55,6 @@ export function ImageManager({
   onDone,
   busy = false,
   focusAdd = false,
-  onBack,
 }: {
   look: Look;
   stage: ImageStage;
@@ -66,14 +64,9 @@ export function ImageManager({
   // The strip is being kept: ✓ waits.
   busy?: boolean;
   focusAdd?: boolean;
-  // On the saved look's page (3e) the band starts under the status bar and carries the back disc
-  // that stood on the picture, so she can always leave.
-  onBack?: () => void;
 }) {
   const api = useApiClient();
   const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const top = onBack ? insets.top : 0;
   const ink = useColor('ink');
   const bg = useColor('bg');
   const muted = useColor('ink-muted');
@@ -135,7 +128,7 @@ export function ImageManager({
       accessibilityLabel={copy.title}
       testID="image-manager"
       className="relative overflow-hidden bg-surface-sunk"
-      style={{ height: 360 + top, paddingTop: top }}
+      style={{ height: 360 }}
     >
       <ScrollView
         ref={strip}
@@ -207,20 +200,6 @@ export function ImageManager({
           </Text>
         </Pressable>
       </ScrollView>
-      {onBack ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={lookbook.savedLook.back}
-          onPress={onBack}
-          hitSlop={10}
-          testID="saved-look-back"
-          className="absolute items-center justify-center rounded-pill"
-          style={{ top: top + 10, left: 12, width: 36, height: 36 }}
-        >
-          <Glass tone="veil-soft" className="absolute inset-0 rounded-pill" />
-          <Icon name="back" size={20} color={ink} />
-        </Pressable>
-      ) : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={copy.done}

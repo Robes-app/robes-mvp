@@ -267,6 +267,22 @@ test('a card opens its sheet piece by piece, her own pieces marked', async () =>
   );
 });
 
+test('on the look’s page the image stack opens the Edit look frame on Add a photo', async () => {
+  const model = piece().image;
+  if (!model) throw new Error('fixture piece has an image');
+  mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look({ model, image: model }),
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  // No You · Model, no hint; the strip never opens on the page beside Schedule look (17 Nov).
+  expect(screen.queryByText(looks.page.photoNote)).toBeNull();
+  await fireEvent.press(await screen.findByTestId('saved-look-stack'));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}?images=add`);
+  expect(screen.queryByTestId('image-manager')).toBeNull();
+  expect(screen.getByTestId('schedule-look')).toBeTruthy();
+});
+
 test('the image stack (D19, D20): Robes’ picture can be hidden; the strip’s ✓ keeps it, no Update look', async () => {
   const model = piece().image;
   if (!model) throw new Error('fixture piece has an image');
@@ -285,10 +301,10 @@ test('the image stack (D19, D20): Robes’ picture can be hidden; the strip’s 
     [`POST /looks/${LOOK_ID}/images/robes`]: { ...both, robesHidden: true, model: null },
     'GET /looks': { items: [], nextCursor: null },
   });
-  await renderWithApi(<LookScreen id={LOOK_ID} />);
-  // The badge counts her photographs and opens the manager; no You · Model, no hint.
-  expect(screen.queryByText(looks.page.photoNote)).toBeNull();
-  await fireEvent.press(await screen.findByTestId('saved-look-stack'));
+  // The look's page sends the stack to the Edit look frame (design 1b); there the strip opens.
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} presentation="sheet" images="add" onClose={() => undefined} />,
+  );
   expect(await screen.findByTestId('image-manager')).toBeTruthy();
   // Two cards: each carries its ×, Robes' picture too.
   const manager = lookbook.savedLook.manager;
@@ -303,9 +319,8 @@ test('the image stack (D19, D20): Robes’ picture can be hidden; the strip’s 
     expect(calls.find((c) => c.path.endsWith('/images/robes'))?.body).toEqual({ hidden: true }),
   );
   await waitFor(() => expect(screen.queryByTestId('image-manager')).toBeNull());
-  // The foot stays Schedule look: a photo is never a change waiting for Update look.
-  expect(screen.queryByTestId('update-look')).toBeNull();
-  expect(screen.getByTestId('schedule-look')).toBeTruthy();
+  // A photo is never a change waiting for Update look.
+  expect(screen.getByTestId('update-look').props.accessibilityState.disabled).toBe(true);
 });
 
 test('Details › Seasons picks the four seasons (D12); the row reads them back', async () => {

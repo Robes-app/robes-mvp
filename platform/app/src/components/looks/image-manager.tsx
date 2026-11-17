@@ -44,7 +44,6 @@ export function ImageManager({
   onDone,
   busy = false,
   focusAdd = false,
-  onBack,
 }: {
   look: Look;
   stage: ImageStage;
@@ -54,9 +53,6 @@ export function ImageManager({
   // The strip is being kept: ✓ waits.
   busy?: boolean;
   focusAdd?: boolean;
-  // On the saved look's page (3e) the band carries the back disc that stood on the picture, so
-  // she can always leave.
-  onBack?: () => void;
 }) {
   const api = useApiClient();
   const toast = useToast();
@@ -192,18 +188,6 @@ export function ImageManager({
           </span>
         </button>
       </div>
-      {onBack ? (
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label={lookbook.savedLook.back}
-          title={lookbook.savedLook.back}
-          data-testid="saved-look-back"
-          className={`absolute top-2.5 left-3 z-10 flex size-9 items-center justify-center rounded-pill bg-veil-soft text-ink backdrop-blur-[8px] after:absolute after:-inset-2.5 after:content-[''] ${focus}`}
-        >
-          <Icon name="back" size={20} className="-ml-0.5" />
-        </button>
-      ) : null}
       <button
         type="button"
         onClick={finish}
