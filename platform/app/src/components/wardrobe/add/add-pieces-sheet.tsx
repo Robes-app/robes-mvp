@@ -4,11 +4,30 @@ import { useApi } from '@robes/api-client/react';
 import { wardrobe } from '@robes/copy';
 import type { AddDestination } from '@robes/core/add-flow';
 import { Button, Field, TileSheet } from '@robes/ui';
-import { useRouter } from 'next/navigation';
-import { type FormEvent, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { cameraHref } from '@/lib/add-flow';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 
 const copy = wardrobe.addSheet;
+
+// The sheet's open state on the Wardrobe and the Wishlist: up while the address carries `?add=`
+// (addPiecesHref: the old /wardrobe/add, a way in's back, Add another), which closing clears.
+export function useAddPiecesOpen(): [boolean, (open: boolean) => void] {
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const asked = params.get('add') !== null;
+  const [open, setOpen] = useState(asked);
+  useEffect(() => {
+    if (asked) setOpen(true);
+  }, [asked]);
+  const set = (next: boolean) => {
+    setOpen(next);
+    if (!next && asked) router.replace(pathname, { scroll: false });
+  };
+  return [open, set];
+}
 
 // The Add pieces sheet (Front Door PRD rev 3 §4.6, §7.4): three tiles on glass — PASTE URL turns
 // the sheet into Add from Link with the field inline (✓ reads the page), PHOTO the file picker
@@ -74,7 +93,7 @@ export function AddPiecesSheet({
             label: copy.photo,
             onClick: () => {
               if (onPhoto) camera.current?.click();
-              else go(`/wardrobe/add?to=${to}&start=camera`);
+              else go(cameraHref(to));
             },
             testId: 'add-sheet-photo',
           },

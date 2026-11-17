@@ -14,7 +14,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
+import { Unrecorded } from '@/components/Unrecorded';
 import { authClient } from '@/lib/auth-client';
 import { LEGAL_URLS } from '@/lib/config';
 import { afterSignIn } from '@/lib/links';
@@ -74,9 +75,13 @@ export default function SignIn() {
     <PrimaryScope>
       <View className="flex-1 bg-bg">
         <WarmGround />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          className="flex-1 justify-center gap-8 px-6"
+        {/* A scroll, centred while it fits: on a small iPhone with the keyboard up, the legal
+            line and the Apple and Google buttons scroll into reach instead of standing under it
+            (audit, native: keyboard). */}
+        <ScrollView
+          automaticallyAdjustKeyboardInsets
+          keyboardShouldPersistTaps="handled"
+          contentContainerClassName="grow justify-center gap-8 px-6 py-10"
         >
           {step === 'email' ? (
             <>
@@ -85,18 +90,20 @@ export default function SignIn() {
                 <Heading size="xl">{copy.title}</Heading>
                 <Text tone="muted">{copy.subtitle}</Text>
               </View>
-              <Field
-                label={copy.emailLabel}
-                placeholder={copy.emailPlaceholder}
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                textContentType="emailAddress"
-                value={email}
-                onChangeText={setEmail}
-                onSubmitEditing={sendCode}
-                error={error}
-              />
+              <Unrecorded>
+                <Field
+                  label={copy.emailLabel}
+                  placeholder={copy.emailPlaceholder}
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  textContentType="emailAddress"
+                  value={email}
+                  onChangeText={setEmail}
+                  onSubmitEditing={sendCode}
+                  error={error}
+                />
+              </Unrecorded>
               <Button onPress={sendCode} loading={busy} loadingLabel={copy.sendingCode}>
                 {copy.sendCode}
               </Button>
@@ -142,19 +149,23 @@ export default function SignIn() {
             <>
               <View className="gap-2">
                 <Heading>{copy.codeTitle}</Heading>
-                <Text tone="muted">{copy.codeSubtitle(email.trim())}</Text>
+                <Unrecorded>
+                  <Text tone="muted">{copy.codeSubtitle(email.trim())}</Text>
+                </Unrecorded>
               </View>
-              <Field
-                label={copy.codeLabel}
-                keyboardType="number-pad"
-                textContentType="oneTimeCode"
-                autoComplete="one-time-code"
-                maxLength={6}
-                value={code}
-                onChangeText={(v) => setCode(v.replace(/\D/g, ''))}
-                onSubmitEditing={verify}
-                error={error}
-              />
+              <Unrecorded>
+                <Field
+                  label={copy.codeLabel}
+                  keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={code}
+                  onChangeText={(v) => setCode(v.replace(/\D/g, ''))}
+                  onSubmitEditing={verify}
+                  error={error}
+                />
+              </Unrecorded>
               <Button
                 onPress={verify}
                 disabled={code.length !== 6}
@@ -180,7 +191,7 @@ export default function SignIn() {
               </View>
             </>
           )}
-        </KeyboardAvoidingView>
+        </ScrollView>
       </View>
     </PrimaryScope>
   );

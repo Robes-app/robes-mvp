@@ -200,6 +200,7 @@ export const lookbook = {
     },
     seasonsView: {
       title: 'Seasons',
+      done: 'Done',
       names: {
         spring: 'Spring',
         summer: 'Summer',
@@ -225,7 +226,6 @@ export const lookbook = {
     // The done disc: Save on a draft; on a saved look's edit it only closes, once nothing waits
     // for Update look (D18).
     done: 'Save look',
-    doneEdit: 'Done',
     // A saved look's one accept (3e's pill, the Edit look drawer's footer; D17, D18).
     update: 'Update look',
     doneForDay: 'Save and schedule for this day',
@@ -472,14 +472,8 @@ export const lookbook = {
     prevMonth: 'Previous month',
     nextMonth: 'Next month',
     // "Today, Friday 17 October · records it as worn"
-    picked: (long: string, today: boolean, suffix: 'worn' | 'filed' | null): string =>
-      `${today ? 'Today, ' : ''}${long}${
-        suffix === 'worn'
-          ? ' · records it as worn'
-          : suffix === 'filed'
-            ? ' · something already filed'
-            : ''
-      }`,
+    picked: (long: string, today: boolean, suffix: 'worn' | null): string =>
+      `${today ? 'Today, ' : ''}${long}${suffix === 'worn' ? ' · records it as worn' : ''}`,
     put: 'Put it in the diary',
     already: 'Already in the diary · Open the day',
     record: 'Record it as worn',
@@ -604,6 +598,8 @@ export const lookbook = {
   },
   // Keep or pass (legacy F14).
   deck: {
+    // A styling job past its time limit (audit F5): said plainly, with Try again.
+    slow: 'This is taking longer than usual.',
     eyebrowAround: (piece: string): string => `Around your ${piece}`,
     eyebrowFor: (day: string): string => `For ${day}`,
     eyebrowPrompt: 'From your prompt',

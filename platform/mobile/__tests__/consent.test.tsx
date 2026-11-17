@@ -23,6 +23,7 @@ const UNANSWERED: Consents = {
   marketing_email: null,
   photo_analysis: null,
   look_sharing: null,
+  recordings: null,
 };
 
 beforeEach(() => jest.clearAllMocks());
@@ -78,7 +79,7 @@ test('usage counts are asked once, and nothing is counted before a yes', async (
   expect(start).not.toHaveBeenCalled();
 
   await fireEvent.press(screen.getByRole('button', { name: consent.askYes }));
-  await waitFor(() => expect(start).toHaveBeenCalledWith(ME.id));
+  await waitFor(() => expect(start).toHaveBeenCalledWith(ME.id, { recordings: false }));
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     source: 'ios',
     consents: { analytics: true },

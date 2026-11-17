@@ -1,8 +1,8 @@
 import type { Features } from '@robes/contracts';
 import { lookbook, looks, nav, plan, shell, wardrobe, you } from '@robes/copy';
-import { isDestination } from '@robes/core/add-flow';
 import { monthLabel, weekdayDayMonth } from '@robes/core/calendar';
 import type { IconName } from '@robes/icons/web';
+import { addPiecesHref, cameraHref, destinationOf } from './add-hrefs';
 
 export interface NavItem {
   href: string;
@@ -36,21 +36,14 @@ export interface CreateItem extends NavItem {
 // Piece — Handoff"; native draws AddPiecesPanel itself) — then the stylist (the sparkle, never a
 // chat bubble). Unbuilt options go to one shared "On its way" page.
 export const CREATE_ITEMS: readonly CreateItem[] = [
+  // The camera holds the camera roll too (its library disc), as on the iPhone.
   {
     id: 'photograph',
     group: 'add',
-    href: '/wardrobe/add?start=camera',
+    href: cameraHref('wardrobe'),
     label: wardrobe.add.doors.photograph,
     icon: 'camera',
-    keywords: 'add photo camera',
-  },
-  {
-    id: 'camera-roll',
-    group: 'add',
-    href: '/wardrobe/add',
-    label: wardrobe.add.doors.cameraRoll,
-    icon: 'image',
-    keywords: 'add photo upload',
+    keywords: 'add photo camera upload camera roll',
   },
   {
     id: 'link',
@@ -130,7 +123,7 @@ export function activeRoot(pathname: string): string {
 
 // The add-a-piece flow is a task, not a place: the dock stands down there so its one action sits
 // at the foot (redline "Hide the tab bar in the add flow").
-const FLOW_PATHS = ['/wardrobe/add', '/wardrobe/review', '/wardrobe/link', '/wardrobe/manual'];
+const FLOW_PATHS = ['/wardrobe/camera', '/wardrobe/review', '/wardrobe/link', '/wardrobe/manual'];
 export function isFlowPath(pathname: string): boolean {
   return FLOW_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
@@ -183,14 +176,12 @@ export function backFor(pathname: string, search: URLSearchParams): Back | null 
   if (/^\/piece\/[^/]+$/.test(pathname) || pathname === '/wardrobe/inbox') {
     return { href: '/wardrobe', label: wardrobe.piece.back };
   }
-  if (pathname === '/wardrobe/add') return { href: '/wardrobe', label: wardrobe.piece.back };
-  if (pathname === '/wardrobe/receipt') return { href: '/wardrobe/add', label: wardrobe.add.title };
+  // Back from a way in is the Add pieces sheet it was chosen on.
+  if (pathname === '/wardrobe/receipt') {
+    return { href: addPiecesHref('wardrobe'), label: wardrobe.add.title };
+  }
   if (pathname === '/wardrobe/manual' || pathname === '/wardrobe/link') {
-    const to = search.get('to');
-    return {
-      href: `/wardrobe/add?to=${isDestination(to) ? to : 'wardrobe'}`,
-      label: wardrobe.add.title,
-    };
+    return { href: addPiecesHref(destinationOf(search.get('to'))), label: wardrobe.add.title };
   }
   return null;
 }

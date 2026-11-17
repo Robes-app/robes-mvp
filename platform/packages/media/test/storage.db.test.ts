@@ -45,6 +45,35 @@ describe('presigned PUT (SEC-20)', () => {
   });
 });
 
+async function post(
+  form: { url: string; fields: Record<string, string> },
+  body: Uint8Array<ArrayBuffer>,
+  contentType: string,
+  key?: string,
+): Promise<number> {
+  const data = new FormData();
+  for (const [k, v] of Object.entries(form.fields)) data.append(k, k === 'key' && key ? key : v);
+  data.append('Content-Type', contentType);
+  data.append('file', new Blob([body], { type: contentType }));
+  return (await fetch(form.url, { method: 'POST', body: data })).status;
+}
+
+describe('presigned POST (SEC-40 fetcher)', () => {
+  it('takes an image within the range at its own key, and nothing else', async () => {
+    const k = key();
+    const form = await storage.presignPost(k, { maxBytes: 16, expiresIn: 60 });
+    expect(form.fields.key).toBe(k);
+
+    expect(await post(form, new Uint8Array(17), 'image/jpeg')).toBeGreaterThanOrEqual(400);
+    expect(await post(form, new Uint8Array(8), 'text/html')).toBeGreaterThanOrEqual(400);
+    expect(await post(form, new Uint8Array(8), 'image/jpeg', key())).toBeGreaterThanOrEqual(400);
+    expect(await storage.head(k)).toBeNull();
+
+    expect(await post(form, new Uint8Array(16), 'image/jpeg')).toBeLessThan(300);
+    expect(await storage.head(k)).toEqual({ bytes: 16, contentType: 'image/jpeg' });
+  });
+});
+
 describe('local delivery', () => {
   it('serves signed GETs and refuses unsigned ones', async () => {
     const k = key();

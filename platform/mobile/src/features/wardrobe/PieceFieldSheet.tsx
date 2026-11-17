@@ -1,5 +1,5 @@
 import type { PieceValues, Season, UpdatePieceInput } from '@robes/contracts';
-import { filters as filterCopy, wardrobe } from '@robes/copy';
+import { lookbook, wardrobe } from '@robes/copy';
 import { type PieceColour, shade } from '@robes/core/colour';
 import {
   convertUkSize,
@@ -32,13 +32,15 @@ import {
   IconButton,
   MIN_TOUCH,
   maxFontSizeMultiplier,
+  OptionList,
   Pill,
-  Sheet,
   Text,
+  OptionRow as ToggleRow,
   useColor,
 } from '@robes/ui-native';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 import { ColourPicker, OptionRow, PrintPicker } from './ColourField';
 import { MaterialPicker } from './MaterialField';
 
@@ -110,6 +112,7 @@ const colourOf = (p: PieceValues): PieceColour => ({
 
 const orNull = (v: string): string | null => (v.trim() ? v.trim() : null);
 const SEASONS: readonly Season[] = ['spring', 'summer', 'autumn', 'winter'];
+const seasonCopy = lookbook.savedLook.seasonsView;
 
 const textOf = (field: PieceField, p: FieldPiece): string =>
   field === 'label'
@@ -224,7 +227,9 @@ export function PieceFieldSheet({
   const back = category?.back;
 
   return (
-    <Sheet
+    // A piece's lists run long (the colour families, the categories): iOS's own sheet at two
+    // heights, the list scrolling inside it (Annie, 16 Nov).
+    <DetentSheet
       open={field !== null}
       onClose={onClose}
       title={category?.title ?? (field ? TITLES[field] : '')}
@@ -241,9 +246,13 @@ export function PieceFieldSheet({
             ),
           }
         : {})}
+      // A tap on wearFor or a season is the answer, so Done at the right is the one way out: no ×
+      // (a spacer keeps the title centred).
       {...(field === 'wearFor' || field === 'season'
-        ? { closeLabel: copy.done }
-        : { closeButton: true })}
+        ? { done: { label: copy.done, onPress: onClose }, leading: <View style={{ width: 36 }} /> }
+        : {})}
+      scroll
+      testID="piece-field-sheet"
     >
       <View className="gap-4 pb-6">
         {field === 'wearFor' ? (
@@ -251,28 +260,7 @@ export function PieceFieldSheet({
         ) : field === 'category' ? (
           <CategoryList piece={piece} drill={drill} onDrill={setDrill} onPick={commit} />
         ) : field === 'season' ? (
-          // The four seasons (D12, PRD rev 3 §7.3): each tap is the answer; none picked is Year round.
-          <View accessibilityLabel={TITLES.season}>
-            {SEASONS.map((season) => {
-              const on = (piece.seasons ?? []).includes(season);
-              return (
-                <OptionRow
-                  key={season}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: on }}
-                  selected={on}
-                  label={filterCopy.seasons[season]}
-                  onPress={() =>
-                    onSave({
-                      seasons: on
-                        ? (piece.seasons ?? []).filter((x) => x !== season)
-                        : [...(piece.seasons ?? []), season],
-                    })
-                  }
-                />
-              );
-            })}
-          </View>
+          <SeasonOptions seasons={piece.seasons ?? []} onSave={onSave} />
         ) : field === 'material' ? (
           <MaterialPicker
             value={piece.material}
@@ -367,7 +355,7 @@ export function PieceFieldSheet({
           </Button>
         ) : null}
       </View>
-    </Sheet>
+    </DetentSheet>
   );
 }
 
@@ -637,5 +625,38 @@ function WearForPicker({
         )}
       </View>
     </View>
+  );
+}
+
+// The four seasons (D12, PRD rev 3 §7.3), the Lookbook's own list (SeasonsView): Year round
+// first, then each season with its glyph; each tap is the answer, and Year round clears the rest.
+function SeasonOptions({
+  seasons,
+  onSave,
+}: {
+  seasons: readonly Season[];
+  onSave: (input: FieldInput) => void;
+}) {
+  const ink = useColor('ink');
+  const toggle = (s: Season) =>
+    onSave({ seasons: seasons.includes(s) ? seasons.filter((x) => x !== s) : [...seasons, s] });
+  return (
+    <OptionList>
+      <ToggleRow
+        first
+        label={seasonCopy.yearRound}
+        on={seasons.length === 0}
+        onToggle={() => onSave({ seasons: [] })}
+      />
+      {SEASONS.map((s) => (
+        <ToggleRow
+          key={s}
+          label={seasonCopy.names[s]}
+          on={seasons.includes(s)}
+          icon={<Icon name={s} size={18} color={ink} />}
+          onToggle={() => toggle(s)}
+        />
+      ))}
+    </OptionList>
   );
 }

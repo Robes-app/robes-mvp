@@ -2,6 +2,7 @@
 
 import { lookbook as copy, filters as filterCopy, nav } from '@robes/copy';
 import { lookFacets } from '@robes/core/filters';
+import { showLookbookSearch } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { Button, CardSkeleton, EmptyState, ErrorText, Eyebrow, IconButton, Tabs } from '@robes/ui';
 import { useRouter } from 'next/navigation';
@@ -84,17 +85,20 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           onAll={filters.clearWear}
         />
       </div>
-      <label className="flex h-10 items-center gap-2 rounded-pill border-[0.5px] border-rule-mid bg-surface-raised px-3.5">
-        <Icon name="search" size={13} className="shrink-0 text-ink-muted" />
-        <input
-          type="search"
-          value={filters.state.query}
-          onChange={(e) => filters.setQuery(e.currentTarget.value)}
-          placeholder={copy.search}
-          aria-label={copy.search}
-          className="min-w-0 flex-1 bg-transparent font-sans text-ink text-xs placeholder:text-ink-faint focus:outline-none"
-        />
-      </label>
+      {/* Once there is enough to search: 50+ saved looks (Annie, 16 Nov). */}
+      {showLookbookSearch(saved.data?.items.length ?? 0, filters.state.query) ? (
+        <label className="flex h-10 items-center gap-2 rounded-pill border-[0.5px] border-rule-mid bg-surface-raised px-3.5">
+          <Icon name="search" size={13} className="shrink-0 text-ink-muted" />
+          <input
+            type="search"
+            value={filters.state.query}
+            onChange={(e) => filters.setQuery(e.currentTarget.value)}
+            placeholder={copy.search}
+            aria-label={copy.search}
+            className="min-w-0 flex-1 bg-transparent font-sans text-ink text-xs placeholder:text-ink-faint focus:outline-none"
+          />
+        </label>
+      ) : null}
       {tab === 'saved' && draftItems.length ? (
         <section aria-labelledby="in-progress" className="flex flex-col gap-2.5">
           <Eyebrow id="in-progress">{copy.inProgress}</Eyebrow>

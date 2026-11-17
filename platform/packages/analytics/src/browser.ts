@@ -1,5 +1,5 @@
 import type { PostHog, PostHogConfig } from 'posthog-js/dist/module.no-external';
-import { type Analytics, createAnalytics } from './index';
+import { type Analytics, createAnalytics, UNRECORDED } from './index';
 
 export interface BrowserAnalyticsConfig {
   key: string;
@@ -44,6 +44,16 @@ const loadPostHog: LoadPostHog = async (replay) => {
   return posthog;
 };
 
+const BLOCKED = [
+  'img',
+  'picture',
+  'video',
+  'canvas',
+  'svg image',
+  '[style*="background-image"]',
+  'input[type="file"]',
+];
+
 export function posthogOptions(config: BrowserAnalyticsConfig, replay: boolean) {
   return {
     api_host: config.host,
@@ -65,11 +75,20 @@ export function posthogOptions(config: BrowserAnalyticsConfig, replay: boolean) 
     disable_external_dependency_loading: true,
     mask_personal_data_properties: true,
     disable_session_recording: !replay,
-    // SEC-84: replay masks every input, all text and all media.
+    // Set here so no project setting can turn them on: console lines and request bodies can carry
+    // her email or another value the recording hides.
+    enable_recording_console_log: false,
+    // SEC-84 (owner, 16 Nov 2026): with her yes to recordings, her words show — the text on
+    // screen and what she types — so a recording can be read for what she asks Robes for. Photos
+    // and file names never record (a photo drawn as a CSS background included), nor her email or
+    // anything marked UNRECORDED.
     session_recording: {
-      maskAllInputs: true,
-      maskTextSelector: '*',
-      blockSelector: 'img, picture, video, canvas, svg image',
+      maskAllInputs: false,
+      maskInputOptions: { password: true, email: true },
+      blockClass: UNRECORDED,
+      blockSelector: BLOCKED.join(', '),
+      recordHeaders: false,
+      recordBody: false,
     },
   } satisfies Partial<PostHogConfig>;
 }

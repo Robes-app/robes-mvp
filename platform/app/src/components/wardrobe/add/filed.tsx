@@ -4,7 +4,7 @@ import { wardrobe } from '@robes/copy';
 import type { AddDestination } from '@robes/core/add-flow';
 import { Button, buttonClasses, Heading, Text } from '@robes/ui';
 import Link from 'next/link';
-import { wardrobeHref } from '@/lib/add-flow';
+import { addPiecesHref, wardrobeHref } from '@/lib/add-flow';
 
 const copy = wardrobe.add;
 
@@ -52,7 +52,7 @@ export function Filed({
           </Button>
         ) : (
           <Link
-            href={`/wardrobe/add?to=${to}`}
+            href={addPiecesHref(to)}
             className={buttonClasses({ variant: 'outline', block: true })}
           >
             {copy.filed.another}

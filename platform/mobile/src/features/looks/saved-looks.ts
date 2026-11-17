@@ -1,6 +1,5 @@
 import {
   queryKeys,
-  useApi,
   useApiClient,
   useApiMutation,
   useUndoableMutation,
@@ -9,12 +8,6 @@ import type { LookPage } from '@robes/contracts';
 import { looks as copy, errors, ui } from '@robes/copy';
 import { useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
-
-const LIMIT = 30;
-
-export function useSavedLooks() {
-  return useApi('looks.list', { input: { limit: LIMIT } });
-}
 
 // Her local calendar date: a wear belongs to the day she wore it, not UTC's.
 export function localDate(now = new Date()): string {

@@ -2,20 +2,13 @@ import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { NotificationItem, NotificationKind, Notifications } from '@robes/contracts';
 import { bell as copy } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
-import {
-  FINE_EDGE,
-  fonts,
-  MIN_TOUCH,
-  maxFontSizeMultiplier,
-  Sheet,
-  Text,
-  useColor,
-} from '@robes/ui-native';
+import { fonts, MIN_TOUCH, maxFontSizeMultiplier, Sheet, Text, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text as RNText, View } from 'react-native';
+import { SwipeRow } from './SwipeRow';
 
 const BELL = 36;
 
@@ -79,7 +72,8 @@ export function Bell() {
 
 // Felix's NotificationsSheet: the drawer header (× · Notifications · ✓), then each item as a card
 // — its glyph on a `cream-200` tile, the task in Cormorant 16, where it leads as a tracked line,
-// a › — with a × beside it that dismisses it. The ✓ clears them all (PRD rev 3 §10 12, over
+// a › — that swipes left to dismiss, as a Wardrobe row does (audit, native polish); screen readers
+// get Dismiss as the card's action. The web keeps its × (no swipe there). The ✓ clears them all (PRD rev 3 §10 12, over
 // "Done only closes" of 6 Nov); × and the scrim close without touching them. A dismissed receipts
 // line leaves the receipts themselves waiting in the Wardrobe. Web twin:
 // app/src/components/shell/bell.tsx.
@@ -95,7 +89,6 @@ function NotificationsSheet({
   const router = useRouter();
   const queryClient = useQueryClient();
   const muted = useColor('ink-muted');
-  const faint = useColor('ink-faint');
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('notifications.list') });
   const dismiss = useApiMutation('notifications.dismiss', { onSuccess: refresh, onError: refresh });
@@ -138,7 +131,14 @@ function NotificationsSheet({
       ) : (
         <View className="gap-2.5" testID="bell-items">
           {items.map((item) => (
-            <View key={item.key} className="flex-row items-center gap-2">
+            <SwipeRow
+              key={item.key}
+              text={copy.dismiss}
+              label={`${copy.dismiss}: ${item.text}`}
+              onAct={() => dismissItem(item.key)}
+              className="rounded-soft"
+              testID={`bell-item-${item.key}`}
+            >
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel={`${item.text} · ${copy.dest[item.kind]}`}
@@ -174,17 +174,7 @@ function NotificationsSheet({
                 </View>
                 <Icon name="forward" size={14} color={muted} />
               </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${copy.dismiss}: ${item.text}`}
-                onPress={() => dismissItem(item.key)}
-                hitSlop={(MIN_TOUCH - 36) / 2}
-                style={{ width: 36, height: 36, borderWidth: FINE_EDGE }}
-                className="items-center justify-center rounded-pill border-rule-mid bg-bg"
-              >
-                <Icon name="close" size={14} color={faint} />
-              </Pressable>
-            </View>
+            </SwipeRow>
           ))}
         </View>
       )}

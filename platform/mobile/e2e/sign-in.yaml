@@ -13,6 +13,12 @@ appId: host.exp.Exponent
 - extendedWaitUntil:
     visible: 'Email me a code'
     timeout: 90000
+# Expo Go's floating tools button sits over whatever is under it (the draft's Save disc, the
+# prompt's send) and stays where it was dragged. Turn it off once per simulator: its menu ›
+# Tools button. Expo Go keeps that.
+- assertNotVisible:
+    id: 'gearshape.fill'
+    label: "Expo Go's Tools button is off (its menu › Tools button)"
 - tapOn: 'you@example.com'
 - inputText: ${EMAIL}
 - tapOn: 'Email me a code'
@@ -49,6 +55,7 @@ appId: host.exp.Exponent
 - extendedWaitUntil:
     visible: '.*, Niall\.'
     timeout: 15000
+- runFlow: looks-prompt.yaml
 - runFlow: shell.yaml
 - runFlow: looks-plan.yaml
 - openLink: ${EXPO_URL}/--/you

@@ -1,4 +1,4 @@
-import { diary, lookbook, wardrobe } from '@robes/copy';
+import { diary, lookbook, ui, wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { DraftLook } from '../src/features/looks/DraftLook';
@@ -136,6 +136,7 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
     },
     'POST /looks': draftOf(),
     [`GET /looks/${LOOK_ID}`]: draftOf(),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: MADE_JOB, status: 'queued' },
   });
   const onClose = jest.fn();
   await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={onClose} />);
@@ -151,7 +152,9 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
     screen.getByRole('tab', { name: wardrobe.segments.shop }).props.accessibilityState.disabled,
   ).toBe(true);
   expect(screen.getByLabelText(diary.flyout.search)).toBeTruthy();
-  expect(screen.getByRole('button', { name: diary.flyout.photograph })).toBeTruthy();
+  // Photograph one leads the grid once her pieces have loaded: wait for it, as for the pieces
+  // (it raced the load under a busy test run).
+  expect(await screen.findByRole('button', { name: diary.flyout.photograph })).toBeTruthy();
   await fireEvent.press(
     await screen.findByRole('checkbox', { name: diary.flyout.pick('Silk scarf') }),
   );
@@ -162,9 +165,14 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
     status: 'draft',
     pieces: [{ pieceId: SCARF }],
   });
-  // The draft carries on in the same sheet: its rack under its heading, the styling card.
-  expect(await screen.findByTestId('styling-card')).toBeTruthy();
-  expect(screen.getByTestId('the-rack')).toBeTruthy();
+  // The draft carries on in the same sheet: its rack under its heading, the model dressed in it
+  // at once and the prompt closed to its sparkle (Annie, 16 Nov).
+  expect(await screen.findByTestId('the-rack')).toBeTruthy();
+  expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
+  await waitFor(
+    () => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(true),
+    { timeout: 3000 },
+  );
   expect(onClose).not.toHaveBeenCalled();
 });
 
@@ -215,9 +223,9 @@ test('a sixth draft asks to let the oldest go, and only then makes room', async 
   });
 });
 
-// The one draft (D14): the picture is drawn only when she asks — here through the Generate chip,
-// which reads "Update the model · 1" while the picture is behind.
-test('a swap from the picker leaves the picture behind; the chip draws the model', async () => {
+// A draft's model wears the rack as she builds it (Annie, 16 Nov): a swap by hand dresses it at
+// once, with no button to press and nothing said in the conversation.
+test('a swap from the picker dresses the model at once', async () => {
   const draft = draftOf({
     pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
     model: piece().image,
@@ -256,16 +264,26 @@ test('a swap from the picker leaves the picture behind; the chip draws the model
   );
   await fireEvent.press(screen.getByTestId('picker-confirm'));
   expect(await screen.findByText(lookbook.swap.swapped('Navy silk top'))).toBeTruthy();
-  expect(await screen.findByTestId('draft-picture-stale')).toBeTruthy();
-  // The picture shows it's behind on its own; no count disc rides it (Annie, 9 Nov).
-  expect(screen.queryByText('1')).toBeNull();
-  expect(renders()).toHaveLength(0);
-  expect(screen.getByText(lookbook.draft.updateModel(1))).toBeTruthy();
-  await fireEvent.press(screen.getByTestId('update-model'));
-  await waitFor(() => expect(renders()).toHaveLength(1));
-  // Her ask stands in the conversation, behind the closed bar.
-  await openPrompt();
-  expect(screen.getByText(lookbook.draft.modelAsked)).toBeTruthy();
+  // Dressed again for the new rack, with no button and no line in the conversation.
+  await waitFor(() => expect(renders()).toHaveLength(1), { timeout: 3000 });
+  expect(screen.queryByTestId('update-model')).toBeNull();
+  expect(screen.queryByText(lookbook.draft.modelAsked)).toBeNull();
+});
+
+// Dressing is never retried on its own: a picture that failed says so and waits for her.
+test('a draft whose picture failed is not dressed again by itself', async () => {
+  const calls = mockFetch({
+    ...BASE,
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    [`GET /looks/${LOOK_ID}`]: draftOf({ onModel: 'failed' }),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: MADE_JOB, status: 'queued' },
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  expect(await screen.findByTestId('the-rack')).toBeTruthy();
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 1500));
+  });
+  expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(false);
 });
 
 test('the adjust disc opens the AdjustSheet; her sentence redraws the picture alone (D21)', async () => {
@@ -330,11 +348,11 @@ test('a draft Robes made is asked about; Restyle it all re-writes it from her wo
     expect(calls.find((c) => c.path.endsWith('/restyle'))?.body).toEqual({ note: 'more casual' }),
   );
   expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
-  // The send closes the sheet: the closed bar carries the work in hand, the conversation her choice.
-  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  // The send keeps the sheet open on the conversation (B6, 16 Nov): her choice, then the work in
+  // hand.
+  expect(screen.getByTestId('draft-prompt')).toBeTruthy();
+  expect(await screen.findByText(`${fb.restyle.label} · “more casual”`)).toBeTruthy();
   expect(screen.getByText(fb.restyle.work(''))).toBeTruthy();
-  await openPrompt();
-  expect(screen.getByText(`${fb.restyle.label} · “more casual”`)).toBeTruthy();
 });
 
 test('closing asks: Discard lets the draft go, Keep for later only closes', async () => {
@@ -346,7 +364,7 @@ test('closing asks: Discard lets the draft go, Keep for later only closes', asyn
   });
   const onClose = jest.fn();
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={onClose} />);
-  expect(await screen.findByTestId('styling-card')).toBeTruthy();
+  expect(await screen.findByTestId('the-rack')).toBeTruthy();
   await fireEvent.press(screen.getByTestId('draft-close'));
   expect(await screen.findByText(copy.discard.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: copy.discard.later }));
@@ -389,13 +407,12 @@ test('the Edit look sheet: Update look and the tick wait for a change, × asks f
   const onClose = jest.fn();
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={onClose} />);
   expect(await screen.findByText(copy.editTitle)).toBeTruthy();
-  const done = () => screen.getByTestId('draft-done');
   const update = () => screen.getByTestId('update-look');
-  expect(done().props.accessibilityLabel).toBe(copy.doneEdit);
+  // One confirm per screen (audit P1): Update look is the accept; the header has no ✓.
+  expect(screen.queryByTestId('draft-done')).toBeNull();
   // Its picture is the photo strip, on the Add a photo card (Capture PRD 3.1).
   expect(screen.getByTestId('image-manager')).toBeTruthy();
-  // Nothing waits: the tick and Update look both sit dimmed (PRD 3.1); × leaves.
-  expect(done().props.accessibilityState.disabled).toBe(true);
+  // Nothing waits: Update look sits dimmed (PRD 3.1); × leaves.
   expect(update().props.accessibilityLabel).toBe(copy.update);
   expect(update().props.accessibilityState.disabled).toBe(true);
   expect(screen.queryByTestId('update-model')).toBeNull();
@@ -405,18 +422,16 @@ test('the Edit look sheet: Update look and the tick wait for a change, × asks f
     screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
   expect(update().props.accessibilityState.disabled).toBe(false);
-  expect(done().props.accessibilityState.disabled).toBe(false);
   await fireEvent.press(screen.getByTestId('draft-close'));
   expect(await screen.findByText(copy.discardEdit.title)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: copy.discard.keep }));
-  // The tick is Update look by another name: it applies the change and she stays in the sheet,
-  // with both dimmed again; × then leaves without a question.
-  await fireEvent.press(done());
+  // Update look applies the change and she stays in the sheet, dimmed again; × then leaves
+  // without a question.
+  await fireEvent.press(update());
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(await screen.findByText(lookbook.updated)).toBeTruthy();
   expect(onClose).not.toHaveBeenCalled();
   await waitFor(() => expect(update().props.accessibilityState.disabled).toBe(true));
-  expect(done().props.accessibilityState.disabled).toBe(true);
   await fireEvent.press(screen.getByTestId('draft-close'));
   expect(onClose).toHaveBeenCalledTimes(1);
 });
@@ -563,9 +578,169 @@ test('Describe: a Style it job that fails ends the wait and says so', async () =
     }),
   );
   expect(await screen.findByText(copy.styleFailed)).toBeTruthy();
-  // She can ask again.
-  await waitFor(() => expect(screen.getByTestId('prompt-rest')).toBeTruthy());
-  expect((await openPrompt()).props.editable).not.toBe(false);
+  // She can ask again: the drawer is still open, her words back in its box (16 Nov).
+  await waitFor(() =>
+    expect(screen.getByTestId('draft-prompt').props.value).toBe('Dinner with friends'),
+  );
+  expect(screen.queryByTestId('her-line')).toBeNull();
+  expect(screen.getByTestId('draft-prompt').props.editable).not.toBe(false);
+});
+
+// Before her first send the prompt opens on the box she tapped, its place and weather standing,
+// with no tracked title over it (Prompt states; look prompt improvements B1, 16 Nov).
+const DAY = '2026-11-06';
+// A whole Today (it must parse), with the day's place and weather in its diary.
+const TODAY_WITH_WEATHER = {
+  date: DAY,
+  hour: 9,
+  firstName: null,
+  today: [],
+  week: Array.from({ length: 7 }, (_, i) => ({
+    date: `2026-11-${String(i + 6).padStart(2, '0')}`,
+    looks: 0,
+    first: null,
+  })),
+  tray: [],
+  ideas: [],
+  inboxCount: 0,
+  overnight: null,
+  home: {
+    state: { styleConfirmed: true, twinOnFile: true, pics: 6, ownLookSaved: true, snoozed: {} },
+    rows: { brands: [], icons: [], styles: [] },
+    recent: [],
+    candidates: [],
+    receipts: null,
+    noticed: null,
+    saved: [],
+    suggested: [],
+  },
+  diary: {
+    from: DAY,
+    to: DAY,
+    days: [
+      {
+        date: DAY,
+        name: null,
+        place: null,
+        weather: { city: 'Dublin', tempRange: '9–14°C', condition: 'light rain', code: 61 },
+        draft: null,
+        entries: [],
+      },
+    ],
+  },
+};
+const dock = () => within(screen.getByTestId('prompt-dock'));
+
+test('a new look for a day: typing keeps the place and weather, under no title', async () => {
+  mockFetch({ ...BASE, 'GET /today': TODAY_WITH_WEATHER });
+  await renderWithApi(
+    <DraftLook id="new" day={DAY} presentation="sheet" onClose={() => undefined} />,
+  );
+  expect(await screen.findByText('Dublin')).toBeTruthy();
+  await fireEvent.changeText(await openPrompt(), 'Dinner with friends');
+  expect(dock().getByText('Dublin')).toBeTruthy();
+  expect(dock().queryByText(copy.dock.title)).toBeNull();
+  // Bare: no panel's grab bar over the box either.
+  expect(dock().queryByLabelText(ui.close)).toBeNull();
+  // A tap beside the box still closes it, though no shade shows (iOS gives a faded view no touch).
+  await fireEvent.press(
+    screen.getByTestId('prompt-dock-backdrop', { includeHiddenElements: true }),
+  );
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  await openPrompt();
+  // × still leaves the weather out while she types, and offers it back.
+  await fireEvent.press(dock().getByLabelText(diary.door.weatherOut));
+  expect(await dock().findByTestId('weather-chip')).toBeTruthy();
+});
+
+test('a draft for a day with no conversation yet: its sparkle opens the box, place and weather and all', async () => {
+  mockFetch({
+    ...BASE,
+    'GET /today': TODAY_WITH_WEATHER,
+    [`GET /looks/${LOOK_ID}`]: draftOf({
+      pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+    }),
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={() => undefined} />,
+  );
+  // With pieces on its rack it rests as the sparkle (Annie, 16 Nov).
+  expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
+  await fireEvent.changeText(await openPrompt(), 'warmer');
+  expect(await dock().findByText('Dublin')).toBeTruthy();
+  expect(dock().queryByText(copy.dock.title)).toBeNull();
+});
+
+// Once she sends, the place and weather her words went with stand under her first line, on every
+// draft for a day; left out on New look, they stay out of the draft it makes (B3, B4, 16 Nov).
+const ASK_JOB = '99999999-9999-4999-8999-999999999999';
+
+test('a hand-built draft for a day: her first line carries the place and weather', async () => {
+  const calls = mockFetch({
+    ...BASE,
+    'GET /today': TODAY_WITH_WEATHER,
+    [`GET /looks/${LOOK_ID}`]: draftOf({
+      pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+    }),
+    [`POST /looks/${LOOK_ID}/ask`]: { jobId: ASK_JOB, status: 'queued' },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={() => undefined} />,
+  );
+  await fireEvent.changeText(await openPrompt(), 'warmer');
+  await dock().findByText('Dublin');
+  await fireEvent.press(dock().getByTestId('prompt-send'));
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/ask'))?.body).toMatchObject({
+      context: { weather: expect.stringContaining('Dublin') },
+    }),
+  );
+  await openPrompt();
+  expect(await screen.findByTestId('her-meta')).toBeTruthy();
+});
+
+test('the weather left out on New look stays out of the draft it makes', async () => {
+  const calls = mockFetch({
+    ...BASE,
+    'GET /today': TODAY_WITH_WEATHER,
+    'POST /looks/prompt': { jobId: MADE_JOB, status: 'queued' },
+    [`GET /jobs/${MADE_JOB}`]: {
+      id: MADE_JOB,
+      kind: 'key_piece',
+      status: 'succeeded',
+      stage: 'done',
+      output: { lookIds: [LOOK_ID], occasion: 'dinner' },
+      error: null,
+      cancelRequested: false,
+      createdAt: '2026-11-06T09:00:00.000Z',
+      updatedAt: '2026-11-06T09:00:05.000Z',
+      finishedAt: '2026-11-06T09:00:05.000Z',
+    },
+    [`GET /looks/${LOOK_ID}`]: draftOf({
+      pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+    }),
+    [`POST /looks/${LOOK_ID}/ask`]: { jobId: ASK_JOB, status: 'queued' },
+  });
+  await renderWithApi(
+    <DraftLook id="new" day={DAY} presentation="sheet" onClose={() => undefined} />,
+  );
+  await fireEvent.changeText(await openPrompt(), 'Dinner with friends');
+  await fireEvent.press(dock().getByLabelText(diary.door.weatherOut));
+  await fireEvent.press(dock().getByTestId('prompt-send'));
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toMatchObject({
+      weather: false,
+    }),
+  );
+  await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
+  await screen.findByText(copy.feedback.questionFor('dinner'));
+  // No place or weather under her brief, and none sent with her next words.
+  await openPrompt();
+  expect(screen.queryByTestId('her-meta')).toBeNull();
+  await fireEvent.changeText(screen.getByTestId('draft-prompt'), 'warmer');
+  await fireEvent.press(dock().getByTestId('prompt-send'));
+  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(true));
+  expect(calls.find((c) => c.path.endsWith('/ask'))?.body).not.toHaveProperty('context');
 });
 
 // The Rack card and the two sources (look prompt PRD S1–S5): with nothing filed the card offers
@@ -620,6 +795,27 @@ test('a tap on Wardrobe while it is empty says so and offers the way in', async 
   expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
 });
 
+test('Wardrobe tapped in the open prompt while it is empty: the prompt comes back after (B7)', async () => {
+  mockFetch({ ...BASE, 'GET /wardrobe/summary': { total: 0, categories: [] } });
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  await fireEvent.changeText(await openPrompt(), 'Gallery opening');
+  await waitFor(() =>
+    expect(dock().getByTestId('source-wardrobe').props.accessibilityLabel).toBe(
+      copy.sources.wardrobe.empty,
+    ),
+  );
+  await fireEvent.press(dock().getByTestId('source-wardrobe'));
+  expect(await screen.findByText(copy.emptyWardrobe.title)).toBeTruthy();
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  // Closed with its ×: once it has gone, the prompt is open again, her words still in it.
+  await fireEvent.press(
+    within(screen.getByTestId('empty-wardrobe')).getByRole('button', { name: ui.close }),
+  );
+  await waitFor(() =>
+    expect(screen.getByTestId('draft-prompt').props.value).toBe('Gallery opening'),
+  );
+});
+
 test('with a wardrobe it is the one source; Shop beside it is a mix, Shop alone is new', async () => {
   const calls = mockFetch({
     ...BASE,
@@ -671,6 +867,10 @@ test('her words with no day make one draft in the same sheet, and Robes asks abo
   await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
   await fireEvent.changeText(await openPrompt(), 'relaxed weekend brunch');
   await fireEvent.press(screen.getByTestId('prompt-send'));
+  // Sent, her words leave the box for the conversation, Robes at work under them (16 Nov).
+  expect(screen.getByTestId('her-line')).toHaveTextContent('relaxed weekend brunch');
+  expect(dock().getByText(lookbook.draft.dressing)).toBeTruthy();
+  expect(screen.getByTestId('draft-prompt').props.value).toBe('');
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
       prompt: 'relaxed weekend brunch',
@@ -681,11 +881,9 @@ test('her words with no day make one draft in the same sheet, and Robes asks abo
   await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
   expect(mockRouter.replace).not.toHaveBeenCalled();
   const fb = copy.feedback;
-  // The look is seen first: the closed bar asks, with the thumbs on it. Opened, her brief heads
-  // the conversation.
+  // The drawer stays open into the draft (B6): her brief heads the conversation, and Robes asks.
   expect(await screen.findByText(fb.questionFor('brunch'))).toBeTruthy();
-  expect(screen.getByTestId('prompt-pill')).toBeTruthy();
-  await openPrompt();
+  expect(screen.queryByTestId('prompt-pill')).toBeNull();
   expect(screen.getByText('relaxed weekend brunch')).toBeTruthy();
   // The question is open: two thumbs, and the box offers to take a change instead.
   expect(screen.getByTestId('thumb-up').props.accessibilityState.disabled).toBe(false);
@@ -719,6 +917,44 @@ test('with no occasion in her brief, Robes asks the plain question', async () =>
   await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(await screen.findByText(copy.feedback.question)).toBeTruthy();
 });
+
+test('while the draft her words made is still being dressed, Robes works and asks only after', async () => {
+  const JOB_DONE = {
+    id: MADE_JOB,
+    kind: 'key_piece',
+    status: 'succeeded',
+    stage: 'done',
+    output: { lookIds: [LOOK_ID], occasion: 'dinner' },
+    error: null,
+    cancelRequested: false,
+    createdAt: '2026-11-06T09:00:00.000Z',
+    updatedAt: '2026-11-06T09:00:05.000Z',
+    finishedAt: '2026-11-06T09:00:05.000Z',
+  };
+  const pieces = [{ piece: piece({ category: 'Tops' }), slot: null, role: null }];
+  const routes = {
+    ...BASE,
+    'POST /looks/prompt': { jobId: MADE_JOB, status: 'queued' },
+    [`GET /jobs/${MADE_JOB}`]: JOB_DONE,
+    [`GET /looks/${LOOK_ID}`]: draftOf({ pieces, onModel: 'pending' }),
+  };
+  mockFetch(routes);
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  await fireEvent.changeText(await openPrompt(), 'dinner with friends');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
+  // The model is still being dressed: no question, no thumbs, Robes at work under her words.
+  await waitFor(() => expect(screen.getByText(lookbook.draft.dressing)).toBeTruthy());
+  expect(screen.getByText('dinner with friends')).toBeTruthy();
+  expect(screen.queryByText(copy.feedback.questionFor('dinner'))).toBeNull();
+  expect(screen.queryByTestId('thumb-up')).toBeNull();
+  // The picture lands: the work line goes and Robes asks.
+  mockFetch({ ...routes, [`GET /looks/${LOOK_ID}`]: draftOf({ pieces, onModel: 'ready' }) });
+  expect(
+    await screen.findByText(copy.feedback.questionFor('dinner'), {}, { timeout: 6000 }),
+  ).toBeTruthy();
+  expect(screen.queryByText(lookbook.draft.dressing)).toBeNull();
+}, 15_000);
 
 test('turning Wardrobe off, the only source, turns Shop on: new pieces only', async () => {
   const calls = mockFetch({
@@ -816,7 +1052,8 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
   expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/wish/[id]', params: { id: WISH_ID } });
 });
 
-test('The Rack heading shows once a piece hangs, and the toggle turns the rows to small photos', async () => {
+// The Rack's controls sit on the Pieces · Details line, with no heading of its own (Annie, 16 Nov).
+test('once a piece hangs, the toggle on the tabs line turns the rows to small photos', async () => {
   mockFetch({
     ...BASE,
     [`GET /looks/${LOOK_ID}`]: draftOf({
@@ -824,9 +1061,11 @@ test('The Rack heading shows once a piece hangs, and the toggle turns the rows t
     }),
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
-  expect(await screen.findByText(copy.rack)).toBeTruthy();
-  expect(screen.getByTestId(`rack-row-${PIECE_ID}`)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.grid }));
+  expect(await screen.findByTestId(`rack-row-${PIECE_ID}`)).toBeTruthy();
+  const tabs = within(screen.getByTestId('draft-tabs'));
+  expect(tabs.getByTestId('rack-pencil')).toBeTruthy();
+  expect(screen.queryByRole('header', { name: copy.rack })).toBeNull();
+  await fireEvent.press(tabs.getByRole('radio', { name: wardrobe.header.grid }));
   expect(screen.queryByTestId(`rack-row-${PIECE_ID}`)).toBeNull();
   expect(screen.getByLabelText(copy.rack)).toBeTruthy();
   // The grid is the pieces' photographs alone, five across (Robes MVP; Annie, 15 Nov): the name is
@@ -840,6 +1079,17 @@ test('The Rack heading shows once a piece hangs, and the toggle turns the rows t
     screen.getByRole('button', { name: lookbook.rack.remove('Camel wool coat') }),
   ).toBeTruthy();
   expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
+});
+
+// A look Robes made from her words opens on its pieces' photographs (Annie, 16 Nov).
+test('a draft Robes made opens its rack on the photographs', async () => {
+  mockFetch({
+    ...BASE,
+    [`GET /looks/${LOOK_ID}`]: draftOf({ composedByRobes: true, source: 'generated' }),
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  expect(await screen.findByTestId('rack-grid-tile')).toBeTruthy();
+  expect(screen.queryByTestId(`rack-row-${PIECE_ID}`)).toBeNull();
 });
 
 // Add a photo to a look (Capture PRD flow 3): the Add a photo card opens the camera that only
@@ -862,10 +1112,9 @@ test('add a photo to a look: camera, Retake or Another, Add to look, then the st
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   expect(await screen.findByTestId('image-manager')).toBeTruthy();
-  const done = () => screen.getByTestId('draft-done');
   const update = () => screen.getByTestId('update-look');
   expect(update().props.accessibilityState.disabled).toBe(true);
-  expect(done().props.accessibilityState.disabled).toBe(true);
+  expect(screen.queryByTestId('draft-done')).toBeNull();
   await fireEvent.press(screen.getByText(lookbook.savedLook.tabs.details));
   expect(screen.getByTestId('details-photos')).toHaveTextContent(/1/);
 
@@ -892,7 +1141,6 @@ test('add a photo to a look: camera, Retake or Another, Add to look, then the st
   expect(screen.queryByTestId('capture-review')).toBeNull();
   expect(screen.getByTestId('details-photos')).toHaveTextContent(/2/);
   expect(update().props.accessibilityState.disabled).toBe(true);
-  expect(done().props.accessibilityState.disabled).toBe(true);
   // Nothing is written before the strip's ✓; the ✓ keeps the photograph and makes it the cover.
   expect(calls.some((c) => c.path.endsWith(`/looks/${LOOK_ID}/images`))).toBe(false);
   await fireEvent.press(screen.getByTestId('image-manager-done'));

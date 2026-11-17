@@ -2,6 +2,10 @@ import { type EventName, type PropsArg, parseEvent } from './events';
 
 export * from './events';
 
+// What screen recordings leave out on web and phone (PostHog's own marker: a class on web, the
+// accessibility label on native): her email, sign-in codes, and anyone else's data on admin pages.
+export const UNRECORDED = 'ph-no-capture';
+
 export interface Analytics {
   track<E extends EventName>(event: E, ...props: PropsArg<E>): void;
   identify(userId: string): void;

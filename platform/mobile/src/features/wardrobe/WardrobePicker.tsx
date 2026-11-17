@@ -1,19 +1,12 @@
-import { useApi } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { diary } from '@robes/copy';
-import {
-  Button,
-  fonts,
-  Heading,
-  MIN_TOUCH,
-  maxFontSizeMultiplier,
-  Sheet,
-  Text,
-} from '@robes/ui-native';
+import { Button, Text } from '@robes/ui-native';
 import { useEffect, useState } from 'react';
-import { Pressable, Text as RNText, View } from 'react-native';
+import { View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 import { flyoutCta } from '@/features/home/diary';
 import { pickOne, usePhotoFiling } from '@/features/home/file-photo';
+import { useAllPieces } from './pieces';
 import { WardrobeGrid } from './WardrobeGrid';
 
 const copy = diary.flyout;
@@ -36,8 +29,9 @@ export function WardrobePicker({
   onClose: () => void;
   onApply: (pieces: Piece[]) => void;
 }) {
-  const pieces = useApi('wardrobe.list', { input: { limit: 100 } }, { enabled: open });
-  const all = (pieces.data?.items ?? []).filter((p) => p.status === 'ready');
+  // Every piece she owns: a first page of 100 left a wardrobe of 133 short (TestFlight, 16 Nov).
+  const { pieces, data } = useAllPieces({ enabled: open });
+  const all = pieces.filter((p) => p.status === 'ready');
   const [category, setCategory] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Piece[]>([]);
@@ -69,44 +63,15 @@ export function WardrobePicker({
     );
   const cta = flyoutCta(picked.length, carried.length);
   return (
-    // A tall sheet (design 3k): it stands near the top whatever it holds; the grid scrolls.
-    <Sheet open={open} onClose={onClose} className="h-[92%]" testID="wardrobe-picker">
-      {/* The eyebrow reads warm, which the Sheet's own header can't, so the head is drawn here. */}
-      <View className="mb-4 flex-row items-start gap-1">
-        <View className="min-w-0 flex-1 gap-1">
-          <RNText
-            maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-            className="text-accent-warm text-xs uppercase"
-            style={{ fontFamily: fonts.sansRegular, letterSpacing: 2.64 }}
-          >
-            {copy.eyebrow}
-          </RNText>
-          <Heading size="md">{title}</Heading>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.cancel}
-          onPress={onClose}
-          style={{ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH }}
-          className="-mr-1 items-center justify-center px-1"
-        >
-          <Text size="small" tone="muted" className="underline">
-            {copy.cancel}
-          </Text>
-        </Pressable>
-      </View>
-      <View className="gap-3" style={{ flexShrink: 1 }}>
-        <WardrobeGrid
-          pieces={pieces.data ? all : undefined}
-          picked={picked}
-          onToggle={toggle}
-          query={query}
-          onQuery={setQuery}
-          category={category}
-          onCategory={setCategory}
-          onSnap={() => void snap()}
-        />
-        {cta.ready ? (
+    // iOS's own sheet at two heights (Annie, 16 Nov): the grid scrolls itself, its button at the foot.
+    <DetentSheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      eyebrow={copy.eyebrow}
+      testID="wardrobe-picker"
+      footer={
+        cta.ready ? (
           <Button
             onPress={() => {
               onApply(picked);
@@ -125,8 +90,20 @@ export function WardrobePicker({
               {cta.label}
             </Text>
           </View>
-        )}
-      </View>
-    </Sheet>
+        )
+      }
+    >
+      <WardrobeGrid
+        pieces={data ? all : undefined}
+        picked={picked}
+        onToggle={toggle}
+        query={query}
+        onQuery={setQuery}
+        category={category}
+        onCategory={setCategory}
+        onSnap={() => void snap()}
+        grow
+      />
+    </DetentSheet>
   );
 }

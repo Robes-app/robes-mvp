@@ -667,3 +667,10 @@ export function lookLine(look: {
   // Printed as she filed them, never re-cased: a brand reads wrong lower-cased.
   return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
 }
+
+// The Lookbook's search stands only once there is enough to search (Annie, 16 Nov): 50 saved
+// looks or more, or while words are already in it, so a search can always be cleared.
+export const LOOKBOOK_SEARCH_FROM = 50;
+export function showLookbookSearch(savedCount: number, query: string): boolean {
+  return savedCount >= LOOKBOOK_SEARCH_FROM || query.trim() !== '';
+}

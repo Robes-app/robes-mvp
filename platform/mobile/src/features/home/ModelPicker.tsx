@@ -6,6 +6,7 @@ import { Icon } from '@robes/icons/native';
 import {
   FINE_EDGE,
   maxFontSizeMultiplier,
+  photoSource,
   Sheet,
   typeStyle,
   useColor,
@@ -108,7 +109,7 @@ export function ModelPicker({
             >
               {g.imageUrl ? (
                 <ExpoImage
-                  source={{ uri: g.imageUrl }}
+                  source={photoSource(g.imageUrl)}
                   contentFit="cover"
                   contentPosition={{ top: '9%', left: '50%' }}
                   accessible={false}

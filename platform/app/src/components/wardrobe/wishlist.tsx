@@ -1,6 +1,6 @@
 'use client';
 
-import { queryKeys, useApi, useApiClient, useUndoableMutation } from '@robes/api-client/react';
+import { queryKeys, useApiAll, useApiClient, useUndoableMutation } from '@robes/api-client/react';
 import type { Wish } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
 import { shade } from '@robes/core/colour';
@@ -12,7 +12,7 @@ import { FilterRow } from '@/components/filters/filter-row';
 import { useWardrobeFilters } from '@/components/filters/use-wardrobe-filters';
 import { errorCopy } from '@/lib/error-copy';
 import { withoutId } from '@/lib/wardrobe';
-import { AddPiecesSheet } from './add/add-pieces-sheet';
+import { AddPiecesSheet, useAddPiecesOpen } from './add/add-pieces-sheet';
 import { CardRow, type CardStatus, CardTile, HeartButton, type RowMeta } from './piece-card';
 import { WardrobeFilterSheet, wearChoicesOf } from './piece-grid';
 import { PieceImage } from './piece-image';
@@ -57,12 +57,12 @@ function wishMatches(
 export function Wishlist() {
   const client = useApiClient();
   const toast = useToast();
-  const list = useApi('wishlist.list', { input: { limit: 100 } });
+  const list = useApiAll('wishlist.list', { input: { limit: 100 } });
   const [layout, setLayout] = useWardrobeLayout();
   const filters = useWardrobeFilters();
   const [sheet, setSheet] = useState(false);
   // The + files a wish: the Add pieces sheet (PRD rev 3 §7.4) opens on the wishlist.
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useAddPiecesOpen();
 
   const remove = useUndoableMutation('wishlist.delete', {
     optimistic: (args) => [

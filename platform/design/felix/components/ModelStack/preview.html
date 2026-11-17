@@ -6,7 +6,7 @@
 <div id="root" style="display:flex;gap:32px;padding:28px"></div>
 <script>
 var F = window.Felix, h = React.createElement;
-var models = [{ src: '/_blob/e9559bed176af4e02501eb7346faa305', name: 'Classic', bs: '450% auto', bp: '50% 9%' }, { src: '/_blob/cacb5e202ab5a8f85ea74dace9b15933', name: 'Natural', bs: '450% auto', bp: '50% 9%' }, { src: '/_blob/d299121b7ee19b76bcb95cec5e0b4f47', name: 'Tailored', bs: '520% auto', bp: '50% 10%' }, { src: '/_blob/dd740bfa87e00a5bf25ccda73bd466e6', name: 'Street', bs: '520% auto', bp: '49% 10%' }, { src: '/_blob/963aef8bd203cb87e5113a54e2a70a7e', name: 'Evening', bs: '520% auto', bp: '47% 8%' }, { src: '/_blob/a396bd4f5f254ddf3bbbe537f5f4fe3a', name: 'Romantic', bs: '460% auto', bp: '42% 26%' }];
+var models = [{ src: '/_blob/b9a42dafa5b1194f20c1c3e05407883f', name: 'Classic', bs: '450% auto', bp: '50% 9%' }, { src: '/_blob/aa39a974ba2ddc22f90bca33cbe87b9a', name: 'Natural', bs: '450% auto', bp: '50% 9%' }, { src: '/_blob/50391bfc33b632d314a4b7e9c3c3e469', name: 'Tailored', bs: '520% auto', bp: '50% 10%' }, { src: '/_blob/2ac5e4c0bcc534a7b17c55e7b8c2c856', name: 'Street', bs: '520% auto', bp: '49% 10%' }, { src: '/_blob/43585afbf0eb5983bc63e3ea5117c650', name: 'Evening', bs: '520% auto', bp: '47% 8%' }, { src: '/_blob/7597cc5806bb4c5cf357991718daf4e8', name: 'Romantic', bs: '460% auto', bp: '42% 26%' }];
 ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
   models.slice(0, 4).map(function (m) { return h(F.ModelStack, { key: m.name, model: m }); })
 ));

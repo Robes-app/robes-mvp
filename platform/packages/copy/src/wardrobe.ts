@@ -291,8 +291,6 @@ export const wardrobe = {
   add: {
     title: 'Add pieces',
     close: 'Close',
-    destination: 'Where they go',
-    to: { wardrobe: 'Wardrobe', wishlist: 'Wishlist' },
     doors: {
       photograph: 'Take a photo',
       cameraRoll: 'Camera roll',
@@ -308,7 +306,7 @@ export const wardrobe = {
       placeholder: 'https://',
       paste: 'Paste',
       clear: 'Clear the link',
-      // Where the piece goes, chosen once on the Add pieces sheet; Change goes back to it.
+      // Where the piece goes, chosen on the Add pieces sheet; Change toggles it in place.
       filingTo: {
         wardrobe: 'Filing to your wardrobe',
         wishlist: 'Filing to your wishlist',

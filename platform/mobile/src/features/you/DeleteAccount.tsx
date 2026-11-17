@@ -24,7 +24,12 @@ export function DeleteAccount() {
   });
   const requested = status?.request != null || request.isSuccess;
   return (
-    <ScrollView contentContainerClassName="gap-4 px-6 pb-12" keyboardShouldPersistTaps="handled">
+    // iOS insets the scroll by the keyboard, so the field she is typing in stays in view.
+    <ScrollView
+      contentContainerClassName="gap-4 px-6 pt-6 pb-12"
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+    >
       <Text>{copy.body}</Text>
       {requested ? (
         <Text tone="muted">{copy.requested}</Text>

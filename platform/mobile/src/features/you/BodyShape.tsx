@@ -35,7 +35,7 @@ export function BodyShape() {
   if (!model || !dna.data) return <Skeleton width="100%" height={240} />;
   const open = () => setFacts(true);
   return (
-    <ScrollView contentContainerClassName="gap-5 px-6 pb-12">
+    <ScrollView contentContainerClassName="gap-5 px-6 pt-6 pb-12">
       <LineCard model={model} facts={dna.data.facts} onOpen={open} />
       <Scales model={model} facts={dna.data.facts} pick={pick} />
       <Sheet open={facts} onClose={() => setFacts(false)} title={f.title} closeLabel={ui.done}>

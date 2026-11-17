@@ -1,4 +1,4 @@
-import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
+import { queryKeys, useApi, useApiAll, useApiClient } from '@robes/api-client/react';
 import type { PlanEntry } from '@robes/contracts';
 import { diary as copy, filters as filterCopy } from '@robes/copy';
 import { weekdayDayMonth, weekdayLong } from '@robes/core/calendar';
@@ -10,7 +10,6 @@ import {
   FINE_EDGE,
   fonts,
   Heading,
-  Sheet,
   Skeleton,
   Text,
   useColor,
@@ -20,6 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 import { FilterRow } from '@/features/filters/FilterRow';
 import { FilterSheet } from '@/features/filters/FilterSheet';
 import { useLookFilters } from '@/features/filters/use-look-filters';
@@ -63,7 +63,8 @@ export function LookPicker({
   const [picks, setPicks] = useState<string[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [sheet, setSheet] = useState(false);
-  const looks = useApi('looks.list', { input: { limit: 60 } }, { enabled: open });
+  // Every saved look, never a first page of 60 (TestFlight, 16 Nov).
+  const looks = useApiAll('looks.list', { input: { limit: 60 } }, { enabled: open });
   const day = useApi('plan.get', { input: { from: date ?? '', days: 1 } }, { enabled: open });
   const all = useMemo(() => (looks.data?.items ?? []).map(lookFacets), [looks.data]);
   const filters = useLookFilters(all);
@@ -132,18 +133,19 @@ export function LookPicker({
     ? copy.drawer.eyebrow(date === today ? copy.today : weekdayLong(date), weekdayDayMonth(date))
     : '';
   return (
-    <Sheet
+    <DetentSheet
       open={open}
       onClose={onClose}
       title={eyebrow}
-      // × · TODAY · MON 2 NOV · ✓: the ✓ is grey until her picks change the day, then ink (PRD §4.5).
+      // × · the day · Done: faint until her picks change the day, then ink (PRD §4.5); what it will
+      // do ("Schedule 2 Looks") is its hint, too long to stand beside the title (audit P2).
       done={{
-        label: cta.ready ? cta.label : copy.drawer.done,
+        label: copy.drawer.done,
+        ...(cta.ready ? { hint: cta.label } : {}),
         onPress: () => void apply(),
         disabled: !cta.ready || saving,
       }}
-      // A tall drawer (design 3k): it stands near the top whatever it holds; the grid scrolls.
-      className="h-[92%]"
+      // iOS's own sheet at two heights: half the screen, pulled up to full; the grid scrolls.
       testID="look-picker"
     >
       {!looks.data ? (
@@ -277,6 +279,6 @@ export function LookPicker({
           />
         </>
       )}
-    </Sheet>
+    </DetentSheet>
   );
 }

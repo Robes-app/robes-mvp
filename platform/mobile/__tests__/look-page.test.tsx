@@ -1,11 +1,12 @@
 import type { Look } from '@robes/contracts';
 import { lookbook, looks } from '@robes/copy';
 import { longDate, monthOf, shiftMonth } from '@robes/core/calendar';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { LookScreen } from '../src/features/looks/LookScreen';
 import { localDate, nextDays } from '../src/features/looks/saved-looks';
 import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
+import { drawnOnAsk } from './support/drawn';
 import { LOOK_ID, look, modelData, PIECE_ID, piece } from './support/fixtures';
 import { openPrompt } from './support/prompt';
 import { mockRouter } from './support/router';
@@ -265,10 +266,10 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjus
   mockFetch(editRoutes(twoPieces()));
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   // At rest a row opens its piece (PRD §6.1, plan R2); the pencil shows the swap and ×.
-  expect(await screen.findByText(lookbook.draftLook.rack)).toBeTruthy();
-  // The canvas's rack: the serif heading, each row's wears behind a calendar, and the small
-  // + hanger chip under the list.
-  expect(screen.getByRole('header', { name: lookbook.draftLook.rack })).toBeTruthy();
+  // The rack's controls sit on the Pieces · Details line (Annie, 16 Nov); each row's wears behind a
+  // calendar, and the small + hanger chip under the list.
+  expect(await screen.findByTestId('rack-pencil')).toBeTruthy();
+  expect(within(screen.getByTestId('draft-tabs')).getByTestId('rack-pencil')).toBeTruthy();
   expect(screen.getAllByLabelText(/^\d+ wears?$/)).toHaveLength(2);
   expect(screen.getByTestId('rack-add')).toBeTruthy();
   expect(screen.queryByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeNull();
@@ -370,8 +371,11 @@ test('Discard drops the unapplied change and leaves; nothing is written', async 
 });
 
 test('words sent from a saved look’s prompt are answered on the rack and kept, with no Update look', async () => {
+  const drawn = drawnOnAsk(twoPieces(), ASK_JOB);
   const calls = mockFetch({
     ...editRoutes(twoPieces()),
+    [`GET /looks/${LOOK_ID}`]: drawn.get,
+    [`POST /looks/${LOOK_ID}/render`]: drawn.render,
     [`POST /looks/${LOOK_ID}/ask`]: { jobId: ASK_JOB, status: 'queued' },
     [`GET /jobs/${ASK_JOB}`]: {
       id: ASK_JOB,
@@ -415,9 +419,11 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
   // what it did: the change is seen, and it only asks.
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(screen.queryByText('Collar up.')).toBeNull();
-  // The closed bar carries the thumbs while the model is drawn; the question stands in the sheet.
-  expect(screen.getByTestId('thumb-up')).toBeTruthy();
+  // While the model wears it Robes waits to ask (16 Nov): no thumbs yet. Once the picture lands
+  // the question comes, with its thumbs.
+  expect(screen.queryByTestId('thumb-up')).toBeNull();
   expect(screen.queryByTestId('update-look')).toBeNull();
+  expect(await screen.findByTestId('thumb-up', {}, { timeout: 8000 })).toBeTruthy();
   await openPrompt();
   expect(screen.getByText(lookbook.draftLook.feedback.again)).toBeTruthy();
   expect(calls.findIndex((c) => c.path.endsWith('/ask'))).toBeLessThan(
@@ -425,7 +431,7 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
   );
   const patch = calls.find((c) => c.method === 'PATCH')?.body as { styling: unknown };
   expect(patch.styling).toEqual({ [PIECE_ID]: 'collar up' });
-});
+}, 20_000);
 
 // The feedback thread on a saved look (look prompt PRD F3, F11, F13–F15, F22): the box's send
 // asks, Robes asks about the change it made, and what she taps next rides the following send.
@@ -475,10 +481,10 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(screen.queryByTestId('update-look')).toBeNull();
   expect(screen.queryByText('Collar up.')).toBeNull();
-  // The send closed the sheet, so the change is seen on the look: the prompt is its closed bar
-  // with the question and the thumbs on it (pins 17, 19, 20), the look's button back under it.
-  expect(screen.queryByTestId('draft-prompt')).toBeNull();
-  expect(screen.getByTestId('prompt-pill')).toBeTruthy();
+  // The send keeps the sheet open (B6, 16 Nov): the question and its thumbs stand in the
+  // conversation, the look above it.
+  expect(screen.getByTestId('draft-prompt')).toBeTruthy();
+  expect(screen.queryByTestId('prompt-pill')).toBeNull();
   expect(screen.getByText('How does the collar look?')).toBeTruthy();
   expect(screen.getByTestId('thumb-up')).toBeTruthy();
   // A thumbs down on the bar opens the sheet on what to change.
@@ -509,10 +515,8 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
     text: '',
     reasons: ['dressy', 'colours'],
   });
-  // Her choice is one bubble (F17).
-  // That send closed the sheet again; opened, her choice is there.
-  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
-  await openPrompt();
+  // Her choice is one bubble (F17), in the sheet the send kept open (B6).
+  expect(screen.getByTestId('draft-prompt')).toBeTruthy();
   expect(
     await screen.findByText(`${fb.reasons.dressy.label} · ${fb.reasons.colours.label}`),
   ).toBeTruthy();

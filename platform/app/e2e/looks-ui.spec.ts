@@ -134,9 +134,11 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await picker.getByRole('button', { name: 'Include White wide-leg trouser' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
-  // The draft carries on in the same drawer: the piece on the rack, the styling card under it.
+  // The draft carries on in the same drawer: the piece on the rack, the model dressed in it and
+  // the prompt at rest as its sparkle (Annie, 16 Nov).
   await expect(page.getByText('Draft look')).toBeVisible();
   await expect(page.getByRole('list', { name: 'The rack · 1 piece' })).toBeVisible();
+  await page.getByTestId('prompt-spark').click();
   // Her words go through the look prompt (plan 2026-11-03) and the picture follows (D14).
   const field = page.getByTestId('draft-prompt');
   await field.fill('swap the trouser for the dark straight jean');
@@ -147,11 +149,10 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await expect(page.getByText('Swapped in · was the white wide-leg trouser')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open Dark straight jean' })).toBeVisible();
 
-  // The send closed the prompt to its bar, so the change is seen on the look (testing, 15 Nov);
-  // the bar's disc opens it again as a sheet over the dimmed look.
-  await expect(field).toHaveCount(0);
-  await page.getByTestId('prompt-expand').click();
+  // The send keeps the prompt open as a sheet over the dimmed look, the conversation in it
+  // (look prompt improvements B6, 16 Nov).
   await expect(page.getByTestId('prompt-scrim')).toBeVisible();
+  await expect(field).toBeVisible();
   // A rule waits under Robes noticed; it changes nothing. The thread's text names what landed,
   // and Robes' words open the sheet again by themselves.
   await field.fill("I don't wear double denim");
@@ -270,6 +271,10 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
     });
     ids.push((await res.json()).id);
   }
+  // A wish she already has, so the picker's Wishlist holds it when it first loads.
+  const wish = await (
+    await api.post('/api/v1/wishlist/items', { data: { label: 'Silk scarf' } })
+  ).json();
   const draft = await (
     await api.post('/api/v1/looks', { data: { status: 'draft', pieces: [{ pieceId: ids[0] }] } })
   ).json();
@@ -293,6 +298,23 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
   // The toast's text is also echoed in its screen-reader live region: check the first (visible) one.
   await expect(page.getByText('Dark straight jean is on the look.').first()).toBeVisible();
   await expect.poll(pieces).toEqual([ids[1]]);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(pieces).toEqual([ids[0]]);
+
+  // The wishlist is always in reach (Annie, 16 Nov): a swap can take a wish, which stands in the
+  // row's place as a piece to find.
+  await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
+  await picker.getByRole('tab', { name: 'Wishlist' }).click();
+  await picker.getByRole('button', { name: 'Include Silk scarf from your wishlist' }).click();
+  await picker.getByRole('button', { name: 'Swap it in' }).click();
+  await expect.poll(pieces).toEqual([]);
+  await expect
+    .poll(async () =>
+      ((await read()).proposals as { wishlistItemId: string | null }[]).map(
+        (p) => p.wishlistItemId,
+      ),
+    )
+    .toEqual([wish.id]);
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(pieces).toEqual([ids[0]]);
 

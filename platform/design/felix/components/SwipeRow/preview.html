@@ -1,0 +1,32 @@
+<!-- @dsCard group="iOS" height=230 subtitle="At rest · resting open at 88pt" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>SwipeRow — preview</title>
+<style>
+  .st{display:flex;flex-direction:column;gap:10px;width:350px;padding:16px 20px;background:var(--cream)}
+  .clip{position:relative;overflow:hidden;border-radius:3px;background:var(--rose-deep)}
+  .act{position:absolute;top:0;right:0;bottom:0;width:88px;display:flex;align-items:center;justify-content:center;font:500 10px/1 var(--font-sans);letter-spacing:2px;text-transform:uppercase;color:var(--cream)}
+  .front{position:relative;display:flex;align-items:center;gap:12px;min-height:65px;padding-right:12px;background:var(--white);box-shadow:var(--shadow-card)}
+  .img{flex:none;align-self:stretch;width:52px;background:var(--cream-100) center/cover}
+  .b{flex:1;min-width:0;padding:9px 0}
+  .c{font:500 8.5px/1.3 var(--font-sans);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+  .n{font:400 15px/1.25 var(--font-serif);color:var(--ink);margin-top:3px}
+  .go{color:var(--ink-faint)}
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+function Row(p) {
+  return h('div', { className: 'clip' }, h('span', { className: 'act' }, 'Remove'),
+    h('div', { className: 'front', style: { transform: 'translateX(' + p.x + 'px)' } },
+      h('span', { className: 'img', style: { backgroundImage: 'url(/_blob/' + p.img + ')' } }),
+      h('div', { className: 'b' }, h('div', { className: 'c' }, p.cat), h('div', { className: 'n' }, p.name)),
+      h('span', { className: 'go' }, h(F.Icon, { name: 'forward', size: 15 }))));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'st' },
+  h(Row, { x: 0, img: '192f70639d7d6694c0601eaa44e26246', cat: 'Tops · Adidas', name: 'Lime green sweatshirt' }),
+  h(Row, { x: -88, img: '0f5d6799317169c80a221da0e6ff23d7', cat: 'Outerwear', name: 'Tailored waistcoat' })));
+</script>
+</body>
+</html>

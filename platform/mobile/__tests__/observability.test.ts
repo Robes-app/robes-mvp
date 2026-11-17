@@ -11,6 +11,8 @@ function fakeClient() {
     optOut: jest.fn(async () => {}),
     register: jest.fn(),
     captureException: jest.fn(),
+    startSessionRecording: jest.fn(async () => {}),
+    stopSessionRecording: jest.fn(async () => {}),
   };
 }
 
@@ -51,6 +53,21 @@ test('withdrawing consent or signing out stops capture and forgets her', async (
   expect(client.capture).not.toHaveBeenCalled();
   await analytics.start('u1');
   expect(client.optIn).toHaveBeenCalled();
+});
+
+test('screen recordings run only with her yes to them, and stop with analytics', async () => {
+  const client = fakeClient();
+  const analytics = createNativeAnalytics(CONFIG, async () => client);
+  await analytics.start('u1');
+  expect(client.startSessionRecording).not.toHaveBeenCalled();
+  expect(client.stopSessionRecording).toHaveBeenCalled();
+  await analytics.start('u1', { recordings: true });
+  expect(client.startSessionRecording).toHaveBeenCalledTimes(1);
+  await analytics.start('u1', { recordings: false });
+  expect(client.stopSessionRecording).toHaveBeenCalledTimes(2);
+  analytics.stop();
+  expect(client.stopSessionRecording).toHaveBeenCalledTimes(3);
+  expect(client.optOut).toHaveBeenCalled();
 });
 
 test('without a key analytics never loads', async () => {

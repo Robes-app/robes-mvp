@@ -86,6 +86,7 @@ test('waits for her answer to the usage question before asking where she is', as
     marketing_email: null,
     photo_analysis: null,
     look_sharing: null,
+    recordings: null,
   };
   mockFetch({
     'GET /me/consents': () => ({ ...consents }),

@@ -17,6 +17,7 @@ import {
   withTagDefaults,
 } from '@robes/core/add-flow';
 import { shade } from '@robes/core/colour';
+import { photoLanding } from '@robes/core/inbox';
 import { material } from '@robes/core/material';
 import { Icon } from '@robes/icons/web';
 import {
@@ -36,6 +37,7 @@ import { useAnalytics } from '@/components/analytics-provider';
 import { CropThumb } from '@/components/photo-pieces/photo-frame';
 import { PinnedAction } from '@/components/pinned-action';
 import {
+  addPiecesHref,
   isTerminal,
   READ_PATIENCE_MS,
   type SessionShot,
@@ -44,6 +46,7 @@ import {
 } from '@/lib/add-flow';
 import { invalidateWardrobe } from '@/lib/wardrobe';
 import { type PieceField, PieceFieldSheet } from '../piece-field-sheet';
+import { PieceImage } from '../piece-image';
 import { RecordRows } from '../piece-rows';
 
 const old = wardrobe.add.review;
@@ -54,6 +57,7 @@ const link = `min-h-11 self-center font-sans text-ink-muted text-[13px] underlin
 const eyebrow = 'font-medium font-sans text-[9px] text-ink-faint uppercase tracking-[0.2em]';
 // How long the toast that follows "Add N to wardrobe" stands (Capture PRD 3c.5).
 const ADDED_MS = 2800;
+const PHOTO_REFRESH_MS = 2000;
 
 type Found =
   | { kind: 'read'; piece: ReadPiece; photo: SessionShot }
@@ -109,18 +113,27 @@ export function Review({
   const toast = useToast();
   const queryClient = useQueryClient();
   const { track } = useAnalytics().analytics;
-  // A link's own entry (links never sit in the Inbox list, which holds receipts).
-  const inbox = useApi('inbox.get', { params: { id: linkId ?? '' } }, { enabled: linkId !== null });
+  // A link's own entry (links never sit in the Inbox list, which holds receipts), asked again
+  // while its product photo is on its way from the isolated fetcher.
+  const inbox = useApi(
+    'inbox.get',
+    { params: { id: linkId ?? '' } },
+    {
+      enabled: linkId !== null,
+      refetchInterval: (q) => (photoLanding(q.state.data) ? PHOTO_REFRESH_MS : false),
+    },
+  );
   const [removed, setRemoved] = useState<ReadonlySet<string>>(() => new Set());
   const [changes, setChanges] = useState<Record<string, RowChanges>>({});
   const [open, setOpen] = useState<string | null>(null);
   const [field, setField] = useState<PieceField | null>(null);
   const [adding, setAdding] = useState(false);
   const [failed, setFailed] = useState(false);
-  // A link's Inbox entry leaves the Inbox once filed, so Review keeps the one it saw.
+  // A link's Inbox entry leaves the Inbox once filed, so Review keeps the last one it saw before
+  // she tapped Add (a newer one only brings its photo).
   const [held, setHeld] = useState<InboxEntry | null>(null);
   const seen = linkId && inbox.data?.id === linkId ? inbox.data : undefined;
-  if (seen && !held) setHeld(seen);
+  if (seen && seen !== held && !adding) setHeld(seen);
 
   // The pieces, in the order she took the photos and Robes found them.
   const entries = useMemo<Entry[]>(() => {
@@ -144,13 +157,8 @@ export function Review({
         group: `inbox:${held?.id}`,
         index: item.index,
         found: { kind: 'link', item },
-        base: readDraft({
-          ...item,
-          notes: null,
-          categoryL2: null,
-          categoryL3: null,
-          color: null,
-        }) as PieceValues,
+        // What the link's photo read filed, with the shop's page as hints (receipt-photo v2).
+        base: readDraft({ ...item, notes: null }) as PieceValues,
       });
     }
     return out;
@@ -254,7 +262,7 @@ export function Review({
     }
   }
 
-  const back = onCamera ?? onAnother ?? (() => router.push(`/wardrobe/add?to=${to}`));
+  const back = onCamera ?? onAnother ?? (() => router.push(addPiecesHref(to)));
   const another = onCamera ? (
     <button type="button" onClick={onCamera} className={link} data-testid="review-another">
       {copy.another}
@@ -370,7 +378,9 @@ export function Review({
         single ? back : () => setOpen(null),
       )}
       <div className="flex justify-center pt-2">
-        {shot ? (
+        {entry?.found.kind === 'link' ? (
+          <LinkPhoto item={entry.found.item} className="w-[236px] shadow-row" sizes="236px" />
+        ) : shot ? (
           <CropThumb
             src={shot.url}
             box={entry?.found.kind === 'read' ? entry.found.piece.box : { x: 0, y: 0, w: 1, h: 1 }}
@@ -467,6 +477,8 @@ function ReviewRow({
           natural={entry.found.photo}
           className="h-[55px] w-11"
         />
+      ) : entry.found.kind === 'link' ? (
+        <LinkPhoto item={entry.found.item} className="w-11 shrink-0" sizes="44px" />
       ) : (
         <span className="block h-[55px] w-11 shrink-0 rounded-[3px] bg-surface-sunk" />
       )}
@@ -497,6 +509,27 @@ function ReviewRow({
       </button>
       <Icon name="forward" size={14} className="shrink-0 text-ink-faint" />
     </li>
+  );
+}
+
+// A link's product shot, stored as her own photo: a skeleton while it is on its way, the hanger
+// when the shop had none. Native twin: features/wardrobe/add/Review.tsx LinkPhoto.
+function LinkPhoto({
+  item,
+  className,
+  sizes,
+}: {
+  item: InboxEntry['items'][number];
+  className: string;
+  sizes: string;
+}) {
+  return (
+    <PieceImage
+      piece={{ label: item.label, image: item.image, status: item.reading ? 'reading' : 'ready' }}
+      sizes={sizes}
+      mat
+      className={className}
+    />
   );
 }
 

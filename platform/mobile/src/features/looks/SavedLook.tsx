@@ -3,7 +3,7 @@ import type { Look, PieceImage } from '@robes/contracts';
 import { lookbook, looks as looksCopy } from '@robes/copy';
 import { dressOnOpen } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import { Text, useColor } from '@robes/ui-native';
+import { photoSource, Text, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Image as ExpoImage } from 'expo-image';
 import { useEffect, useRef } from 'react';
@@ -78,7 +78,7 @@ export function ImageStack({ look, onOpen }: { look: Look; onOpen: () => void })
           transform: [{ rotate: '4deg' }],
         }}
       >
-        {next ? <ExpoImage source={{ uri: uri(next) ?? undefined }} style={{ flex: 1 }} /> : null}
+        {next ? <ExpoImage source={photoSource(uri(next) ?? '')} style={{ flex: 1 }} /> : null}
       </View>
       <View
         className="absolute overflow-hidden rounded-xs border-surface-raised bg-surface-sunk"
@@ -86,7 +86,7 @@ export function ImageStack({ look, onOpen }: { look: Look; onOpen: () => void })
       >
         {front ? (
           <ExpoImage
-            source={{ uri: uri(front) ?? undefined }}
+            source={photoSource(uri(front) ?? '')}
             contentPosition={{ top: '20%', left: '50%' }}
             style={{ flex: 1 }}
           />

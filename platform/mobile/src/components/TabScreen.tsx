@@ -7,12 +7,14 @@ import {
   Heading,
   MIN_TOUCH,
   useReducedMotion,
+  useToastLift,
   Wordmark,
 } from '@robes/ui-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
@@ -22,8 +24,12 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { Animated, Easing, Platform, Pressable, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell } from './Bell';
+
+// shortcut: Android's tab bar sits below the screen, outside its insets, so its height is Material
+// 3's 80dp navigation bar over the system's gesture inset, not read from the navigator.
+const ANDROID_TAB_BAR = 80 + (initialWindowMetrics?.insets.bottom ?? 0);
 
 export interface TabScrollProps {
   contentInset: { bottom: number };
@@ -193,6 +199,18 @@ export function TabScreen({
   // On iOS each tab screen's safe area includes the tab bar it scrolls beneath; on Android the
   // tab bar sits below the screen and the navigator pads for it.
   const bottom = Platform.OS === 'ios' ? insets.bottom : 0;
+  // A toast stands above the tab bar, never on it: a tap meant for a tab landed on the toast, and
+  // on "Draft let go." its Undo brought the draft back (16 Nov). Only while this tab is in view,
+  // so a screen pushed over the tabs keeps the toast at its own foot. Web twin: the phone dock's
+  // clearance in app/src/components/shell/app-shell.tsx.
+  const [inView, setInView] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setInView(true);
+      return () => setInView(false);
+    }, []),
+  );
+  useToastLift(inView ? (Platform.OS === 'ios' ? insets.bottom : ANDROID_TAB_BAR) : 0);
   const floating = glass && Platform.OS === 'ios';
   const sticky = useRef<StickyStore | null>(null);
   if (!sticky.current) sticky.current = stickyStore();

@@ -1,0 +1,79 @@
+# The look prompt on a new look for today (look prompt improvements I8, 16 Nov): she types in
+# the box she tapped and its place and weather stay (B1, B2, B5); her send stands in the
+# conversation, the drawer open over the look (B6). Signed in on Home, from sign-in.yaml.
+appId: host.exp.Exponent
+---
+- tapOn:
+    id: 'today-tab'
+- scrollUntilVisible:
+    element:
+      id: 'disc-create'
+    timeout: 15000
+- tapOn:
+    id: 'disc-create'
+- extendedWaitUntil:
+    visible:
+      id: 'prompt-rest'
+    timeout: 15000
+# The day's place and weather ride in the resting box.
+- assertVisible:
+    id: 'draft-context'
+- tapOn:
+    id: 'prompt-rest'
+- extendedWaitUntil:
+    visible:
+      id: 'draft-prompt'
+    timeout: 10000
+# The field takes the keyboard as the box opens: no tap on it first.
+- inputText: 'Dinner with friends'
+- assertVisible: 'Dinner with friends'
+# Before her first send: no drawer title, and the place and weather are still in the box (B1, B2).
+- assertNotVisible: '(?i)styling with robes'
+- assertVisible:
+    id: 'draft-context'
+# With a place, the weather can be left out and brought back while she types (B5). A fresh
+# account may have no place yet ("Type a city"), when there is no weather to leave out.
+- runFlow:
+    when:
+      visible: 'Leave the weather out'
+    commands:
+      - tapOn: 'Leave the weather out'
+      # "Add location & weather", read by its name: Bring the weather back.
+      - assertVisible:
+          id: 'weather-chip'
+      - assertVisible: 'Dinner with friends'
+      - tapOn:
+          id: 'weather-chip'
+      - assertVisible: 'Leave the weather out'
+- tapOn:
+    id: 'prompt-send'
+# Sent: her words leave the box for the conversation, Robes at work under them, and the drawer
+# stays open with its title (B6).
+- extendedWaitUntil:
+    visible:
+      id: 'her-line'
+    timeout: 10000
+- assertVisible: 'Dinner with friends'
+- assertVisible: '(?i)styling with robes'
+# Robes at work, or (when the draft comes back at once) already asking about it.
+- assertVisible: 'Dressing it…|How does this feel for .*|How is this look\?'
+# Fold the drawer and leave; a draft already made asks what to do with it.
+- tapOn:
+    id: 'prompt-minimise'
+- tapOn:
+    id: 'draft-close'
+- runFlow:
+    when:
+      visible: 'Discard this draft?'
+    commands:
+      - tapOn: 'Discard'
+- extendedWaitUntil:
+    visible:
+      id: 'disc-create'
+    timeout: 10000
+# "Draft let go." with its Undo sits over the tab bar until it times out: a tap on a tab before
+# then is a tap on Undo, and the draft comes back.
+- extendedWaitUntil:
+    notVisible:
+      id: 'toast-frame'
+    timeout: 20000

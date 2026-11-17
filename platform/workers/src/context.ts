@@ -26,6 +26,7 @@ import {
   type JobTransport,
   type NotifyDeps,
   type OvernightDeps,
+  PHOTO_MAX_BYTES,
   type ReceiptDeps,
   type RequestPhoto,
   type RunOutcome,
@@ -35,8 +36,11 @@ import {
 import { createLogger } from '@robes/logger';
 import { createMailer, type Mailer } from '@robes/mailer';
 import { createMediaBucket, createMediaStorage, type MediaStorage } from '@robes/media/storage';
-import { storeFetchedPhoto } from './photos';
+import { attachFetchedPhoto } from './photos';
 import { tracedLedger, traceShare } from './tracing';
+
+// Long enough for the fetch queue's retries (SEC-40 fetcher: batch 1, 30 s timeout).
+const PHOTO_UPLOAD_TTL_SECONDS = 15 * 60;
 
 export interface WorkerContext {
   system: SystemRepositories;
@@ -52,7 +56,7 @@ export interface WorkerContext {
   overnight(): Promise<OvernightDeps>;
   // Everything inboundFn needs to turn a forwarded receipt into a held Inbox row.
   inbound(): Promise<ReceiptDeps>;
-  // Asks the isolated fetcher for a receipt line's photo; unset where the fetch queue isn't.
+  // Asks the isolated fetcher for a product photo; unset where the fetch queue or bucket isn't.
   requestPhoto?: RequestPhoto;
   // Waits for in-process runs started by the dev transport, then closes the pool.
   close(): Promise<void>;
@@ -142,11 +146,40 @@ async function createWorkerContext(): Promise<WorkerContext> {
     storage && (geminiApiKey || env.APP_ENV === 'dev')
       ? createJobAi({ appEnv: env.APP_ENV, geminiApiKey })
       : null;
+  // A product photo (a receipt line's or a pasted link's) goes to the isolated fetcher (SEC-40)
+  // with a form presigned for its one key, so the fetcher uploads it holding no rights of its
+  // own; in dev the same guarded fetch uploads it here, and it is rendered and read in-process.
+  // `run` is called only once a photo is in, by when it is defined.
+  const fetchQueue = env.FETCH_QUEUE_URL;
+  const photoForm = (s: MediaStorage, key: string) =>
+    s.presignPost(key, { maxBytes: PHOTO_MAX_BYTES, expiresIn: PHOTO_UPLOAD_TTL_SECONDS });
+  const requestPhoto: RequestPhoto | undefined = !storage
+    ? undefined
+    : fetchQueue
+      ? async ({ jobId, url, key }) => {
+          const upload = await photoForm(storage, key);
+          await new SQSClient({}).send(
+            new SendMessageCommand({
+              QueueUrl: fetchQueue,
+              MessageBody: JSON.stringify({ jobId, url, kind: 'photo', upload }),
+            }),
+          );
+        }
+      : env.APP_ENV === 'dev'
+        ? async ({ jobId, url, key }) => {
+            const upload = await photoForm(storage, key);
+            const result = await fetchPhoto(url, upload, { localUpload: true });
+            const deps = { jobs: system.jobs, ...(onGenerated ? { onStored: onGenerated } : {}) };
+            if (await attachFetchedPhoto(deps, jobId, result)) await run(jobId);
+          }
+        : undefined;
   // Generated frames land as uploads, so the S3 event renders them; no onGenerated here.
   // Link imports need no AI or bucket; in AWS the isolated fetcher attaches the page result,
   // in dev the same SSRF-guarded fetch runs in-process.
   const linkImport = {
     intake: system.inboxIntake,
+    logger,
+    ...(requestPhoto ? { requestPhoto } : {}),
     ...(env.APP_ENV === 'dev' ? { fetchLink: (url: string) => fetchLink(url) } : {}),
   };
   const handlers = createHandlers(
@@ -242,29 +275,6 @@ async function createWorkerContext(): Promise<WorkerContext> {
     : env.APP_ENV === 'dev'
       ? createInlineTransport({ run, schedule: (task) => void inline.push(task()), logger })
       : null;
-
-  // A receipt line's photo goes to the isolated fetcher (SEC-40); in dev the same guarded fetch
-  // runs here, and the photo is stored, rendered and read in-process.
-  const fetchQueue = env.FETCH_QUEUE_URL;
-  const requestPhoto: RequestPhoto | undefined = fetchQueue
-    ? async ({ jobId, url }) => {
-        await new SQSClient({}).send(
-          new SendMessageCommand({
-            QueueUrl: fetchQueue,
-            MessageBody: JSON.stringify({ jobId, url, kind: 'photo' }),
-          }),
-        );
-      }
-    : env.APP_ENV === 'dev' && storage
-      ? async ({ jobId, url }) => {
-          const deps = {
-            jobs: system.jobs,
-            storage,
-            ...(onGenerated ? { onStored: onGenerated } : {}),
-          };
-          if (await storeFetchedPhoto(deps, jobId, await fetchPhoto(url))) await run(jobId);
-        }
-      : undefined;
 
   return {
     system,

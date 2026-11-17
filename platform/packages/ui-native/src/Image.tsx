@@ -1,6 +1,7 @@
 import { Image as ExpoImage, type ImageContentFit } from 'expo-image';
 import { View } from 'react-native';
 import { cx } from './cx';
+import { photoSource } from './photo-source';
 
 export const ASPECTS = { '4:5': 4 / 5, '1:1': 1, '3:4': 3 / 4 } as const;
 export type Aspect = keyof typeof ASPECTS;
@@ -45,7 +46,7 @@ export function Image({
       importantForAccessibility={decorative ? 'no-hide-descendants' : 'yes'}
     >
       <ExpoImage
-        source={{ uri: source }}
+        source={photoSource(source)}
         placeholder={blurhash ? { blurhash } : undefined}
         placeholderContentFit={contentFit}
         contentFit={contentFit}

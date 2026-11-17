@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Me } from '@robes/contracts';
+import type { Me, Piece } from '@robes/contracts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -10,6 +10,7 @@ import {
   queryKeys,
   type UndoHandle,
   useApi,
+  useApiAll,
   useApiMutation,
   useUndoableMutation,
 } from './react';
@@ -100,6 +101,75 @@ describe('useApi', () => {
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error).toMatchObject({ code: 'not_found', status: 404 });
+  });
+});
+
+const NOW = '2026-11-16T10:00:00.000Z';
+const pieceId = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+function piece(n: number): Piece {
+  return {
+    id: pieceId(n),
+    label: `Piece ${n}`,
+    category: 'Accessories',
+    categoryL2: null,
+    categoryL3: null,
+    color: null,
+    colourShade: null,
+    colourExtra: [],
+    print: null,
+    material: null,
+    colourCheck: false,
+    materialCheck: false,
+    brandCheck: false,
+    brand: null,
+    notes: null,
+    status: 'ready',
+    heroPosition: null,
+    seasonBand: 'year_round',
+    seasons: [],
+    wearFor: [],
+    price: null,
+    currency: null,
+    size: null,
+    wearCount: 0,
+    image: null,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+}
+
+// TestFlight, 16 Nov: a wardrobe of 133 pieces offered only the first 100 to the picker.
+describe('useApiAll', () => {
+  it('follows the cursor to the last page and answers with every item', async () => {
+    const pages: Record<string, { items: unknown[]; total: number; nextCursor: string | null }> = {
+      '': { items: [1, 2].map(piece), total: 5, nextCursor: 'c2' },
+      c2: { items: [3, 4].map(piece), total: 5, nextCursor: 'c3' },
+      c3: { items: [5].map(piece), total: 5, nextCursor: null },
+    };
+    const { fetch, wrapper } = setup((url) => {
+      const cursor = new URL(url, 'http://x').searchParams.get('cursor') ?? '';
+      return json(pages[cursor]);
+    });
+    const { result } = renderHook(() => useApiAll('wardrobe.list', { input: { limit: 2 } }), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.items.map((i) => i.id)).toEqual([1, 2, 3, 4, 5].map(pieceId));
+    expect(result.current.data?.nextCursor).toBeNull();
+    expect(result.current.data?.total).toBe(5);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    for (const [url] of fetch.mock.calls) expect(String(url)).toContain('limit=2');
+  });
+
+  it('stops when the server repeats a cursor', async () => {
+    const { fetch, wrapper } = setup(() =>
+      json({ items: [piece(1)], total: 1, nextCursor: 'same' }),
+    );
+    const { result } = renderHook(() => useApiAll('wardrobe.list', { input: { limit: 1 } }), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
 

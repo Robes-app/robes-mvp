@@ -15,6 +15,8 @@ interface Client {
   optOut(): Promise<void> | void;
   register(properties: Record<string, string>): Promise<void> | void;
   captureException(error: unknown): void;
+  startSessionRecording(resumeCurrent?: boolean): Promise<void>;
+  stopSessionRecording(): Promise<void>;
 }
 type PostHogConfig = { key: string; host: string; environment: string };
 export type LoadPostHog = (config: PostHogConfig) => Promise<Client>;
@@ -25,15 +27,26 @@ const loadPostHog: LoadPostHog = async ({ key, host }) => {
   return new PostHog(key, {
     host,
     personProfiles: 'identified_only',
-    // Catalogue events and uncaught JS errors only: no lifecycle pings, no replay on mobile.
+    // Catalogue events and uncaught JS errors only: no lifecycle pings.
     captureAppLifecycleEvents: false,
-    enableSessionReplay: false,
     errorTracking: { autocapture: { uncaughtExceptions: true, unhandledRejections: true } },
+    // Recordings run only on her yes to them, started and stopped by `start` (SEC-84, owner
+    // 16 Nov 2026): her words show, photos never do, nor a view marked UNRECORDED (her email,
+    // the sign-in code). Web twin: posthogOptions in @robes/analytics/browser.
+    enableSessionReplay: false,
+    sessionReplayConfig: {
+      maskAllTextInputs: false,
+      maskAllImages: true,
+      maskAllSandboxedViews: true,
+      captureLog: false,
+      captureNetworkTelemetry: false,
+    },
   }) as unknown as Client;
 };
 
 export interface NativeAnalytics extends Analytics {
-  start(userId: string): Promise<void>;
+  // `recordings`: her yes to screen recordings; without it none runs.
+  start(userId: string, options?: { recordings?: boolean }): Promise<void>;
   stop(): void;
   // A failure the app caught and showed her (a toast, an error line): autocapture never sees it.
   reportError(error: unknown): void;
@@ -59,7 +72,7 @@ export function createNativeAnalytics(
   });
   return {
     ...analytics,
-    async start(userId) {
+    async start(userId, options) {
       if (!config) return;
       if (client) await client.optIn();
       else {
@@ -69,10 +82,13 @@ export function createNativeAnalytics(
       }
       active = true;
       client.identify(userId);
+      if (options?.recordings) await client.startSessionRecording();
+      else await client.stopSessionRecording();
     },
     stop() {
       active = false;
       if (!client) return;
+      void client.stopSessionRecording();
       void client.optOut();
       client.reset();
     },
@@ -93,11 +109,15 @@ export function AnalyticsSetup(): ReactElement {
   const { consents, give } = useConsents();
   const userId = me.data?.id;
   const allowed = consents?.analytics === true;
+  // Only her yes to recordings that show her words; an older `replay` yes was to masked ones.
+  const recordings = allowed && consents?.recordings === true;
   useEffect(() => {
     if (userId && allowed)
-      void nativeAnalytics.start(userId).catch((err) => report(err, 'analytics.start'));
+      void nativeAnalytics
+        .start(userId, { recordings })
+        .catch((err) => report(err, 'analytics.start'));
     else nativeAnalytics.stop();
-  }, [userId, allowed]);
+  }, [userId, allowed, recordings]);
 
   return (
     <AlertDialog

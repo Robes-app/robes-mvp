@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { namesNoPiece, pieceName, receivedDay, splitAddress, toggleKept } from './index';
+import {
+  namesNoPiece,
+  photoLanding,
+  pieceName,
+  receivedDay,
+  splitAddress,
+  toggleKept,
+} from './index';
 
 describe('toggleKept', () => {
   it('unticks a kept piece and ticks it back in order', () => {
@@ -66,5 +73,20 @@ describe('pieceName', () => {
   it('treats the brand alone as no name, and falls back to "piece"', () => {
     expect(pieceName({ label: 'Zara', brand: 'Zara' })).toBe('Zara piece');
     expect(pieceName({ label: '0900 3701 051' })).toBe('Piece');
+  });
+});
+
+describe('photoLanding', () => {
+  const item = (reading: boolean, status: string | null) => ({
+    reading,
+    image: status ? { status } : null,
+  });
+  it('asks again while a photo is asked for or rendering, and stops once it lands or fails', () => {
+    expect(photoLanding(undefined)).toBe(false);
+    expect(photoLanding({ items: [item(true, null)] })).toBe(true);
+    expect(photoLanding({ items: [item(false, 'pending')] })).toBe(true);
+    expect(photoLanding({ items: [item(false, 'ready')] })).toBe(false);
+    expect(photoLanding({ items: [item(false, 'failed')] })).toBe(false);
+    expect(photoLanding({ items: [item(false, null)] })).toBe(false);
   });
 });

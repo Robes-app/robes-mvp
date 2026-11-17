@@ -4,10 +4,11 @@ import { errors, lookbook, looks as looksCopy } from '@robes/copy';
 import { longDate, weekdayDayMonth } from '@robes/core/calendar';
 import { wearDiff } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import { FINE_EDGE, Skeleton, Subview, Text, useColor, useToast } from '@robes/ui-native';
+import { FINE_EDGE, Skeleton, Text, useColor, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Pressable, View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 import { nativeAnalytics } from '@/lib/analytics';
 
 const copy = lookbook.savedLook.wornView;
@@ -15,18 +16,21 @@ const wears = looksCopy.page.wears;
 
 // Felix's WornView: the dates a look was worn, newest first, each on its own row with the wear's
 // note and an × (a wear is a fact: deleted, never edited). "+ Add a date" opens `DiarySheet`, the
-// one drawer that logs a date. The row opens its day. Web twin:
+// one drawer that logs a date, once this sheet has gone (`onClosed`). On iOS's own sheet, as a
+// piece's Worn is (Annie, 17 Nov). The row opens its day. Web twin (a drawer's subview):
 // app/src/components/looks/worn-view.tsx.
 export function WornView({
   look,
   open,
   onBack,
   onAddDate,
+  onClosed,
 }: {
   look: Look;
   open: boolean;
   onBack: () => void;
   onAddDate: () => void;
+  onClosed?: () => void;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -50,10 +54,12 @@ export function WornView({
   const items = query.data?.items ?? [];
   const labelOf = (id: string) => look.pieces.find((p) => p.piece.id === id)?.piece.label ?? null;
   return (
-    <Subview
+    <DetentSheet
       open={open}
+      onClose={onBack}
+      {...(onClosed ? { onClosed } : {})}
       title={copy.title(look.timesWorn)}
-      onBack={onBack}
+      scroll
       testID="worn-view"
       footer={
         <Pressable
@@ -117,6 +123,6 @@ export function WornView({
           })}
         </View>
       )}
-    </Subview>
+    </DetentSheet>
   );
 }

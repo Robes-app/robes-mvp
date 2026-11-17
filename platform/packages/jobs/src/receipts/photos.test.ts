@@ -15,7 +15,13 @@ describe('queueReceiptPhotos (hourly receipt-photos)', () => {
       ]),
       queuePhotoReads: vi.fn(async (_userId: string, inboxId: string) => {
         if (inboxId === 'inbox-2') throw new Error('db busy');
-        return [{ jobId: `job-${inboxId}`, url: `https://static.shop.test/${inboxId}.jpg` }];
+        return [
+          {
+            jobId: `job-${inboxId}`,
+            url: `https://static.shop.test/${inboxId}.jpg`,
+            assetId: '33333333-3333-4333-8333-333333333333',
+          },
+        ];
       }),
     };
     const requestPhoto = vi.fn(async () => {});
@@ -24,6 +30,8 @@ describe('queueReceiptPhotos (hourly receipt-photos)', () => {
     expect(requestPhoto).toHaveBeenCalledWith({
       jobId: 'job-inbox-3',
       url: 'https://static.shop.test/inbox-3.jpg',
+      // Only this key is presigned for the fetcher's upload: the line's pending asset.
+      key: `uploads/${NIALL}/33333333-3333-4333-8333-333333333333/original`,
     });
     expect(logger.warn).toHaveBeenCalledWith(
       { inboxId: 'inbox-2', reason: 'db busy' },

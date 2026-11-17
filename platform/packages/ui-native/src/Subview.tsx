@@ -1,7 +1,7 @@
 import { ui } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import type { ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { PrimaryScope } from './Button';
 import { useColor } from './color';
 import { ModalInsets } from './ModalInsets';
@@ -68,8 +68,12 @@ export function Subview({
   footer,
   testID,
   onClosed,
+  scroll = true,
 }: {
   open: boolean;
+  // False when the body is a list that scrolls itself (the piece picker's grid): a list inside
+  // this scroll could not skip the rows off screen.
+  scroll?: boolean;
   title: string;
   onBack: () => void;
   // Once iOS has dismissed it: a sheet that follows (Add pieces from the picker's +) waits for
@@ -90,16 +94,27 @@ export function Subview({
     >
       <ModalInsets>
         {(insets) => (
-          <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
+          // Full screen from the top, so the keyboard lifts the footer (TagsView's field) by its
+          // own height (audit, native: a field under the keyboard).
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            className="flex-1 bg-bg"
+            style={{ paddingTop: insets.top }}
+          >
             <SubviewHeader title={title} onBack={onBack} />
             <PrimaryScope>
-              <ScrollView
-                keyboardShouldPersistTaps="handled"
-                contentContainerClassName="px-5 pt-5 pb-8"
-                className="flex-1"
-              >
-                {children}
-              </ScrollView>
+              {scroll ? (
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="interactive"
+                  contentContainerClassName="px-5 pt-5 pb-8"
+                  className="flex-1"
+                >
+                  {children}
+                </ScrollView>
+              ) : (
+                <View className="flex-1 px-5 pt-5">{children}</View>
+              )}
               {footer ? (
                 <View
                   className="border-hairline bg-bg px-5 pt-3"
@@ -109,7 +124,7 @@ export function Subview({
                 </View>
               ) : null}
             </PrimaryScope>
-          </View>
+          </KeyboardAvoidingView>
         )}
       </ModalInsets>
     </Modal>

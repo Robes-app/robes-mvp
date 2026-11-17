@@ -1,6 +1,6 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { UpdateWishInput, Wish } from '@robes/contracts';
-import { wardrobe as copy } from '@robes/copy';
+import { wardrobe as copy, ui } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
@@ -111,7 +111,15 @@ export function WishDetail({ id }: { id: string }) {
       </View>
     );
   }
-  if (query.isError || !query.data) return <EmptyState title={errorMessage(query.error)} />;
+  if (query.isError || !query.data) {
+    // Audit F5: an error is never a dead end.
+    return (
+      <EmptyState
+        title={errorMessage(query.error)}
+        action={{ label: ui.retry, onPress: () => void query.refetch() }}
+      />
+    );
+  }
   const wish = query.data;
   const uri = renditionUri(wish.image, 400);
   const values = wishValues(wish);

@@ -6,6 +6,7 @@ import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/
 import { Icon } from '@robes/icons/native';
 import { ErrorText, Eyebrow, PrimaryScope, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
 import { useTabScroll } from '@/components/TabScreen';
@@ -60,7 +61,14 @@ export function DiaryHome({
     staleTime: WEATHER_STALE_MS,
     refetchOnWindowFocus: false,
   });
+  const router = useRouter();
   const [picked, setPicked] = useState<string | null>(null);
+  // A day she picks on the strip clears the bell's `?day=`, so the same nudge lands again next
+  // time (Annie, 16 Nov: a nudge opens its day's card).
+  const pick = (date: string) => {
+    setPicked(date);
+    if (day) router.setParams({ day: '' });
+  };
   // Home opens with nothing to scroll (Felix, 12 Nov): the day's slot gets the height left under
   // the strip, and sizes its page to it.
   const [viewport, setViewport] = useState<number | null>(null);
@@ -126,12 +134,7 @@ export function DiaryHome({
         </View>
 
         {diary ? (
-          <DiaryStrip
-            days={diary.days}
-            today={today}
-            selected={current.date}
-            onSelect={setPicked}
-          />
+          <DiaryStrip days={diary.days} today={today} selected={current.date} onSelect={pick} />
         ) : null}
 
         {/* Keyed by the day: a day change starts the pager on its first page (PRD rev 3 §3). */}

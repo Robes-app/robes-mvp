@@ -1,5 +1,6 @@
 'use client';
 
+import { UNRECORDED } from '@robes/analytics';
 import { auth as copy, you } from '@robes/copy';
 import { Button, Eyebrow, Field, Heading, Text, Wordmark } from '@robes/ui';
 import Link from 'next/link';
@@ -56,13 +57,17 @@ export function SignInForm({
       <form onSubmit={verify} className="flex flex-col gap-6">
         <header className="flex flex-col gap-2">
           <Heading level={1}>{copy.codeTitle}</Heading>
-          <Text tone="muted">{copy.codeSubtitle(email.trim())}</Text>
+          {/* Her email and the code never show in a screen recording. Native twin: (auth)/sign-in.tsx. */}
+          <Text tone="muted" className={UNRECORDED}>
+            {copy.codeSubtitle(email.trim())}
+          </Text>
         </header>
         <Field
           label={copy.codeLabel}
           name="code"
           inputMode="numeric"
           autoComplete="one-time-code"
+          className={UNRECORDED}
           pattern="\d{6}"
           maxLength={6}
           required
@@ -114,6 +119,7 @@ export function SignInForm({
           label={copy.emailLabel}
           name="email"
           type="email"
+          className={UNRECORDED}
           autoComplete="email"
           placeholder={copy.emailPlaceholder}
           required

@@ -1,6 +1,6 @@
 'use client';
 
-import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
+import { queryKeys, useApi, useApiAll, useApiMutation } from '@robes/api-client/react';
 import type { UpdatePieceInput } from '@robes/contracts';
 import { lookbook, wardrobe } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
@@ -28,7 +28,8 @@ import { invalidateWardrobe, pieceIsReading } from '@/lib/wardrobe';
 
 const copy = wardrobe.piece;
 const READING_REFRESH_MS = 2000;
-const LOOKS_LIMIT = 30;
+// A page of a piece's looks; every page is read, so "In N looks" counts them all.
+const LOOKS_LIMIT = 60;
 const TABS = [copy.tabs.piece, copy.tabs.colour, copy.tabs.wearing] as const;
 type TabLabel = (typeof TABS)[number];
 const TAB_OF: Record<TabLabel, RecordTab> = {
@@ -251,7 +252,7 @@ function WearingRows({
   onLooks: () => void;
 }) {
   const wears = useApi('wardrobe.wears', { params: { id: piece.id } });
-  const looks = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId: piece.id } });
+  const looks = useApiAll('looks.list', { input: { limit: LOOKS_LIMIT, pieceId: piece.id } });
   const last = wears.data?.items[0]?.wornOn;
   // Never worn reads "New" and opens nothing (canvas 3b); worn, the count and the last day.
   const worn = piece.wearCount
@@ -275,7 +276,7 @@ function WearingRows({
 
 // "In N looks": the saved looks she has put this piece on, drawn as the Lookbook draws them.
 function InLooks({ pieceId }: { pieceId: string }) {
-  const query = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId } });
+  const query = useApiAll('looks.list', { input: { limit: LOOKS_LIMIT, pieceId } });
   const items = query.data?.items ?? [];
   if (query.isPending) return <Skeleton shape="text" className="h-4 w-40" />;
   return (

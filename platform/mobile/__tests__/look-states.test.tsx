@@ -1,5 +1,5 @@
 import type { Look, LookSet } from '@robes/contracts';
-import { diary, filters, lookbook, ui } from '@robes/copy';
+import { diary, filters, lookbook, ui, wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { Deck, JobDeck } from '../src/features/looks/Deck';
@@ -9,6 +9,7 @@ import { localDate } from '../src/features/looks/saved-looks';
 import { dayLabel } from '../src/features/plan/plan';
 import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
+import { drawnOnAsk } from './support/drawn';
 import { JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { openPrompt } from './support/prompt';
 import { Providers } from './support/providers';
@@ -261,6 +262,62 @@ test('↻ on a suggested look swaps through the picker, stays suggested, and Und
   expect(screen.getByRole('button', { name: lookbook.bar.saveToLookbook })).toBeTruthy();
 });
 
+test('a swap can take a wish: the WISHLIST tab stays open, and the wish lands as a piece to find', async () => {
+  const WISH = '88888888-8888-4888-8888-888888888888';
+  const wish = {
+    id: WISH,
+    label: 'Silk scarf',
+    category: 'Accessories',
+    categoryL2: null,
+    categoryL3: null,
+    color: 'ivory',
+    brand: 'Toteme',
+    note: null,
+    price: 190,
+    currency: 'EUR',
+    size: null,
+    sourceUrl: null,
+    sourceLabel: 'toteme.com',
+    image: null,
+    createdAt: '2026-09-24T10:00:00.000Z',
+    updatedAt: '2026-09-24T10:00:00.000Z',
+  };
+  const shown = suggestion({ pieces: [{ piece: piece(), slot: null, role: 'anchor' }] });
+  const calls = mockFetch({
+    'GET /me': ME,
+    [`GET /looks/${LOOK_ID}`]: shown,
+    [`PATCH /looks/${LOOK_ID}`]: shown,
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    'GET /wishlist/items': { items: [wish], nextCursor: null },
+    'GET /looks': byStatus({}),
+    'GET /looks/sets/:id': {},
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
+  );
+  const tab = await screen.findByRole('tab', { name: wardrobe.segments.wishlist });
+  expect(tab.props.accessibilityState?.disabled).not.toBe(true);
+  await fireEvent.press(tab);
+  await fireEvent.press(
+    await screen.findByRole('checkbox', { name: lookbook.draftLook.picker.pickWish('Silk scarf') }),
+  );
+  await fireEvent.press(screen.getByTestId('picker-confirm'));
+  const patches = () => calls.filter((c) => c.method === 'PATCH');
+  await waitFor(() => expect(patches()).toHaveLength(1));
+  // The coat leaves her pieces; the scarf stands in its place and role as a piece to find, and the
+  // row remembers the coat ("Swapped in · was …").
+  const body = patches()[0]?.body as {
+    pieces: unknown[];
+    proposals: { wishlistItemId: string | null; role: string }[];
+    edits: Record<string, { was?: { pieceId: string } }>;
+  };
+  expect(body.pieces).toEqual([]);
+  expect(body.proposals[0]).toMatchObject({ wishlistItemId: WISH, role: 'anchor' });
+  expect(Object.values(body.edits)[0]?.was?.pieceId).toBe(PIECE_ID);
+});
+
 test('the Robes model tag follows the picture, opens its sheet; Adjust navigates, Capture opens the camera', async () => {
   mockFetch({
     'GET /me/model': GENERIC_MODEL,
@@ -322,9 +379,10 @@ test('after a change Robes asks; a thumbs down opens the reasons this look can h
     rule: '',
     noticed: false,
   };
+  const drawn = drawnOnAsk(draft, JOB_ID);
   const calls = mockFetch({
     'GET /me': ME,
-    [`GET /looks/${LOOK_ID}`]: draft,
+    [`GET /looks/${LOOK_ID}`]: drawn.get,
     [`POST /looks/${LOOK_ID}/ask`]: { jobId: JOB_ID, status: 'queued' },
     [`GET /jobs/${JOB_ID}`]: job({ ask: swapped }),
     [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
@@ -332,7 +390,7 @@ test('after a change Robes asks; a thumbs down opens the reasons this look can h
       ...JSON.parse(String(init.body)),
       proposals: [],
     }),
-    [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' },
+    [`POST /looks/${LOOK_ID}/render`]: drawn.render,
     'GET /looks': byStatus({}),
   });
   const fb = lookbook.draftLook.feedback;
@@ -341,8 +399,13 @@ test('after a change Robes asks; a thumbs down opens the reasons this look can h
   await fireEvent.changeText(await openPrompt(), 'swap the mules');
   expect(screen.queryByTestId('look-feedback')).toBeNull();
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  // The change lands, and Robes asks once: "How about now?" (F19).
-  expect(await screen.findByText(fb.again)).toBeTruthy();
+  // The change is on the rack and the picture is being dressed: Robes waits to ask (16 Nov).
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(true),
+  );
+  expect(screen.queryByText(fb.again)).toBeNull();
+  // The picture lands, and Robes asks once: "How about now?" (F19).
+  expect(await screen.findByText(fb.again, {}, { timeout: 8000 })).toBeTruthy();
   expect(screen.queryByTestId('feedback-reasons')).toBeNull();
   // A thumbs down opens the reasons; the other thumb dims and takes no second answer (F5, F7).
   await fireEvent.press(screen.getByTestId('thumb-down'));
@@ -366,7 +429,7 @@ test('after a change Robes asks; a thumbs down opens the reasons this look can h
     surface: 'draft',
     verdict: 'down',
   });
-});
+}, 20_000);
 
 test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
   const draft = look({
@@ -374,9 +437,10 @@ test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
     pieces: [{ piece: piece(), slot: null, role: 'anchor' }],
     proposals: [mules],
   });
+  const drawn = drawnOnAsk(draft, JOB_ID);
   const calls = mockFetch({
     'GET /me': ME,
-    [`GET /looks/${LOOK_ID}`]: draft,
+    [`GET /looks/${LOOK_ID}`]: drawn.get,
     [`POST /looks/${LOOK_ID}/ask`]: { jobId: JOB_ID, status: 'queued' },
     [`GET /jobs/${JOB_ID}`]: job({
       ask: {
@@ -401,27 +465,28 @@ test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
       ...JSON.parse(String(init.body)),
       proposals: [],
     }),
-    [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' },
+    [`POST /looks/${LOOK_ID}/render`]: drawn.render,
     'GET /looks': byStatus({}),
   });
   const fb = lookbook.draftLook.feedback;
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.changeText(await openPrompt(), 'swap the mules');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  expect(await screen.findByText(fb.again)).toBeTruthy();
+  expect(await screen.findByText(fb.again, {}, { timeout: 8000 })).toBeTruthy();
   const before = calls.length;
   await fireEvent.press(screen.getByTestId('thumb-up'));
   // The prompt closes: to its closed bar while the picture is still drawing, then to the sparkle
   // (look prompt PRD F6, F23). Either opens it again.
   await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
-  await fireEvent.press(screen.getByTestId('prompt-expand'));
+  // The question waits for the picture (16 Nov), so here it has landed: the sparkle opens it.
+  await openPrompt();
   expect(screen.getByTestId('thumb-up').props.accessibilityState.selected).toBe(true);
   expect(screen.queryByTestId('feedback-reasons')).toBeNull();
   // One answer per question.
   await fireEvent.press(screen.getByTestId('thumb-down'));
   expect(screen.queryByTestId('feedback-reasons')).toBeNull();
   expect(calls.slice(before).some((c) => c.method !== 'GET')).toBe(false);
-});
+}, 20_000);
 
 test('the look prompt lands a swap on a draft and remembers what it replaced', async () => {
   const draft = look({
@@ -429,9 +494,10 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
     pieces: [{ piece: piece(), slot: null, role: 'anchor' }],
     proposals: [mules],
   });
+  const drawn = drawnOnAsk(draft, JOB_ID);
   const calls = mockFetch({
     'GET /me': ME,
-    [`GET /looks/${LOOK_ID}`]: draft,
+    [`GET /looks/${LOOK_ID}`]: drawn.get,
     [`POST /looks/${LOOK_ID}/ask`]: { jobId: JOB_ID, status: 'queued' },
     [`GET /jobs/${JOB_ID}`]: job({
       ask: {
@@ -456,7 +522,7 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
       ...JSON.parse(String(init.body)),
       proposals: [],
     }),
-    [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' },
+    [`POST /looks/${LOOK_ID}/render`]: drawn.render,
     'GET /looks': byStatus({}),
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
@@ -465,7 +531,9 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
   await fireEvent.changeText(field, 'swap the mules for my dark jean');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   // The change is seen on the rack, not told (redline 14 Nov): Robes only asks.
-  expect(await screen.findByText(lookbook.draftLook.feedback.again)).toBeTruthy();
+  expect(
+    await screen.findByText(lookbook.draftLook.feedback.again, {}, { timeout: 8000 }),
+  ).toBeTruthy();
   expect(screen.queryByText('Done. The dark jean is on the look now.')).toBeNull();
   const ask = calls.find((c) => c.path.endsWith('/ask'))?.body as {
     rack: unknown[];
@@ -513,7 +581,7 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
     slots: 1,
   });
   expect(JSON.stringify(track.mock.calls)).not.toContain('dark jean');
-});
+}, 20_000);
 
 test('a rule said in the prompt waits under Robes noticed; a vague ask is written into the field', async () => {
   let answer: Record<string, unknown> = {};

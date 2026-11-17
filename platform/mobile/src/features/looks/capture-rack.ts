@@ -13,7 +13,7 @@ import {
 } from '@robes/core/looks';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { usePieces } from '@/features/wardrobe/pieces';
+import { useAllPieces } from '@/features/wardrobe/pieces';
 import { nativeAnalytics } from '@/lib/analytics';
 import { isTerminal, JOB_REFRESH_MS } from './ideas';
 
@@ -80,7 +80,7 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   setRows.current = editor.setRows;
 
   const waiting = rows.some(isCaptureRow);
-  const wardrobe = usePieces();
+  const wardrobe = useAllPieces();
 
   // The read lands once: its pieces join the rack, or it says there was nothing to find.
   const handled = useRef<string | null>(null);
