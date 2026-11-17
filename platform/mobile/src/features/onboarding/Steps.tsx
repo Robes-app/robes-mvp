@@ -1,16 +1,13 @@
 import { firstRun as copy, you } from '@robes/copy';
-import { COLOUR_FAMILIES } from '@robes/core/colour';
 import { type BrandMark, brandMark, STYLE_TYPES, type StyleType } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/native';
-import { fonts, maxFontSizeMultiplier, PreferenceControl, useColor } from '@robes/ui-native';
+import { fonts, maxFontSizeMultiplier, useColor } from '@robes/ui-native';
 import { Image } from 'expo-image';
 import { Pressable, Text as RNText, View } from 'react-native';
-import { FamilyTile } from '@/features/wardrobe/ColourField';
 import { archetypeImages } from './archetype-images';
 
 export const IDENTITIES = ['woman', 'man', 'non_binary', 'unspecified'] as const;
 export type Identity = (typeof IDENTITIES)[number];
-export type Colours = Partial<Record<string, 1 | -1>>;
 
 // Selected is the warm fill with its edge, never black; unselected is white on a hairline.
 const choice = (on: boolean) =>
@@ -193,53 +190,6 @@ export function BrandsStep({
               {m.lines ? m.lines.join('\n') : name}
             </RNText>
           </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-// 05 Colours (twin: ColoursStep): You › Colours' families without shades.
-export function ColoursStep({
-  value,
-  onChange,
-}: {
-  value: Colours;
-  onChange: (family: string, v: -1 | 0 | 1) => void;
-}) {
-  const ink = useColor('ink');
-  const muted = useColor('ink-muted');
-  return (
-    <View className="border-hairline border-t">
-      {COLOUR_FAMILIES.map((f) => {
-        const v = value[f.id] ?? 0;
-        return (
-          <View
-            key={f.id}
-            className={`flex-row items-center gap-4 border-hairline border-b px-2.5 py-2 ${v === 1 ? 'bg-surface-sunk' : ''}`}
-          >
-            {/* Avoid greys the swatch; the name softens to ink-muted, which still reads at 4.5:1. */}
-            <View style={v === -1 ? { opacity: 0.4 } : undefined}>
-              <FamilyTile family={f} size={34} shape="tile" />
-            </View>
-            <RNText
-              maxFontSizeMultiplier={maxFontSizeMultiplier.body}
-              style={{
-                flex: 1,
-                fontSize: 14,
-                fontFamily: v === 1 ? fonts.sansMedium : fonts.sans,
-                color: v === -1 ? muted : ink,
-              }}
-            >
-              {f.name}
-            </RNText>
-            <PreferenceControl
-              label={copy.colours.control(f.name)}
-              value={v}
-              labels={you.style.palette.states}
-              onChange={(next) => onChange(f.id, next)}
-            />
-          </View>
         );
       })}
     </View>

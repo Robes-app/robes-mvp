@@ -26,7 +26,7 @@ beforeEach(() => {
 test('closing the app mid-way brings her back to the step she was on, answers kept', async () => {
   mockStore.set(
     key,
-    JSON.stringify({ step: 3, identity: 'man', styles: ['Utility'], brands: [], colours: {} }),
+    JSON.stringify({ step: 'styles', identity: 'man', styles: ['Utility'], brands: [] }),
   );
   mockFetch({ 'GET /me': { ...ME, onboarded: false } });
   await renderWithApi(<Onboarding />);
