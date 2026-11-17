@@ -187,7 +187,7 @@ export const firstRun = {
     titleEm: 'you love most.',
     examples: ['Jacket', 'Knit', 'Jeans', 'Dress', 'Boots', 'Bag'],
     add: 'Add favourite pieces',
-    hint: 'One piece per photo · Lay it flat or hang it up',
+    hint: 'One piece per photo · Lay it flat, hang it up, or find it saved in your phone',
     next: 'Next piece, or review when you’re done',
     ready: (n: number): string =>
       n === 1 ? '1 piece for your Wardrobe' : `${n} pieces for your Wardrobe`,
