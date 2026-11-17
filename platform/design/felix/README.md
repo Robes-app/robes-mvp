@@ -4,7 +4,7 @@ Felix is the design system behind **Robes**, a personal styling app: what to wea
 
 - **The look leads.** Photography is the hero of every screen. Chrome stays cream, hairline and small so the outfit carries the colour.
 - **One serif voice, one quiet sans.** Cormorant speaks (greetings, names, questions); Inter labels (tiny, tracked, uppercase). Never swap their jobs.
-- **Black is reserved.** `ink` fills the primary commit ("Schedule look", "New look") and the small plus disc that adds to a collection. Everything else is cream, white or outline. Never two ink pills in view.
+- **Black is reserved.** `ink` fills the primary commit ("Schedule look", "New look"), Home's raised Create disc (**ActionDisc** `primary`) and the small plus disc that adds to a collection. Everything else is cream, white or outline. Never two ink pills in view; the Create disc counts as Home's one.
 - **Borders, not boxes.** Divide with 0.5–1px `rule` / `rule-mid` hairlines. Shadows appear only on things that float over photography or the page (`shadow-disc`, `shadow-sheet`).
 - **Soft-rounded, never bubbly.** Pills for actions, `rad`–`rad-lg` for surfaces, circles for icon controls.
 
@@ -14,7 +14,7 @@ Felix is the design system behind **Robes**, a personal styling app: what to wea
 - **Headlines pair a statement with a softer italic aside** in `ink-soft`: "The Today card. *It always holds the door.*" / "One OOTD. *Alerts in profile.*"
 - **Questions in sheets** are short and human: "What did you wear?", "What are you dressing for today?", "Nothing saved yet."
 - **Casing:** sentence case in copy. Labels, eyebrows, tabs, buttons and dock items are uppercase via their style (`label`, `eyebrow`, `dock-label`) — write them in sentence case in code.
-- **Verbs on actions, one word where possible:** Capture · Describe · Pick · Swap · Edit · Schedule look.
+- **Verbs on actions, one word where possible:** Capture · Create · Pick · Swap · Edit · Schedule look. (Home's Describe disc became Create on 13 Nov.)
 - **Context lines** use middle dots: "Monday · Dublin · 11°C", "Tops · Adidas".
 - **Names a look by its day or occasion:** "The Thursday one", "Set from 'Friday in Paris'".
 - No emoji in UI copy, no exclamation marks, no filler stats.
@@ -25,9 +25,11 @@ Felix is the design system behind **Robes**, a personal styling app: what to wea
 - Text: `ink` for primary, `ink-soft` for secondary and uppercase labels, `ink-faint` for meta and nav links. All three pass 4.5:1 on `cream` and `white`.
 - `cream-200` is the control colour — action discs, chips, small circular buttons. `cream-100` for quieter wells; `cream-300`/`cream-400` for handles, dashed edges and photo backs.
 - The week strip's today cell is `warm-100` with a `warm-line` border; past worn marks are `warm-past`.
-- Accents are earthy and small: `rose` for eyebrows, brand names, the nav alert dot and the selected filter chip (white text on `rose`); `sage` and `sage-mid` for the avatar and ownership; `mauve`, `rose-bg`, `sage-bg` as washes. `rose` is #856970 (darkened from the source's #8e7077): 4.7:1 on `cream`, with white on it at 4.9:1.
+- Accents are earthy and small: `rose` for eyebrows, brand names, and the nav alert dot; `sage` and `sage-mid` for the avatar and ownership; `mauve`, `rose-bg`, `sage-bg` as washes. `rose` is #856970 (darkened from the source's #8e7077): 4.7:1 on `cream`, with white on it at 4.9:1.
 - `danger` only on a destructive reveal (swipe to delete); `alert` only for an unread dot. Neither is ever body text.
 - Drawers dim the screen with `backdrop`, and dialogs over a drawer with `backdrop-strong`. Glass: `nav-glass` + `blur-nav` for the top bar, `dock-glass` + `blur-dock` + `dock-line` for the dock, `veil`, `veil-soft` and `scrim` for discs placed on photos. Action sheets are `sheet-glass` + `blur-sheet`. The Lookbook and Wardrobe header band is `band-glass` + `blur-band`, running up under a transparent nav.
+- Selection in a filter is `cream-200` on a 1px `token-line` (umber) with an `ink` label, no check — quick chips, Filter-sheet options and an on **IconToggle** alike. A kept choice elsewhere (a picker's category pill) stays `warm-100` on `warm-line`.
+- `placeholder` is only the prompt field's resting hint (2.3:1); never put words she needs in it.
 
 ## Type
 
@@ -48,7 +50,7 @@ Felix is the design system behind **Robes**, a personal styling app: what to wea
 
 - Radii: `rad-sm` day cells, `rad` lists and cards, `rad-lg` sheets, `rad-dock` the dock, `rad-pill` every button and chip, circles for icon controls, `rad-tile` look tiles.
 - Shadows: `shadow-disc` on action discs over a photo, `shadow-float` on small white discs, `shadow-card` on grid tiles and the empty-state disc, `shadow-sheet` on floating sheets, `shadow-modal` on dialogs. Nothing else casts a shadow.
-- Motion is short and eased: 0.15–0.2s colour/opacity on hover and select; sheets slide up in 0.3s on `cubic-bezier(.2,0,.2,1)`; standard ease is `cubic-bezier(0.4,0,0.2,1)`.
+- Motion is short and eased: 0.15–0.2s colour/opacity on hover and select; sheets slide up and down in 0.26s on `cubic-bezier(.4,0,.7,1)` and stand on the screen's bottom edge, edge to edge, never inset; standard ease is `cubic-bezier(0.4,0,0.2,1)`.
 - Focus: buttons and tappable rows get a solid 1.5px `ink` outline with a 2px offset (15:1 on cream). Text fields get no ring; the caret marks focus.
 
 ## Imagery
@@ -80,5 +82,8 @@ Felix is the design system behind **Robes**, a personal styling app: what to wea
 - Alerts: **AlertDialog** is the centred confirm ("Discard this draft?", "Save your changes") used before anything that can't be undone. The **TopNav** bell (with its `rose` dot) opens **NotificationsSheet**, and the avatar opens **SettingsView** (Style profile · Account).
 - A look's detail: **SavedLook** (photo + back, adjust and image-stack controls) → **Tabs** (Pieces · Details) → **PieceList** (Included pieces: list or grid, edit, swipe to swap or remove) or **LookDetails** → a full-width **Button** `primary` in a footer over a `rule`.
 - A wardrobe piece: **WardrobePiece**. The piece name is the nav title, then the photo, then Piece · Colour · Wearing. An owned piece ends with an outline "Delete piece"; a shop piece ends with an ink "Add to wardrobe".
-- The `ink` plus buttons open a glass **Sheet** of two or three tiles: "New look" (Describe · Photo · From pieces) on Lookbook, "Add pieces" (Paste URL · Photo · From receipt, with an inbox count) on Wardrobe.
+- The `ink` plus buttons open a glass **Sheet** of two or three tiles: "New look" (Create · Photo · From pieces) on Lookbook, "Add pieces" (Paste URL · Photo · From receipt, with an inbox count) on Wardrobe.
 - The **Wordmark** is typeset — there is no drawn logo file.
+- Toasts stand above the tab bar, never on it, so a tap meant for a tab never lands on Undo.
+- A piece with no photo shows the hanger on `cream-200` (**PieceTile**); a photo still being made shows the shimmer.
+- **Platforms.** Web and iOS are twins: the same tokens, copy and rules. Where iOS draws something itself — its own sheets, Liquid Glass, swipe rows, the long-press look menu, haptics — the **iOS** section says how, and the components grouped **iOS** show it.

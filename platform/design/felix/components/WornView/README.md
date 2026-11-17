@@ -7,3 +7,5 @@ Provide `dates` (`[{date, note}]`, newest first), `onRemove(i)`, `onAdd` and `on
 - Each date is its own 54px row, 8px apart, on `cream` with a 0.5px `rule-mid` border and `rad-row` corners. The row has the date (Inter 13px `ink`), the note in Cormorant italic 300 15px `ink-soft` (default "Worn as saved"), and a 17px × to remove it.
 - When empty, it shows "Not worn yet" centred in Cormorant italic 17px `ink-soft`.
 - Footer: "+ Add a date", a 48px pill with a 1px `ink-line` border and 14px `ink` text.
+
+**On iOS** it stands on **DetentSheet**: iOS's own sheet, opening at two thirds of the screen and pulled up to full, under the system grabber, with **SheetHead** on top (16–17 Nov). Elsewhere it keeps the shell above.

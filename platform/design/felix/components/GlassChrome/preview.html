@@ -1,0 +1,39 @@
+<!-- @dsCard group="iOS" height=500 subtitle="Wardrobe: bar, tabs, search and filters as one pane; pieces scroll beneath" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>GlassChrome — preview</title>
+<style>
+  .ph{position:relative;width:360px;height:470px;margin:16px;border-radius:var(--rad-device);overflow:hidden;background:var(--cream)}
+  .list{position:absolute;inset:0;padding:150px 20px 0;display:grid;grid-template-columns:repeat(3,1fr);gap:16px 10px;align-content:start}
+  .tile{aspect-ratio:3/4;border-radius:3px;background:var(--white) center/cover;box-shadow:var(--shadow-card)}
+  .pane{position:absolute;left:0;right:0;top:0;padding:14px 20px 10px;background:rgba(250,248,245,.55);-webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);box-shadow:inset 0 -0.5px 0 var(--rule)}
+  .ti{font:300 22px/1.3 var(--font-serif);color:var(--ink);text-align:center}
+  .segs{display:flex;height:34px;align-items:center;border-bottom:0.5px solid var(--rule);margin-top:4px}
+  .sg{padding:0 9px;height:34px;display:flex;align-items:center;font:500 9px/1 var(--font-sans);letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
+  .sg:first-child{padding-left:0}
+  .sg.on{color:var(--ink);box-shadow:inset 0 -1.5px 0 var(--ink)}
+  .sr{display:flex;gap:10px;align-items:center;margin-top:10px}
+  .se{flex:1;height:40px;border-radius:var(--rad-pill);background:var(--white);border:0.5px solid var(--rule-mid);display:flex;align-items:center;gap:10px;padding:0 16px;font:300 14px/1 var(--font-sans);color:var(--ink-faint)}
+  .vt{display:flex;padding:2px;border-radius:var(--rad-pill);background:var(--cream-200)}
+  .vt span{width:32px;height:24px;border-radius:var(--rad-pill);display:flex;align-items:center;justify-content:center;color:var(--ink-faint)}
+  .vt span.on{background:var(--white);color:var(--ink-soft)}
+  .chips{display:flex;gap:6px;margin-top:12px}
+  .ch{height:28px;padding:0 11px;border-radius:var(--rad-pill);display:flex;align-items:center;gap:5px;font:400 11px/1 var(--font-sans);color:var(--ink-faint);box-shadow:inset 0 0 0 1px var(--warm-line)}
+  .ch.on{background:var(--cream-200);color:var(--ink);box-shadow:inset 0 0 0 1px var(--token-line)}
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+var imgs = ['536b07b90990bd2cf80d229a3e986f72','192f70639d7d6694c0601eaa44e26246','38c8970c7d439f001a3d18b475fd6b53','17c2602cfc627dac840630e6843d2865','0f5d6799317169c80a221da0e6ff23d7','453b913fc69c1261c244a99b01e812b6','2d31fd0c3de7a0f37f4306c8b8199e3d','a22a935b97cac71f1643d69163049497','e2167f5118df07f93640f698b2bc313d','574b516b797e094fca34d1f0ff6e8487','4d658f1a573b2e9ba1bbc7f34dc6a0af','d5a62fe6c33634d5647ac62599e201ee'];
+ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'ph' },
+  h('div', { className: 'list' }, imgs.map(function (b) { return h('span', { key: b, className: 'tile', style: { backgroundImage: 'url(/_blob/' + b + ')' } }); })),
+  h('div', { className: 'pane' },
+    h('div', { className: 'ti' }, 'Your wardrobe'),
+    h('div', { className: 'segs' }, ['Owned', 'Wishlist', 'Shop'].map(function (s, i) { return h('span', { key: s, className: 'sg' + (i ? '' : ' on') }, s); })),
+    h('div', { className: 'sr' }, h('span', { className: 'se' }, h(F.Icon, { name: 'search', size: 13 }), 'Search your wardrobe'),
+      h('span', { className: 'vt' }, h('span', { className: 'on' }, h(F.Icon, { name: 'grid', size: 14 })), h('span', null, h(F.Icon, { name: 'list', size: 14 })))),
+    h('div', { className: 'chips' }, ['All 36', 'Tops 9', 'Knitwear 4', 'Shoes 5'].map(function (c, i) { return h('span', { key: c, className: 'ch' + (i === 1 ? ' on' : '') }, c); })))));
+</script>
+</body>
+</html>
