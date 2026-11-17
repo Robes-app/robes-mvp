@@ -1,23 +1,28 @@
-import { firstRun as copy } from '@robes/copy';
+import { useApiClient } from '@robes/api-client/react';
+import { firstRun as copy, lookbook } from '@robes/copy';
 import { dayMonth, weekdayShort } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import { palette } from '@robes/tokens';
 import { Button, ErrorText, fonts, maxFontSizeMultiplier, useColor } from '@robes/ui-native';
+import { useState } from 'react';
 import { Pressable, Text as RNText, View } from 'react-native';
+import { CaptureCamera } from '@/features/capture/CaptureCamera';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
+import { useInvalidateLooks } from '@/features/looks/look-states';
 import { localDate } from '@/features/looks/saved-looks';
+import { type PickedPhoto, uploadPhoto } from '@/features/wardrobe/add-pieces';
 import { QuietLink } from './CaptureStep';
 
-// 08 Today's outfit (onboarding PRD R-8; design Q6): the intro, then Home's own Capture for today
-// (`/looks/photo?day=`): the mirror camera, "Whole outfit in frame?", Find the pieces — where she
-// keeps or strikes each one Robes reads — and Save, which puts the look on today and lands her on
-// Home with it in place. The flow is finished as she goes there, so Home is hers when she lands.
+// 08 Today's outfit (onboarding PRD R-8; design Q6): the intro, then Home's capture camera (the
+// mirror, "Whole outfit in frame?"). Use photo saves it as a look, its picture her photograph, on
+// today — no draft drawer (Annie, 17 Nov) — and she lands on Home with it as the day's card. She
+// finds its pieces later, when she opens it.
 export function OutfitStep({
   step,
   busy,
   error,
   onBack,
-  onCapture,
+  onSaved,
   onSkip,
   today = localDate(),
 }: {
@@ -27,11 +32,51 @@ export function OutfitStep({
   busy: boolean;
   error: string | null;
   onBack: () => void;
-  onCapture: (day: string) => void;
+  onSaved: (day: string, lookId: string) => void;
   onSkip: () => void;
 }) {
+  const api = useApiClient();
+  const refreshLooks = useInvalidateLooks();
   const ink = useColor('ink');
-  const capture = () => onCapture(today);
+  const [camera, setCamera] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const capture = () => {
+    setFailed(null);
+    setCamera(true);
+  };
+
+  // Her photograph → a saved look on today (Home's Capture saves the same look to the same day).
+  async function use(photo: PickedPhoto) {
+    if (saving) return;
+    setSaving(true);
+    setFailed(null);
+    try {
+      const photoAssetId = await uploadPhoto(api, photo, 'look_photo');
+      const look = await api.call('looks.create', {
+        input: { status: 'saved', pieces: [], photoAssetId },
+      });
+      await api.call('plan.pin', { params: { id: look.id }, input: { dates: [today] } });
+      refreshLooks(look);
+      onSaved(today, look.id);
+    } catch {
+      setFailed(lookbook.draftLook.capture.camera.failed);
+      setSaving(false);
+    }
+  }
+
+  if (camera) {
+    return (
+      <CaptureCamera
+        copy={lookbook.draftLook.capture.camera}
+        onUse={(photo) => void use(photo)}
+        onClose={() => setCamera(false)}
+        busy={saving || busy}
+        error={failed ?? error}
+      />
+    );
+  }
+
   return (
     <FirstRunFrame
       step={step}

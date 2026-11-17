@@ -296,9 +296,10 @@ export default function Onboarding() {
           busy={busy}
           error={error}
           onBack={back}
-          onCapture={(day) => {
+          onSaved={(day, lookId) => {
             track('outfit', 'answered');
-            void finish(`/looks/photo?day=${day}`);
+            nativeAnalytics.track('onboarding_captured', { step: 'outfit', n: 1 });
+            void finish({ pathname: '/', params: { day, saved: lookId } });
           }}
           onSkip={() => {
             track('outfit', 'skipped');

@@ -5,7 +5,7 @@ import { CaptureStep } from '../src/features/onboarding/CaptureStep';
 import { OutfitStep } from '../src/features/onboarding/OutfitStep';
 import { TwinStep } from '../src/features/onboarding/TwinStep';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
-import { look, modelData, PIECE_ID, piece } from './support/fixtures';
+import { LOOK_ID, look, modelData, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -17,6 +17,21 @@ jest.mock('../src/features/wardrobe/add-pieces', () => ({
   uploadPhoto: jest.fn(async () => `00000000-0000-4000-8000-00000000000${++mockUploads}`),
 }));
 // The shared camera stands in as two buttons: take a photo, and its done pill (Save N).
+// Home's capture camera stands in as its Use photo.
+jest.mock('../src/features/capture/CaptureCamera', () => {
+  const { Pressable, Text } = require('react-native');
+  return {
+    CaptureCamera: (props: { onUse: (p: { uri: string }) => void }) => (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="use photo"
+        onPress={() => props.onUse({ uri: 'file:///outfit.jpg' })}
+      >
+        <Text>use photo</Text>
+      </Pressable>
+    ),
+  };
+});
 jest.mock('../src/features/capture/ShotCamera', () => {
   const { Pressable, Text } = require('react-native');
   return {
@@ -159,21 +174,34 @@ test('Digital twin: no close-up before her yes, which is saved before the camera
   expect(calls[consentAt]?.body).toMatchObject({ consents: { photo_analysis: true } });
 });
 
-test('Today’s outfit hands on to Home’s Capture for today', async () => {
-  const onCapture = jest.fn();
-  mockFetch({});
+test('Today’s outfit saves her photo as a look on today and goes Home, no draft drawer', async () => {
+  const onSaved = jest.fn();
+  const calls = mockFetch({
+    'POST /looks': look(),
+    [`POST /plan/looks/${LOOK_ID}/days`]: { entries: [] },
+  });
   await renderWithApi(
     <OutfitStep
       step={8}
       busy={false}
       error={null}
       onBack={jest.fn()}
-      onCapture={onCapture}
+      onSaved={onSaved}
       onSkip={jest.fn()}
       today="2026-11-17"
     />,
   );
   expect(screen.getByText(copy.outfit.today('Tue 17 Nov'))).toBeTruthy();
   await fireEvent.press(screen.getByTestId('onboarding-capture'));
-  expect(onCapture).toHaveBeenCalledWith('2026-11-17');
+  await act(async () => {
+    await fireEvent.press(screen.getByRole('button', { name: 'use photo' }));
+  });
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith('2026-11-17', LOOK_ID));
+  expect(calls.find((c) => c.path.endsWith('/looks'))?.body).toEqual({
+    status: 'saved',
+    pieces: [],
+    photoAssetId: asset(1),
+  });
+  expect(calls.find((c) => c.path.endsWith('/days'))?.body).toEqual({ dates: ['2026-11-17'] });
+  expect(calls.some((c) => c.path.includes('/drafts'))).toBe(false);
 });
