@@ -41,6 +41,15 @@ export interface OnboardingAnswers {
   colourFamilies?: Record<string, 1 | -1>;
 }
 
+// Where she is in the eight-step flow and, from Brands, her answers (cleaned by the route).
+export interface FirstRunProgress {
+  step?: string;
+  skipped?: string[];
+  genderIdentity?: string;
+  styleArchetypes?: string[];
+  styleBrands?: string[];
+}
+
 export function profilesRepo(db: Db) {
   return {
     get(userId: UserId) {
@@ -82,20 +91,50 @@ export function profilesRepo(db: Db) {
       return (row?.homeSnoozes ?? {}) as Record<string, string>;
     },
 
+    // The eight-step flow as she goes (onboarding PRD): the step she reached, the capture steps
+    // she skipped, and — on Brands — her answers, which replace what the profile holds (a re-run
+    // asks them again, prefilled). Never marks her onboarded: that waits for Home.
+    async saveFirstRun(userId: UserId, progress: FirstRunProgress): Promise<boolean> {
+      const { step, skipped, ...answers } = progress;
+      const set = {
+        ...Object.fromEntries(Object.entries(answers).filter(([, v]) => v !== undefined)),
+        ...(step !== undefined ? { firstRunStep: step } : {}),
+        ...(skipped !== undefined ? { firstRunSkipped: [...new Set(skipped)] } : {}),
+      };
+      if (Object.keys(set).length === 0) return (await this.get(userId)) !== undefined;
+      const row = await db
+        .updateTable('profiles')
+        .set(set)
+        .where('id', '=', userId)
+        .returning('id')
+        .executeTakeFirst();
+      return row !== undefined;
+    },
+
     // Her onboarding answers and the moment she finished, in one write. Answers land only on the
-    // first finish, so a late retry never overwrites what she has since changed in You.
+    // first finish, so a late retry never overwrites what she has since changed in You. With
+    // `firstRun` (the eight-step flow's finish) the version she walked is kept too, and her step
+    // cleared; a re-run finishes an account that was onboarded already.
     async completeOnboarding(
       userId: UserId,
       answers: OnboardingAnswers = {},
+      firstRun?: number,
     ): Promise<Date | null> {
       return db.transaction().execute(async (trx) => {
         const current = await trx
           .selectFrom('profiles')
-          .select('onboardedAt')
+          .select(['onboardedAt', 'firstRunVersion'])
           .where('id', '=', userId)
           .forUpdate()
           .executeTakeFirst();
         if (!current) return null;
+        if (firstRun !== undefined && (current.firstRunVersion ?? 0) < firstRun) {
+          await trx
+            .updateTable('profiles')
+            .set({ firstRunVersion: firstRun, firstRunStep: null })
+            .where('id', '=', userId)
+            .execute();
+        }
         if (current.onboardedAt) return current.onboardedAt;
         const { colourFamilies, ...profile } = answers;
         const set = Object.fromEntries(

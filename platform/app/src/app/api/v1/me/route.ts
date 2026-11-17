@@ -1,5 +1,12 @@
 import { ApiError } from '@robes/api';
-import { EmptyInput, Me, NotificationPrefs, UpdateMeInput } from '@robes/contracts';
+import {
+  EmptyInput,
+  FirstRunCapture,
+  FirstRunStep,
+  Me,
+  NotificationPrefs,
+  UpdateMeInput,
+} from '@robes/contracts';
 import { verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
 import { route } from '@/server/route';
@@ -19,6 +26,11 @@ async function loadMe(id: string) {
     homeCity: profile.homeCity,
     onboarded: profile.onboardedAt !== null,
     notifications: NotificationPrefs.parse(profile.notificationPrefs ?? {}),
+    firstRun: {
+      version: profile.firstRunVersion,
+      step: FirstRunStep.safeParse(profile.firstRunStep).data ?? null,
+      skipped: profile.firstRunSkipped.flatMap((s) => FirstRunCapture.safeParse(s).data ?? []),
+    },
   };
 }
 

@@ -82,6 +82,78 @@ describe('profiles', () => {
     expect((await repos.profiles.get(alice))?.styleArchetypes).toEqual([]);
     expect(await repos.styleProfile.get(alice)).toBeUndefined();
   });
+
+  it('keeps her place in the eight-step flow, to her alone, without onboarding her', async () => {
+    const carol = await createTestUser(db, 'Carol Day');
+    try {
+      expect(
+        await repos.profiles.saveFirstRun(carol, {
+          step: 'looks',
+          skipped: ['pieces', 'pieces'],
+          genderIdentity: 'woman',
+          styleArchetypes: ['Minimal'],
+          styleBrands: ['COS'],
+        }),
+      ).toBe(true);
+      expect(await repos.profiles.get(carol)).toMatchObject({
+        firstRunStep: 'looks',
+        firstRunSkipped: ['pieces'],
+        genderIdentity: 'woman',
+        styleArchetypes: ['Minimal'],
+        styleBrands: ['COS'],
+        onboardedAt: null,
+        firstRunVersion: null,
+      });
+      // A re-run's answers replace the ones she gave before; a step alone leaves them.
+      await repos.profiles.saveFirstRun(carol, { styleArchetypes: ['Classic'] });
+      await repos.profiles.saveFirstRun(carol, { step: 'twin' });
+      expect(await repos.profiles.get(carol)).toMatchObject({
+        firstRunStep: 'twin',
+        styleArchetypes: ['Classic'],
+        styleBrands: ['COS'],
+      });
+      expect((await repos.profiles.get(alice))?.firstRunStep).toBeNull();
+    } finally {
+      await deleteTestUsers(db, carol);
+    }
+  });
+
+  it('finishes the eight-step flow on an account onboarded before it, once', async () => {
+    const dan = await createTestUser(db, 'Dan Lee');
+    try {
+      const before = await repos.profiles.completeOnboarding(dan);
+      await repos.profiles.saveFirstRun(dan, { step: 'outfit' });
+      const after = await repos.profiles.completeOnboarding(dan, {}, 2);
+      // Her first finish stands; the version is new and her step is cleared.
+      expect(after?.getTime()).toBe(before?.getTime());
+      expect(await repos.profiles.get(dan)).toMatchObject({
+        firstRunVersion: 2,
+        firstRunStep: null,
+      });
+      // An older version never lowers it.
+      await repos.profiles.completeOnboarding(dan, {}, 1);
+      expect((await repos.profiles.get(dan))?.firstRunVersion).toBe(2);
+      expect((await repos.profiles.get(bob))?.firstRunVersion).toBeNull();
+    } finally {
+      await deleteTestUsers(db, dan);
+    }
+  });
+
+  it('finishes a new account in the eight-step flow and onboards her', async () => {
+    const eve = await createTestUser(db, 'Eve Moss');
+    try {
+      const at = await repos.profiles.completeOnboarding(eve, {}, 2);
+      expect(at).toBeInstanceOf(Date);
+      expect((await repos.profiles.get(eve))?.firstRunVersion).toBe(2);
+    } finally {
+      await deleteTestUsers(db, eve);
+    }
+  });
+
+  it('refuses a step the flow does not have', async () => {
+    await expect(repos.profiles.saveFirstRun(alice, { step: 'colours' })).rejects.toThrow();
+    await expect(repos.profiles.saveFirstRun(alice, { skipped: ['name'] })).rejects.toThrow();
+  });
 });
 
 describe('notification prefs', () => {
