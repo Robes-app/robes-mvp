@@ -1,7 +1,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { lookbook as copy } from '@robes/copy';
-import { anchorName, noteShort } from '@robes/core/looks';
+import { lookbook as copy, ui } from '@robes/copy';
+import { anchorName, noteShort, pictureLanding } from '@robes/core/looks';
 import {
   Button,
   EmptyState,
@@ -45,14 +45,22 @@ export function LookScreen({
     'looks.get',
     { params: { id } },
     {
-      refetchInterval: (q) =>
-        q.state.data?.framePending || q.state.data?.onModel === 'pending' ? JOB_REFRESH_MS : false,
+      // Until the picture has landed, renditions and all (pictureLanding).
+      refetchInterval: (q) => (pictureLanding(q.state.data) ? JOB_REFRESH_MS : false),
     },
   );
   // Save opens the diary every time; the sheet outlives the working page it was saved from.
   const [justSaved, setJustSaved] = useState<Look | null>(null);
   if (query.isPending) return <Skeleton width="100%" aspectRatio={4 / 5} />;
-  if (query.isError || !query.data) return <EmptyState title={errorMessage(query.error)} />;
+  if (query.isError || !query.data) {
+    // Audit F5: an error is never a dead end.
+    return (
+      <EmptyState
+        title={errorMessage(query.error)}
+        action={{ label: ui.retry, onPress: () => void query.refetch() }}
+      />
+    );
+  }
   const look = query.data;
   return (
     <>
@@ -288,11 +296,14 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
         }}
         onPick={(pieces, wishes) => {
           if (swapping) {
+            // One of her pieces, or a wish from the WISHLIST tab as a piece to find.
             const [piece] = pieces;
-            if (!piece) return;
+            const [wish] = wishes;
+            const into = piece ? { piece } : wish ? { wish } : null;
+            if (!into) return;
             // A suggestion's swap keeps the look's picture (↻ redraws it), behind an Undo.
-            if (suggested) editor.swapKeep(swapping, piece);
-            else editor.swap(swapping, piece);
+            if (suggested) editor.swapKeep(swapping, into);
+            else editor.swap(swapping, into);
             return;
           }
           for (const piece of pieces) editor.add(piece);

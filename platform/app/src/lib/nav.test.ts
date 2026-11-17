@@ -33,9 +33,9 @@ describe('nav', () => {
 
   it('puts the Add pieces sheet’s doors in Create, every one built', () => {
     const add = CREATE_ITEMS.filter((i) => i.group === 'add');
+    // The camera holds the camera roll (audit P2: the Add pieces page is retired).
     expect(add.map((i) => i.href)).toEqual([
-      '/wardrobe/add?start=camera',
-      '/wardrobe/add',
+      '/wardrobe/camera?to=wardrobe',
       '/wardrobe/link',
       '/wardrobe/receipt',
       '/wardrobe/manual',
@@ -56,7 +56,7 @@ describe('nav', () => {
   });
 
   it('stands the dock down in the add flow only', () => {
-    expect(isFlowPath('/wardrobe/add')).toBe(true);
+    expect(isFlowPath('/wardrobe/camera')).toBe(true);
     expect(isFlowPath('/wardrobe/review')).toBe(true);
     expect(isFlowPath('/wardrobe/link')).toBe(true);
     expect(isFlowPath('/wardrobe/manual')).toBe(true);
@@ -101,13 +101,15 @@ describe('backFor', () => {
     expect(backFor(`/looks/ideas/${id}`, q())?.href).toBe('/looks/ideas');
     expect(backFor(`/piece/${id}`, q())).toEqual({ href: '/wardrobe', label: 'Wardrobe' });
     expect(backFor('/wardrobe/inbox', q())?.href).toBe('/wardrobe');
-    expect(backFor('/wardrobe/add', q())?.href).toBe('/wardrobe');
-    expect(backFor('/wardrobe/receipt', q())?.href).toBe('/wardrobe/add');
+    // Back from a way in is the Add pieces sheet over the list (audit P2).
+    expect(backFor('/wardrobe/receipt', q())?.href).toBe('/wardrobe?add=wardrobe');
   });
 
   it('keeps the add destination, and only a known one', () => {
-    expect(backFor('/wardrobe/link', q('to=wishlist'))?.href).toBe('/wardrobe/add?to=wishlist');
-    expect(backFor('/wardrobe/manual', q('to=elsewhere'))?.href).toBe('/wardrobe/add?to=wardrobe');
+    expect(backFor('/wardrobe/link', q('to=wishlist'))?.href).toBe(
+      '/wardrobe/wishlist?add=wishlist',
+    );
+    expect(backFor('/wardrobe/manual', q('to=elsewhere'))?.href).toBe('/wardrobe?add=wardrobe');
   });
 
   it('backs a styling job out to Home only when it started there', () => {

@@ -1,6 +1,6 @@
-import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
+import { queryKeys, useApi, useApiAll, useApiMutation } from '@robes/api-client/react';
 import type { UpdatePieceInput } from '@robes/contracts';
-import { wardrobe as copy, lookbook } from '@robes/copy';
+import { wardrobe as copy, lookbook, ui } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import {
@@ -18,6 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 import { SavedTile } from '@/features/looks/LookTiles';
 import { SuggestedRail } from '@/features/looks/SuggestedRail';
 import { SettingsRow } from '@/features/you/Settings';
@@ -31,7 +32,8 @@ import { PieceRow, RecordRows, type RecordTab } from './PieceRows';
 import { READING_REFRESH_MS, useDeletePiece, usePiecePhoto, useStarPiece } from './pieces';
 import { useReread } from './reread';
 
-const LOOKS_LIMIT = 30;
+// A page of a piece's looks; every page is read, so "In N looks" counts them all.
+const LOOKS_LIMIT = 60;
 const TABS = [copy.piece.tabs.piece, copy.piece.tabs.colour, copy.piece.tabs.wearing] as const;
 type TabLabel = (typeof TABS)[number];
 const TAB_OF: Record<TabLabel, RecordTab> = {
@@ -59,6 +61,7 @@ export function PieceDetail({ id }: { id: string }) {
     isPending,
     isError,
     error,
+    refetch,
   } = useApi(
     'wardrobe.get',
     { params: { id } },
@@ -90,7 +93,15 @@ export function PieceDetail({ id }: { id: string }) {
       </View>
     );
   }
-  if (isError || !piece) return <EmptyState title={errorMessage(error)} />;
+  if (isError || !piece) {
+    // Audit F5: an error is never a dead end.
+    return (
+      <EmptyState
+        title={errorMessage(error)}
+        action={{ label: ui.retry, onPress: () => void refetch() }}
+      />
+    );
+  }
 
   const uri = renditionUri(piece.image, 400);
   // The photo she just picked stands in until its renditions land.
@@ -189,22 +200,25 @@ export function PieceDetail({ id }: { id: string }) {
         }}
         onCancel={() => setConfirm(false)}
       />
-      <Sheet
+      {/* Her wears and the looks she wears it in run long: iOS's own sheet, pulled up to full. */}
+      <DetentSheet
         open={open === 'wears'}
         onClose={() => setOpen(null)}
         title={copy.piece.rows.worn}
-        closeButton
+        scroll
+        testID="piece-wears"
       >
         <Wears pieceId={piece.id} />
-      </Sheet>
-      <Sheet
+      </DetentSheet>
+      <DetentSheet
         open={open === 'looks'}
         onClose={() => setOpen(null)}
         title={copy.piece.rows.inLooks}
-        closeButton
+        scroll
+        testID="piece-looks"
       >
         <InLooks pieceId={piece.id} onOpen={() => setOpen(null)} />
-      </Sheet>
+      </DetentSheet>
       <PieceFieldSheet
         piece={piece}
         field={field}
@@ -281,7 +295,7 @@ function WearingRows({
   onLooks: () => void;
 }) {
   const wears = useApi('wardrobe.wears', { params: { id: piece.id } });
-  const looks = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId: piece.id } });
+  const looks = useApiAll('looks.list', { input: { limit: LOOKS_LIMIT, pieceId: piece.id } });
   const last = wears.data?.items[0]?.wornOn;
   // Never worn reads "New" and opens nothing (canvas 3b); worn, the count and the last day.
   const worn = piece.wearCount
@@ -352,7 +366,7 @@ function Wears({ pieceId }: { pieceId: string }) {
 // "In N looks": the saved looks she has put this piece on, drawn as the Lookbook draws them.
 function InLooks({ pieceId, onOpen }: { pieceId: string; onOpen: () => void }) {
   const router = useRouter();
-  const query = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId } });
+  const query = useApiAll('looks.list', { input: { limit: LOOKS_LIMIT, pieceId } });
   const items = query.data?.items ?? [];
   if (query.isPending) return <Skeleton shape="text" width="60%" />;
   return (

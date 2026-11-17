@@ -38,7 +38,10 @@ export function Colouring() {
   const profile = style.data;
   if (!model || !profile) return <Skeleton width="100%" height={240} />;
   return (
-    <ScrollView contentContainerClassName="gap-5 px-6 pb-12" keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerClassName="gap-5 px-6 pt-6 pb-12"
+      keyboardShouldPersistTaps="handled"
+    >
       <Section title={tw.season}>
         <Seasons profile={profile} onSelfie={selfie.start} />
       </Section>

@@ -9,6 +9,7 @@ import {
   pieceRow,
   rackFromLook,
   rackUpdate,
+  swapForWish,
   type UpdateLookInput,
   type Wish,
   wishRow,
@@ -38,6 +39,10 @@ export const onRackIds = (rows: readonly RackRow[]): string[] =>
   rows.flatMap((r) =>
     r.pieceId ? [r.pieceId] : r.proposal?.wishlistItemId ? [r.proposal.wishlistItemId] : [],
   );
+
+// What a swap puts in a row's place: one of her pieces, or a wish as a piece to find. Native
+// twin: mobile/src/features/looks/look-editor.ts.
+export type SwapIn = { piece: Piece } | { wish: Wish };
 
 export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) {
   const api = useApiClient();
@@ -106,8 +111,10 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     }
   };
 
-  // A swap is something she told Robes: it lands in her memory (style memory slice B).
-  const swapped = (key: string, piece: Piece): RackState => {
+  // A swap is something she told Robes: it lands in her memory (style memory slice B). What comes
+  // in is one of her pieces or, from the picker's WISHLIST tab, a wish as a piece to find.
+  const swapped = (key: string, into: SwapIn): RackState => {
+    const piece = 'piece' in into ? into.piece : into.wish;
     const out = rack.rows.find((r) => r.key === key);
     if (out) {
       void api
@@ -123,6 +130,7 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
         })
         .catch(() => undefined);
     }
+    if ('wish' in into) return swapForWish(rack, key, into.wish);
     return applyAsk(rack, {
       swaps: [
         {
@@ -131,8 +139,8 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
             pieceId: piece.id,
             name: piece.label,
             category: piece.category,
-            categoryL2: piece.categoryL2,
-            brand: piece.brand,
+            categoryL2: into.piece.categoryL2,
+            brand: into.piece.brand,
           },
         },
       ],
@@ -191,10 +199,11 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     // writes the rack back (its rack is re-read from the server after each write); a saved look
     // being edited goes back to how it stood, unsaved changes and all, unless she has changed it
     // again since (L5, L10).
-    swap: (key: string, piece: Piece) => {
+    swap: (key: string, into: SwapIn) => {
+      const piece = 'piece' in into ? into.piece : into.wish;
       const before = rack;
       const wasDirty = dirty;
-      const next = swapped(key, piece);
+      const next = swapped(key, into);
       track('piece_swapped', { surface: look.status, cat: piece.category });
       change(next);
       toast({
@@ -215,9 +224,10 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     },
     // ↻ on a suggested look (legacy 0.1): the swap lands on the suggestion at once, which stays
     // suggested, behind a quiet Undo that puts the rack back.
-    swapKeep: (key: string, piece: Piece) => {
+    swapKeep: (key: string, into: SwapIn) => {
+      const piece = 'piece' in into ? into.piece : into.wish;
       const before = rack;
-      const next = swapped(key, piece);
+      const next = swapped(key, into);
       track('piece_swapped', { surface: look.status, cat: piece.category });
       const put = (r: RackState) =>
         api.call('looks.update', {

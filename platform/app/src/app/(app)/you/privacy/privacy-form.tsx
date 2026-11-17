@@ -38,9 +38,9 @@ export function PrivacyForm() {
         <SettingsToggleRow
           label={copy.replayLabel}
           sub={copy.replayHint}
-          checked={analytics && shown.replay === true}
+          checked={analytics && shown.recordings === true}
           disabled={status === 'saving' || !analytics}
-          onChange={(on) => save({ replay: on })}
+          onChange={(on) => save({ recordings: on })}
         />
         {/* Its own yes, whatever usage counts say. Native twin: features/you/Privacy.tsx. */}
         <SettingsToggleRow

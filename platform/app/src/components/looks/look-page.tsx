@@ -166,11 +166,14 @@ export function Rack({
         }}
         onPick={(pieces, wishes) => {
           if (swapping) {
+            // One of her pieces, or a wish from the WISHLIST tab as a piece to find.
             const [piece] = pieces;
-            if (!piece) return;
+            const [wish] = wishes;
+            const into = piece ? { piece } : wish ? { wish } : null;
+            if (!into) return;
             // A suggestion's swap keeps the look's picture (↻ redraws it), behind an Undo.
-            if (swapInPlace) editor.swapKeep(swapping, piece);
-            else editor.swap(swapping, piece);
+            if (swapInPlace) editor.swapKeep(swapping, into);
+            else editor.swap(swapping, into);
             return;
           }
           for (const piece of pieces) editor.add(piece);

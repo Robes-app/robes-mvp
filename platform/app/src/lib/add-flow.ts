@@ -3,7 +3,7 @@
 import type { ApiClient } from '@robes/api-client';
 import { useApiClient } from '@robes/api-client/react';
 import type { JobSnapshot } from '@robes/contracts';
-import { type AddDestination, isDestination } from '@robes/core/add-flow';
+import type { AddDestination } from '@robes/core/add-flow';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { followJob } from './follow-job';
@@ -18,13 +18,8 @@ export type { AddDestination };
 // Photos one Review takes at once: each is its own read, and reads are rate-limited (20/min).
 export const REVIEW_MAX = 12;
 
-export function destinationOf(raw: unknown): AddDestination {
-  return isDestination(raw) ? raw : 'wardrobe';
-}
-
-export function wardrobeHref(to: AddDestination): string {
-  return to === 'wishlist' ? '/wardrobe/wishlist' : '/wardrobe';
-}
+// The flow's addresses live in a plain module, so server pages can call them too.
+export { addPiecesHref, cameraHref, destinationOf, wardrobeHref } from './add-hrefs';
 
 export const isPhoto = (file: File): boolean => PHOTO_ACCEPT.split(',').includes(file.type);
 

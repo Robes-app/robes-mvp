@@ -14,13 +14,29 @@ const product = {
   sourceUrl: 'https://shop.example/coat',
   retailer: 'Shop',
   title: 'Wool coat | Shop',
+  category: 'Coats',
+  color: 'Camel',
+  options: 'M / Wool',
+  description: '100% wool',
 };
+
+const INBOX = '55555555-5555-4555-8555-555555555555';
+const ASSET = '66666666-6666-4666-8666-666666666666';
 
 function run(
   input: Record<string, unknown>,
-  deps: { fetchLink?: () => Promise<never> | Promise<object> } = {},
+  deps: {
+    fetchLink?: () => Promise<never> | Promise<object>;
+    requestPhoto?: (photo: { jobId: string; url: string; key: string }) => Promise<void>;
+    logger?: { warn: (obj: object, msg: string) => void };
+  } = {},
 ) {
-  const intake = { fromLink: vi.fn(async () => '55555555-5555-4555-8555-555555555555') };
+  const intake = {
+    fromLink: vi.fn(async () => INBOX),
+    queuePhotoReads: vi.fn(async () => [
+      { jobId: '77777777-7777-4777-8777-777777777777', url: product.imageUrl, assetId: ASSET },
+    ]),
+  };
   const writeStage = vi.fn(async () => {});
   const handler = createLinkImportHandler({ intake, ...(deps as object) } as never);
   const promise = handler.run({
@@ -46,7 +62,14 @@ describe('link_import handler', () => {
       jobId: JOB,
       retailer: 'Shop',
       subject: 'Wool coat | Shop',
-      item: expect.objectContaining({ label: 'Wool coat', sourceUrl: 'https://shop.example/coat' }),
+      item: expect.objectContaining({
+        label: 'Wool coat',
+        sourceUrl: 'https://shop.example/coat',
+        // The shop's words ride along as the photo read's hints.
+        page: { category: 'Coats', options: 'M / Wool', color: 'Camel', description: '100% wool' },
+        // …and what they settle stands until the photo read refines it.
+        material: 'wool',
+      }),
     });
     expect(writeStage).toHaveBeenCalledWith(
       'text',
@@ -83,5 +106,41 @@ describe('link_import handler', () => {
       fetched: { ok: true },
     });
     await expect(promise).rejects.toEqual(new JobError('invalid_input'));
+  });
+
+  it('asks the isolated fetcher for the product photo, into her pending asset', async () => {
+    const requestPhoto = vi.fn(async () => {});
+    const { promise, intake } = run(
+      { url: 'https://shop.example/coat', as: 'wardrobe', fetched: { ok: true, product } },
+      { requestPhoto },
+    );
+    await expect(promise).resolves.toEqual({ status: 'succeeded' });
+    expect(intake.queuePhotoReads).toHaveBeenCalledWith(USER, INBOX);
+    expect(requestPhoto).toHaveBeenCalledWith({
+      jobId: '77777777-7777-4777-8777-777777777777',
+      url: 'https://shop.example/coat.jpg',
+      key: `uploads/${USER}/${ASSET}/original`,
+    });
+  });
+
+  it('holds the piece when its photo can’t be asked for, and asks nothing without one', async () => {
+    const logger = { warn: vi.fn() };
+    const failing = run(
+      { url: 'https://shop.example/coat', as: 'wardrobe', fetched: { ok: true, product } },
+      { requestPhoto: vi.fn(async () => Promise.reject(new Error('sqs'))), logger },
+    );
+    await expect(failing.promise).resolves.toEqual({ status: 'succeeded' });
+    expect(logger.warn).toHaveBeenCalledWith({ reason: 'sqs' }, 'link_photo_failed');
+
+    const bare = run(
+      {
+        url: 'https://shop.example/coat',
+        as: 'wardrobe',
+        fetched: { ok: true, product: { ...product, imageUrl: null } },
+      },
+      { requestPhoto: vi.fn(async () => {}) },
+    );
+    await expect(bare.promise).resolves.toEqual({ status: 'succeeded' });
+    expect(bare.intake.queuePhotoReads).not.toHaveBeenCalled();
   });
 });

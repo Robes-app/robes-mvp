@@ -28,6 +28,7 @@ export { useReducedMotion } from './motion';
 export { Chip, type ChipProps, Pill, type PillProps } from './Pill';
 export { PreferenceControl, type PreferenceControlProps } from './PreferenceControl';
 export { Progress, type ProgressProps } from './Progress';
+export { photoSource } from './photo-source';
 export {
   SegmentedControl,
   type SegmentedControlProps,
@@ -39,7 +40,9 @@ export {
   GlassSheet,
   type GlassSheetProps,
   Sheet,
+  SheetHead,
   type SheetProps,
+  useSheetPresented,
 } from './Sheet';
 export { Skeleton, type SkeletonProps } from './Skeleton';
 export { OptionList, OptionRow, Subview, SubviewHeader } from './Subview';

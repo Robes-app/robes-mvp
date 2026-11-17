@@ -28,6 +28,18 @@ export interface InboxItem {
   // asset; `photo` says how its read went ('reading' until the receipt_read job settles).
   imageAssetId?: string | null;
   photo?: 'reading' | 'read' | 'none';
+  // A pasted link's page, as the photo read's hints: what the shop says of the piece.
+  page?: {
+    category: string | null;
+    options: string | null;
+    color: string | null;
+    description: string | null;
+  } | null;
+  // The colour model and material the photo read filed (receipt-photo v2).
+  colourShade?: string | null;
+  colourExtra?: string[];
+  print?: string | null;
+  material?: string | null;
   // Decided on its own (Front Door PRD rev 3 §7.5): added as a piece or wish (`filedId`), or
   // discarded. Unset is waiting in the Inbox.
   state?: InboxItemState;
@@ -38,6 +50,8 @@ export const itemState = (item: InboxItem): InboxItemState => item.state ?? 'inb
 
 // At most this many photos are read per receipt (legacy capped the vision pass at 24).
 export const PHOTO_READS_PER_RECEIPT = 24;
+// Entries whose lines carry a shop's product photo for the isolated fetcher (SEC-40).
+const PHOTO_SOURCES = ['receipt', 'link'] as const;
 
 // The line's photo address as the receipt printed it (beta's rows say image_url).
 function photoUrlOf(item: InboxItem): string | null {
@@ -199,7 +213,10 @@ export function inboxRepo(db: Db) {
             categoryL2,
             categoryL3,
             color,
-            colourShade: shadeByName(color)?.id ?? null,
+            colourShade: item.colourShade ?? shadeByName(color)?.id ?? null,
+            colourExtra: item.colourExtra ?? [],
+            print: item.print ?? null,
+            material: item.material ?? null,
             // The line's photo, once fetched into her own asset, is the piece's photo too.
             imageAssetId: item.imageAssetId ?? null,
           };
@@ -341,26 +358,27 @@ export function inboxIntakeRepo(db: Db) {
       return existing.id;
     },
 
-    // A receipt's product photos (legacy inbox.js visionPass): one receipt_read job per waiting
-    // line whose photo isn't read yet, each with the pending asset its photo will land in, so the
-    // fetcher's bytes go through the rendition pipeline like any upload. Idempotent per line.
+    // A held entry's product photos (legacy inbox.js visionPass): a receipt's lines, or a pasted
+    // link's one piece. One receipt_read job per waiting line whose photo isn't read yet, each with
+    // the pending asset its photo will land in, so the fetcher's bytes go through the rendition
+    // pipeline like any upload. Idempotent per line.
     async queuePhotoReads(
       userId: UserId,
       inboxId: string,
       limit = PHOTO_READS_PER_RECEIPT,
-    ): Promise<{ jobId: string; url: string }[]> {
+    ): Promise<{ jobId: string; url: string; assetId: string }[]> {
       return db.transaction().execute(async (trx) => {
         const row = await trx
           .selectFrom('wardrobeInbox')
           .select(['items'])
           .where('userId', '=', userId)
           .where('id', '=', inboxId)
-          .where('source', '=', 'receipt')
+          .where('source', 'in', PHOTO_SOURCES)
           .forUpdate()
           .executeTakeFirst();
         if (!row) return [];
         const items = heldItems(row.items);
-        const queued: { jobId: string; url: string }[] = [];
+        const queued: { jobId: string; url: string; assetId: string }[] = [];
         for (const [index, item] of items.entries()) {
           if (queued.length >= limit) break;
           const url = photoUrlOf(item);
@@ -390,7 +408,7 @@ export function inboxIntakeRepo(db: Db) {
             .returning('id')
             .executeTakeFirstOrThrow();
           items[index] = { ...item, imageAssetId: asset.id, photo: 'reading' };
-          queued.push({ jobId: job.id, url });
+          queued.push({ jobId: job.id, url, assetId: asset.id });
         }
         if (queued.length) {
           await trx
@@ -404,14 +422,15 @@ export function inboxIntakeRepo(db: Db) {
       });
     },
 
-    // Held receipts with a waiting line whose photo was never asked for: rows read before photos
-    // were (beta's carried-over rows among them), or whose request didn't go. The hourly
-    // receipt-photos task queues them; a line asked for once carries `photo` and is left alone.
+    // Held receipts and links with a waiting line whose photo was never asked for: rows read
+    // before photos were (beta's carried-over rows and links pasted before 16 Nov among them), or
+    // whose request didn't go. The hourly receipt-photos task queues them; a line asked for once
+    // carries `photo` and is left alone.
     async awaitingPhotos(limit = 20): Promise<{ userId: UserId; inboxId: string }[]> {
       const rows = await db
         .selectFrom('wardrobeInbox')
         .select(['userId', 'id'])
-        .where('source', '=', 'receipt')
+        .where('source', 'in', PHOTO_SOURCES)
         .where('status', '=', 'held')
         .where(
           sql<boolean>`exists (
@@ -432,17 +451,19 @@ export function inboxIntakeRepo(db: Db) {
     async line(userId: UserId, inboxId: string, index: number) {
       const row = await db
         .selectFrom('wardrobeInbox')
-        .select(['retailer', 'items'])
+        .select(['source', 'retailer', 'items'])
         .where('userId', '=', userId)
         .where('id', '=', inboxId)
         .executeTakeFirst();
       const item = row ? heldItems(row.items)[index] : undefined;
-      return row && item ? { retailer: row.retailer, item } : undefined;
+      return row && item ? { source: row.source, retailer: row.retailer, item } : undefined;
     },
 
     // What a line's photo said (receipt_read): the photo decides what the piece is, the receipt
     // keeps its price, size and quantity (legacy visionPass merge). `null` is a photo that
-    // couldn't be fetched or read: the line keeps what the receipt printed.
+    // couldn't be fetched or read: the line keeps what the receipt printed. A link's name is the
+    // shop's own, so its photo adds only category and colour; and its photo is the shop's product
+    // shot, so once rendered it stays even when the read says nothing (`keepPhoto`).
     async applyPhotoRead(
       userId: UserId,
       inboxId: string,
@@ -452,12 +473,17 @@ export function inboxIntakeRepo(db: Db) {
         categoryL2: string | null;
         categoryL3: string | null;
         color: string | null;
+        colourShade?: string | null;
+        colourExtra?: string[];
+        print?: string | null;
+        material?: string | null;
       } | null,
+      opts: { keepPhoto?: boolean } = {},
     ): Promise<boolean> {
       return db.transaction().execute(async (trx) => {
         const row = await trx
           .selectFrom('wardrobeInbox')
-          .select(['items'])
+          .select(['source', 'items'])
           .where('userId', '=', userId)
           .where('id', '=', inboxId)
           .forUpdate()
@@ -468,15 +494,23 @@ export function inboxIntakeRepo(db: Db) {
         items[index] = read
           ? {
               ...item,
-              label: read.label.slice(0, 120),
-              categoryL2: read.categoryL2,
-              categoryL3: read.categoryL3,
+              label: row?.source === 'link' ? item.label : read.label.slice(0, 120),
+              // What the photo can't tell keeps what the line already had (a link's shop words).
+              categoryL2: read.categoryL2 ?? lineFields(item).categoryL2,
+              categoryL3: read.categoryL2 ? read.categoryL3 : lineFields(item).categoryL3,
               color: read.color ?? lineFields(item).color,
+              colourShade: read.colourShade ?? item.colourShade ?? null,
+              colourExtra: read.colourExtra ?? item.colourExtra ?? [],
+              print: read.print ?? item.print ?? null,
+              // A composition the shop states outranks what a photo suggests.
+              material: item.material ?? read.material ?? null,
               photo: 'read',
             }
-          : // shortcut: the unused photo's asset (a shop's product shot, never her own photo)
-            // stays in storage until her account is deleted; nothing reads or shows it.
-            { ...item, imageAssetId: null, photo: 'none' };
+          : opts.keepPhoto
+            ? { ...item, photo: 'none' }
+            : // shortcut: the unused photo's asset (a shop's product shot, never her own photo)
+              // stays in storage until her account is deleted; nothing reads or shows it.
+              { ...item, imageAssetId: null, photo: 'none' };
         await trx
           .updateTable('wardrobeInbox')
           .set({ items: JSON.stringify(items) })

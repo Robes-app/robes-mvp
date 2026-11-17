@@ -1,11 +1,11 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Me } from '@robes/contracts';
-import { firstRun as copy, onboarding, ui } from '@robes/copy';
+import { firstRun as copy, onboarding, ui, you } from '@robes/copy';
 import { onboardingBrands, type StyleType } from '@robes/core/style-dna';
-import { Button, ErrorText, Field, PrimaryScope, Wordmark } from '@robes/ui-native';
+import { Button, ErrorText, Field, PrimaryScope, Text, Wordmark } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
 import {
@@ -17,10 +17,23 @@ import {
   StylesStep,
 } from '@/features/onboarding/Steps';
 import { nativeAnalytics } from '@/lib/analytics';
+import { readPref, writePref } from '@/lib/prefs';
+import { useSignOut } from '@/lib/use-sign-out';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 const STEP_NAMES = { 1: 'name', 2: 'identity', 3: 'styles', 4: 'brands', 5: 'colours' } as const;
 const SPLASH_MS = 2_000;
+
+// Her answers so far, kept on the phone as she goes (audit F7): closing the app mid-way brings
+// her back to the step she was on, never to step 1. Per account; cleared once she finishes.
+interface Draft {
+  step: Step;
+  identity: Identity | null;
+  styles: StyleType[];
+  brands: string[];
+  colours: Colours;
+}
+const draftKey = (userId: string) => `robes.onboarding.${userId}`;
 
 const toggle = <T,>(list: readonly T[], v: T): T[] =>
   list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
@@ -42,7 +55,35 @@ export default function Onboarding() {
   const [colours, setColours] = useState<Colours>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const signOut = useSignOut();
   const name = touched ? firstName : firstName || me.data?.firstName || '';
+  const userId = me.data?.id;
+
+  // Back where she left off (audit F7): the draft, once, as soon as we know whose it is.
+  const restored = useRef(false);
+  useEffect(() => {
+    if (!userId || restored.current) return;
+    restored.current = true;
+    void readPref(draftKey(userId)).then((raw) => {
+      if (!raw) return;
+      try {
+        const d = JSON.parse(raw) as Draft;
+        setIdentity(d.identity ?? null);
+        setStyles(d.styles ?? []);
+        setBrands(d.brands ?? []);
+        setColours(d.colours ?? {});
+        if (d.step >= 2 && d.step <= 5) setStep(d.step);
+      } catch {
+        // A draft that doesn't read starts her afresh.
+      }
+    });
+  }, [userId]);
+  // Each answer is kept as she gives it.
+  useEffect(() => {
+    if (!userId || !restored.current || step === 'splash' || step === 1) return;
+    const draft: Draft = { step, identity, styles, brands, colours };
+    void writePref(draftKey(userId), JSON.stringify(draft));
+  }, [userId, step, identity, styles, brands, colours]);
 
   // Her houses lead; one she picked stays on the wall when her styles change.
   const wall = useMemo(() => {
@@ -111,6 +152,7 @@ export default function Onboarding() {
       );
       await queryClient.invalidateQueries({ queryKey: queryKeys.route('me.get') });
       answered(5, Object.keys(colours).length === 0);
+      if (userId) void writePref(draftKey(userId), '');
       nativeAnalytics.track('onboarding_answered', {
         styles: styles.length,
         brands: brands.length,
@@ -150,6 +192,18 @@ export default function Onboarding() {
       >
         {label}
       </Button>
+      {/* A way out before she's done (audit F7): sign out, her answers so far kept. */}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => void signOut()}
+        hitSlop={8}
+        className="min-h-11 items-center justify-center self-center"
+        testID="onboarding-sign-out"
+      >
+        <Text size="small" tone="muted" className="underline">
+          {you.signOut}
+        </Text>
+      </Pressable>
     </>
   );
 

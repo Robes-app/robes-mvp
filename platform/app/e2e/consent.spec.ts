@@ -102,6 +102,7 @@ test('nothing reaches PostHog until she turns usage counts on, and it stops when
   expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
     analytics: true,
     replay: null,
+    recordings: null,
   });
 
   await usage.uncheck();

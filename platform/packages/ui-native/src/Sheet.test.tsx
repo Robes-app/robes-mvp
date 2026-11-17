@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { AccessibilityInfo, Dimensions, Keyboard, Pressable, StyleSheet, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Button, DOUBLE_PRIMARY_WARNING, PrimaryScope } from './Button';
-import { Sheet } from './Sheet';
+import { Sheet, useSheetPresented } from './Sheet';
 
 function Harness() {
   const [open, setOpen] = useState(false);
@@ -265,4 +265,37 @@ test('a sheet asks one question with Felix choice rows', async () => {
   expect(screen.getByRole('button', { name: 'Pick a look' }).props.style).toMatchObject({
     minHeight: 56,
   });
+});
+
+// A field that takes the keyboard as its sheet opens waits until the sheet is on the screen: iOS
+// drops a focus asked for while the modal is presenting (look prompt, 16 Nov).
+test('useSheetPresented is false until the sheet is shown, and true outside a sheet', async () => {
+  function Probe({ label }: { label: string }) {
+    return <Text>{`${label}:${useSheetPresented() ? 'up' : 'presenting'}`}</Text>;
+  }
+  await render(
+    <SafeAreaProvider>
+      <Probe label="outside" />
+      <Sheet open onClose={() => undefined} testID="probe-sheet">
+        <Probe label="inside" />
+      </Sheet>
+    </SafeAreaProvider>,
+  );
+  expect(screen.getByText('outside:up')).toBeTruthy();
+  expect(screen.getByText('inside:presenting')).toBeTruthy();
+  await act(async () => screen.getByTestId('probe-sheet').props.onShow());
+  expect(await screen.findByText('inside:up')).toBeTruthy();
+});
+
+test('a head of its own stands in place of the grab bar', async () => {
+  await render(
+    <SafeAreaProvider>
+      <Sheet open onClose={() => undefined} floating head={<Text>Styling with Robes</Text>}>
+        <Text>Body</Text>
+      </Sheet>
+    </SafeAreaProvider>,
+  );
+  expect(screen.getByText('Styling with Robes')).toBeTruthy();
+  // The tall grab bar (a Close button) gives way to the slim handle over the head.
+  expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
 });

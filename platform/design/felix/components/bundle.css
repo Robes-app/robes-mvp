@@ -341,7 +341,7 @@ body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--font-sa
 .fx-fchip{flex:none;display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px;box-sizing:border-box;border-radius:var(--rad-pill);background:transparent;border:0;box-shadow:inset 0 0 0 1px var(--warm-line);font:400 11px/1 var(--font-sans);color:var(--ink-faint);white-space:nowrap;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s}
 .fx-fchip .fx-ico{margin-left:-2px}
 .fx-fchip-n{opacity:.6}
-.fx-fchip-on{background:var(--rose);color:var(--white);box-shadow:inset 0 0 0 1px var(--rose)}
+.fx-fchip-on{background:var(--cream-200);color:var(--ink);box-shadow:inset 0 0 0 1px var(--token-line)}
 .fx-fchip-off{box-shadow:inset 0 0 0 1px var(--rule);opacity:.45;cursor:default}
 .fx-fchip:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 /* — CollectionBar — */
@@ -469,7 +469,7 @@ body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--font-sa
 .fx-pl button:focus-visible,.fx-pl [role=button]:focus-visible{outline:1.5px solid var(--ink);outline-offset:2px}
 
 /* — Sheet: glass action sheet (2b New look, 3b Add pieces) — */
-.fx-sheet{box-sizing:border-box;display:flex;flex-direction:column;border-radius:30px 30px 20px 20px;padding:12px 12px 16px;background:var(--sheet-glass);-webkit-backdrop-filter:blur(var(--blur-sheet)) saturate(180%);backdrop-filter:blur(var(--blur-sheet)) saturate(180%);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 0 0 0.5px rgba(255,255,255,.55),0 0 0 0.5px rgba(32,32,33,.08),0 18px 44px -12px rgba(32,32,33,.35);animation:fxSheetUp .34s cubic-bezier(.2,.9,.25,1)}
+.fx-sheet{box-sizing:border-box;display:flex;flex-direction:column;border-radius:var(--rad-dock) var(--rad-dock) 0 0;padding:12px 12px 24px;background:var(--sheet-glass);-webkit-backdrop-filter:blur(var(--blur-sheet)) saturate(180%);backdrop-filter:blur(var(--blur-sheet)) saturate(180%);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 0 0 0.5px rgba(255,255,255,.55),0 0 0 0.5px rgba(32,32,33,.08);animation:fxSheetUp .26s cubic-bezier(.4,0,.7,1)}
 @keyframes fxSheetUp{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
 .fx-sheet-head{flex:none;display:flex;align-items:center;gap:8px;margin-bottom:14px}
 .fx-sheet .fx-sheet-x{flex:none;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.55);box-shadow:inset 0 0.5px 0 rgba(255,255,255,.9),inset 0 0 0 0.5px rgba(255,255,255,.6),0 2px 8px -2px rgba(32,32,33,.18);color:var(--ink);border:0;padding:0;cursor:pointer}

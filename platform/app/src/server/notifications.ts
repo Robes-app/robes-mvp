@@ -46,7 +46,17 @@ export async function loadNotifications(userId: UserId, now = new Date()): Promi
       lookId: null,
     });
   }
-  for (const day of bellNudgeDays({ today, since, wornDays, hasLooks: savedLooks > 0 })) {
+  // At most five nudges (Annie, 16 Nov); a dismissed day gives its place to an older one.
+  const dismissedDays = Object.keys(dismissed).flatMap((k) =>
+    k.startsWith('diary:') ? [k.slice('diary:'.length)] : [],
+  );
+  for (const day of bellNudgeDays({
+    today,
+    since,
+    wornDays,
+    dismissed: dismissedDays,
+    hasLooks: savedLooks > 0,
+  })) {
     items.push({
       key: `diary:${day}`,
       kind: 'diary',

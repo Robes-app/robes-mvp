@@ -96,17 +96,26 @@ test('a photo read files each answered piece once, and only for her', async ({ p
   await other.close();
 });
 
-async function choosePhoto(page: Page, label: RegExp | string) {
-  await page.getByLabel(label).setInputFiles(PHOTO_PATH);
+// A photo from the camera roll, through the camera's library disc, then REVIEW 1.
+async function fromCameraRoll(page: Page) {
+  await expect(page.getByTestId('piece-camera')).toBeVisible();
+  await page.getByTestId('piece-camera-photos-input').setInputFiles(PHOTO_PATH);
+  await page.getByTestId('piece-camera-review').click();
 }
 
 test('several pieces reviewed together, then added at once (Capture PRD 3c)', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
 
-  await page.goto('/wardrobe/add');
-  await expect(page.getByRole('heading', { name: 'Add pieces' })).toBeVisible();
-  await choosePhoto(page, 'Camera roll');
+  // The Wardrobe's Add pieces sheet: Photo opens the camera (the page with its own switch is
+  // retired, audit P2); its library disc takes photos from the camera roll.
+  await page.goto('/wardrobe?add=wardrobe');
+  await page
+    .getByRole('dialog', { name: 'Add pieces to Wardrobe' })
+    .getByTestId('add-sheet-photo')
+    .click();
+  await expect(page).toHaveURL(/\/wardrobe\/camera\?to=wardrobe$/);
+  await fromCameraRoll(page);
   // The list: one row per piece Robes found, under "3 pieces".
   const list = page.getByTestId('review-list');
   await expect(list.getByRole('heading', { name: 'Review', exact: true })).toBeVisible();
@@ -149,11 +158,11 @@ test('several pieces reviewed together, then added at once (Capture PRD 3c)', as
   await expect(grid.getByRole('heading', { name: 'Black leggings' })).toHaveCount(0);
 });
 
-test('removing rows: the list, then the one piece, then back to Add pieces', async ({ page }) => {
+test('removing rows: the list, then the one piece, then back to the camera', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
-  await page.goto('/wardrobe/add');
-  await choosePhoto(page, 'Camera roll');
+  await page.goto('/wardrobe/camera');
+  await fromCameraRoll(page);
   const rows = page.getByTestId('review-row');
   await expect(rows).toHaveCount(3, { timeout: 30_000 });
   await rows
@@ -169,21 +178,17 @@ test('removing rows: the list, then the one piece, then back to Add pieces', asy
   await expect(piece.getByRole('heading', { name: 'Review piece' })).toBeVisible();
   await expect(piece.getByRole('button', { name: /^Name\s*White running shoes/ })).toBeVisible();
   await expect(page.getByTestId('review-add')).toHaveText(/^Add to wardrobe$/i);
-  // Back with nothing added: the Add pieces sheet, and an empty wardrobe.
+  // Back with nothing added: the camera, its photos kept (Capture PRD 3c.3), and an empty wardrobe.
   await piece.getByTestId('review-back').click();
-  await expect(page.getByRole('heading', { name: 'Add pieces' })).toBeVisible();
+  await expect(page.getByTestId('piece-camera')).toBeVisible();
   expect((await (await page.request.get('/api/v1/wardrobe/items')).json()).items).toEqual([]);
 });
 
 test('a photo can go to the wishlist instead', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
-  await page.goto('/wardrobe/add?to=wishlist');
-  await expect(page.getByRole('radio', { name: 'Wishlist' })).toHaveAttribute(
-    'aria-checked',
-    'true',
-  );
-  await choosePhoto(page, 'Camera roll');
+  await page.goto('/wardrobe/camera?to=wishlist');
+  await fromCameraRoll(page);
   await expect(page.getByTestId('review-row')).toHaveCount(3, { timeout: 30_000 });
   await expect(page.getByTestId('review-add')).toHaveText(/Add 3 to wishlist/i);
   await page.getByTestId('review-add').click();

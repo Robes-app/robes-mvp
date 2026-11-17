@@ -1,6 +1,7 @@
 import { ui } from '@robes/copy';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seriousViolations } from '../test/axe';
 import { Button } from './button';
@@ -11,6 +12,7 @@ import {
   toastDuration,
   useToast,
   useToastLift,
+  useToastLiftOver,
 } from './toast';
 
 function Trigger({ options }: { options: ToastOptions }) {
@@ -123,5 +125,58 @@ describe('a bar at the foot lifts the toasts', () => {
     expect(viewport()?.getAttribute('style')).toContain('bottom: 82px');
     rerender(<ToastProvider>{null}</ToastProvider>);
     expect(viewport()?.getAttribute('style') ?? '').not.toContain('bottom');
+  });
+});
+
+function FloatingBar({ top, height }: { top: number; height: number }) {
+  const ref = useRef<HTMLElement>(null);
+  useToastLiftOver(ref);
+  return (
+    <nav
+      ref={(el) => {
+        ref.current = el;
+        if (el)
+          el.getBoundingClientRect = () =>
+            ({
+              top,
+              height,
+              bottom: top + height,
+              left: 0,
+              right: 0,
+              width: 0,
+              x: 0,
+              y: top,
+            }) as DOMRect;
+      }}
+    />
+  );
+}
+
+describe('a bar floating above the foot lifts the toasts clear of it', () => {
+  it('lifts by the bar and the gap under it; a hidden bar lifts nothing', () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const viewport = () => document.body.querySelector('ol');
+    // The phone dock: 64 tall, 24 above the screen's foot.
+    const { unmount } = render(
+      <ToastProvider>
+        <FloatingBar top={window.innerHeight - 88} height={64} />
+      </ToastProvider>,
+    );
+    expect(viewport()?.getAttribute('style')).toContain('bottom: 88px');
+    unmount();
+    // Hidden (md and up, or a flow without the dock): nothing to clear.
+    render(
+      <ToastProvider>
+        <FloatingBar top={0} height={0} />
+      </ToastProvider>,
+    );
+    expect(viewport()?.getAttribute('style') ?? '').not.toContain('bottom');
+    vi.unstubAllGlobals();
   });
 });

@@ -16,12 +16,25 @@ function setup(
     asset?: { userId: string; status: string } | null;
     output?: object;
     aiError?: AiError;
+    source?: 'receipt' | 'link';
+    page?: {
+      category: string | null;
+      options: string | null;
+      color: string | null;
+      description: string | null;
+    };
   } = {},
 ) {
   const intake = {
     line: vi.fn(async () => ({
+      source: opts.source ?? 'receipt',
       retailer: 'Zara',
-      item: { label: 'REF 02335709800', brand: 'Zara', size: '6/7 years (122 cm)' },
+      item: {
+        label: 'REF 02335709800',
+        brand: 'Zara',
+        size: '6/7 years (122 cm)',
+        ...(opts.page ? { page: opts.page } : {}),
+      },
     })),
     applyPhotoRead: vi.fn(async () => true),
   };
@@ -89,12 +102,17 @@ describe('receipt_read handler', () => {
       capability: 'vision.analyse',
       user: expect.stringContaining('REF 02335709800'),
     });
-    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, {
-      label: 'Pink velour tracksuit top',
-      categoryL2: 'Sweatshirts & hoodies',
-      categoryL3: null,
-      color: 'Blush',
-    });
+    expect(intake.applyPhotoRead).toHaveBeenCalledWith(
+      USER,
+      INBOX,
+      2,
+      expect.objectContaining({
+        label: 'Pink velour tracksuit top',
+        categoryL2: 'Sweatshirts & hoodies',
+        categoryL3: null,
+        material: 'cotton',
+      }),
+    );
     expect(ledger.record).toHaveBeenCalledWith(
       expect.objectContaining({ feature: 'inbox.receipt_photo', status: 'ok', userId: USER }),
     );
@@ -105,7 +123,7 @@ describe('receipt_read handler', () => {
       photo: { stored: false, reason: 'status_403' },
     });
     await expect(run()).resolves.toEqual({ status: 'partial' });
-    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null);
+    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, { keepPhoto: false });
     expect(ledger.record).not.toHaveBeenCalled();
     expect(writeStage).toHaveBeenCalledWith('text', {
       inboxId: INBOX,
@@ -121,22 +139,55 @@ describe('receipt_read handler', () => {
     ]) {
       const { run, intake, storage } = setup({ asset });
       await expect(run()).resolves.toEqual({ status: 'partial' });
-      expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null);
+      expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, {
+        keepPhoto: false,
+      });
       expect(storage.getObject).not.toHaveBeenCalled();
     }
+  });
+
+  it("reads a link's photo with what the shop's page says beside it", async () => {
+    const page = {
+      category: 'Cardigans',
+      options: 'Medium / 100% Cashmere / Vibrant Pink',
+      color: null,
+      description: '100% cashmere',
+    };
+    const { run, generate } = setup({ source: 'link', page });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    const sent = (g: typeof generate) => String((g.mock.calls[0]?.[0] as { user?: string })?.user);
+    const user = sent(generate);
+    expect(user).toContain("WHAT THE SHOP'S PAGE SAYS OF THIS PIECE:");
+    expect(user).toContain('Medium / 100% Cashmere / Vibrant Pink');
+    // A receipt line never sends a page, even if one were stored.
+    const receipt = setup({ source: 'receipt', page });
+    await receipt.run();
+    expect(sent(receipt.generate)).not.toContain('Cashmere');
+  });
+
+  it("keeps a link's rendered product shot even when the read finds nothing", async () => {
+    const { run, intake } = setup({ source: 'link', output: { no_item_detected: true } });
+    await expect(run()).resolves.toEqual({ status: 'partial' });
+    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, { keepPhoto: true });
+  });
+
+  it("drops a link's photo that never rendered", async () => {
+    const { run, intake } = setup({ source: 'link', asset: { userId: USER, status: 'failed' } });
+    await expect(run()).resolves.toEqual({ status: 'partial' });
+    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, { keepPhoto: false });
   });
 
   it('drops a photo that shows no piece (a banner, a logo)', async () => {
     const { run, intake } = setup({ output: { no_item_detected: true } });
     await expect(run()).resolves.toEqual({ status: 'partial' });
-    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null);
+    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, { keepPhoto: false });
   });
 
   it('records a failed model call and keeps the line as printed', async () => {
     const usage = { model: 'gemini-2.5-flash', inputTokens: 10, outputTokens: 0 } as never;
     const { run, intake, ledger } = setup({ aiError: new AiError('invalid_output', usage) });
     await expect(run()).resolves.toEqual({ status: 'partial' });
-    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null);
+    expect(intake.applyPhotoRead).toHaveBeenCalledWith(USER, INBOX, 2, null, { keepPhoto: false });
     expect(ledger.record).toHaveBeenCalledWith(expect.objectContaining({ status: 'error' }));
   });
 

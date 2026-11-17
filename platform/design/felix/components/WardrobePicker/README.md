@@ -8,3 +8,5 @@ Provide `items` (`[{img, name, cat, on}]`), `onToggle(i)`, `onConfirm` and `onBa
 - The grid has three columns with gaps of 12px down and 10px across. The first tile is a dashed `cream-400` "Photograph one" card on `cream-100`, captioned "Adds straight in" in Cormorant italic 13px.
 - Pieces are 3:4 photos with `rad-sm` corners and a 1px `rule` border, with the name under each in Cormorant 14px. Each photo has a 20px tick disc 6px from its top-right corner: frosted white when not picked, `warm-100` with a `warm-line` border and ✓ when picked.
 - The footer button is a 48px `ink` pill that reads "Add Pieces", or "Add 1 Piece" / "Add 2 Pieces" once pieces are picked. It sits at 35% opacity until something is picked.
+
+**On iOS** it stands on **DetentSheet**: iOS's own sheet, opening at two thirds of the screen and pulled up to full, under the system grabber, with **SheetHead** on top (16–17 Nov). Elsewhere it keeps the shell above.

@@ -1,4 +1,4 @@
-import { filters, ui, wardrobe, you } from '@robes/copy';
+import { filters, lookbook, ui, wardrobe, you } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { PieceDetail } from '../src/features/wardrobe/PieceDetail';
 import { WardrobeView } from '../src/features/wardrobe/WardrobeView';
@@ -84,6 +84,21 @@ test('a reading piece says so in its bar, under ‹ and beside the star', async 
   expect(screen.getByTestId('piece-back')).toBeTruthy();
   expect(screen.getByRole('button', { name: wardrobe.card.star('Camel wool coat') })).toBeTruthy();
   expect(screen.queryByRole('button', { name: wardrobe.piece.stylePiece })).toBeNull();
+});
+
+// Audit F5: a piece that won't load says why and offers Try again.
+test('a piece that won’t load offers Try again', async () => {
+  let fail = true;
+  mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: () =>
+      fail ? errorReply(500, 'internal') : piece({ status: 'ready' }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  const retry = await screen.findByRole('button', { name: ui.retry }, { timeout: 4000 });
+  fail = false;
+  await fireEvent.press(retry);
+  expect(await screen.findByRole('tab', { name: wardrobe.piece.tabs.piece })).toBeTruthy();
 });
 
 // Audit F3: a piece Robes couldn't read is never a dead end: Try again reads its photo anew.
@@ -180,7 +195,12 @@ test('Seasons are the four seasons, each tap the answer; none filed reads Year r
       name: `${wardrobe.piece.rows.season}: ${wardrobe.filter.seasons.year_round}`,
     }),
   );
-  await fireEvent.press(await screen.findByRole('checkbox', { name: filters.seasons.spring }));
+  // The Lookbook's own list: Year round first (on, as nothing is filed), then the seasons.
+  const seasons = lookbook.savedLook.seasonsView;
+  expect(
+    (await screen.findByRole('button', { name: seasons.yearRound })).props.accessibilityState,
+  ).toMatchObject({ selected: true });
+  await fireEvent.press(screen.getByRole('button', { name: seasons.names.spring }));
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ seasons: ['spring'] });
 });

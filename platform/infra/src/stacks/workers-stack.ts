@@ -54,7 +54,8 @@ export class WorkersStack extends RobesStack {
           GEMINI_API_KEY_SECRET_ARN: secrets.geminiApiKey,
           FAL_API_KEY_SECRET_ARN: secrets.falApiKey,
         },
-        sendTo: ['notify'],
+        // fetch: a pasted link's product photo, asked of the isolated fetcher (SEC-40).
+        sendTo: ['notify', 'fetch'],
         s3: [
           // catalog/: the shared model portraits, read as the render reference and drawn once.
           { actions: ['s3:GetObject'], prefixes: ['media/', 'catalog/'] },
@@ -92,7 +93,9 @@ export class WorkersStack extends RobesStack {
             prefixes: ['uploads/', 'media/', 'generated/', 'shared/', 'exports/'],
           },
           // Data exports (SEC-81): reads nothing from S3; writes one JSON file per request.
-          { actions: ['s3:PutObject'], prefixes: ['exports/'] },
+          // uploads/: signs the one-key form a product photo is uploaded through (SEC-40); the
+          // fetcher writes with it, holding no rights of its own.
+          { actions: ['s3:PutObject'], prefixes: ['exports/', 'uploads/'] },
         ],
         listBucket: true,
       },
@@ -106,7 +109,11 @@ export class WorkersStack extends RobesStack {
           UNSUB_HMAC_KEY_SECRET_ARN: secrets.unsubHmacKey,
         },
         sendTo: ['fetch'],
-        s3: [{ actions: ['s3:GetObject'], prefixes: [INBOUND_PREFIX] }],
+        s3: [
+          { actions: ['s3:GetObject'], prefixes: [INBOUND_PREFIX] },
+          // Signs the one-key form each line's photo is uploaded through (SEC-40).
+          { actions: ['s3:PutObject'], prefixes: ['uploads/'] },
+        ],
         sendEmail: true,
       },
     };

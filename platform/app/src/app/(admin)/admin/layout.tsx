@@ -1,3 +1,4 @@
+import { UNRECORDED } from '@robes/analytics';
 import { admin as copy } from '@robes/copy';
 import { Eyebrow } from '@robes/ui';
 import type { Metadata } from 'next';
@@ -35,7 +36,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
         ))}
       </nav>
-      <main className="flex flex-col gap-8">{children}</main>
+      {/* Other people's accounts: a screen recording never holds them. */}
+      <main className={`flex flex-col gap-8 ${UNRECORDED}`}>{children}</main>
     </div>
   );
 }

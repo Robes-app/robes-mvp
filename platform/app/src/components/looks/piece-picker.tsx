@@ -1,6 +1,6 @@
 'use client';
 
-import { useApi } from '@robes/api-client/react';
+import { useApiAll } from '@robes/api-client/react';
 import type { Piece, Wish } from '@robes/contracts';
 import { lookbook, wardrobe } from '@robes/copy';
 import { theName } from '@robes/core/looks';
@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AddCircle } from '@/components/add-circle';
 import { useAnalytics } from '@/components/analytics-provider';
 import { WardrobeGrid } from '@/components/wardrobe/wardrobe-grid';
+import { addPiecesHref } from '@/lib/add-flow';
 
 const copy = lookbook.draftLook.picker;
 const match = lookbook.draftLook.capture.match;
@@ -30,7 +31,7 @@ type WishItem = Wish & { meta: string | null };
 // subview with OWNED · WISHLIST · SHOP as underline tabs (Shop stands disabled until its PRD,
 // plan R10) and the framed + for a new piece at the rail's end; under them the WardrobeGrid —
 // category chips with counts, the 3-up grid with a tick on every piece — and the ink ADD PIECES
-// at the foot. A wish joins the rack as a piece to find. A swap picks one of her pieces and
+// at the foot. A wish joins the rack as a piece to find. A swap picks one of her pieces or a wish and
 // confirms with "Swap it in"; a match (a piece found in her photograph, Capture PRD 1c.7) picks
 // the piece of hers it is, under "Match to your wardrobe" and MATCH PIECE, and its + adds the
 // found piece as a new one instead. Closing changes nothing. Native twin:
@@ -57,8 +58,8 @@ export function PiecePicker({
   const matching = mode && 'match' in mode ? mode.match : null;
   // One piece of hers, led by the row's category: a swap, or a match.
   const swapping = mode && 'swap' in mode ? mode.swap : matching;
-  const pieces = useApi('wardrobe.list', { input: { limit: 100 } }, { enabled: open });
-  const wishlist = useApi('wishlist.list', { input: { limit: 100 } }, { enabled: open });
+  const pieces = useApiAll('wardrobe.list', { input: { limit: 100 } }, { enabled: open });
+  const wishlist = useApiAll('wishlist.list', { input: { limit: 100 } }, { enabled: open });
   const ready = (pieces.data?.items ?? []).filter(
     (p) => p.status === 'ready' && !onRack.includes(p.id),
   );
@@ -95,7 +96,8 @@ export function PiecePicker({
     preselected.current = suggested.id;
     setPicked([suggested]);
   }, [open, suggested]);
-  const toggle = (piece: Piece) =>
+  const toggle = (piece: Piece) => {
+    if (swapping && !picked.some((x) => x.id === piece.id)) setPickedWishes([]);
     setPicked((p) =>
       p.some((x) => x.id === piece.id)
         ? p.filter((x) => x.id !== piece.id)
@@ -103,10 +105,18 @@ export function PiecePicker({
           ? [piece]
           : [...p, piece],
     );
-  const toggleWish = (wish: WishItem) =>
+  };
+  // A swap takes one thing, her piece or a wish: picking one lets the other go.
+  const toggleWish = (wish: WishItem) => {
+    if (swapping && !pickedWishes.some((x) => x.id === wish.id)) setPicked([]);
     setPickedWishes((p) =>
-      p.some((x) => x.id === wish.id) ? p.filter((x) => x.id !== wish.id) : [...p, wish],
+      p.some((x) => x.id === wish.id)
+        ? p.filter((x) => x.id !== wish.id)
+        : swapping
+          ? [wish]
+          : [...p, wish],
     );
+  };
   const count = picked.length + pickedWishes.length;
   const confirm = () => {
     if (!count) return;
@@ -116,8 +126,9 @@ export function PiecePicker({
     );
     onClose();
   };
-  // A swap takes one of her pieces: the wishlist waits for an add.
-  const off: Tab[] = swapping ? [TABS[1], TABS[2]] : [TABS[2]];
+  // The wishlist is always in reach, for a swap as for an add (Annie, 16 Nov): a wish comes in as a
+  // piece to find. A match names the piece of hers it is, so it keeps to OWNED.
+  const off: Tab[] = matching ? [TABS[1], TABS[2]] : [TABS[2]];
   return (
     <Subview
       open={open}
@@ -169,7 +180,7 @@ export function PiecePicker({
                 }}
               />
             ) : (
-              <AddCircle href="/wardrobe/add" label={copy.addNew} />
+              <AddCircle href={addPiecesHref('wardrobe')} label={copy.addNew} />
             )
           }
         />

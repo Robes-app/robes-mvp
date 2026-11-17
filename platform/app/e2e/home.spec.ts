@@ -285,11 +285,13 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   const drawer = page.getByRole('dialog').filter({
     has: page.getByRole('heading', { name: 'What are you wearing?' }),
   });
-  await expect(drawer.getByTestId('drawer-done')).toHaveAttribute('aria-disabled', 'true');
+  await expect(drawer.getByTestId('drawer-done')).toBeDisabled();
   await expect(drawer.getByRole('button', { name: 'Filter' })).toBeVisible();
   await expect(drawer.getByRole('searchbox', { name: 'Search your looks' })).toBeVisible();
   await drawer.getByRole('button', { name: /Office/ }).click();
-  await drawer.getByRole('button', { name: 'Schedule 1 Look' }).click();
+  // Done, with what it will do as its description (audit P2: one sheet header).
+  await expect(drawer.getByTestId('drawer-done')).toHaveAccessibleDescription('Schedule 1 Look');
+  await drawer.getByTestId('drawer-done').click();
   await expect(page.getByTestId('ootd-card')).toContainText('Office');
   await expect(page.getByTestId(`diary-day-${date}`)).toHaveAccessibleName('Today, 1 look planned');
 
@@ -298,12 +300,16 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   await expect(drawer.getByText('Scheduled')).toHaveCount(1);
   await drawer.getByRole('button', { name: /Office/ }).click();
   await drawer.getByRole('button', { name: /Dinner/ }).click();
-  await drawer.getByRole('button', { name: 'Wear this look today' }).click();
+  // Done, with what it will do as its description (audit P2: one sheet header).
+  await expect(drawer.getByTestId('drawer-done')).toHaveAccessibleDescription(
+    'Wear this look today',
+  );
+  await drawer.getByTestId('drawer-done').click();
   await expect(page.getByTestId('ootd-card')).toContainText('Dinner');
   await expect(page.getByTestId('ootd-card')).not.toContainText('Office');
   // Edit opens the Edit look drawer over the day (3k, D18): its photo strip on the Add a photo
-  // card, and Update look and the tick both dimmed until something changes (Capture PRD 3.1);
-  // × leaves.
+  // card, and Update look dimmed until something changes (Capture PRD 3.1), the one confirm (no
+  // header ✓, audit P1); × leaves.
   await page.getByRole('link', { name: 'Edit Dinner' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/);
   const edit = page.getByTestId('draft-look');
@@ -311,7 +317,7 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   await expect(page.getByText('Edit look')).toBeVisible();
   await expect(edit.getByTestId('image-card-add')).toBeInViewport();
   await expect(page.getByTestId('update-look')).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.getByTestId('draft-done')).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.getByTestId('draft-done')).toHaveCount(0);
   await edit.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByTestId('draft-look')).toHaveCount(0);
   // The photograph's image stack opens the same drawer on Add a photo, never the look's page, so
@@ -333,7 +339,9 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
     has: page.getByRole('heading', { name: 'What did you wear?' }),
   });
   await past.getByRole('button', { name: /Office/ }).click();
-  await past.getByRole('button', { name: 'Schedule 1 Look' }).click();
+  // Done, with what it will do as its description (audit P2: one sheet header).
+  await expect(past.getByTestId('drawer-done')).toHaveAccessibleDescription('Schedule 1 Look');
+  await past.getByTestId('drawer-done').click();
   await expect(page.getByTestId('ootd-card')).toContainText('Office');
   const wears = await (
     await api.get(
@@ -357,6 +365,10 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/, { timeout: 30_000 });
   await expect(page.getByTestId('draft-look')).toBeVisible();
   await expect(page.getByText('Draft look')).toBeVisible();
+  // The send kept the drawer open into the draft, her words in it (B6, 16 Nov); minimised, the
+  // header is hers again.
+  await expect(page.getByTestId('prompt-conversation')).toContainText('Dinner with friends');
+  await page.getByTestId('prompt-minimise').click();
   // The done disc saves and pins it to the day in the same act: home shows it as the day's card.
   await page.getByTestId('draft-done').click();
   await expect(page).toHaveURL(/\/\?day=.*&saved=/);
@@ -379,6 +391,7 @@ test('Create: her words become the day’s one draft, which dresses in the slot'
   await page.getByTestId('draft-prompt').fill('Something easy for the gallery');
   await page.getByTestId('prompt-send').click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/, { timeout: 30_000 });
+  await page.getByTestId('prompt-minimise').click();
   await page.getByRole('button', { name: 'Close' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Keep for later' }).click();
   await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });

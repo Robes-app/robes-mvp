@@ -1,6 +1,6 @@
 import http from 'node:http';
 import type { AddressInfo, LookupFunction } from 'node:net';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { isBlockedAddress } from './address';
 import { fetchPhoto, PHOTO_MAX_BYTES } from './index';
 import { checkUrl, FetchRefused, safeFetch } from './safe-fetch';
@@ -135,8 +135,23 @@ describe('SEC-40 URL table', () => {
 describe('SEC-40 response limits (local fixture server, allowPrivate)', () => {
   let server: http.Server;
   let base: string;
+  let uploads: { contentType: string; body: Buffer }[];
+  const form = () => ({ url: `${base}/upload`, fields: { key: 'uploads/u/a/original' } });
   beforeAll(async () => {
     server = http.createServer((req, res) => {
+      if (req.method === 'POST' && req.url?.startsWith('/upload')) {
+        const chunks: Buffer[] = [];
+        req.on('data', (c: Buffer) => chunks.push(c));
+        req.on('end', () => {
+          uploads.push({
+            contentType: String(req.headers['content-type']),
+            body: Buffer.concat(chunks),
+          });
+          res.writeHead(req.url === '/upload-denied' ? 403 : 204);
+          res.end();
+        });
+        return;
+      }
       if (req.url === '/big') {
         res.writeHead(200, { 'content-type': 'text/html' });
         res.end('x'.repeat(5_000));
@@ -163,6 +178,9 @@ describe('SEC-40 response limits (local fixture server, allowPrivate)', () => {
     await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
+  beforeEach(() => {
+    uploads = [];
+  });
   afterAll(() => {
     server.closeAllConnections();
     server.close();
@@ -177,30 +195,71 @@ describe('SEC-40 response limits (local fixture server, allowPrivate)', () => {
 
   it('refuses the same local server without the dev escape hatch', async () => {
     await refused(safeFetch(`${base}/`), 'scheme');
-    expect(await fetchPhoto(`${base}/photo.jpg`)).toEqual({ ok: false, reason: 'scheme' });
+    // Only our bucket's endpoint takes a photo; a local one is refused before any fetch.
+    expect(await fetchPhoto(`${base}/photo.jpg`, form())).toEqual({
+      ok: false,
+      reason: 'upload_target',
+    });
+    const s3 = { url: 'https://robes-media.s3.eu-west-1.amazonaws.com/', fields: {} };
+    // Upgraded to https, the local server is still refused (its port, then its address).
+    expect(await fetchPhoto(`${base}/photo.jpg`, s3)).toEqual({ ok: false, reason: 'port' });
+    expect(uploads).toEqual([]);
   });
 
-  // A receipt line's photo: the same guard, a photo-only type list and a small cap; the bytes
-  // come back undecoded, for the rendition pipeline to check like an upload.
-  it('fetches a receipt photo as bytes, and refuses other types, big files and pages', async () => {
-    expect(await fetchPhoto(`${base}/photo.jpg`, { allowPrivate: true })).toEqual({
+  // A product photo: the same guard, a photo-only type list and its own cap; the bytes go up
+  // undecoded through the presigned form, and the reply carries only how it went.
+  it('uploads a photo through its form, and refuses other types, big files and pages', async () => {
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 1]);
+    expect(await fetchPhoto(`${base}/photo.jpg`, form(), { allowPrivate: true })).toEqual({
       ok: true,
       contentType: 'image/jpeg',
-      data: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 1]).toString('base64'),
+      bytes: jpeg.length,
     });
-    expect(await fetchPhoto(`${base}/huge.jpg`, { allowPrivate: true })).toEqual({
-      ok: false,
-      reason: 'too_large',
-    });
-    expect(await fetchPhoto(`${base}/photo.svg`, { allowPrivate: true })).toEqual({
-      ok: false,
-      reason: 'content_type',
-    });
-    expect(await fetchPhoto(`${base}/`, { allowPrivate: true })).toEqual({
-      ok: false,
-      reason: 'content_type',
-    });
+    expect(uploads).toHaveLength(1);
+    const [upload] = uploads;
+    expect(upload?.contentType).toMatch(/^multipart\/form-data/);
+    expect(upload?.body.includes(jpeg)).toBe(true);
+    expect(upload?.body.toString('latin1')).toContain('uploads/u/a/original');
+
+    for (const [path, reason] of [
+      ['/huge.jpg', 'too_large'],
+      ['/photo.svg', 'content_type'],
+      ['/', 'content_type'],
+    ] as const) {
+      expect(await fetchPhoto(`${base}${path}`, form(), { allowPrivate: true })).toEqual({
+        ok: false,
+        reason,
+      });
+    }
+    expect(uploads).toHaveLength(1);
     // A page fetch still refuses an image.
     await refused(safeFetch(`${base}/photo.jpg`, { allowPrivate: true }), 'content_type');
+  });
+
+  it('says so when the bucket refuses the upload', async () => {
+    const denied = { url: `${base}/upload-denied`, fields: {} };
+    expect(await fetchPhoto(`${base}/photo.jpg`, denied, { allowPrivate: true })).toEqual({
+      ok: false,
+      reason: 'upload_403',
+    });
+  });
+});
+
+describe('fetchPhoto over TLS', () => {
+  it('asks for an http:// photo over https', async () => {
+    const asked: string[] = [];
+    const result = await fetchPhoto(
+      'http://www.lucynagle.com/cdn/shop/files/look.jpg?v=1',
+      { url: 'https://robes-media.s3.eu-west-1.amazonaws.com/', fields: {} },
+      {
+        resolve: resolveTo('23.227.38.65'),
+        transport: async (url) => {
+          asked.push(url.toString());
+          return { status: 404, location: null, contentType: 'text/html', body: '' };
+        },
+      },
+    );
+    expect(result).toEqual({ ok: false, reason: 'status_404' });
+    expect(asked).toEqual(['https://www.lucynagle.com/cdn/shop/files/look.jpg?v=1']);
   });
 });

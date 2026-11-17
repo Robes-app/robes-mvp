@@ -8,7 +8,8 @@ import { greetingName } from '@robes/core/home';
 import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/web';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { DayCard } from './day-card';
 import { DiaryStrip } from './diary-strip';
 
@@ -63,6 +64,17 @@ export function DiaryHome({
   const diary = data.diary;
   const inWindow = day && diary?.days.some((d) => d.date === day) ? day : today;
   const [selected, setSelected] = useState(inWindow);
+  // The bell's `?day=` lands on its day whenever it changes, Home already open or not (Annie,
+  // 16 Nov: a nudge opens its day's card); a day she picks clears it, so the same nudge lands again.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: follows the address, not the data
+  useEffect(() => {
+    if (day) setSelected(inWindow);
+  }, [day]);
+  const router = useRouter();
+  const pick = (date: string) => {
+    setSelected(date);
+    if (day) router.replace('/', { scroll: false });
+  };
   const current: DiaryDay = diary?.days.find((d) => d.date === selected) ??
     diary?.days.find((d) => d.date === today) ?? {
       date: today,
@@ -102,12 +114,7 @@ export function DiaryHome({
       </header>
 
       {diary ? (
-        <DiaryStrip
-          days={diary.days}
-          today={today}
-          selected={current.date}
-          onSelect={setSelected}
-        />
+        <DiaryStrip days={diary.days} today={today} selected={current.date} onSelect={pick} />
       ) : null}
 
       {/* Keyed by the day: a day change starts the pager on its first page (PRD rev 3 §3). */}

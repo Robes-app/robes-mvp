@@ -55,6 +55,29 @@ export function wishRow(
   });
 }
 
+// A swap for a wish (the picker's WISHLIST tab in a swap, Annie 16 Nov): the wish takes the row's
+// place and role as a piece to find, and the row remembers what it was ("Swapped in · was …"), as
+// a swap for one of her pieces does in applyAsk. A row not on the rack changes nothing.
+export function swapForWish(
+  rack: RackState,
+  key: string,
+  wish: Parameters<typeof wishRow>[0],
+): RackState {
+  const at = rack.rows.findIndex((r) => r.key === key);
+  const cur = rack.rows[at];
+  if (!cur) return rack;
+  const made = wishRow(wish);
+  const next: RackRow = {
+    ...made,
+    role: cur.role,
+    proposal: made.proposal ? { ...made.proposal, role: cur.role } : null,
+  };
+  const { [key]: prior, ...edits } = rack.edits;
+  const { [key]: _styled, ...styling } = rack.styling;
+  const rows = rack.rows.map((r, i) => (i === at ? next : r));
+  return { ...rack, rows, edits: { ...edits, [next.key]: { was: prior?.was ?? cur } }, styling };
+}
+
 export function proposalRow(p: Proposal): RackRow {
   return {
     key: p.key,

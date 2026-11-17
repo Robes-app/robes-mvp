@@ -1,0 +1,22 @@
+<!-- @dsCard group="Inputs" height=100 subtitle="On · off · faded" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>IconToggle — preview</title>
+<style>
+  .r{display:flex;gap:24px;align-items:center;padding:20px;background:var(--white);width:max-content}
+  .t{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+  .on{background:var(--cream-200);border:1px solid var(--token-line);color:var(--ink)}
+  .off{border:1px solid var(--warm-line);color:var(--ink-faint)}
+  .fd{opacity:.45}
+  .l{font:400 11px/1 var(--font-sans);color:var(--ink-faint);margin-top:8px;text-align:center}
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+function T(p) { return h('div', null, h('span', { className: 't ' + p.k }, h(F.Icon, { name: p.i, size: 15 })), h('div', { className: 'l' }, p.l)); }
+ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'r' },
+  h(T, { k: 'on', i: 'wardrobe', l: 'On' }), h(T, { k: 'off', i: 'bag', l: 'Off' }), h(T, { k: 'off fd', i: 'wardrobe', l: 'Faded' })));
+</script>
+</body>
+</html>

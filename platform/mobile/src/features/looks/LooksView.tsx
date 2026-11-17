@@ -1,6 +1,7 @@
 import type { Look } from '@robes/contracts';
 import { lookbook as copy, filters as filterCopy, ui } from '@robes/copy';
 import { lookFacets } from '@robes/core/filters';
+import { showLookbookSearch } from '@robes/core/looks';
 import {
   CardSkeleton,
   EmptyState,
@@ -104,13 +105,16 @@ export function LooksView() {
           testID="lookbook-filter-row"
         />
       </TabSticky>
-      {/* Search under the glass, always there (Robes MVP 2b); the Lookbook has no list view. */}
-      <SearchRow
-        placeholder={copy.search}
-        value={filters.state.query}
-        onChange={filters.setQuery}
-        testID="lookbook-search"
-      />
+      {/* Search under the glass (Robes MVP 2b), once there is enough to search (50+ saved looks,
+          Annie 16 Nov); the Lookbook has no list view. */}
+      {showLookbookSearch(saved.data?.items.length ?? 0, filters.state.query) ? (
+        <SearchRow
+          placeholder={copy.search}
+          value={filters.state.query}
+          onChange={filters.setQuery}
+          testID="lookbook-search"
+        />
+      ) : null}
       {tab === 'saved' && draftItems.length ? (
         <View className="gap-[10px]">
           <Eyebrow>{copy.inProgress}</Eyebrow>

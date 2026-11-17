@@ -1,0 +1,28 @@
+<!-- @dsCard group="iOS" height=300 subtitle="Liquid Glass on iOS 26 · the token veil with Reduce Transparency or no glass" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>LiquidGlass — preview</title>
+<style>
+  .row{display:flex;gap:24px;padding:16px;background:var(--cream-300);width:max-content}
+  .card{position:relative;width:200px;aspect-ratio:4/5;border-radius:var(--rad);overflow:hidden;background:url(/_blob/50391bfc33b632d314a4b7e9c3c3e469) center/cover}
+  .d{position:absolute;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .tl{top:12px;left:12px}.tr{top:12px;right:12px}
+  .glass{background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(6px) saturate(180%) brightness(1.08);backdrop-filter:blur(6px) saturate(180%) brightness(1.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.75),inset 0 0 0 0.5px rgba(255,255,255,.5),0 4px 12px -4px rgba(32,32,33,.25)}
+  .veil{background:var(--veil-soft);-webkit-backdrop-filter:blur(var(--blur-disc));backdrop-filter:blur(var(--blur-disc))}
+  .cap{font:400 11px/1.4 var(--font-sans);color:var(--ink-faint);margin-top:8px;text-align:center}
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+function Card(p) {
+  return h('div', null, h('div', { className: 'card' },
+    h('span', { className: 'd tl ' + p.k }, h(F.Icon, { name: 'back', size: 17 })),
+    h('span', { className: 'd tr ' + p.k }, h(F.Icon, { name: 'sparkle', size: 17 }))),
+    h('div', { className: 'cap' }, p.cap));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'row' },
+  h(Card, { k: 'glass', cap: 'iOS 26 · Liquid Glass (approximated here)' }), h(Card, { k: 'veil', cap: 'Fallback · veil-soft + blur-disc' })));
+</script>
+</body>
+</html>

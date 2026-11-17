@@ -18,8 +18,16 @@ function setup(over: Partial<ReceiptDeps> & { output?: object; owner?: boolean }
     hasProvider: vi.fn(async () => false),
     fromReceipt: vi.fn(async () => ({ id: 'inbox-1', created: true })),
     queuePhotoReads: vi.fn(async () => [
-      { jobId: 'job-1', url: 'https://static.shop.test/coat.jpg' },
-      { jobId: 'job-2', url: 'https://static.shop.test/scarf.jpg' },
+      {
+        jobId: 'job-1',
+        url: 'https://static.shop.test/coat.jpg',
+        assetId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+      },
+      {
+        jobId: 'job-2',
+        url: 'https://static.shop.test/scarf.jpg',
+        assetId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+      },
     ]),
   };
   const deps: ReceiptDeps = {
@@ -70,13 +78,21 @@ describe('ingestReceipt', () => {
   // Legacy's vision pass: each line's photo is a receipt_read job, fetched only by the isolated
   // fetcher (SEC-40); this worker follows no link in the mail itself.
   it('asks the fetcher for each line’s photo once the receipt is held', async () => {
-    const requestPhoto = vi.fn(async (_photo: { jobId: string; url: string }) => {});
+    const requestPhoto = vi.fn(async (_photo: { jobId: string; url: string; key: string }) => {});
     const { deps, intake } = setup({ requestPhoto });
     expect((await ingestReceipt(deps, notification())).status).toBe('held');
     expect(intake.queuePhotoReads).toHaveBeenCalledWith(NIALL, 'inbox-1');
     expect(requestPhoto.mock.calls.map((c) => c[0])).toEqual([
-      { jobId: 'job-1', url: 'https://static.shop.test/coat.jpg' },
-      { jobId: 'job-2', url: 'https://static.shop.test/scarf.jpg' },
+      {
+        jobId: 'job-1',
+        url: 'https://static.shop.test/coat.jpg',
+        key: `uploads/${NIALL}/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1/original`,
+      },
+      {
+        jobId: 'job-2',
+        url: 'https://static.shop.test/scarf.jpg',
+        key: `uploads/${NIALL}/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2/original`,
+      },
     ]);
   });
 

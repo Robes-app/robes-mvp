@@ -1,11 +1,11 @@
 import { parseJobMessage, parseLinkResultMessage, parsePhotoResultMessage } from '@robes/jobs';
 import { type WorkerContext, workerContext } from '../context';
 import { withErrorReporting } from '../errors';
-import { storeFetchedPhoto } from '../photos';
+import { attachFetchedPhoto } from '../photos';
 import { processBatch, type SqsBatchResponse, type SqsEvent } from '../sqs';
 
 export function createGenerateHandler(
-  getContext: () => Promise<Pick<WorkerContext, 'run' | 'logger' | 'system' | 'storage'>>,
+  getContext: () => Promise<Pick<WorkerContext, 'run' | 'logger' | 'system'>>,
 ) {
   return async (event: SqsEvent): Promise<SqsBatchResponse> => {
     const ctx = await getContext();
@@ -19,12 +19,12 @@ export function createGenerateHandler(
         await ctx.run(linkResult.jobId);
         return;
       }
-      // A receipt line's photo, fetched by the same isolated fetcher: stored, then read.
+      // A product photo the same isolated fetcher uploaded (a receipt line's or a link's): read.
       const photo = parsePhotoResultMessage(record.body);
       if (photo) {
-        if (!ctx.storage) throw new Error('receipt photos need MEDIA_BUCKET');
-        const deps = { jobs: ctx.system.jobs, storage: ctx.storage };
-        if (!(await storeFetchedPhoto(deps, photo.jobId, photo.photoResult))) {
+        if (
+          !(await attachFetchedPhoto({ jobs: ctx.system.jobs }, photo.jobId, photo.photoResult))
+        ) {
           return ctx.logger.warn({ jobId: photo.jobId }, 'photo_result_unmatched');
         }
         await ctx.run(photo.jobId);

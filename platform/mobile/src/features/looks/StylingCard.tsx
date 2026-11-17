@@ -23,14 +23,29 @@ const AVATAR = 26;
 const DISC = 32;
 
 // The prompt row's placeholder turns through the suggestions while the field is empty.
+// Every box turns on one clock (look prompt improvements B8, 16 Nov): the resting box and the
+// open sheet's box show the same line, so opening the prompt never jumps back to the first.
+const turnNow = () => Math.floor(Date.now() / TURN_MS);
 export function useTurningPlaceholder(lines: readonly string[], on: boolean): string {
-  const [i, setI] = useState(0);
+  const [turn, setTurn] = useState(turnNow);
   useEffect(() => {
     if (!on || lines.length < 2) return;
-    const t = setInterval(() => setI((n) => n + 1), TURN_MS);
-    return () => clearInterval(t);
+    setTurn(turnNow());
+    // Wakes on the clock's next turn, then on each one after it.
+    let t: ReturnType<typeof setTimeout>;
+    const next = () => {
+      t = setTimeout(
+        () => {
+          setTurn(turnNow());
+          next();
+        },
+        TURN_MS - (Date.now() % TURN_MS),
+      );
+    };
+    next();
+    return () => clearTimeout(t);
   }, [on, lines.length]);
-  return lines[i % lines.length] ?? '';
+  return lines[turn % lines.length] ?? '';
 }
 
 // The prompt box (look prompt PRD P1–P8, S1, D1; redline 14 Nov pins 1, 5, 8, 9, 11): white on
@@ -248,8 +263,9 @@ export function RobesAvatar({ working = false }: { working?: boolean }) {
 // floats at the look's foot and never takes the keyboard: `box` is the prompt box before there is
 // a conversation, `pill` the closed bar — Robes' avatar, the line it is on, the thumbs while
 // Robes is asking, the disc that opens it — and `spark` the sparkle (a saved look, a draft after
-// a thumbs up). Opened, it is the app's own bottom sheet: anchored to the screen's foot, standing
-// on the keyboard, the look dimmed behind it and closed by a tap there — the tracked title and
+// a thumbs up). Opened before her first send on a draft (`bare`), the sheet holds only the box
+// she tapped, place and weather and all (16 Nov). Opened once there is a conversation, it is the
+// app's own bottom sheet: anchored to the screen's foot, standing on the keyboard, the look dimmed behind it and closed by a tap there — the tracked title and
 // the minimise disc, the turns scrolling newest-last, and the box with the field in focus. Web
 // twin: app/src/components/looks/styling-card.tsx.
 export type DockRest = 'box' | 'pill' | 'spark';
@@ -266,6 +282,7 @@ export function PromptDock({
   onOpen,
   onMinimise,
   box,
+  bare = false,
   children,
 }: {
   open: boolean;
@@ -283,12 +300,18 @@ export function PromptDock({
   onMinimise: () => void;
   // The resting prompt box (`rest` "box"): the sources, the day's chip, a line that opens the sheet.
   box?: ReactNode;
+  // Before her first send on a draft (Prompt states, the draft's open box): no title, no shade,
+  // no panel, only the box she tapped, rising on the keyboard with its place and weather.
+  bare?: boolean;
   // The sheet's box, its field in focus.
   children: ReactNode;
 }) {
   const muted = useColor('ink-muted');
   const onInk = useColor('bg');
   const scroll = useRef<ScrollViewInstance>(null);
+  // The resting row's height, held while the sheet is up so the screen behind never jumps as the
+  // row leaves (16 Nov).
+  const [restHeight, setRestHeight] = useState(0);
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrolls when a turn lands
   useEffect(() => {
     scroll.current?.scrollToEnd({ animated: true });
@@ -356,29 +379,37 @@ export function PromptDock({
       {box}
     </View>
   );
+  // The title and minimise under the sheet's slim handle (Prompt States: 20pt in on the left, 14pt
+  // on the right, 4pt under).
+  const head = (
+    <View className="flex-row items-center gap-3 pb-1" style={{ marginRight: -6 }}>
+      <Text
+        className="flex-1 uppercase text-ink-muted"
+        style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 9 * 0.22 }}
+      >
+        {copy.dock.title}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={copy.dock.minimise}
+        onPress={onMinimise}
+        hitSlop={6}
+        testID="prompt-minimise"
+        className="items-center justify-center rounded-pill bg-surface-sunk"
+        style={{ width: DISC, height: DISC }}
+      >
+        <Icon name="down" size={14} color={muted} />
+      </Pressable>
+    </View>
+  );
   return (
     <>
-      {resting}
-      <Sheet open={open} onClose={onMinimise} floating testID="prompt-dock">
-        <View className="flex-row items-center gap-3 pb-2">
-          <Text
-            className="flex-1 uppercase text-ink-muted"
-            style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 9 * 0.22 }}
-          >
-            {copy.dock.title}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copy.dock.minimise}
-            onPress={onMinimise}
-            hitSlop={6}
-            testID="prompt-minimise"
-            className="items-center justify-center rounded-pill bg-surface-sunk"
-            style={{ width: DISC, height: DISC }}
-          >
-            <Icon name="down" size={14} color={muted} />
-          </Pressable>
-        </View>
+      {resting ? (
+        <View onLayout={(e) => setRestHeight(e.nativeEvent.layout.height)}>{resting}</View>
+      ) : (
+        <View style={{ height: restHeight }} />
+      )}
+      <Sheet open={open} onClose={onMinimise} floating bare={bare} head={head} testID="prompt-dock">
         {conversation ? (
           <ScrollView
             ref={scroll}
@@ -391,8 +422,10 @@ export function PromptDock({
             {conversation}
           </ScrollView>
         ) : null}
-        {/* The box runs wider than the sheet's own gutter: 10pt from each side (pin 1). */}
-        <View style={{ marginHorizontal: -10 }}>{children}</View>
+        {/* The box runs wider than the sheet's own gutter: 10pt from each side (pin 1). Bare, the
+        sheet's gutter is those 10pt. */}
+        {/* Open, the box stands 20pt in from the sheet's sides, as the turns do (Prompt States). */}
+        {children}
       </Sheet>
     </>
   );

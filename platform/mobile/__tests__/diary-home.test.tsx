@@ -224,7 +224,7 @@ test('an empty day: her model with Capture · Create · Pick; Pick opens the dra
   expect(screen.getByRole('button', { name: diary.discs.createLabel('Friday') })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: diary.discs.pickLabel('Friday') }));
   expect(await screen.findByTestId('look-picker')).toBeTruthy();
-  // The ✓ waits grey until her picks change the day (Front Door PRD rev 3 §4.5).
+  // Done waits faint until her picks change the day (Front Door PRD rev 3 §4.5).
   const done = await screen.findByRole('button', { name: diary.drawer.done });
   expect(done.props.accessibilityState).toEqual({ disabled: true });
   expect(screen.getByText(diary.drawer.eyebrow('Friday', 'Fri 2 Oct'))).toBeTruthy();
@@ -235,14 +235,18 @@ test('an empty day: her model with Capture · Create · Pick; Pick opens the dra
   expect(screen.getByRole('button', { name: `${filters.all} 1` })).toBeTruthy();
   expect(screen.getByLabelText(diary.drawer.search)).toBeTruthy();
   expect(await screen.findByText(diary.drawer.wears(2))).toBeTruthy();
-  // One tap readies Schedule 1 Look on the ✓; a pin follows.
+  // One tap readies Done, Schedule 1 Look its hint (audit P2: one sheet header); a pin follows.
   await fireEvent.press(screen.getByTestId(`drawer-look-${LOOK_ID}`));
-  expect(screen.getByRole('button', { name: diary.drawer.schedule(1) })).toBeTruthy();
+  expect(screen.getByRole('button', { name: diary.drawer.done }).props.accessibilityHint).toBe(
+    diary.drawer.schedule(1),
+  );
   // A search that matches nothing offers Clear filters, and the pick survives it.
   await fireEvent.changeText(screen.getByLabelText(diary.drawer.search), 'nothing like this');
   expect(await screen.findByText(filters.noLooks)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: filters.clear }));
-  expect(screen.getByRole('button', { name: diary.drawer.schedule(1) })).toBeTruthy();
+  expect(screen.getByRole('button', { name: diary.drawer.done }).props.accessibilityHint).toBe(
+    diary.drawer.schedule(1),
+  );
 });
 
 // Felix, 12 Nov: Home opened with a scroll. A page stands full width while it fits the room left
@@ -396,4 +400,21 @@ test('a day gone by keeps Capture and Pick, without Create', async () => {
   expect(screen.getByTestId('disc-capture')).toBeTruthy();
   expect(screen.getByTestId('disc-pick')).toBeTruthy();
   expect(screen.queryByTestId('disc-create')).toBeNull();
+});
+
+// Annie, 16 Nov: a bell nudge opens its day's card; a day she picks clears the nudge's `?day=`, so
+// tapping the same nudge again lands on it again.
+test('a bell nudge lands on its day, and a day picked on the strip clears it', async () => {
+  mockFetch(ROUTES);
+  await renderWithApi(<DiaryHome day={PAST} />);
+  const past = await screen.findByTestId(`diary-day-${PAST}`);
+  expect(past.props.accessibilityState).toMatchObject({ selected: true });
+  expect(screen.getByTestId(`diary-day-${DATE}`).props.accessibilityState).toMatchObject({
+    selected: false,
+  });
+  await fireEvent.press(screen.getByTestId(`diary-day-${DATE}`));
+  expect(screen.getByTestId(`diary-day-${DATE}`).props.accessibilityState).toMatchObject({
+    selected: true,
+  });
+  expect(mockRouter.setParams).toHaveBeenCalledWith({ day: '' });
 });

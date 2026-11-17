@@ -5,7 +5,14 @@ import type { Features } from '@robes/contracts';
 import { lookbook, nav, plan, shell, today, wardrobe } from '@robes/copy';
 import { greetingName } from '@robes/core/home';
 import { Icon } from '@robes/icons/web';
-import { Avatar, type Command, CommandBar, useCommandHotkey, Wordmark } from '@robes/ui';
+import {
+  Avatar,
+  type Command,
+  CommandBar,
+  useCommandHotkey,
+  useToastLiftOver,
+  Wordmark,
+} from '@robes/ui';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -133,11 +140,17 @@ export function AppShell({
   const back = backHidden ? null : backFor(pathname, search);
   const toggleCommand = useCallback(() => setCommandOpen((o) => !o), []);
   useCommandHotkey(toggleCommand);
+  // A toast stands above the phone dock, never on it: a tap meant for a tab landed on the toast,
+  // and on "Draft let go." its Undo brought the draft back (16 Nov). Hidden (md and up, or a flow
+  // without the dock), it lifts nothing. Native twin: components/TabScreen.tsx.
+  const dock = useRef<HTMLElement>(null);
+  useToastLiftOver(dock);
   useDeviceLocation();
   const current = activeRoot(pathname);
-  // The Wardrobe's badge counts every piece she owns (Front Door PRD rev 3, Q1); none at zero.
+  // The Wardrobe's badge counts every piece she owns (Front Door PRD rev 3, Q1); an empty wardrobe
+  // reads a red 0 (Robes MVP 1a, Annie 16 Nov). Nothing until the count is known.
   const summary = useApi('wardrobe.summary');
-  const owned = summary.data?.total ?? 0;
+  const owned = summary.data?.total ?? null;
   const inFlow = isFlowPath(pathname) || pushed;
   const { scrolled, minimised, restore } = useScrollChrome(MINIMISES.has(current), pathname);
   const create = useMemo(() => createItems(features), [features]);
@@ -280,6 +293,7 @@ export function AppShell({
 
       {/* One capsule, 16 from each side and 24 above the screen edge; 4 inset round four tabs. */}
       <nav
+        ref={dock}
         aria-label={shell.primaryNav}
         hidden={inFlow}
         data-minimised={minimised ? 'true' : undefined}
@@ -294,7 +308,7 @@ export function AppShell({
                 key={item.href}
                 item={item}
                 active={current === item.href}
-                badge={item.href === '/wardrobe' ? owned : 0}
+                badge={item.href === '/wardrobe' ? owned : null}
               />
             ))}
           </ul>
@@ -322,20 +336,20 @@ const DOCK = 'border-dock-line bg-dock-glass backdrop-blur-dock';
 function TabLink({
   item,
   active,
-  badge = 0,
+  badge = null,
 }: {
   item: (typeof NAV_ITEMS)[number];
   active: boolean;
   // The Wardrobe's count of her pieces (Front Door PRD rev 3, Q1): an 18px ink disc at the
-  // glyph's corner, none at zero (plan R11).
-  badge?: number;
+  // glyph's corner; a red 0 while the wardrobe is empty (Robes MVP 1a). Null: no badge.
+  badge?: number | null;
 }) {
   return (
     <li className="flex-1">
       <Link
         href={item.href}
         aria-current={active ? 'page' : undefined}
-        aria-label={badge > 0 ? `${item.label}, ${badge}` : undefined}
+        aria-label={badge !== null ? `${item.label}, ${badge}` : undefined}
         className={`relative flex h-14 flex-col items-center justify-center gap-1 rounded-pill font-sans font-medium text-[9.5px] uppercase leading-none tracking-[0.04em] whitespace-nowrap ${
           active ? 'text-ink' : 'text-ink-muted'
         } ${focus}`}
@@ -345,10 +359,10 @@ function TabLink({
         ) : null}
         <span className="relative">
           <Icon name={item.icon} size={20} />
-          {badge > 0 ? (
+          {badge !== null ? (
             <span
               aria-hidden
-              className="absolute -top-2 -right-3 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-pill bg-ink px-1 font-sans text-[9.5px] text-bg tracking-normal"
+              className={`absolute -top-2 -right-3 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-pill px-1 font-sans text-[9.5px] text-bg tracking-normal ${badge === 0 ? 'bg-alert' : 'bg-ink'}`}
             >
               {badge}
             </span>

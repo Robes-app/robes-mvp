@@ -7,10 +7,10 @@
 <script>
 var F = window.Felix, h = React.createElement;
 var items = [
-  { img: '/_blob/045693b3417feb00a48ceb46f01e48c1', category: 'Tops', name: 'Lime green sweatshirt', brand: 'Adidas', worn: 5 },
-  { img: '/_blob/1b9efb672ddd48508701d0e03f6e2ebe', category: 'Bottoms', name: 'Black leggings', brand: 'Lululemon', worn: 5 },
-  { img: '/_blob/0254148f4ceda43a923848a63e4165a9', category: 'Shoes', name: 'White Salomon running shoes', brand: 'Salomon', worn: 5 },
-  { img: '/_blob/adb4e9ebaed5da4084730ceda75ac8ae', category: 'Bags', name: 'Leather tote', brand: 'Arket', price: '€179', shop: true }];
+  { img: '/_blob/192f70639d7d6694c0601eaa44e26246', category: 'Tops', name: 'Lime green sweatshirt', brand: 'Adidas', worn: 5 },
+  { img: '/_blob/38c8970c7d439f001a3d18b475fd6b53', category: 'Bottoms', name: 'Black leggings', brand: 'Lululemon', worn: 5 },
+  { img: '/_blob/17c2602cfc627dac840630e6843d2865', category: 'Shoes', name: 'White Salomon running shoes', brand: 'Salomon', worn: 5 },
+  { img: '/_blob/e2167f5118df07f93640f698b2bc313d', category: 'Bags', name: 'Leather tote', brand: 'Arket', price: '€179', shop: true }];
 var col = { width: 350, padding: '20px', background: 'var(--cream)', borderRadius: 'var(--rad-device)', display: 'flex', flexDirection: 'column', gap: 28 };
 function Live(o) { var v = React.useState(o.view || 'list'), e = React.useState(!!o.editing);
   return h(F.PieceList, Object.assign({ items: items, onAdd: function () {} }, o, { view: v[0], onView: v[1], editing: e[0], onEditToggle: function () { e[1](!e[0]); } })); }

@@ -2,6 +2,7 @@
 
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
+import { pictureLanding } from '@robes/core/looks';
 import { ErrorText, Skeleton } from '@robes/ui';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
@@ -17,8 +18,8 @@ export function LookView({ id }: { id: string }) {
     'looks.get',
     { params: { id } },
     {
-      refetchInterval: (q) =>
-        q.state.data?.onModel === 'pending' || q.state.data?.framePending ? 3_000 : false,
+      // Until the picture has landed, renditions and all (pictureLanding).
+      refetchInterval: (q) => (pictureLanding(q.state.data) ? 3_000 : false),
     },
   );
   // Save opens the diary every time; the sheet outlives the working page it was saved from.

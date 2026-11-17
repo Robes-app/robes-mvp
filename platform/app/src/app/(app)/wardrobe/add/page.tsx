@@ -1,19 +1,15 @@
-import { isDestination } from '@robes/core/add-flow';
-import { AddFlow } from '@/components/wardrobe/add/add-flow';
+import { redirect } from 'next/navigation';
+import { addPiecesHref, cameraHref, destinationOf } from '@/lib/add-hrefs';
 
-// Add pieces (design "Add Piece — Handoff"): the sheet, the camera and Review on one page.
-export default async function AddPiecesPage({
+// The old Add pieces address (emails, links, ⌘K before 16 Nov): the Add pieces sheet over the
+// Wardrobe or the Wishlist, or the camera when it asked for one. The page with its own
+// Wardrobe/Wishlist switch is retired (audit P2). Twin of native app/wardrobe/add.tsx.
+export default async function AddPiecesRoute({
   searchParams,
 }: {
   searchParams: Promise<{ to?: string; start?: string }>;
 }) {
   const { to, start } = await searchParams;
-  return (
-    <div className="flex flex-col gap-4">
-      <AddFlow
-        initial={isDestination(to) ? to : 'wardrobe'}
-        start={start === 'camera' ? 'camera' : null}
-      />
-    </div>
-  );
+  const dest = destinationOf(to);
+  redirect(start === 'camera' ? cameraHref(dest) : addPiecesHref(dest));
 }
