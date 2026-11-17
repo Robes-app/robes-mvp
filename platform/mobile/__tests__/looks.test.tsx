@@ -267,6 +267,44 @@ test('a card opens its sheet piece by piece, her own pieces marked', async () =>
   );
 });
 
+// Adding a photograph adds an image; it never takes one away (Annie, 17 Nov). Once her photograph
+// is the cover, Robes' card still shows Robes' picture, a frame included, not the cover again.
+test('the strip’s Robes card shows Robes’ picture when her photograph is the cover', async () => {
+  const base = piece().image;
+  if (!base) throw new Error('fixture piece has an image');
+  const at = (name: string) => ({
+    ...base,
+    assetId: name === 'robes' ? '77777777-7777-4777-8777-777777777777' : base.assetId,
+    renditions: base.renditions.map((r) => ({
+      ...r,
+      webp: `http://m.test/${name}-${r.width}.webp`,
+    })),
+  });
+  const photo = at('photo');
+  const robes = at('robes');
+  mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look({
+      frame: true,
+      photo,
+      model: robes,
+      image: photo,
+      record: 'photo',
+      images: [{ id: '88888888-8888-4888-8888-888888888888', image: photo, position: 0 }],
+    }),
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} presentation="sheet" images="add" onClose={() => undefined} />,
+  );
+  await screen.findByTestId('image-card-robes');
+  const strip = JSON.stringify(screen.toJSON());
+  // The Robes card comes first in the strip, then her photograph.
+  const card = strip.slice(strip.indexOf('image-card-robes'), strip.indexOf('image-card-photo'));
+  expect(card).toContain('http://m.test/robes-');
+  expect(card).not.toContain('http://m.test/photo-');
+  expect(screen.getAllByTestId(/^image-card-(robes|photo)$/)).toHaveLength(2);
+});
+
 test('on the look’s page the image stack opens the Edit look frame on Add a photo', async () => {
   const model = piece().image;
   if (!model) throw new Error('fixture piece has an image');

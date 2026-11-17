@@ -1,4 +1,4 @@
-import type { Look } from '@robes/contracts';
+import type { Look, PieceImage } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { Image, Skeleton, Text } from '@robes/ui-native';
 import { useEffect, useRef } from 'react';
@@ -8,7 +8,15 @@ import { PERSON_CROP } from './LookTile';
 import { useRequestFrame } from './look-states';
 import { Scanning, scanningLine } from './ScanLine';
 
-export function LookPicture({ look }: { look: Look }) {
+// `picture` is what it shows: the look's cover by default; the strip's Robes card passes Robes'
+// own picture, so a photograph made the cover never stands in for it (Annie, 17 Nov).
+export function LookPicture({
+  look,
+  picture = look.image,
+}: {
+  look: Look;
+  picture?: PieceImage | null;
+}) {
   const requestFrame = useRequestFrame();
   const asked = useRef(false);
   // A suggestion's frame is drawn when she first reaches it (UX-09).
@@ -18,7 +26,7 @@ export function LookPicture({ look }: { look: Look }) {
       requestFrame(look.id);
     }
   }, [look, requestFrame]);
-  const uri = renditionUri(look.image, 360);
+  const uri = renditionUri(picture, 360);
   // The frame is scanned while it is drawn, so the page never rests on the bare pieces.
   const busy = scanningLine(look);
   return (
@@ -27,7 +35,7 @@ export function LookPicture({ look }: { look: Look }) {
         <Image
           source={uri}
           alt={copy.prompt.label(look.name)}
-          blurhash={look.image?.blurhash}
+          blurhash={picture?.blurhash}
           contentPosition={PERSON_CROP}
         />
       ) : (

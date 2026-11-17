@@ -221,7 +221,9 @@ export function ImageManager({
 // from the file in hand while its renditions are made).
 export function CardPicture({ look, card, alt }: { look: Look; card: StageCard; alt: string }) {
   if (card.kind === 'robes') {
-    if (look.frame) return <LookPicture look={look} />;
+    // Robes' picture is `model` (its frame, else its render), never the cover: once one of her
+    // photographs is in front, the cover is that photograph.
+    if (look.frame) return <LookPicture look={look} picture={look.model} />;
     const robes = look.model;
     return (
       <Image

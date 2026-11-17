@@ -293,7 +293,9 @@ export function CardPicture({
   width: number;
 }) {
   if (card.kind === 'robes') {
-    if (look.frame) return <LookPicture look={look} />;
+    // Robes' picture is `model` (its frame, else its render), never the cover: once one of her
+    // photographs is in front, the cover is that photograph.
+    if (look.frame) return <LookPicture look={look} picture={look.model} />;
     const uri = renditionUri(look.model, width);
     return uri ? (
       <Image
