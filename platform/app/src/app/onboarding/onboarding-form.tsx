@@ -13,6 +13,7 @@ import { Button, ErrorText, Field, Wordmark } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
+import { useSelfieRead } from '@/lib/use-selfie';
 import { CaptureStep } from './capture-step';
 import { Frame } from './frame';
 import { OutfitStep } from './outfit-step';
@@ -69,6 +70,9 @@ export function OnboardingForm({
   const [skipped, setSkipped] = useState<FirstRunCapture[]>(start.skipped);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Her close-up's read, followed here rather than on the twin step: it goes on — and draws her
+  // twin when it lands — while she moves on to Today's outfit (R-S4: she never waits on a read).
+  const read = useSelfieRead();
 
   // Her houses lead; one she picked stays on the wall when her styles change.
   const wall = useMemo(() => {
@@ -200,6 +204,7 @@ export function OnboardingForm({
     return (
       <TwinStep
         step={n}
+        read={read}
         onBack={back}
         onDone={(own) => {
           track('onboarding_captured', { step: 'twin', n: own ? 1 : 0 });

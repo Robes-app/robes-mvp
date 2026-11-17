@@ -1,14 +1,25 @@
 import { consent, firstRun, twin } from '@robes/copy';
-import { Button, Em, ErrorText, Heading, Sheet, Text, useColor } from '@robes/ui-native';
+import {
+  appCaps,
+  Button,
+  Em,
+  ErrorText,
+  Glass,
+  Heading,
+  maxFontSizeMultiplier,
+  Sheet,
+  useColor,
+} from '@robes/ui-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, Text as RNText, View } from 'react-native';
 import Svg, { Ellipse, Path } from 'react-native-svg';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
+import { ScanLine } from '@/features/looks/ScanLine';
 import { AgreeBox, ConsentRows } from '@/features/you/TwinConsent';
 import { Lineup, useModel, useModelPick, useTwinStatus } from '@/features/you/twin';
-import { FROM_ONBOARDING, SELFIE_ROUTE, useSelfieRead } from '@/features/you/use-selfie';
+import { FROM_ONBOARDING, SELFIE_ROUTE } from '@/features/you/use-selfie';
 import { useConsents } from '@/lib/consents';
 import { QuietLink } from './CaptureStep';
 
@@ -28,16 +39,19 @@ export function TwinStep({
   onBack,
   onDone,
   onSkip,
+  read,
 }: {
   step: number;
   onBack: () => void;
   onDone: (twin: boolean) => void;
   onSkip: () => void;
+  // Her close-up's read, followed by Getting to know you itself so it goes on — and draws her
+  // twin — after she has moved on to the next step.
+  read: { reading: boolean; error: string | null };
 }) {
   const router = useRouter();
   const query = useModel();
   const { pick, pending } = useModelPick();
-  const read = useSelfieRead();
   const { consents, give, saving, error: consentError } = useConsents();
   const [agreed, setAgreed] = useState(false);
   const [privacy, setPrivacy] = useState(false);
@@ -72,7 +86,12 @@ export function TwinStep({
   // You, until she picks a Robes model: her twin once drawn, else the close-up's face guide.
   const own = !onRobes;
   const busy = read.reading || drawing;
-  const hero = own ? twinUrl : (robes?.imageUrl ?? null);
+  // While her twin is read and drawn, her close-up stands dimmed under the scan, as on You ›
+  // Your digital twin (testing, 17 Nov: the blank guide read as stuck).
+  const hero = own
+    ? (twinUrl ?? (busy ? (model?.closeUpUrl ?? null) : null))
+    : (robes?.imageUrl ?? null);
+  const dimmed = own && busy;
 
   const title = own ? copy.you : copy.robes;
   const titleEm = own ? (twinUrl ? copy.ready : copy.youEm) : copy.robesEm;
@@ -102,12 +121,7 @@ export function TwinStep({
     </>
   ) : (
     <>
-      <Button
-        variant="primary"
-        disabled={busy && own}
-        onPress={() => onDone(own)}
-        testID="onboarding-continue"
-      >
+      <Button variant="primary" onPress={() => onDone(own)} testID="onboarding-continue">
         {firstRun.continue}
       </Button>
       <QuietLink
@@ -132,7 +146,7 @@ export function TwinStep({
                 contentFit="cover"
                 contentPosition={{ top: '20%', left: '50%' }}
                 accessibilityLabel={own ? twin.twinPage.you : robes ? title : undefined}
-                style={{ width: '100%', height: '100%' }}
+                style={{ width: '100%', height: '100%', opacity: dimmed ? 0.45 : 1 }}
               />
             ) : (
               <FaceGuide
@@ -140,11 +154,23 @@ export function TwinStep({
                 onPress={consented || agreed ? takeCloseUp : undefined}
               />
             )}
+            {busy ? <ScanLine /> : null}
             {status ? (
-              <View className="absolute bottom-3 rounded-pill bg-surface-raised px-3.5 py-2">
-                <Text size="small" tone="muted">
+              // The status as You's stage says it (designs 06–07): a dot and one line, on glass.
+              <View
+                className="absolute top-3.5 right-3.5 h-8 flex-row items-center gap-2.5 overflow-hidden rounded-pill px-3.5"
+                accessibilityLiveRegion="polite"
+                testID="twin-status"
+              >
+                <Glass tone="veil" className="absolute inset-0 rounded-pill" />
+                <View className="size-1.5 rounded-pill bg-accent-warm" />
+                <RNText
+                  maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+                  className="text-ink uppercase"
+                  style={appCaps}
+                >
                   {status}
-                </Text>
+                </RNText>
               </View>
             ) : null}
           </View>

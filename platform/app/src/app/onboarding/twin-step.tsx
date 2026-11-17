@@ -7,7 +7,7 @@ import { Lineup, useModel, useModelPick, useTwinStatus } from '@/app/(app)/you/m
 import { SelfieCamera } from '@/app/(app)/you/selfie/selfie-camera';
 import { AgreeBox, ConsentRows } from '@/app/(app)/you/selfie/twin-consent';
 import { useAnalytics } from '@/components/analytics-provider';
-import { useSelfieRead } from '@/lib/use-selfie';
+import { ScanLine } from '@/components/looks/scan-line';
 import { Frame, QuietLink } from './frame';
 
 const copy = firstRun.twin;
@@ -27,15 +27,18 @@ export function TwinStep({
   onBack,
   onDone,
   onSkip,
+  read,
 }: {
   step: number;
   onBack: () => void;
   onDone: (twin: boolean) => void;
   onSkip: () => void;
+  // Her close-up's read, followed by Getting to know you itself so it goes on — and draws her
+  // twin — after she has moved on to the next step.
+  read: { reading: boolean; error: string | null };
 }) {
   const query = useModel();
   const { pick, pending } = useModelPick();
-  const read = useSelfieRead();
   const { consents, updateConsents } = useAnalytics();
   const [agreed, setAgreed] = useState(false);
   const [privacy, setPrivacy] = useState(false);
@@ -65,7 +68,12 @@ export function TwinStep({
   // You, until she picks a Robes model: her twin once drawn, else the close-up's face guide.
   const own = !onRobes;
   const busy = read.reading || drawing;
-  const hero = own ? twinUrl : (robes?.imageUrl ?? null);
+  // While her twin is read and drawn, her close-up stands dimmed under the scan, as on You ›
+  // Your digital twin (testing, 17 Nov: the blank guide read as stuck).
+  const hero = own
+    ? (twinUrl ?? (busy ? (model?.closeUpUrl ?? null) : null))
+    : (robes?.imageUrl ?? null);
+  const dimmed = own && busy;
   const title = own ? copy.you : copy.robes;
   const titleEm = own ? (twinUrl ? copy.ready : copy.youEm) : copy.robesEm;
   const needsShot = own && !twinUrl && !busy;
@@ -101,7 +109,7 @@ export function TwinStep({
     </>
   ) : (
     <>
-      <Button variant="primary" disabled={busy && own} onClick={() => onDone(own)}>
+      <Button variant="primary" onClick={() => onDone(own)}>
         {firstRun.continue}
       </Button>
       <QuietLink
@@ -125,7 +133,7 @@ export function TwinStep({
               <img
                 src={hero}
                 alt={own ? twin.twinPage.you : title}
-                className="size-full object-cover object-[50%_20%]"
+                className={`size-full object-cover object-[50%_20%] ${dimmed ? 'opacity-45' : ''}`}
               />
             ) : (
               // Before her close-up (design Q5): a dashed oval with a face drawn in.
@@ -148,12 +156,16 @@ export function TwinStep({
                 />
               </svg>
             )}
+            {busy ? <ScanLine /> : null}
             {status ? (
+              // The status as You's stage says it (designs 06–07): a dot and one line, on glass.
               <p
                 role="status"
-                className="absolute bottom-3 rounded-pill bg-surface-raised px-3.5 py-2 text-ink-muted text-sm"
+                className="absolute top-3.5 right-3.5 flex h-8 items-center gap-2.5 rounded-pill bg-veil px-3.5 backdrop-blur-[22px]"
+                data-testid="twin-status"
               >
-                {status}
+                <span aria-hidden className="size-1.5 rounded-pill bg-accent-warm" />
+                <span className="app-caps text-ink">{status}</span>
               </p>
             ) : null}
           </div>

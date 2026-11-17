@@ -7,7 +7,14 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Ellipse, Path } from 'react-native-svg';
 import { PICKER_OPTIONS, type PickedPhoto } from '@/features/wardrobe/add-pieces';
@@ -332,12 +339,21 @@ function Wide({
       }}
       className="flex-1 items-center justify-center rounded-pill px-5"
     >
-      <Text
-        maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-        style={{ ...LABEL, color: ink ? CREAM : INK, opacity: busy ? 0.6 : 1 }}
-      >
-        {label}
-      </Text>
+      {/* Use photo uploads her close-up before anything moves on: the spinner says so, where
+          a dimmed label read as a stuck button (testing, 17 Nov). */}
+      {busy ? (
+        <ActivityIndicator
+          color={ink ? CREAM : INK}
+          testID={testID ? `${testID}-busy` : undefined}
+        />
+      ) : (
+        <Text
+          maxFontSizeMultiplier={maxFontSizeMultiplier.control}
+          style={{ ...LABEL, color: ink ? CREAM : INK }}
+        >
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }

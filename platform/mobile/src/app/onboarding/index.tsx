@@ -25,7 +25,7 @@ import {
   StylesStep,
 } from '@/features/onboarding/Steps';
 import { TwinStep } from '@/features/onboarding/TwinStep';
-import { READ_PARAM } from '@/features/you/use-selfie';
+import { READ_PARAM, useSelfieRead } from '@/features/you/use-selfie';
 import { nativeAnalytics } from '@/lib/analytics';
 import { readPref, writePref } from '@/lib/prefs';
 
@@ -77,6 +77,9 @@ export default function Onboarding() {
   // Past Brands, or a re-run: her answers as her profile holds them.
   const answered = me.data ? me.data.onboarded || me.data.firstRun.step !== null : false;
   const dna = useApi('me.dna.get', undefined, { enabled: answered });
+  // Her close-up's read, followed here rather than on the twin step: it goes on — and draws her
+  // twin when it lands — while she moves on to Today's outfit (R-S4: she never waits on a read).
+  const read = useSelfieRead();
 
   // Back where she left off (audit F7, R-S3), decided once we know whose it is: the close-up
   // coming back to the twin step, else her step on the server, else this phone's draft.
@@ -276,6 +279,7 @@ export default function Onboarding() {
       <PrimaryScope>
         <TwinStep
           step={n}
+          read={read}
           onBack={back}
           onDone={(own) => {
             nativeAnalytics.track('onboarding_captured', { step: 'twin', n: own ? 1 : 0 });
