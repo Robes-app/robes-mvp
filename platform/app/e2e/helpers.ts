@@ -17,8 +17,8 @@ export function uniqueEmail(tag = 'e2e'): string {
 
 export const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
 
-// Walks onboarding from the name (handoff 30 Oct): name → identity → styles, brands and colours
-// left empty → Get started; lands home.
+// Walks onboarding from the name (onboarding PRD, 17 Nov): name → identity → styles and brands
+// left empty → each capture step skipped; lands home.
 export async function completeOnboarding(page: Page, firstName = 'Niall'): Promise<void> {
   await expect(page).toHaveURL(/\/onboarding$/);
   await page.getByLabel('First name').fill(firstName);
@@ -30,10 +30,15 @@ export async function completeOnboarding(page: Page, firstName = 'Niall'): Promi
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();
   }
-  await expect(
-    page.getByRole('heading', { level: 1, name: 'Colours you love or avoid.' }),
-  ).toBeVisible();
-  await page.getByRole('button', { name: 'Get started' }).click();
+  for (const title of [
+    'Saved looks on your phone?',
+    'The pieces you love most.',
+    'Your digital twin. Your looks, on you.',
+    'Capture what you’re wearing now.',
+  ]) {
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    await page.getByRole('button', { name: 'Skip' }).click();
+  }
   await expect(page.getByRole('heading', { name: new RegExp(`, ${firstName}\\.$`) })).toBeVisible();
 }
 

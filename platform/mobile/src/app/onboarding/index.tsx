@@ -56,8 +56,7 @@ const toggle = <T,>(list: readonly T[], v: T): T[] =>
 // → saved looks → pieces you love → digital twin → today's outfit → Home. Her answers save on
 // Brands without onboarding her; each capture step is skippable; she is onboarded as she leaves
 // for Home. An account onboarded before walks it once, its answers prefilled.
-// shortcut: native first (Annie, 17 Nov); the web twin, app/src/app/onboarding/onboarding-form.tsx,
-// still runs the five-step flow until it follows.
+// Web twin: app/src/app/onboarding/onboarding-form.tsx.
 export default function Onboarding() {
   const router = useRouter();
   const api = useApiClient();

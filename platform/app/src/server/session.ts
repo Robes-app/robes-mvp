@@ -1,3 +1,4 @@
+import { FIRST_RUN_VERSION } from '@robes/contracts';
 import 'server-only';
 import { sessionUser } from '@robes/auth';
 import type { Consents } from '@robes/contracts';
@@ -37,10 +38,12 @@ export async function currentConsents(): Promise<{ userId: UserId; consents: Con
   return { userId, consents: await getConsents(repos, userId) };
 }
 
-// Signed-in pages inside the shell: onboarding comes first.
+// Signed-in pages inside the shell: onboarding comes first — the eight-step flow, which an
+// account onboarded before walks once too (onboarding PRD, 17 Nov).
 export async function requireOnboardedProfile() {
   const profile = await requireProfile();
-  if (!profile.onboardedAt) redirect('/onboarding');
+  if (!profile.onboardedAt || (profile.firstRunVersion ?? 0) < FIRST_RUN_VERSION)
+    redirect('/onboarding');
   return profile;
 }
 
