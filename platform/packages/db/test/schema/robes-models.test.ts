@@ -45,4 +45,26 @@ describe('what a look’s picture stood on', () => {
         [USER_A],
       );
     }));
+
+  it('names the catalog cell beside it, never an empty or overlong one', () =>
+    inTx(async (q) => {
+      await insertUsers(q, USER_A);
+      const [row] = await q(
+        "insert into app.looks (user_id, name, stood_on, stood_on_cell) values ($1, 'Office', 'robes', 'w-r4') returning stood_on_cell",
+        [USER_A],
+      );
+      expect(row?.stood_on_cell).toBe('w-r4');
+      await expectPgError(
+        q,
+        '23514',
+        "insert into app.looks (user_id, name, stood_on_cell) values ($1, 'Office', '')",
+        [USER_A],
+      );
+      await expectPgError(
+        q,
+        '23514',
+        "insert into app.looks (user_id, name, stood_on_cell) values ($1, 'Office', repeat('w', 65))",
+        [USER_A],
+      );
+    }));
 });

@@ -162,7 +162,7 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       expect.objectContaining({
         title: 'Camel coat',
-        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 9 }),
+        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 10 }),
       }),
     );
     const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
@@ -201,6 +201,7 @@ describe('key_piece handler (suggested looks)', () => {
       'l0',
       claim?.frameKey,
       '44444444-4444-4444-8444-444444444440',
+      null,
       null,
     );
   });
@@ -358,6 +359,7 @@ describe('key_piece handler (suggested looks)', () => {
       LOOK,
       expect.any(String),
       expect.any(String),
+      null,
       null,
     );
     suggested.look.mockResolvedValueOnce(undefined as never);
