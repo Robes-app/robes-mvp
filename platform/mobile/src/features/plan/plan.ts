@@ -1,5 +1,6 @@
-import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import { plan as copy, errors } from '@robes/copy';
+import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
+import type { PlanEntry } from '@robes/contracts';
+import { plan as copy, errors, ui } from '@robes/copy';
 import { weekdayDayMonth } from '@robes/core/calendar';
 import { useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -37,4 +38,48 @@ export function usePinLook() {
   return useApiMutation('plan.pin', {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') }),
   });
+}
+
+// Takes every look off a day (the Diary list's swipe): a planned look is unpinned, a worn one has
+// its wear taken back, as the day's own × does (DayCard); Undo puts them all back.
+export function useClearDay() {
+  const api = useApiClient();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const refresh = () =>
+    Promise.all(
+      (['plan.get', 'plan.day', 'today.get', 'looks.get', 'looks.list'] as const).map((key) =>
+        queryClient.invalidateQueries({ queryKey: queryKeys.route(key) }),
+      ),
+    );
+  const fail = () => toast.show({ message: errors.internal });
+  return (date: string, entries: readonly PlanEntry[]) => {
+    void Promise.all(
+      entries.map((e) =>
+        e.worn
+          ? api.call('looks.unwear', { params: { id: e.look.id, date } })
+          : api.call('plan.unpin', { params: { id: e.id } }),
+      ),
+    )
+      .then(() =>
+        toast.show({
+          message: copy.list.cleared(entries.length),
+          action: {
+            label: ui.undo,
+            onPress: () =>
+              void Promise.all(
+                entries.map((e) =>
+                  e.worn
+                    ? api.call('looks.wear', { params: { id: e.look.id }, input: { wornOn: date } })
+                    : api.call('plan.restore', { params: { id: e.id } }),
+                ),
+              )
+                .catch(fail)
+                .finally(refresh),
+          },
+        }),
+      )
+      .catch(fail)
+      .finally(refresh);
+  };
 }

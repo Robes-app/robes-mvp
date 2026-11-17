@@ -24,6 +24,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { SwipeRow } from '@/components/SwipeRow';
 import { TabScreen, TabSticky, useTabScroll, useTabTop } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { readPref, writePref } from '@/lib/prefs';
@@ -32,7 +33,7 @@ import { localDate } from '../looks/saved-looks';
 import { LookPicker } from './LookPicker';
 import { LookThumb } from './LookThumb';
 import { PlanMonth } from './PlanMonth';
-import { PLAN_DAYS, usePlan } from './plan';
+import { dayLabel, PLAN_DAYS, useClearDay, usePlan } from './plan';
 
 type View_ = 'list' | 'month';
 
@@ -171,6 +172,7 @@ function DayRow({
   invite: boolean;
 }) {
   const router = useRouter();
+  const clear = useClearDay();
   const muted = useColor('ink-muted');
   const isToday = date === today;
   const s = daySummary(entries, name);
@@ -180,7 +182,7 @@ function DayRow({
   const worn = entries.some((e) => e.worn);
   // Up to two looks' photographs, overlapping (legacy .dy-r-th).
   const thumbs = entries.slice(0, 2);
-  return (
+  const row = (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${copy.list.open(`${label} ${Number(date.slice(8))}`)}${title ? `: ${title}` : ''}`}
@@ -254,6 +256,19 @@ function DayRow({
       </View>
       <Icon name="forward" size={16} color={muted} />
     </Pressable>
+  );
+  // A day with looks on it swipes to take them off (Annie, 17 Nov); an empty day has nothing to.
+  if (!entries.length) return row;
+  return (
+    <SwipeRow
+      text={copy.list.swipe}
+      label={isToday ? copy.list.clearToday : copy.list.clear(dayLabel(date))}
+      onAct={() => clear(date, entries)}
+      className=""
+      testID={`plan-day-swipe-${date}`}
+    >
+      <View className="bg-surface-raised">{row}</View>
+    </SwipeRow>
   );
 }
 

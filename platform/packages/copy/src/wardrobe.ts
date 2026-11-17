@@ -207,6 +207,8 @@ export const wardrobe = {
     heroFull: 'The Hero Rack holds ten. Remove one first.',
     swipeRemove: 'Remove',
     swipeDelete: 'Delete',
+    // A tile held in the grid peeks at the piece with the system menu.
+    menu: { delete: 'Delete piece' },
     noPhoto: 'Photograph it',
   },
   filter: {

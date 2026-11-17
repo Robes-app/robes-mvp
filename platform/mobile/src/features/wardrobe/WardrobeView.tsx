@@ -18,7 +18,7 @@ import { usePullRefresh } from '@/lib/pull-refresh';
 import { AddPiecesSheet } from './add/AddPiecesSheet';
 import { DeletePieceDialog } from './DeletePieceDialog';
 import { useWardrobeLayout } from './layout';
-import { CardRow, type CardStatus, CardTile, type RowMeta, Status } from './PieceCard';
+import { CardRow, type CardStatus, HeldTile, type RowMeta, Status } from './PieceCard';
 import { useDeletePiece, usePieces } from './pieces';
 import { useReread } from './reread';
 import { HeaderRow, SearchRow, type Segment } from './WardrobeHeader';
@@ -245,7 +245,12 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
         renderItem={({ item }) => {
           const open = () => router.push(`/piece/${item.id}`);
           return grid ? (
-            <CardTile piece={item} status={pieceStatus(item)} onOpen={open} compact />
+            <HeldTile
+              piece={item}
+              status={pieceStatus(item)}
+              onOpen={open}
+              onDelete={() => setAsking(item.id)}
+            />
           ) : (
             // The shared piece row (canvas 3b): its wears at the right; the Hero Rack star lives on
             // the piece's page now (Annie, 9 Nov).

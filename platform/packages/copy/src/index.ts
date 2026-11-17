@@ -752,6 +752,11 @@ export const plan = {
     // A day she wore a look carries it after the count (legacy .dy-r-worn).
     worn: 'Worn',
     open: (day: string): string => `Open ${day}`,
+    // A day's row swipes to take its looks off the day (Annie, 17 Nov).
+    swipe: 'Remove',
+    clear: (day: string): string => `Take the looks off ${day}`,
+    clearToday: 'Take the looks off today',
+    cleared: (n: number): string => (n === 1 ? 'Look removed.' : 'Looks removed.'),
   },
   // The day page: the one door every day opens (legacy ff87e89).
   day: {
