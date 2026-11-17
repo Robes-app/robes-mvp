@@ -1,7 +1,7 @@
 'use client';
 
 import type { PieceValues, Season, UpdatePieceInput } from '@robes/contracts';
-import { filters as filterCopy, wardrobe } from '@robes/copy';
+import { lookbook, wardrobe } from '@robes/copy';
 import { type PieceColour, shade } from '@robes/core/colour';
 import {
   convertUkSize,
@@ -26,7 +26,17 @@ import {
   suggestPieceName,
 } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
-import { Button, Field, IconButton, Pill, Sheet, Text, TextArea } from '@robes/ui';
+import {
+  Button,
+  Field,
+  IconButton,
+  OptionList,
+  Pill,
+  Sheet,
+  Text,
+  TextArea,
+  OptionRow as ToggleRow,
+} from '@robes/ui';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { ColourPicker, OptionRow, PrintPicker } from './colour-field';
 import { MaterialPicker } from './material-field';
@@ -99,6 +109,7 @@ const colourOf = (p: PieceValues): PieceColour => ({
 
 const orNull = (v: string): string | null => (v.trim() ? v.trim() : null);
 const SEASONS: readonly Season[] = ['spring', 'summer', 'autumn', 'winter'];
+const seasonCopy = lookbook.savedLook.seasonsView;
 
 const textOf = (field: PieceField, p: FieldPiece): string =>
   field === 'label'
@@ -301,28 +312,7 @@ export function PieceFieldSheet({
           ) : null}
         </form>
       ) : field === 'season' ? (
-        // The four seasons (D12, PRD rev 3 §7.3): each tap is the answer; none picked is Year round.
-        <fieldset className="flex flex-col">
-          <legend className="sr-only">{TITLES.season}</legend>
-          {SEASONS.map((season) => {
-            const on = (piece.seasons ?? []).includes(season);
-            return (
-              <OptionRow
-                key={season}
-                aria-pressed={on}
-                selected={on}
-                label={filterCopy.seasons[season]}
-                onClick={() =>
-                  onSave({
-                    seasons: on
-                      ? (piece.seasons ?? []).filter((x) => x !== season)
-                      : [...(piece.seasons ?? []), season],
-                  })
-                }
-              />
-            );
-          })}
-        </fieldset>
+        <SeasonOptions seasons={piece.seasons ?? []} onSave={onSave} />
       ) : field === 'material' ? (
         <MaterialPicker
           value={piece.material}
@@ -625,5 +615,37 @@ function WearForPicker({
         </li>
       </ul>
     </div>
+  );
+}
+
+// The four seasons (D12, PRD rev 3 §7.3), the Lookbook's own list (SeasonsView): Year round
+// first, then each season with its glyph; each tap is the answer, and Year round clears the rest.
+// Native twin: SeasonOptions in mobile/src/features/wardrobe/PieceFieldSheet.tsx.
+function SeasonOptions({
+  seasons,
+  onSave,
+}: {
+  seasons: readonly Season[];
+  onSave: (input: FieldInput) => void;
+}) {
+  const toggle = (s: Season) =>
+    onSave({ seasons: seasons.includes(s) ? seasons.filter((x) => x !== s) : [...seasons, s] });
+  return (
+    <OptionList label={TITLES.season}>
+      <ToggleRow
+        label={seasonCopy.yearRound}
+        on={seasons.length === 0}
+        onToggle={() => onSave({ seasons: [] })}
+      />
+      {SEASONS.map((s) => (
+        <ToggleRow
+          key={s}
+          label={seasonCopy.names[s]}
+          on={seasons.includes(s)}
+          icon={<Icon name={s} size={18} />}
+          onToggle={() => toggle(s)}
+        />
+      ))}
+    </OptionList>
   );
 }
