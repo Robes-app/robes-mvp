@@ -9,11 +9,11 @@ var F = window.Felix, h = React.createElement;
 var frame = { width: 390, height: 290, flex: 'none', position: 'relative', overflow: 'hidden', borderRadius: 'var(--rad-device)',
   background: 'linear-gradient(180deg,var(--cream) 0,var(--cream-200) 100%)' };
 var dim = { position: 'absolute', inset: 0, background: 'rgba(32,32,33,.32)' };
-var at = { position: 'absolute', left: 8, right: 8, bottom: 8 };
+var at = { position: 'absolute', left: 0, right: 0, bottom: 0 };
 function Frame(props) { return h('div', { style: frame }, h('div', { style: dim }), h('div', { style: at }, h(F.Sheet, props))); }
 var add = [{ key: 'url', icon: 'link', label: 'Paste URL' }, { key: 'photo', icon: 'photo', label: 'Photo' }, { key: 'rx', icon: 'inbox', label: 'From receipt', count: 13 }];
 ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
-  h(Frame, { title: 'New look', actions: [{ icon: 'sparkle', label: 'Describe' }, { icon: 'photo', label: 'Photo' }, { icon: 'wardrobe', label: 'From pieces' }] }),
+  h(Frame, { title: 'New look', actions: [{ icon: 'sparkle', label: 'Create' }, { icon: 'photo', label: 'Photo' }, { icon: 'wardrobe', label: 'From pieces' }] }),
   h(Frame, { title: 'Add pieces', actions: add }),
   h(Frame, { title: 'Add pieces', actions: add, active: 'rx' })));
 </script>

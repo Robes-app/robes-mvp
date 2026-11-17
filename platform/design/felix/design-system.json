@@ -3,218 +3,218 @@
   "assetGroups": {
     "Icons": {
       "files": {
+        "autumn.svg": {
+          "blob": "8e28ab97c02199bb7970028550f84c0a",
+          "name": "autumn.svg",
+          "size": 267,
+          "type": "image/svg+xml"
+        },
         "back.svg": {
-          "blob": "596a2a7fddaeec620bda8e726db291f1",
+          "blob": "51acc1e6aece1a92949d4ffdec9c4295",
           "name": "back.svg",
           "size": 216,
           "type": "image/svg+xml"
         },
         "bell.svg": {
-          "blob": "1d94ca219c12d86a30f8ea0575d446ee",
+          "blob": "aca5b56cc7541bbd6ee4ab8a4f693a52",
           "name": "bell.svg",
           "size": 267,
           "type": "image/svg+xml"
         },
+        "calendar.svg": {
+          "blob": "ff3d298c9184f3f95b2d94e0506b4924",
+          "name": "calendar.svg",
+          "size": 265,
+          "type": "image/svg+xml"
+        },
+        "camera.svg": {
+          "blob": "b268ce5c634036bc7b1b36a3cd6a2d75",
+          "name": "camera.svg",
+          "size": 267,
+          "type": "image/svg+xml"
+        },
         "capture.svg": {
-          "blob": "cef5e5b23ba58746e12f4509ee4fd388",
+          "blob": "14411096804bbb80c6fc56c6fc23829c",
           "name": "capture.svg",
           "size": 353,
           "type": "image/svg+xml"
         },
         "check.svg": {
-          "blob": "f1a5ac792e4ebb1452cc2e6ec34190e5",
+          "blob": "7ad3d5cb22f4fd696f7bdf7588ecf7c6",
           "name": "check.svg",
           "size": 220,
           "type": "image/svg+xml"
         },
         "chevron.svg": {
-          "blob": "38d72be50c5651f7d657317ce138aa63",
+          "blob": "b8642c8d9ad4c5e659c65c8be7474c57",
           "name": "chevron.svg",
           "size": 209,
           "type": "image/svg+xml"
         },
         "close.svg": {
-          "blob": "b319a5e4b964b6a1e4b7a13cbe4a8e49",
+          "blob": "ab8ae51606c2fb63893f4e841c5f1234",
           "name": "close.svg",
           "size": 217,
           "type": "image/svg+xml"
         },
         "cloud.svg": {
-          "blob": "85e9f0cfb9cecd3d036f99079658b8ba",
+          "blob": "818e55b648112d8b1bfbd1e187bcf4b5",
           "name": "cloud.svg",
           "size": 279,
           "type": "image/svg+xml"
         },
         "describe.svg": {
-          "blob": "a38f55d2df97d39f776c16f184c95327",
+          "blob": "5792afeae6e90af82640fa8ff64e05da",
           "name": "describe.svg",
           "size": 435,
           "type": "image/svg+xml"
         },
         "diary.svg": {
-          "blob": "e3fd1d649d53909677acd47721cc43d9",
+          "blob": "e2fd8ba29c4e5a4bc4fa3afa60cbd612",
           "name": "diary.svg",
           "size": 285,
           "type": "image/svg+xml"
         },
         "edit.svg": {
-          "blob": "76b994d5ba73aa9fbeb35d68f6432e95",
+          "blob": "c30a76ba7f4cf82389dbdbe8e43e5fb1",
           "name": "edit.svg",
           "size": 220,
           "type": "image/svg+xml"
         },
+        "forward.svg": {
+          "blob": "ef6647e15e48ce37a9f03bada59fec3b",
+          "name": "forward.svg",
+          "size": 214,
+          "type": "image/svg+xml"
+        },
         "home.svg": {
-          "blob": "a48d7abe871f947e88a49a1336e275e9",
+          "blob": "ad3d3bf8b65a35e3150bc7ab1ee6e5a1",
           "name": "home.svg",
           "size": 243,
           "type": "image/svg+xml"
         },
         "lookbook.svg": {
-          "blob": "ed44cb7c1b51ad0eb8ad4d2b88213b6b",
+          "blob": "8f0d987b54a04465c79f3b40d2f8bb52",
           "name": "lookbook.svg",
           "size": 262,
           "type": "image/svg+xml"
         },
+        "pin.svg": {
+          "blob": "ecd1e24f8f60a13b3a925677b48adb2b",
+          "name": "pin.svg",
+          "size": 287,
+          "type": "image/svg+xml"
+        },
         "plus.svg": {
-          "blob": "70483ebf03b3e6121df9f3f8b43c5058",
+          "blob": "23e4e81e59e0616debc5f61d51f1317b",
           "name": "plus.svg",
           "size": 213,
           "type": "image/svg+xml"
         },
         "rain.svg": {
-          "blob": "923cda106b757fb208d1ac3cf65f419f",
+          "blob": "167089442adc18d92384d616a30b3179",
           "name": "rain.svg",
           "size": 254,
           "type": "image/svg+xml"
         },
-        "sun.svg": {
-          "blob": "c7d5da2e45b2fb88c80acb4dae2702f4",
-          "name": "sun.svg",
-          "size": 323,
-          "type": "image/svg+xml"
-        },
-        "wardrobe.svg": {
-          "blob": "95bde1c50b619d24433ad6886a5ee313",
-          "name": "wardrobe.svg",
-          "size": 307,
-          "type": "image/svg+xml"
-        },
-        "pin.svg": {
-          "blob": "de6ed30224f56730bceed56cc669fe6b",
-          "name": "pin.svg",
-          "size": 287,
-          "type": "image/svg+xml"
-        },
-        "forward.svg": {
-          "blob": "73c924356072f513b116465b25d29b0a",
-          "name": "forward.svg",
-          "size": 214,
-          "type": "image/svg+xml"
-        },
-        "refresh.svg": {
-          "blob": "900db67f5c40bb1a995b43cef3e48c7f",
-          "name": "refresh.svg",
-          "size": 343,
-          "type": "image/svg+xml"
-        },
-        "spring.svg": {
-          "blob": "a74b33efa25c9ad15928c4c47681e1f5",
-          "name": "spring.svg",
-          "size": 318,
-          "type": "image/svg+xml"
-        },
-        "summer.svg": {
-          "blob": "ea01e7e1ed1a67f6d3364a575b483eb0",
-          "name": "summer.svg",
-          "size": 370,
-          "type": "image/svg+xml"
-        },
-        "autumn.svg": {
-          "blob": "e5e94391065ff821985e71545712de57",
-          "name": "autumn.svg",
-          "size": 267,
-          "type": "image/svg+xml"
-        },
-        "winter.svg": {
-          "blob": "62c9fbe5974af649e44f571240d7d603",
-          "name": "winter.svg",
-          "size": 300,
-          "type": "image/svg+xml"
-        },
-        "tag.svg": {
-          "blob": "862e5857eee5e15af9212d91f41228c8",
-          "name": "tag.svg",
-          "size": 265,
-          "type": "image/svg+xml"
-        },
-        "camera.svg": {
-          "blob": "8fd806f4ead7e644ad363c3d3203e51a",
-          "name": "camera.svg",
-          "size": 267,
-          "type": "image/svg+xml"
-        },
-        "search.svg": {
-          "blob": "7b60f37aa42e20151eba6b56fc807ea4",
-          "name": "search.svg",
-          "size": 257,
-          "type": "image/svg+xml"
-        },
         "receipt.svg": {
-          "blob": "71eb38b109cc3ae0f54029973d3383ba",
+          "blob": "bba392afbe182da7b65919da416bd7c8",
           "name": "receipt.svg",
           "size": 261,
           "type": "image/svg+xml"
         },
-        "calendar.svg": {
-          "blob": "1f5f62cc82c445964b78f7dbdf843715",
-          "name": "calendar.svg",
-          "size": 265,
+        "refresh.svg": {
+          "blob": "d04b019c20c46e5ba9115dbef2a436bd",
+          "name": "refresh.svg",
+          "size": 343,
+          "type": "image/svg+xml"
+        },
+        "search.svg": {
+          "blob": "f2419a6311279b079160e42bb5b37a7d",
+          "name": "search.svg",
+          "size": 257,
+          "type": "image/svg+xml"
+        },
+        "spring.svg": {
+          "blob": "8de6827e240be49a0cb7f0b57043627a",
+          "name": "spring.svg",
+          "size": 318,
           "type": "image/svg+xml"
         },
         "star.svg": {
-          "blob": "677b5cd1fb2483ab587939d71d108730",
+          "blob": "a5f8d0950c607d2bf1fef1db5b32534a",
           "name": "star.svg",
           "size": 281,
           "type": "image/svg+xml"
         },
-        "bookmark.svg": {
-          "blob": "fa67f80661c07d24d6ac8bba3bbfe390",
-          "name": "bookmark.svg",
-          "size": 225,
+        "summer.svg": {
+          "blob": "f392072267fb7c852293130d9c358834",
+          "name": "summer.svg",
+          "size": 370,
           "type": "image/svg+xml"
         },
-        "sparkle.svg": {
-          "blob": "cb014d9fbdd4b7aebce77cc9e4f8a759",
-          "name": "sparkle.svg",
-          "size": 330,
+        "sun.svg": {
+          "blob": "a51fecfbd9f4eb8ad6beb01e24da8f94",
+          "name": "sun.svg",
+          "size": 323,
           "type": "image/svg+xml"
         },
-        "heart.svg": {
-          "blob": "6badcd217373b67a1ea274ca11c3c146",
-          "name": "heart.svg",
-          "size": 282,
+        "tag.svg": {
+          "blob": "d80a7026a679ed546792d9dbcb0b5010",
+          "name": "tag.svg",
+          "size": 265,
+          "type": "image/svg+xml"
+        },
+        "wardrobe.svg": {
+          "blob": "2d42f61461542d2448154fb60b65aaf0",
+          "name": "wardrobe.svg",
+          "size": 307,
+          "type": "image/svg+xml"
+        },
+        "winter.svg": {
+          "blob": "4fa60689b4799a789b7063a5bb07f01e",
+          "name": "winter.svg",
+          "size": 300,
           "type": "image/svg+xml"
         },
         "bag.svg": {
-          "blob": "eeae73161587b6c62c3b2165cf5c52e6",
+          "blob": "ba0535956583bfd55a212bd45c8179be",
           "name": "bag.svg",
           "size": 294,
           "type": "image/svg+xml"
         },
+        "bookmark.svg": {
+          "blob": "1ec4fdeb78c9c451b58c9dfff4ab90e9",
+          "name": "bookmark.svg",
+          "size": 225,
+          "type": "image/svg+xml"
+        },
         "grid.svg": {
-          "blob": "d7a0e6709e348f0a18fc77953294f14a",
+          "blob": "b53205645b754b82703cf3788964d54d",
           "name": "grid.svg",
           "size": 424,
           "type": "image/svg+xml"
         },
+        "heart.svg": {
+          "blob": "0e1d7ca243365a5e60163873bb9b57b9",
+          "name": "heart.svg",
+          "size": 282,
+          "type": "image/svg+xml"
+        },
         "list.svg": {
-          "blob": "437ce7f27af45147f223e1aad8e4dd96",
+          "blob": "ddea0bb1adbe7336c99e0c4bc44eb739",
           "name": "list.svg",
           "size": 326,
           "type": "image/svg+xml"
         },
+        "sparkle.svg": {
+          "blob": "7de1f6f1fcc99d57151a3aad69e0de88",
+          "name": "sparkle.svg",
+          "size": 330,
+          "type": "image/svg+xml"
+        },
         "worn.svg": {
-          "blob": "9fd06a78812f37f3fdde443176d3f08e",
+          "blob": "15c00ddf5c23d69373d36912162e7400",
           "name": "worn.svg",
           "size": 292,
           "type": "image/svg+xml"
@@ -228,13 +228,10 @@
         "wardrobe.svg",
         "capture.svg",
         "camera.svg",
+        "sparkle.svg",
         "describe.svg",
         "edit.svg",
         "star.svg",
-        "bookmark.svg",
-        "sparkle.svg",
-        "heart.svg",
-        "bag.svg",
         "bell.svg",
         "close.svg",
         "check.svg",
@@ -244,13 +241,16 @@
         "plus.svg",
         "refresh.svg",
         "pin.svg",
+        "bookmark.svg",
+        "heart.svg",
+        "bag.svg",
+        "worn.svg",
         "tag.svg",
         "search.svg",
-        "receipt.svg",
-        "calendar.svg",
-        "worn.svg",
         "grid.svg",
         "list.svg",
+        "receipt.svg",
+        "calendar.svg",
         "cloud.svg",
         "sun.svg",
         "rain.svg",
@@ -264,55 +264,55 @@
     "Imagery": {
       "files": {
         "b-model.jpg": {
-          "blob": "e9559bed176af4e02501eb7346faa305",
+          "blob": "b9a42dafa5b1194f20c1c3e05407883f",
           "name": "b-model.jpg",
           "size": 54334,
           "type": "image/jpeg"
         },
         "flatlay.jpg": {
-          "blob": "61417557e043cdb43b979c5321c6c842",
+          "blob": "eb9ef616e20b2f2623e44f5a5d1a1830",
           "name": "flatlay.jpg",
           "size": 114113,
           "type": "image/jpeg"
         },
         "model-clean.jpg": {
-          "blob": "cacb5e202ab5a8f85ea74dace9b15933",
+          "blob": "aa39a974ba2ddc22f90bca33cbe87b9a",
           "name": "model-clean.jpg",
           "size": 38060,
           "type": "image/jpeg"
         },
         "style-polished.jpg": {
-          "blob": "f58eeaeef0920432a8a4fc782c5100ae",
+          "blob": "f1ee0f68c1b04471dae676f3dacc1945",
           "name": "style-polished.jpg",
           "size": 63034,
           "type": "image/jpeg"
         },
         "style-romantic.jpg": {
-          "blob": "a396bd4f5f254ddf3bbbe537f5f4fe3a",
+          "blob": "7597cc5806bb4c5cf357991718daf4e8",
           "name": "style-romantic.jpg",
           "size": 133552,
           "type": "image/jpeg"
         },
         "style-tailored.jpg": {
-          "blob": "a5785e80551126ee99464bdbcd7ce9e7",
+          "blob": "8cb0f4f1b0d302ab231a71afdb10554f",
           "name": "style-tailored.jpg",
           "size": 164473,
           "type": "image/jpeg"
         },
         "way-1.jpg": {
-          "blob": "d299121b7ee19b76bcb95cec5e0b4f47",
+          "blob": "50391bfc33b632d314a4b7e9c3c3e469",
           "name": "way-1.jpg",
           "size": 90814,
           "type": "image/jpeg"
         },
         "way-2.jpg": {
-          "blob": "dd740bfa87e00a5bf25ccda73bd466e6",
+          "blob": "2ac5e4c0bcc534a7b17c55e7b8c2c856",
           "name": "way-2.jpg",
           "size": 176055,
           "type": "image/jpeg"
         },
         "way-3.jpg": {
-          "blob": "963aef8bd203cb87e5113a54e2a70a7e",
+          "blob": "43585afbf0eb5983bc63e3ea5117c650",
           "name": "way-3.jpg",
           "size": 129174,
           "type": "image/jpeg"
@@ -335,93 +335,93 @@
     "Pieces": {
       "files": {
         "pc-bottom.jpg": {
-          "blob": "1b9efb672ddd48508701d0e03f6e2ebe",
+          "blob": "38c8970c7d439f001a3d18b475fd6b53",
           "name": "pc-bottom.jpg",
           "size": 9189,
           "type": "image/jpeg"
         },
         "pc-shoes.jpg": {
-          "blob": "0254148f4ceda43a923848a63e4165a9",
+          "blob": "17c2602cfc627dac840630e6843d2865",
           "name": "pc-shoes.jpg",
           "size": 10230,
           "type": "image/jpeg"
         },
         "pc-top.jpg": {
-          "blob": "045693b3417feb00a48ceb46f01e48c1",
+          "blob": "192f70639d7d6694c0601eaa44e26246",
           "name": "pc-top.jpg",
           "size": 10249,
           "type": "image/jpeg"
         },
-        "piece-waistcoat.jpg": {
-          "blob": "c1e5a36fd6239951ac1049083bba9671",
-          "name": "piece-waistcoat.jpg",
-          "size": 29186,
+        "piece-closeup.jpg": {
+          "blob": "574b516b797e094fca34d1f0ff6e8487",
+          "name": "piece-closeup.jpg",
+          "size": 80956,
           "type": "image/jpeg"
-        },
-        "rk-boots.jpg": {
-          "blob": "1a58a1fd4471acb8e11ba656f7021198",
-          "name": "rk-boots.jpg",
-          "size": 11365,
-          "type": "image/jpeg"
-        },
-        "rk-cami.jpg": {
-          "blob": "d82e2434d4c5419448290a33622270ac",
-          "name": "rk-cami.jpg",
-          "size": 8426,
-          "type": "image/jpeg"
-        },
-        "rk-flats.jpg": {
-          "blob": "7b1e0bbabdc46788cfbfa7d677037c80",
-          "name": "rk-flats.jpg",
-          "size": 9237,
-          "type": "image/jpeg"
-        },
-        "rk-shacket.jpg": {
-          "blob": "740bafba59017a6788ee168f48199b6f",
-          "name": "rk-shacket.jpg",
-          "size": 6276,
-          "type": "image/jpeg"
-        },
-        "rk-tote.jpg": {
-          "blob": "7666658d6b85f67b1373f15beab4854a",
-          "name": "rk-tote.jpg",
-          "size": 5471,
-          "type": "image/jpeg"
-        },
-        "quad-jacket.png": {
-          "blob": "d66a92ff19f7b32be622a884ca1ee7e4",
-          "name": "quad-jacket.png",
-          "size": 98401,
-          "type": "image/png"
-        },
-        "quad-trousers.png": {
-          "blob": "34ecd9ea179a08dcb3184e52841f9219",
-          "name": "quad-trousers.png",
-          "size": 56241,
-          "type": "image/png"
         },
         "piece-sneakers.png": {
-          "blob": "ba762bb26d1884775aa2965e050b09a3",
+          "blob": "a22a935b97cac71f1643d69163049497",
           "name": "piece-sneakers.png",
           "size": 158603,
           "type": "image/png"
         },
         "piece-tote.png": {
-          "blob": "adb4e9ebaed5da4084730ceda75ac8ae",
+          "blob": "e2167f5118df07f93640f698b2bc313d",
           "name": "piece-tote.png",
           "size": 91010,
           "type": "image/png"
         },
-        "piece-closeup.jpg": {
-          "blob": "af51286e25a55ae894b26fcb8d9e5fef",
-          "name": "piece-closeup.jpg",
-          "size": 80956,
+        "piece-waistcoat.jpg": {
+          "blob": "0f5d6799317169c80a221da0e6ff23d7",
+          "name": "piece-waistcoat.jpg",
+          "size": 29186,
           "type": "image/jpeg"
         },
+        "quad-jacket.png": {
+          "blob": "453b913fc69c1261c244a99b01e812b6",
+          "name": "quad-jacket.png",
+          "size": 98401,
+          "type": "image/png"
+        },
+        "quad-trousers.png": {
+          "blob": "2d31fd0c3de7a0f37f4306c8b8199e3d",
+          "name": "quad-trousers.png",
+          "size": 56241,
+          "type": "image/png"
+        },
         "red-jacquard-dress.jpg": {
-          "blob": "4618f82c6467c005fccf0c4fb79cc143",
+          "blob": "536b07b90990bd2cf80d229a3e986f72",
           "name": "red-jacquard-dress.jpg",
           "size": 152970,
+          "type": "image/jpeg"
+        },
+        "rk-boots.jpg": {
+          "blob": "9200ed885e5e4e9ef295843557c6c2f0",
+          "name": "rk-boots.jpg",
+          "size": 11365,
+          "type": "image/jpeg"
+        },
+        "rk-cami.jpg": {
+          "blob": "4d658f1a573b2e9ba1bbc7f34dc6a0af",
+          "name": "rk-cami.jpg",
+          "size": 8426,
+          "type": "image/jpeg"
+        },
+        "rk-flats.jpg": {
+          "blob": "287cc14f7f4638c4a9dad8c8553e6a38",
+          "name": "rk-flats.jpg",
+          "size": 9237,
+          "type": "image/jpeg"
+        },
+        "rk-shacket.jpg": {
+          "blob": "d5a62fe6c33634d5647ac62599e201ee",
+          "name": "rk-shacket.jpg",
+          "size": 6276,
+          "type": "image/jpeg"
+        },
+        "rk-tote.jpg": {
+          "blob": "89e2d7c57d84d08bdd27508b987e2525",
+          "name": "rk-tote.jpg",
+          "size": 5471,
           "type": "image/jpeg"
         }
       },
@@ -448,7 +448,7 @@
   },
   "blobs": {},
   "createdOnFiles": {
-    "at": "2026-11-06T07:28:28Z",
+    "at": "2026-11-06T10:41:22Z",
     "v": 1
   },
   "docs": {
@@ -461,10 +461,10 @@
     "Pieces"
   ],
   "lastChange": {
-    "at": "2026-11-09T09:51:21Z",
+    "at": "2026-11-17T12:00:00Z",
     "by": "Annie",
-    "via": "Cowork",
-    "note": "Sheet rebuilt as the glass New look / Add pieces sheet (2b, 3b)"
+    "via": "Claude Code",
+    "note": "Synced to the repo Felix copy and the week of UI changes (10–17 Nov); new iOS section and iOS components"
   },
   "layout": "files",
   "libraries": [

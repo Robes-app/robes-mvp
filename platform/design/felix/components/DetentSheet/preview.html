@@ -1,0 +1,44 @@
+<!-- @dsCard group="iOS" height=520 width=820 subtitle="Opens at two thirds; pulls up to full" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>DetentSheet — preview</title>
+<style>
+  .row{display:flex;gap:32px;padding:16px;background:var(--cream-300);width:max-content}
+  .ph{position:relative;width:360px;height:480px;border-radius:var(--rad-device);overflow:hidden;background:var(--cream)}
+  .bg{position:absolute;inset:0;background:url(/_blob/b9a42dafa5b1194f20c1c3e05407883f) center/cover}
+  .dim{position:absolute;inset:0;background:rgba(32,32,33,.22)}
+  .sh{position:absolute;left:0;right:0;bottom:0;background:var(--cream);border-radius:var(--rad-dock) var(--rad-dock) 0 0;padding:20px 20px 0;display:flex;flex-direction:column}
+  .grab{position:absolute;top:6px;left:50%;margin-left:-18px;width:36px;height:5px;border-radius:3px;background:rgba(32,32,33,.25)}
+  .hd{display:flex;align-items:center;gap:12px;height:40px}
+  .x{flex:none;width:36px;height:36px;border-radius:50%;background:var(--cream-200);display:flex;align-items:center;justify-content:center;color:var(--ink-soft)}
+  .t{flex:1;text-align:center;font:600 15px/1.2 var(--font-sans);color:var(--ink)}
+  .d{flex:none;font:400 13px/1 var(--font-sans);color:var(--ink)}
+  .ey{margin-top:12px;font:400 12px/1 var(--font-sans);letter-spacing:.22em;text-transform:uppercase;color:var(--rose-deep)}
+  .chips{display:flex;gap:6px;margin-top:12px}
+  .ch{height:28px;padding:0 11px;border-radius:var(--rad-pill);display:flex;align-items:center;font:400 11px/1 var(--font-sans);color:var(--ink-faint);box-shadow:inset 0 0 0 1px var(--warm-line)}
+  .ch.on{background:var(--cream-200);color:var(--ink);box-shadow:inset 0 0 0 1px var(--token-line)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 10px;margin-top:14px}
+  .tile{aspect-ratio:3/4;border-radius:3px;background:var(--white) center/cover;box-shadow:var(--shadow-card)}
+  .foot{margin-top:auto;padding:12px 0 22px}
+  .cta{height:48px;border-radius:var(--rad-pill);background:var(--ink);color:var(--cream);display:flex;align-items:center;justify-content:center;font:500 9px/1 var(--font-sans);letter-spacing:.22em;text-transform:uppercase}
+  .cap{font:400 11px/1.4 var(--font-sans);color:var(--ink-faint);margin-top:8px;text-align:center}
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+var imgs = ['192f70639d7d6694c0601eaa44e26246','38c8970c7d439f001a3d18b475fd6b53','17c2602cfc627dac840630e6843d2865','0f5d6799317169c80a221da0e6ff23d7','453b913fc69c1261c244a99b01e812b6','2d31fd0c3de7a0f37f4306c8b8199e3d','a22a935b97cac71f1643d69163049497','e2167f5118df07f93640f698b2bc313d','574b516b797e094fca34d1f0ff6e8487'];
+function Sheet(p) {
+  return h('div', null, h('div', { className: 'ph' }, h('div', { className: 'bg' }), h('div', { className: 'dim' }),
+    h('div', { className: 'sh', style: { top: p.top } }, h('div', { className: 'grab' }),
+      h('div', { className: 'hd' }, h('span', { className: 'x' }, h(F.Icon, { name: 'close', size: 14 })), h('span', { className: 't' }, 'Add pieces'), h('span', { className: 'd' }, 'Done')),
+      h('div', { className: 'chips' }, ['All 36', 'Tops 9', 'Bottoms 6', 'Shoes 5'].map(function (c, i) { return h('span', { key: c, className: 'ch' + (i === 1 ? ' on' : '') }, c); })),
+      h('div', { className: 'grid' }, imgs.slice(0, p.n).map(function (b) { return h('span', { key: b, className: 'tile', style: { backgroundImage: 'url(/_blob/' + b + ')' } }); })),
+      h('div', { className: 'foot' }, h('div', { className: 'cta' }, 'Add 2 pieces')))),
+    h('div', { className: 'cap' }, p.cap));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(h('div', { className: 'row' },
+  h(Sheet, { top: 163, n: 3, cap: 'Opens at 66%' }), h(Sheet, { top: 44, n: 9, cap: 'Pulled up to large' })));
+</script>
+</body>
+</html>
