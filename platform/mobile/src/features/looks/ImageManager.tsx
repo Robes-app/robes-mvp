@@ -30,6 +30,7 @@ import { CaptureCamera } from '@/features/capture/CaptureCamera';
 import { type PickedPhoto, uploadPhoto } from '@/features/wardrobe/add-pieces';
 import { renditionUri } from '@/lib/images';
 import { LookPicture } from './LookPicture';
+import { PERSON_CROP } from './LookTile';
 import { localPhoto, rememberLocalPhoto, type StageUpdate } from './look-images';
 
 const copy = lookbook.savedLook.manager;
@@ -316,19 +317,28 @@ export function CardPicture({
     if (look.frame) return <LookPicture look={look} />;
     const uri = renditionUri(look.model, width);
     return uri ? (
-      <Image source={uri} alt={alt} blurhash={look.model?.blurhash ?? null} />
+      <Image
+        source={uri}
+        alt={alt}
+        blurhash={look.model?.blurhash ?? null}
+        contentPosition={PERSON_CROP}
+      />
     ) : (
       <View style={{ aspectRatio: 4 / 5 }} />
     );
   }
   if (card.kind === 'added') {
     const uri = localPhoto(card.assetId);
-    return uri ? <Image source={uri} alt={alt} /> : <View style={{ aspectRatio: 4 / 5 }} />;
+    return uri ? (
+      <Image source={uri} alt={alt} contentPosition={PERSON_CROP} />
+    ) : (
+      <View style={{ aspectRatio: 4 / 5 }} />
+    );
   }
   const img = look.images.find((i) => i.id === card.id)?.image ?? null;
   const uri = renditionUri(img, width);
   return uri ? (
-    <Image source={uri} alt={alt} blurhash={img?.blurhash ?? null} />
+    <Image source={uri} alt={alt} blurhash={img?.blurhash ?? null} contentPosition={PERSON_CROP} />
   ) : (
     <View style={{ aspectRatio: 4 / 5 }} />
   );

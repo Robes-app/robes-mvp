@@ -21,7 +21,10 @@ export function lookHero(look: Look) {
 }
 
 // Just the photograph, at whatever width the surface gives it (a tile, a 34pt avatar in a row),
-// in the surface's shape: 3:4 in the Lookbook grid and on a day (beta), 4:5 elsewhere.
+// in the surface's shape: 3:4 in the Lookbook grid and on a day (beta), 4:5 elsewhere. A look is
+// a person head to toe, and a phone photo is taller than the frame: the crop keeps the head and
+// takes more from the feet (Home cut her hair off, 17 Nov). Twin: app look-image.tsx.
+export const PERSON_CROP = { top: '20%', left: '50%' } as const;
 export function LookPhoto({
   look,
   width,
@@ -34,7 +37,14 @@ export function LookPhoto({
   const image = lookHero(look);
   const uri = renditionUri(image, width ?? 180);
   return uri ? (
-    <Image source={uri} alt="" aspect={aspect} blurhash={image?.blurhash} recyclingKey={look.id} />
+    <Image
+      source={uri}
+      alt=""
+      aspect={aspect}
+      blurhash={image?.blurhash}
+      contentPosition={PERSON_CROP}
+      recyclingKey={look.id}
+    />
   ) : (
     <Skeleton width="100%" aspectRatio={ASPECTS[aspect]} />
   );
