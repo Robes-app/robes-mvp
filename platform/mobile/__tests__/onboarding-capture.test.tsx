@@ -62,7 +62,7 @@ const shoot = async (n: number) => {
       await fireEvent.press(screen.getByRole('button', { name: 'shoot' }));
     });
 };
-const steps = { step: 5, identity: null, styles: [], onBack: jest.fn(), onSkip: jest.fn() };
+const steps = { step: 5, onBack: jest.fn(), onSkip: jest.fn() };
 
 test('Saved looks: each photo saves as its own look, its picture the photo, no piece filed', async () => {
   const onDone = jest.fn();

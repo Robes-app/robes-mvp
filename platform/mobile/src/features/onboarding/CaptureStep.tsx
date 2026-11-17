@@ -1,6 +1,5 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
 import { firstRun as copy, wardrobe } from '@robes/copy';
-import type { StyleType } from '@robes/core/style-dna';
 import { Button, ErrorText, fonts, maxFontSizeMultiplier, Text, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
@@ -11,8 +10,6 @@ import { FirstRunFrame } from '@/features/home/FirstRunFrame';
 import { useInvalidateLooks } from '@/features/looks/look-states';
 import { REVIEW_MAX } from '@/features/wardrobe/add/flow';
 import { nativeAnalytics } from '@/lib/analytics';
-import { archetypeImages } from './archetype-images';
-import type { Identity } from './Steps';
 import { useUploadSitting } from './use-upload-sitting';
 
 export type CaptureMode = 'looks' | 'pieces';
@@ -70,16 +67,12 @@ export function QuietLink({
 export function CaptureStep({
   mode,
   step,
-  identity,
-  styles,
   onBack,
   onDone,
   onSkip,
 }: {
   mode: CaptureMode;
   step: number;
-  identity: Identity | null;
-  styles: readonly StyleType[];
   onBack: () => void;
   onDone: (n: number) => void;
   onSkip: () => void;
@@ -200,26 +193,36 @@ export function CaptureStep({
         </>
       }
     >
-      {mode === 'looks' ? <LooksFan identity={identity} styles={styles} /> : <PieceExamples />}
+      {mode === 'looks' ? <LooksFan /> : <PieceExamples />}
     </FirstRunFrame>
   );
 }
 
-// Three of her style's photographs, fanned (design Q3): the kind of picture this step keeps.
-function LooksFan({
-  identity,
-  styles,
-}: {
-  identity: Identity | null;
-  styles: readonly StyleType[];
-}) {
+// The design's photographs (canvas "Robes onboarding — prototype", Q3 and Q4), bundled: Metro
+// needs a literal require per file.
+const LOOK_PHOTOS = [
+  require('../../../assets/onboarding/look-1.jpg'),
+  require('../../../assets/onboarding/look-2.jpg'),
+  require('../../../assets/onboarding/look-3.jpg'),
+] as const;
+// In the order of copy.pieces.examples: Jacket, Knit, Jeans, Dress, Boots, Bag.
+const PIECE_PHOTOS = [
+  require('../../../assets/onboarding/piece-jacket.jpg'),
+  require('../../../assets/onboarding/piece-knit.jpg'),
+  require('../../../assets/onboarding/piece-jeans.jpg'),
+  require('../../../assets/onboarding/piece-dress.jpg'),
+  require('../../../assets/onboarding/piece-boots.jpg'),
+  require('../../../assets/onboarding/piece-bag.jpg'),
+] as const;
+
+// Three saved looks, fanned (design Q3): the kind of picture this step keeps.
+const FAN = [
+  { x: -100, y: 16, r: '-6deg', z: 1 },
+  { x: 100, y: 16, r: '6deg', z: 1 },
+  { x: 0, y: 0, r: '0deg', z: 2 },
+] as const;
+function LooksFan() {
   const muted = useColor('ink-muted');
-  const photos = archetypeImages(styles[0] ?? 'Minimal', identity).slice(0, 3);
-  const turn = [
-    { x: -100, y: 16, r: '-6deg', z: 1 },
-    { x: 100, y: 16, r: '6deg', z: 1 },
-    { x: 0, y: 0, r: '0deg', z: 2 },
-  ];
   return (
     <View className="gap-6">
       <RNText
@@ -235,31 +238,25 @@ function LooksFan({
         {copy.looks.sub}
       </RNText>
       <View accessible={false} className="h-[220px] items-center justify-center">
-        {photos.map(({ key, src }, i) => {
-          const t = turn[i] ?? turn[2];
+        {LOOK_PHOTOS.map((src, i) => {
+          const t = FAN[i] ?? FAN[2];
           return (
             <View
-              key={key}
+              key={t.r}
               className="absolute overflow-hidden rounded-thumb border-4 border-surface-raised bg-surface-sunk"
               style={{
                 width: 140,
                 height: 187,
-                zIndex: t?.z,
-                transform: [
-                  { translateX: t?.x ?? 0 },
-                  { translateY: t?.y ?? 0 },
-                  { rotate: t?.r ?? '0deg' },
-                ],
+                zIndex: t.z,
+                transform: [{ translateX: t.x }, { translateY: t.y }, { rotate: t.r }],
               }}
             >
-              {src ? (
-                <Image
-                  source={src}
-                  contentFit="cover"
-                  accessible={false}
-                  style={{ width: '100%', height: '100%' }}
-                />
-              ) : null}
+              <Image
+                source={src}
+                contentFit="cover"
+                accessible={false}
+                style={{ width: '100%', height: '100%' }}
+              />
             </View>
           );
         })}
@@ -268,22 +265,33 @@ function LooksFan({
   );
 }
 
-// The kinds of piece she might start from (design Q4): Jacket, Knit, Jeans, Dress, Boots, Bag.
-// shortcut: the design's tiles carry example photographs; until licensed ones are bundled, each is
-// a white card with its name.
+// The kinds of piece she might start from (design Q4): a photograph each, its name under it.
 function PieceExamples() {
-  const ink = useColor('ink');
+  const rose = useColor('accent-warm');
   return (
-    <View accessible={false} className="flex-row flex-wrap gap-2.5">
-      {copy.pieces.examples.map((label) => (
-        <View
-          key={label}
-          className="h-[104px] items-center justify-center rounded-card border border-rule-mid bg-surface-raised"
-          style={{ width: '31%' }}
-        >
+    <View accessible={false} className="flex-row flex-wrap gap-x-2.5 gap-y-3.5">
+      {copy.pieces.examples.map((label, i) => (
+        <View key={label} className="gap-1.5" style={{ width: '31%' }}>
+          <View
+            className="overflow-hidden rounded-thumb bg-surface-raised"
+            style={{ aspectRatio: 4 / 5 }}
+          >
+            <Image
+              source={PIECE_PHOTOS[i]}
+              contentFit="cover"
+              accessible={false}
+              style={{ width: '100%', height: '100%' }}
+            />
+          </View>
           <RNText
-            maxFontSizeMultiplier={maxFontSizeMultiplier.body}
-            style={{ fontFamily: fonts.displayRegular, fontSize: 18, color: ink }}
+            maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+            style={{
+              fontFamily: fonts.sansMedium,
+              fontSize: 9,
+              letterSpacing: 9 * 0.18,
+              textTransform: 'uppercase',
+              color: rose,
+            }}
           >
             {label}
           </RNText>

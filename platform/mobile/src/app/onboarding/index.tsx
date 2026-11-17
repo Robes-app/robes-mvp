@@ -265,8 +265,6 @@ export default function Onboarding() {
           key={step}
           mode={step}
           step={n}
-          identity={identity}
-          styles={styles}
           onBack={back}
           onDone={() => done(step)}
           onSkip={() => skip(step)}
