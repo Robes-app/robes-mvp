@@ -1,4 +1,4 @@
-import { filters, ui, wardrobe, you } from '@robes/copy';
+import { filters, lookbook, ui, wardrobe, you } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { PieceDetail } from '../src/features/wardrobe/PieceDetail';
 import { WardrobeView } from '../src/features/wardrobe/WardrobeView';
@@ -195,7 +195,12 @@ test('Seasons are the four seasons, each tap the answer; none filed reads Year r
       name: `${wardrobe.piece.rows.season}: ${wardrobe.filter.seasons.year_round}`,
     }),
   );
-  await fireEvent.press(await screen.findByRole('checkbox', { name: filters.seasons.spring }));
+  // The Lookbook's own list: Year round first (on, as nothing is filed), then the seasons.
+  const seasons = lookbook.savedLook.seasonsView;
+  expect(
+    (await screen.findByRole('button', { name: seasons.yearRound })).props.accessibilityState,
+  ).toMatchObject({ selected: true });
+  await fireEvent.press(screen.getByRole('button', { name: seasons.names.spring }));
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ seasons: ['spring'] });
 });

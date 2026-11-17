@@ -49,3 +49,27 @@ test('closed, nothing of it is drawn', async () => {
   );
   expect(screen.queryByTestId('sheet')).toBeNull();
 });
+
+test('a drill’s back stands in the ×’s place, and the eyebrow and picture sit under the header', async () => {
+  const back = jest.fn();
+  await draw(
+    <DetentSheet
+      open
+      onClose={() => {}}
+      title="Tops"
+      leading={<Text onPress={back}>Back to Categories</Text>}
+      eyebrow="Add to your diary"
+      media={<Text>Look photo</Text>}
+      scroll
+      testID="sheet"
+    >
+      <Text>Body</Text>
+    </DetentSheet>,
+  );
+  expect(screen.queryByRole('button', { name: ui.close })).toBeNull();
+  await fireEvent.press(screen.getByText('Back to Categories'));
+  expect(back).toHaveBeenCalled();
+  expect(screen.getByText('Add to your diary')).toBeTruthy();
+  expect(screen.getByText('Look photo')).toBeTruthy();
+  expect(screen.getByText('Body')).toBeTruthy();
+});

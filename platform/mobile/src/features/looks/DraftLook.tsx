@@ -1047,6 +1047,7 @@ function DraftBody({
   const [sheet, setSheet] = useState<DraftSheet | null>(null);
   const [picker, setPicker] = useState<PickerMode | null>(null);
   const [subview, setSubview] = useState<'tags' | 'seasons' | 'worn' | null>(null);
+  const diaryAfterWorn = useRef(false);
   // Asked for (`schedule`, Schedule look, Worn's Add a date), it rises once the screen is in.
   const [diaryAsked, setDiary] = useState(schedule);
   const diary = diaryAsked && arrived;
@@ -1639,8 +1640,14 @@ function DraftBody({
             look={look}
             open={subview === 'worn'}
             onBack={() => setSubview(null)}
+            // iOS presents nothing over a sheet still leaving: the diary rises once Worn has gone.
             onAddDate={() => {
+              diaryAfterWorn.current = true;
               setSubview(null);
+            }}
+            onClosed={() => {
+              if (!diaryAfterWorn.current) return;
+              diaryAfterWorn.current = false;
               setDiary(true);
             }}
           />

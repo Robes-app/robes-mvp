@@ -13,11 +13,12 @@ import {
   WEEKDAYS_SHORT,
 } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
-import { Button, haptic, PrimaryScope, Sheet, Text, useColor, useToast } from '@robes/ui-native';
+import { Button, haptic, PrimaryScope, Text, useColor, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 import { dayLabel, usePinLook } from '@/features/plan/plan';
 import { nativeAnalytics } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
@@ -120,7 +121,8 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     grid.cells.slice(r * 7, r * 7 + 7),
   );
   return (
-    <Sheet
+    // iOS's own sheet at two heights (Annie, 16 Nov): the month scrolls, the one button at the foot.
+    <DetentSheet
       open={look !== null}
       onClose={close}
       eyebrow={copy.diary.eyebrow}
@@ -134,106 +136,106 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
             ),
           }
         : {})}
-      closeButton
+      scroll
       testID="diary-sheet"
-    >
-      <PrimaryScope>
-        {/* The sheet pads under the last row itself; more here pushed the button past
-            the sheet's height on a phone (redline 7 Nov). */}
-        <View className="gap-4">
-          {/* Beta's month sits on a white card (twin: diary-sheet.tsx). */}
-          <View className="gap-3 rounded-soft border border-hairline bg-surface-raised p-4">
-            <View className="flex-row items-center justify-between">
-              <Text className="font-display text-lg">{monthLabel(month)}</Text>
-              {/* ‹ › in 22pt hairline circles, each a 44pt target (web twin diary-sheet.tsx). */}
-              <View className="flex-row items-center gap-2">
-                {(
-                  [
-                    ['back', copy.diary.prevMonth, -1],
-                    ['forward', copy.diary.nextMonth, 1],
-                  ] as const
-                ).map(([icon, label, by]) => (
-                  <Pressable
-                    key={icon}
-                    accessibilityRole="button"
-                    accessibilityLabel={label}
-                    onPress={() => setMonth(shiftMonth(month, by))}
-                    hitSlop={11}
-                    className="h-[22px] w-[22px] items-center justify-center rounded-pill border border-rule-mid"
-                  >
-                    <Icon name={icon} size={12} color={muted} />
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-            <View className="gap-1">
-              <View className="flex-row" importantForAccessibility="no-hide-descendants">
-                {WEEKDAYS_SHORT.map((w) => (
-                  <Text
-                    key={w}
-                    tone="muted"
-                    size="caption"
-                    className="flex-1 text-center uppercase"
-                    style={{ fontSize: 9.5, letterSpacing: 1.7 }}
-                  >
-                    {w}
-                  </Text>
-                ))}
-              </View>
-              {rows.map((row, r) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: rows of a fixed grid
-                <View key={r} className="flex-row gap-1">
-                  {row.map((date, c) => {
-                    // biome-ignore lint/suspicious/noArrayIndexKey: padding cells are fixed positions
-                    if (!date) return <View key={`pad-${r}-${c}`} className="flex-1" />;
-                    const on = date === day;
-                    return (
-                      <Pressable
-                        key={date}
-                        accessibilityRole="button"
-                        accessibilityLabel={longDate(date)}
-                        accessibilityState={{ selected: on }}
-                        onPress={() => setPicked(date)}
-                        className="min-h-11 flex-1 items-center justify-center gap-0.5"
-                      >
-                        {/* The picked day is a warm circle; today carries no ring of its own. */}
-                        <View
-                          className={`h-8 w-8 items-center justify-center rounded-full border ${
-                            on ? 'border-selected-line bg-selected' : 'border-transparent'
-                          }`}
-                        >
-                          <Text
-                            className="font-display text-base"
-                            style={{ color: on || date === today ? ink : muted }}
-                          >
-                            {Number(date.slice(8))}
-                          </Text>
-                        </View>
-                        {/* A filed day carries a dot, so her diary reads at a glance. */}
-                        <View
-                          className="size-1 rounded-pill"
-                          style={filled.has(date) ? { backgroundColor: rose } : undefined}
-                        />
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ))}
-            </View>
-          </View>
-          <Text
-            tone="muted"
-            italic
-            accessibilityLiveRegion="polite"
-            className="border-t border-hairline pt-3 text-center"
-          >
-            {copy.diary.picked(longDate(day), day === today, state.suffix)}
-          </Text>
+      footer={
+        <PrimaryScope>
           <Button disabled={state.action === 'recorded'} loading={busy} onPress={act}>
             {copy.diary[state.action]}
           </Button>
+        </PrimaryScope>
+      }
+    >
+      <View className="gap-4">
+        {/* Beta's month sits on a white card (twin: diary-sheet.tsx). */}
+        <View className="gap-3 rounded-soft border border-hairline bg-surface-raised p-4">
+          <View className="flex-row items-center justify-between">
+            <Text className="font-display text-lg">{monthLabel(month)}</Text>
+            {/* ‹ › in 22pt hairline circles, each a 44pt target (web twin diary-sheet.tsx). */}
+            <View className="flex-row items-center gap-2">
+              {(
+                [
+                  ['back', copy.diary.prevMonth, -1],
+                  ['forward', copy.diary.nextMonth, 1],
+                ] as const
+              ).map(([icon, label, by]) => (
+                <Pressable
+                  key={icon}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
+                  onPress={() => setMonth(shiftMonth(month, by))}
+                  hitSlop={11}
+                  className="h-[22px] w-[22px] items-center justify-center rounded-pill border border-rule-mid"
+                >
+                  <Icon name={icon} size={12} color={muted} />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <View className="gap-1">
+            <View className="flex-row" importantForAccessibility="no-hide-descendants">
+              {WEEKDAYS_SHORT.map((w) => (
+                <Text
+                  key={w}
+                  tone="muted"
+                  size="caption"
+                  className="flex-1 text-center uppercase"
+                  style={{ fontSize: 9.5, letterSpacing: 1.7 }}
+                >
+                  {w}
+                </Text>
+              ))}
+            </View>
+            {rows.map((row, r) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: rows of a fixed grid
+              <View key={r} className="flex-row gap-1">
+                {row.map((date, c) => {
+                  // biome-ignore lint/suspicious/noArrayIndexKey: padding cells are fixed positions
+                  if (!date) return <View key={`pad-${r}-${c}`} className="flex-1" />;
+                  const on = date === day;
+                  return (
+                    <Pressable
+                      key={date}
+                      accessibilityRole="button"
+                      accessibilityLabel={longDate(date)}
+                      accessibilityState={{ selected: on }}
+                      onPress={() => setPicked(date)}
+                      className="min-h-11 flex-1 items-center justify-center gap-0.5"
+                    >
+                      {/* The picked day is a warm circle; today carries no ring of its own. */}
+                      <View
+                        className={`h-8 w-8 items-center justify-center rounded-full border ${
+                          on ? 'border-selected-line bg-selected' : 'border-transparent'
+                        }`}
+                      >
+                        <Text
+                          className="font-display text-base"
+                          style={{ color: on || date === today ? ink : muted }}
+                        >
+                          {Number(date.slice(8))}
+                        </Text>
+                      </View>
+                      {/* A filed day carries a dot, so her diary reads at a glance. */}
+                      <View
+                        className="size-1 rounded-pill"
+                        style={filled.has(date) ? { backgroundColor: rose } : undefined}
+                      />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
         </View>
-      </PrimaryScope>
-    </Sheet>
+        <Text
+          tone="muted"
+          italic
+          accessibilityLiveRegion="polite"
+          className="border-t border-hairline pt-3 text-center"
+        >
+          {copy.diary.picked(longDate(day), day === today, state.suffix)}
+        </Text>
+      </View>
+    </DetentSheet>
   );
 }

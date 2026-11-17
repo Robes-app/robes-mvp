@@ -65,7 +65,7 @@ jest.mock('expo-file-system', () => ({
 // iOS's own sheet (@expo/ui) is native: under jest the sheet is its content while presented, so
 // the pickers on DetentSheet read as they draw.
 jest.mock('@expo/ui/swift-ui', () => {
-  const { Fragment, createElement } = jest.requireActual('react');
+  const { Fragment, createElement, useEffect, useRef } = jest.requireActual('react');
   const { View } = jest.requireActual('react-native');
   const pass = ({ children }: { children?: unknown }) => createElement(Fragment, null, children);
   return {
@@ -74,8 +74,23 @@ jest.mock('@expo/ui/swift-ui', () => {
     Group: ({ children, modifiers }: { children?: unknown; modifiers?: unknown }) =>
       createElement(View, { testID: 'sheet-presentation', modifiers }, children),
     RNHostView: pass,
-    BottomSheet: ({ isPresented, children }: { isPresented: boolean; children?: unknown }) =>
-      isPresented ? createElement(Fragment, null, children) : null,
+    // Dismissed, it says so once it has gone, as iOS's sheet does (onDismiss).
+    BottomSheet: ({
+      isPresented,
+      onDismiss,
+      children,
+    }: {
+      isPresented: boolean;
+      onDismiss?: () => void;
+      children?: unknown;
+    }) => {
+      const was = useRef(isPresented);
+      useEffect(() => {
+        if (was.current && !isPresented) onDismiss?.();
+        was.current = isPresented;
+      }, [isPresented, onDismiss]);
+      return isPresented ? createElement(Fragment, null, children) : null;
+    },
   };
 });
 jest.mock('@expo/ui/swift-ui/modifiers', () => ({

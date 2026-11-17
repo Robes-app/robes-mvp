@@ -514,10 +514,19 @@ function Rows({ rows }: { rows: readonly SheetRow[] }) {
 // 15, and the text action at the right, ink while it can act, faint while it can't. A spacer
 // keeps the title centred when there is no action. The iOS detent sheet (mobile DetentSheet) draws
 // the same row.
-export function SheetHead({ title, action, onClose }: GlassHeader & { onClose: () => void }) {
+export function SheetHead({
+  title,
+  action,
+  onClose,
+  leading,
+}: GlassHeader & {
+  onClose: () => void;
+  // In the ×'s place: a drill's back chevron (a category's families), which never closes.
+  leading?: ReactNode;
+}) {
   return (
     <View className="h-10 flex-row items-center justify-between gap-3">
-      <CloseDisc label={ui.close} onPress={onClose} />
+      {leading ?? <CloseDisc label={ui.close} onPress={onClose} />}
       <Text
         accessibilityRole="header"
         numberOfLines={1}
