@@ -1,4 +1,4 @@
-import type { Look } from '@robes/contracts';
+import type { Look, PieceImage } from '@robes/contracts';
 import { looks } from '@robes/copy';
 import { type Aspect, aspects, Image } from '@robes/ui';
 import { imageSources } from '@/lib/image';
@@ -12,13 +12,19 @@ export function LookImage({
   sizes,
   priority = false,
   aspect = '4:5',
+  image: shown,
 }: {
   look: Look;
+  // A picture of the look other than its cover (Robes' own, on the photo strip).
+  image?: PieceImage | null;
   sizes: string;
   priority?: boolean;
   aspect?: Aspect;
 }) {
-  const image = look.image ?? look.pieces.find((p) => p.piece.image)?.piece.image ?? null;
+  const image =
+    shown !== undefined
+      ? shown
+      : (look.image ?? look.pieces.find((p) => p.piece.image)?.piece.image ?? null);
   // A photograph she has just taken shows from the file in hand until its renditions are made
   // (a look from Home's Capture opens on it at once).
   const sources = image

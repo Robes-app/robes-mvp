@@ -566,13 +566,14 @@ test('flipping Shop on a saved look raises no Update look', async () => {
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
 });
 
-test('the photo strip on the look’s page keeps its back disc, so she can always leave', async () => {
+test('the Photos row on the look’s page opens the Edit look frame, never the strip in place', async () => {
   mockFetch(editRoutes(twoPieces()));
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByTestId('saved-look-stack'));
-  expect(await screen.findByTestId('image-manager')).toBeTruthy();
-  expect(screen.getByRole('button', { name: lookbook.savedLook.manager.add })).toBeTruthy();
-  // Still the saved look's page: its back disc, and Schedule look at the foot.
+  await fireEvent.press(await screen.findByText(lookbook.savedLook.tabs.details));
+  await fireEvent.press(screen.getByTestId('details-photos'));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}?images=add`);
+  // Still the saved look's page: its back disc on the picture, and Schedule look at the foot.
+  expect(screen.queryByTestId('image-manager')).toBeNull();
   expect(screen.getByTestId('saved-look-back')).toBeTruthy();
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
 });

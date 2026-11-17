@@ -1,6 +1,6 @@
 'use client';
 
-import type { Look } from '@robes/contracts';
+import type { Look, PieceImage } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { anchorName, lookFacts, noteShort, pinnedFor } from '@robes/core/looks';
 import { Button, Dialog, Eyebrow, Heading, InlineTitleField, Text } from '@robes/ui';
@@ -19,7 +19,15 @@ import { RobesModelBadge } from './robes-model-badge';
 import { Scanning, scanningLine } from './scan-line';
 
 // Robes' frame (drawn when she first reaches a suggestion, UX-09) or her look's picture.
-export function LookPicture({ look }: { look: Look }) {
+// `picture` is what it shows: the look's cover by default; the strip's Robes card passes Robes'
+// own picture (17 Nov). Twin: native LookPicture.tsx.
+export function LookPicture({
+  look,
+  picture = look.image,
+}: {
+  look: Look;
+  picture?: PieceImage | null;
+}) {
   const requestFrame = useRequestFrame();
   const asked = useRef(false);
   useEffect(() => {
@@ -32,7 +40,7 @@ export function LookPicture({ look }: { look: Look }) {
   const busy = scanningLine(look);
   return (
     <figure className="relative overflow-hidden rounded-crisp">
-      <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
+      <LookImage look={look} image={picture} priority sizes="(min-width: 768px) 40vw, 100vw" />
       {busy ? <Scanning line={busy} corner /> : null}
     </figure>
   );
