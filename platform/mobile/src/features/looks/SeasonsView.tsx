@@ -2,13 +2,16 @@ import type { Look, Season } from '@robes/contracts';
 import { lookbook } from '@robes/copy';
 import { SEASONS } from '@robes/core/taxonomy';
 import { Icon } from '@robes/icons/native';
-import { OptionList, OptionRow, Subview, useColor } from '@robes/ui-native';
+import { OptionList, OptionRow, useColor } from '@robes/ui-native';
+import { View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 import { useLookDetails } from './TagsView';
 
 const copy = lookbook.savedLook.seasonsView;
 
 // Felix's SeasonsView (D12): Year round (no glyph), then the four seasons with their glyphs; any
-// of them, Year round clears the rest. Back writes nothing extra. Web twin:
+// of them, Year round clears the rest. On iOS's own sheet, as a piece's Seasons is (Annie, 17 Nov):
+// each tap is the answer, so Done is the one way out. Web twin (a drawer's subview):
 // app/src/components/looks/seasons-view.tsx.
 export function SeasonsView({
   look,
@@ -25,7 +28,15 @@ export function SeasonsView({
   const toggle = (s: Season) =>
     set(look.seasons.includes(s) ? look.seasons.filter((x) => x !== s) : [...look.seasons, s]);
   return (
-    <Subview open={open} title={copy.title} onBack={onBack} testID="seasons-view">
+    <DetentSheet
+      open={open}
+      onClose={onBack}
+      title={copy.title}
+      done={{ label: copy.done, onPress: onBack }}
+      leading={<View style={{ width: 36 }} />}
+      scroll
+      testID="seasons-view"
+    >
       <OptionList>
         <OptionRow
           first
@@ -43,6 +54,6 @@ export function SeasonsView({
           />
         ))}
       </OptionList>
-    </Subview>
+    </DetentSheet>
   );
 }

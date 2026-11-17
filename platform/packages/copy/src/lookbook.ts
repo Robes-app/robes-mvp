@@ -200,6 +200,7 @@ export const lookbook = {
     },
     seasonsView: {
       title: 'Seasons',
+      done: 'Done',
       names: {
         spring: 'Spring',
         summer: 'Summer',
