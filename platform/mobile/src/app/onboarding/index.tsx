@@ -7,9 +7,9 @@ import {
   type FirstRunStep,
   type Me,
 } from '@robes/contracts';
-import { firstRun as copy, onboarding, ui, you } from '@robes/copy';
+import { firstRun as copy, onboarding, ui } from '@robes/copy';
 import { onboardingBrands, STYLE_TYPES, type StyleType } from '@robes/core/style-dna';
-import { Button, ErrorText, Field, PrimaryScope, Text, Wordmark } from '@robes/ui-native';
+import { Button, ErrorText, Field, PrimaryScope, Wordmark } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
@@ -28,7 +28,6 @@ import { TwinStep } from '@/features/onboarding/TwinStep';
 import { READ_PARAM } from '@/features/you/use-selfie';
 import { nativeAnalytics } from '@/lib/analytics';
 import { readPref, writePref } from '@/lib/prefs';
-import { useSignOut } from '@/lib/use-sign-out';
 
 const SPLASH_MS = 2_000;
 const isCapture = (s: FirstRunStep): s is FirstRunCapture =>
@@ -74,7 +73,6 @@ export default function Onboarding() {
   const [skipped, setSkipped] = useState<FirstRunCapture[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const signOut = useSignOut();
   const name = touched ? firstName : firstName || me.data?.firstName || '';
   const userId = me.data?.id;
   // Past Brands, or a re-run: her answers as her profile holds them.
@@ -325,18 +323,7 @@ export default function Onboarding() {
       >
         {label}
       </Button>
-      {/* A way out before she's done (audit F7): sign out, her answers so far kept. */}
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => void signOut()}
-        hitSlop={8}
-        className="min-h-11 items-center justify-center self-center"
-        testID="onboarding-sign-out"
-      >
-        <Text size="small" tone="muted" className="underline">
-          {you.signOut}
-        </Text>
-      </Pressable>
+      {/* No sign out here (Annie, 17 Nov: unnecessary); her answers are kept as she goes. */}
     </>
   );
 
