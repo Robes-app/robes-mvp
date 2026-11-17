@@ -1,4 +1,4 @@
-import { Image as ExpoImage, type ImageContentFit } from 'expo-image';
+import { Image as ExpoImage, type ImageContentFit, type ImageContentPosition } from 'expo-image';
 import { View } from 'react-native';
 import { cx } from './cx';
 import { photoSource } from './photo-source';
@@ -13,6 +13,8 @@ export interface ImageProps {
   aspect?: Aspect;
   blurhash?: string | null;
   contentFit?: ImageContentFit;
+  // Where a cropped photo keeps its middle; centred unless the surface says.
+  contentPosition?: ImageContentPosition;
   recyclingKey?: string;
   className?: string;
   testID?: string;
@@ -25,6 +27,7 @@ export function Image({
   aspect = '4:5',
   blurhash,
   contentFit = 'cover',
+  contentPosition,
   recyclingKey,
   className,
   testID,
@@ -50,6 +53,7 @@ export function Image({
         placeholder={blurhash ? { blurhash } : undefined}
         placeholderContentFit={contentFit}
         contentFit={contentFit}
+        {...(contentPosition ? { contentPosition } : {})}
         recyclingKey={recyclingKey}
         transition={200}
         accessible={false}

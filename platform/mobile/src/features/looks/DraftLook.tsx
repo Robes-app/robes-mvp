@@ -81,6 +81,7 @@ import { AdjustSheet } from './DraftSheets';
 import { CardPicture, ImageManager } from './ImageManager';
 import { LookDetails } from './LookDetails';
 import { LookPicture } from './LookPicture';
+import { PERSON_CROP } from './LookTile';
 import { onRackIds, useLookEditor } from './look-editor';
 import { useImageStage } from './look-images';
 import {
@@ -868,7 +869,7 @@ function NewDraft({
     >
       <View className="overflow-hidden bg-surface-sunk">
         {stand ? (
-          <Image source={stand} alt={lookbook.figure.alt} />
+          <Image source={stand} alt={lookbook.figure.alt} contentPosition={PERSON_CROP} />
         ) : model.isPending ? (
           <Skeleton width="100%" aspectRatio={4 / 5} />
         ) : (
@@ -1759,9 +1760,14 @@ function DraftPhoto({
         ) : look.frame && !own ? (
           <LookPicture look={look} />
         ) : uri ? (
-          <Image source={uri} alt={looksCopy.page.imageAlt(look.name)} blurhash={shown?.blurhash} />
+          <Image
+            source={uri}
+            alt={looksCopy.page.imageAlt(look.name)}
+            blurhash={shown?.blurhash}
+            contentPosition={PERSON_CROP}
+          />
         ) : stand ? (
-          <Image source={stand} alt={lookbook.figure.alt} />
+          <Image source={stand} alt={lookbook.figure.alt} contentPosition={PERSON_CROP} />
         ) : modelPending ? (
           <Skeleton width="100%" aspectRatio={4 / 5} />
         ) : (
