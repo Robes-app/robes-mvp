@@ -1,6 +1,6 @@
 'use client';
 
-import { twin, wardrobe } from '@robes/copy';
+import { twin, ui, wardrobe } from '@robes/copy';
 import { Icon, type IconName } from '@robes/icons/web';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -213,7 +213,8 @@ export function SelfieCamera({
                 onClick={() => void send(photo.file)}
                 className={`${WIDE} bg-ink900 text-cream50 ${DARK_FOCUS}`}
               >
-                {copy.use}
+                {/* Her close-up uploads before anything moves on: say so, never a still button. */}
+                {busy ? ui.loading : copy.use}
               </button>
             </div>
           </div>

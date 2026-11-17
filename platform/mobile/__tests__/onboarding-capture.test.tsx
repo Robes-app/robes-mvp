@@ -1,5 +1,5 @@
 import type { Consents } from '@robes/contracts';
-import { firstRun as copy } from '@robes/copy';
+import { firstRun as copy, twin } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { CaptureStep } from '../src/features/onboarding/CaptureStep';
 import { OutfitStep } from '../src/features/onboarding/OutfitStep';
@@ -156,7 +156,13 @@ test('Digital twin: no close-up before her yes, which is saved before the camera
     'POST /me/consents': { ...CONSENTS, photo_analysis: true },
   });
   await renderWithApi(
-    <TwinStep step={7} onBack={jest.fn()} onDone={jest.fn()} onSkip={jest.fn()} />,
+    <TwinStep
+      step={7}
+      onBack={jest.fn()}
+      onDone={jest.fn()}
+      onSkip={jest.fn()}
+      read={{ reading: false, error: null }}
+    />,
   );
   const go = await screen.findByRole('button', { name: copy.twin.go });
   expect(go.props.accessibilityState?.disabled).toBe(true);
@@ -172,6 +178,33 @@ test('Digital twin: no close-up before her yes, which is saved before the camera
   );
   const consentAt = calls.findIndex((c) => c.path.endsWith('/me/consents') && c.method === 'POST');
   expect(calls[consentAt]?.body).toMatchObject({ consents: { photo_analysis: true } });
+});
+
+test('Digital twin: while her twin draws, her close-up stands under the status and Continue goes on', async () => {
+  const onDone = jest.fn();
+  mockFetch({
+    'GET /me/model': modelData({
+      closeUpUrl: 'https://media.test/close-up.jpg',
+      twin: { status: 'pending', current: false, imageUrl: null },
+    }),
+    'GET /me/consents': { ...CONSENTS, photo_analysis: true },
+  });
+  await renderWithApi(
+    <TwinStep
+      step={7}
+      onBack={jest.fn()}
+      onDone={onDone}
+      onSkip={jest.fn()}
+      read={{ reading: false, error: null }}
+    />,
+  );
+  expect(await screen.findByTestId('twin-status')).toBeTruthy();
+  expect(screen.getByLabelText(twin.twinPage.you)).toBeTruthy();
+  // R-S4: she never waits on the drawing.
+  const next = screen.getByRole('button', { name: copy.continue });
+  expect(next.props.accessibilityState?.disabled).toBeFalsy();
+  await fireEvent.press(next);
+  expect(onDone).toHaveBeenCalledWith(true);
 });
 
 test('Today’s outfit saves her photo as a look on today and goes Home, no draft drawer', async () => {
