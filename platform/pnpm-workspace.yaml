@@ -47,10 +47,12 @@ overrides:
   undici@>=8.0.0 <8.12.2: '>=8.12.2 <9'
 
 auditConfig:
-  # No patched release yet; both run only in the Expo CLI / Metro dev toolchain, never in the app or API.
+  # No patched release yet; each runs only in the build and test toolchain (Expo CLI, Metro, Jest,
+  # Vite/Vitest), never in the app or API.
   ignoreGhsas:
     - GHSA-86w9-cpqp-85rv # node-forge via @expo/code-signing-certificates
     - GHSA-vfj7-8cjw-p6xm # braces via metro-file-map > micromatch
+    - GHSA-fc5q-39xc-vjpf # picomatch via vite / tinyglobby / micromatch (17 Nov 2026: no patched release)
 
 patchedDependencies:
   uniwind@1.12.0: patches/uniwind@1.12.0.patch
