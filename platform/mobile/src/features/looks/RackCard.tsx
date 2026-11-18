@@ -14,12 +14,11 @@ import { Pressable, Text as RNText, View } from 'react-native';
 
 const copy = lookbook.draftLook.rackCard;
 
-// The Rack card (Front Door PRD rev 3 §4.6): before the first piece the Pieces tab opens straight
-// onto this dashed card — the hanger on its warm column, YOUR WARDROBE, then the way in. With
-// pieces in her wardrobe it reads "Pick from your wardrobe / Or let Robes style below" and › opens
-// the Add Pieces picker; with none, "Add your pieces / Photo, link or receipt" and + opens the Add
-// your pieces sheet. Once a piece hangs the card moves under the list as the add slot. Web twin:
-// app/src/components/looks/rack-card.tsx.
+// The Rack card (Front Door PRD rev 3 §4.6; docked prompt designs 1d, 1e): before the first piece
+// the Pieces tab opens straight onto this dashed card, one line — the hanger, the way in and ›.
+// With pieces in her wardrobe it reads "Pick from your wardrobe" and opens the piece picker; with
+// none, "Add pieces to your wardrobe" and opens the Add Pieces sheet (W5). Once a piece hangs the
+// card moves under the list as the add slot. Web twin: app/src/components/looks/rack-card.tsx.
 export function RackCard({
   hasWardrobe,
   onPress,
@@ -31,10 +30,8 @@ export function RackCard({
 }) {
   return (
     <DashedCard
-      eyebrow={copy.eyebrow}
       title={hasWardrobe ? copy.pick : copy.add}
-      sub={hasWardrobe ? copy.orRobes : copy.ways}
-      icon={hasWardrobe ? 'forward' : 'plus'}
+      icon="forward"
       onPress={onPress}
       testID={testID ?? 'rack-card'}
     />
@@ -43,6 +40,7 @@ export function RackCard({
 
 // The card's anatomy, shared with a look from her photograph (Capture PRD 1c.3: FROM YOUR PHOTO ·
 // Find the pieces), whose column holds the photograph under a veil with the hanger on a badge.
+// With no eyebrow and no sub it is the compact one-line card (the Rack card, 1d).
 export function DashedCard({
   eyebrow,
   title,
@@ -52,9 +50,9 @@ export function DashedCard({
   onPress,
   testID,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
-  sub: string;
+  sub?: string;
   icon: 'forward' | 'plus';
   // Her photograph in the column, in place of the hanger on its warm ground.
   photo?: string | null;
@@ -63,11 +61,14 @@ export function DashedCard({
 }) {
   const ink = useColor('ink');
   const warm = useColor('accent-warm');
+  const compact = !eyebrow && !sub;
+  const column = compact ? 40 : 52;
+  const disc = compact ? 24 : 32;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title}
-      accessibilityHint={sub}
+      {...(sub ? { accessibilityHint: sub } : {})}
       onPress={onPress}
       testID={testID}
       className="flex-row items-stretch overflow-hidden rounded-soft border-selected-line"
@@ -95,37 +96,52 @@ export function DashedCard({
         </View>
       ) : (
         <View
-          className="items-center justify-center border-selected-line bg-selected"
-          style={{ width: 52, borderRightWidth: 1, borderStyle: 'dashed' }}
+          className={`items-center justify-center border-selected-line ${compact ? '' : 'bg-selected'}`}
+          style={{ width: column, borderRightWidth: 1, borderStyle: 'dashed' }}
         >
-          <Icon name="wardrobe" size={18} color={warm} />
+          <Icon name="wardrobe" size={compact ? 15 : 18} color={warm} />
         </View>
       )}
-      <View className="flex-1 gap-0.5 py-3 pl-3.5">
-        <RNText
-          maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-          className="text-accent-warm"
-          style={typeStyle('label')}
-        >
-          {eyebrow}
-        </RNText>
+      <View
+        className="flex-1 gap-0.5 pl-3.5"
+        style={
+          compact
+            ? { minHeight: 48, justifyContent: 'center', paddingVertical: 8 }
+            : { paddingVertical: 12 }
+        }
+      >
+        {eyebrow ? (
+          <RNText
+            maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+            className="text-accent-warm"
+            style={typeStyle('label')}
+          >
+            {eyebrow}
+          </RNText>
+        ) : null}
         <RNText
           numberOfLines={1}
           className="text-ink"
-          style={{ fontFamily: fonts.display, fontSize: 19, lineHeight: 24 }}
+          style={{
+            fontFamily: fonts.display,
+            fontSize: compact ? 16 : 19,
+            lineHeight: compact ? 20 : 24,
+          }}
         >
           {title}
         </RNText>
-        <Text size="small" tone="muted" numberOfLines={1}>
-          {sub}
-        </Text>
+        {sub ? (
+          <Text size="small" tone="muted" numberOfLines={1}>
+            {sub}
+          </Text>
+        ) : null}
       </View>
       <View className="justify-center pr-3">
         <View
           className="items-center justify-center rounded-pill bg-selected"
-          style={{ width: 32, height: 32 }}
+          style={{ width: disc, height: disc }}
         >
-          <Icon name={icon} size={14} color={ink} />
+          <Icon name={icon} size={compact ? 12 : 14} color={ink} />
         </View>
       </View>
     </Pressable>

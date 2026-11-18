@@ -365,12 +365,9 @@ export const lookbook = {
     // at rest a row opens its piece.
     editPieces: 'Edit pieces',
     rackCard: {
-      eyebrow: 'Your wardrobe',
       pick: 'Pick from your wardrobe',
-      orRobes: 'Or let Robes style below',
       // With an empty wardrobe (docked prompt PRD W5).
       add: 'Add pieces to your wardrobe',
-      ways: 'Photo, link or receipt',
     },
     // A look from her photograph (Capture PRD 1c, 10 Nov 2026): Home's Capture opens the camera,
     // Use photo opens the draft with the photograph as its picture, and The Rack offers to find
