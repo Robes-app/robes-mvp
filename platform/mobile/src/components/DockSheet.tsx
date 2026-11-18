@@ -1,5 +1,6 @@
 import { BottomSheet, Group, Host, RNHostView } from '@expo/ui/swift-ui';
 import {
+  ignoreSafeArea,
   type PresentationDetent,
   presentationBackground,
   presentationBackgroundInteraction,
@@ -7,14 +8,17 @@ import {
   presentationDetents,
   presentationDragIndicator,
 } from '@expo/ui/swift-ui/modifiers';
-import { useColor } from '@robes/ui-native';
-import { type ReactNode, useState } from 'react';
+import { useColor, useToastLift } from '@robes/ui-native';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// SPIKE (docked prompt PRD phase 3, N1–N3): the docked prompt's bar and thread as iOS's own sheet.
-// Three heights: the bar, fitted to what it holds, with the look live and scrolling behind it; the
-// thread at half the screen over the dimmed look; full for a long thread. Swiping the bar down
-// dismisses it to the sparkle, which stays drawn on the look. Not for merge as is.
+// The docked prompt's bar and thread as iOS's own sheet (docked prompt PRD phase 3, N1–N3), on
+// iOS only. Three heights: the bar, fitted to what it holds, with the look live and scrolling
+// behind it; the thread at half the screen over the dimmed look; full for a long thread. Swiping
+// the bar down puts it away to the sparkle, which stays drawn on the look. iOS presents nothing
+// over a sheet still on screen, so the screen closes it (`open` false) before it presents anything
+// of its own, and waits for `onUp(false)`.
 
 export type DockDetent = 'bar' | 'thread' | 'full';
 
@@ -22,6 +26,8 @@ const THREAD: PresentationDetent = { fraction: 0.5 };
 const RADIUS = 22;
 // Room for the system grabber above the bar's content.
 const GRABBER = 18;
+// Toasts stand this far clear of the bar.
+const TOAST_GAP = 8;
 
 function same(a: PresentationDetent, b: PresentationDetent): boolean {
   if (typeof a === 'string' || typeof b === 'string') return a === b;
@@ -35,44 +41,59 @@ export function DockSheet({
   detent,
   onDetent,
   onDismiss,
+  onUp,
   bar,
   thread,
   barOnly = false,
-  onClosed,
   testID,
 }: {
   open: boolean;
   detent: DockDetent;
   // The sheet was dragged to another height.
   onDetent: (detent: DockDetent) => void;
-  // Swiped away (or folded by the system): the dock is the sparkle again.
+  // She swiped it away: the dock is the sparkle again. Not called when the screen closes it.
   onDismiss: () => void;
+  // The sheet is on screen (true), or has fully gone (false).
+  onUp?: (up: boolean) => void;
   // What the bar shows, measured to size its height.
   bar: ReactNode;
   // What the thread shows (its title, the turns, the field).
   thread: ReactNode;
   // Nothing to open into yet (no conversation): the bar is the only height.
   barOnly?: boolean;
-  // Once the sheet has fully gone: iOS presents nothing over a sheet still on screen.
-  onClosed?: () => void;
   testID?: string;
 }) {
   const fill = useColor('surface-raised');
   // The bar's height follows its content (Robes' line, the answer rows, the field).
   const [barHeight, setBarHeight] = useState(160);
-  const BAR: PresentationDetent = { height: barHeight };
+  // iOS keeps the home indicator's inset under a height-sized sheet's content, so the bar stood
+  // on 34pt of empty sheet (Annie, 18 Nov): at the bar the content runs into that inset and the
+  // height leaves it out.
+  const { bottom } = useSafeAreaInsets();
+  const BAR: PresentationDetent = { height: Math.max(barHeight - bottom, 80) };
   const toDetent = (d: DockDetent): PresentationDetent =>
     d === 'bar' ? BAR : d === 'thread' ? THREAD : 'large';
   const fromDetent = (d: PresentationDetent): DockDetent =>
     same(d, BAR) ? 'bar' : same(d, THREAD) ? 'thread' : 'full';
+  // Toasts are drawn under the sheet: at the bar they stand above it (the thread dims the look,
+  // and says what it needs itself).
+  useToastLift(open && detent === 'bar' ? barHeight + TOAST_GAP : 0);
+  // Whether the screen still means it open, so a close it asked for is not taken for her swipe.
+  const meant = useRef(open);
+  meant.current = open;
+  const up = useRef(onUp);
+  up.current = onUp;
+  useEffect(() => {
+    if (open) up.current?.(true);
+  }, [open]);
   return (
     <Host style={{ position: 'absolute', width: 0, height: 0 }}>
       <BottomSheet
         isPresented={open}
         onIsPresentedChange={(presented) => {
-          if (!presented) onDismiss();
+          if (!presented && meant.current) onDismiss();
         }}
-        {...(onClosed ? { onDismiss: onClosed } : {})}
+        onDismiss={() => up.current?.(false)}
       >
         <Group
           modifiers={[
@@ -85,6 +106,9 @@ export function DockSheet({
             presentationCornerRadius(RADIUS),
             presentationBackground(fill),
             presentationDragIndicator('visible'),
+            ...(detent === 'bar'
+              ? [ignoreSafeArea({ regions: 'container', edges: 'bottom' })]
+              : []),
           ]}
         >
           <RNHostView>

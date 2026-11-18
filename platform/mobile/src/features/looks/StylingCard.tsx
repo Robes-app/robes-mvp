@@ -295,10 +295,13 @@ export function RobesAvatar({ working = false }: { working?: boolean }) {
 
 const DOCK_RADIUS = 22;
 const SPARK = 56;
-// SPIKE (phase 3): iOS's own sheet for the dock, in development builds on iOS only.
-export const SPIKE_SHEET = Platform.OS === 'ios' && __DEV__ && process.env.NODE_ENV !== 'test';
+// On iOS the bar and thread are iOS's own sheet (docked prompt PRD phase 3, N1–N6); Android keeps
+// the drawn dock, and so do the tests unless one asks for the sheet (ROBES_DRAWN_DOCK=0).
+export function nativeSheet(): boolean {
+  return Platform.OS === 'ios' && process.env.ROBES_DRAWN_DOCK !== '1';
+}
 // The room the page keeps at its foot while the sheet's bar stands over it (K9).
-const SPIKE_BAR_ROOM = 150;
+const SHEET_BAR_ROOM = 150;
 
 // The docked prompt (docked prompt PRD K1–K9; designs 1d, 2c): one white card at the look's foot,
 // inset from its edges, in three states. `spark`: the round ink button alone, bottom right, with a
@@ -325,7 +328,8 @@ export function PromptDock({
   onExpand,
   onCollapse,
   onMinimise,
-  onSheetClosed,
+  covered = false,
+  onSheetUp,
   box,
   bare = false,
   children,
@@ -355,8 +359,10 @@ export function PromptDock({
   onCollapse: () => void;
   // Put away to the sparkle: the thread's close, and a swipe on iOS's own sheet.
   onMinimise?: () => void;
-  // Once iOS's own sheet has gone (SPIKE): what waited for it to leave runs here.
-  onSheetClosed?: () => void;
+  // The screen is presenting something of its own: iOS's sheet steps aside, keeping its state.
+  covered?: boolean;
+  // iOS's sheet is on screen (true), or has fully gone (false).
+  onSheetUp?: (up: boolean) => void;
   // The bar's box: the sources, the day's chip, a line that opens the field.
   box: ReactNode;
   // Before her first send on a draft: the sheet holds only the box she tapped (16 Nov, B1).
@@ -481,23 +487,27 @@ export function PromptDock({
       </Pressable>
     </View>
   );
-  // SPIKE (docked prompt PRD phase 3): iOS's own sheet holds the bar and the thread, in
-  // development builds only; the sparkle stays drawn on the look. The real field is in the sheet
-  // at every height (no second sheet to type in), and it never takes the keyboard by itself.
-  if (SPIKE_SHEET && onMinimise) {
+  // iOS's own sheet holds the bar and the thread (phase 3); the sparkle stays drawn on the look.
+  // The real field is in the sheet at every height (no second sheet to type in, Q4), and it never
+  // takes the keyboard by itself.
+  if (nativeSheet() && onMinimise) {
     const field = isValidElement(children)
-      ? cloneElement(children as ReactElement<{ autoFocus?: boolean }>, { autoFocus: false })
+      ? // In the sheet the field is never a card of its own (the sheet is the card).
+        cloneElement(children as ReactElement<{ autoFocus?: boolean; card?: boolean }>, {
+          autoFocus: false,
+          card: false,
+        })
       : children;
     return (
       <>
-        {state === 'spark' ? resting : <View style={{ height: SPIKE_BAR_ROOM }} />}
+        {state === 'spark' ? resting : <View style={{ height: SHEET_BAR_ROOM }} />}
         <DockSheet
-          open={state !== 'spark'}
+          open={state !== 'spark' && !covered}
           detent={state === 'thread' ? 'thread' : 'bar'}
           onDetent={(d) => (d === 'bar' ? onCollapse() : onExpand())}
           onDismiss={onMinimise}
           barOnly={!conversation}
-          {...(onSheetClosed ? { onClosed: onSheetClosed } : {})}
+          {...(onSheetUp ? { onUp: onSheetUp } : {})}
           testID="prompt-dock"
           bar={
             <View>
@@ -531,7 +541,7 @@ export function PromptDock({
           thread={
             <View className="flex-1" style={{ paddingHorizontal: 10 }}>
               {/* The title and close with room around them: below the grabber, away from the
-                  sheet's corner, a fine rule under them (spike, 18 Nov). */}
+                  sheet's corner, a fine rule under them (Annie, 18 Nov). */}
               <View
                 className="border-rule-mid"
                 style={{
@@ -553,7 +563,7 @@ export function PromptDock({
                   className="flex-1"
                   contentContainerClassName="gap-3 px-2.5 pt-1 pb-3"
                   // The newest turn and its answer rows stay in view as they arrive (the reasons
-                  // hid under the field after a thumbs down: spike, 18 Nov).
+                  // hid under the field after a thumbs down: testing, 18 Nov).
                   onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
                   testID="prompt-conversation"
                 >

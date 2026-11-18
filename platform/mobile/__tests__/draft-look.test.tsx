@@ -337,6 +337,31 @@ test('a draft Robes made is asked about; Restyle it all re-writes it from her wo
   expect(screen.getByText(fb.restyle.work(''))).toBeTruthy();
 });
 
+// On iOS's own sheet (phase 3) the close puts the bar away first, then asks: iOS presents
+// nothing over a sheet still on screen (Annie, 18 Nov: ✕ did nothing with the bar up).
+test('with iOS’s sheet up, closing puts the bar away and then asks', async () => {
+  process.env.ROBES_DRAWN_DOCK = '0';
+  try {
+    mockFetch({
+      ...BASE,
+      'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+      [`GET /looks/${LOOK_ID}`]: draftOf(),
+    });
+    await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+    expect(await screen.findByTestId('the-rack')).toBeTruthy();
+    if (!screen.queryByTestId('prompt-dock')) {
+      await fireEvent.press(screen.getByTestId('prompt-spark'));
+    }
+    expect(await screen.findByTestId('prompt-dock')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('draft-close'));
+    await waitFor(() => expect(screen.queryByTestId('prompt-dock')).toBeNull());
+    expect(await screen.findByText(copy.discard.title)).toBeTruthy();
+    expect(screen.getByTestId('prompt-spark')).toBeTruthy();
+  } finally {
+    process.env.ROBES_DRAWN_DOCK = '1';
+  }
+});
+
 test('closing asks: Discard lets the draft go, Keep for later only closes', async () => {
   const calls = mockFetch({
     ...BASE,
