@@ -434,7 +434,7 @@ test('after a change Robes asks; a thumbs down opens the reasons this look can h
   });
 }, 20_000);
 
-test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
+test('a thumbs up ends it there: the like is kept, nothing is sent, saved or filed', async () => {
   const draft = look({
     status: 'draft',
     pieces: [{ piece: piece(), slot: null, role: 'anchor' }],
@@ -488,7 +488,17 @@ test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
   // One answer per question.
   await fireEvent.press(screen.getByTestId('thumb-down'));
   expect(screen.queryByTestId('feedback-reasons')).toBeNull();
-  expect(calls.slice(before).some((c) => c.method !== 'GET')).toBe(false);
+  // The one write is the like, kept in her style memory with her words (docked prompt Q10):
+  // nothing is sent to Robes, saved to the look or filed.
+  const writes = calls.slice(before).filter((c) => c.method !== 'GET');
+  expect(writes.map((c) => c.path)).toEqual(['/api/v1/me/memory']);
+  expect(writes[0]?.body).toMatchObject({
+    kind: 'verdict',
+    verdict: 1,
+    surface: 'draft',
+    lookId: expect.any(String),
+    body: 'swap the mules',
+  });
 }, 20_000);
 
 test('the look prompt lands a swap on a draft and remembers what it replaced', async () => {

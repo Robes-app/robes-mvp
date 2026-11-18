@@ -73,8 +73,9 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const lastSend = useRef({ key: '', at: 0 });
   // The changes she has sent on this look in this session (docked prompt PRD, Analytics).
   const changes = useRef(0);
-  // What her last ask carried, for Robes' question once the change lands (Q2–Q4).
-  const lastAsk = useRef<{ question: string }>({ question: fb.closer });
+  // What her last ask carried: Robes' question once the change lands (Q2–Q4), and her words for
+  // the like a thumbs up keeps (Q10).
+  const lastAsk = useRef<{ question: string; said: string }>({ question: fb.closer, said: '' });
 
   // A send that asked to draw once answered, and the draw it calls (defined further down).
   const drawAfter = useRef(false);
@@ -317,6 +318,7 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
             text,
           }),
         ),
+        said: feedbackBubble(labels, text),
       };
       ask.send({
         surface,
@@ -336,6 +338,26 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     // still being drawn; a send waits for it.
     thumb: (verdict: 'up' | 'down') => {
       if (state.verdict !== 'ask') return;
+      // A thumbs up keeps the look, her brief and the change it answered as liked, in her style
+      // memory (docked prompt PRD Q10); it files no observation and says nothing.
+      if (verdict === 'up') {
+        const body = [brief.current, lastAsk.current.said]
+          .filter(Boolean)
+          .join(' · ')
+          .slice(0, 240);
+        void api
+          .call('me.memory.record', {
+            input: {
+              kind: 'verdict',
+              verdict: 1,
+              surface,
+              subject: look.name.slice(0, 120),
+              lookId: look.id,
+              ...(body ? { body } : {}),
+            },
+          })
+          .catch(() => undefined);
+      }
       nativeAnalytics.track('look_feedback', { surface, verdict, change_n: changes.current });
       dispatch({ type: verdict });
     },
