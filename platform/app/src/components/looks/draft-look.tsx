@@ -1356,6 +1356,12 @@ function DraftBody({
   useEffect(() => {
     if (firstDress) setDock('spark');
   }, [firstDress]);
+  // On a saved look, while the model is dressed again the dock waits as the sparkle and its dot
+  // says when Robes asks, as a draft does while it is first dressed (Annie, 18 Nov).
+  const savedDressing = mode !== 'draft' && adjust.dressing;
+  useEffect(() => {
+    if (savedDressing) setDock('spark');
+  }, [savedDressing]);
   useEffect(() => {
     if (verdict === 'up') setDock((from) => dockNext(from, 'minimise'));
     if (verdict === 'down') setDock((from) => dockNext(dockNext(from, 'restore'), 'expand'));
