@@ -863,9 +863,11 @@ test('her words with no day make one draft in the same sheet, and Robes asks abo
   await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
   expect(mockRouter.replace).not.toHaveBeenCalled();
   const fb = copy.feedback;
-  // The drawer stays open into the draft (B6): her brief heads the conversation, and Robes asks.
+  // The drawer carries on into the draft, the prompt docked as the bar with Robes' question
+  // (docked prompt K2, K7); her brief heads the thread its grabber opens (K8).
   expect(await screen.findByText(fb.questionFor('brunch'))).toBeTruthy();
-  expect(screen.queryByTestId('prompt-pill')).toBeNull();
+  expect(screen.getByTestId('prompt-bar')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-expand'));
   expect(screen.getByText('relaxed weekend brunch')).toBeTruthy();
   // The question is open: two thumbs, and the box offers to take a change instead.
   expect(screen.getByTestId('thumb-up').props.accessibilityState.disabled).toBe(false);
@@ -925,9 +927,10 @@ test('while the draft her words made is still being dressed, Robes works and ask
   await fireEvent.changeText(await openPrompt(), 'dinner with friends');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
-  // The model is still being dressed: no question, no thumbs, Robes at work under her words.
-  await waitFor(() => expect(screen.getByText(lookbook.draft.dressing)).toBeTruthy());
-  expect(screen.getByText('dinner with friends')).toBeTruthy();
+  // The model is still being dressed: no question, no thumbs; the bar says Robes is at work (K7).
+  await waitFor(() =>
+    expect(screen.getByTestId('prompt-pill-line')).toHaveTextContent(lookbook.draft.dressing),
+  );
   expect(screen.queryByText(copy.feedback.questionFor('dinner'))).toBeNull();
   expect(screen.queryByTestId('thumb-up')).toBeNull();
   // The picture lands: the work line goes and Robes asks.

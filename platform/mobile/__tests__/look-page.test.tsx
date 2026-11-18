@@ -294,21 +294,28 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, and no st
   expect(screen.queryByTestId('draft-close')).toBeNull();
   expect(screen.getByTestId('saved-look-back')).toBeTruthy();
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
-  // The prompt stands behind the sparkle at the look's foot (look prompt PRD F23). Opened, it is
-  // a sheet over the greyed look and the look's button steps away (redline 14 Nov, pins 23, 25);
-  // the box reads "add matching shoes…" with its send waiting for her words (L3).
+  // A saved look rests as the sparkle (docked prompt K2). Tapped, it is the bar, its field line
+  // reading "add matching shoes…", and the look's button steps away (pins 23, 25).
   expect(screen.queryByTestId('draft-prompt')).toBeNull();
   await fireEvent.press(screen.getByTestId('prompt-spark'));
-  expect(screen.getByText(lookbook.draftLook.dock.title)).toBeTruthy();
+  expect(screen.getByTestId('prompt-bar')).toBeTruthy();
+  expect(nativeAnalytics.track).toHaveBeenCalledWith('dock_state_changed', {
+    from: 'spark',
+    to: 'bar',
+    context: 'saved',
+  });
   expect(screen.getByLabelText(lookbook.draftLook.savedPlaceholder)).toBeTruthy();
-  expect(screen.getByTestId('prompt-send').props.accessibilityState.disabled).toBe(true);
   expect(screen.queryByTestId('update-model')).toBeNull();
   expect(screen.queryByTestId('update-look')).toBeNull();
   expect(screen.queryByTestId('schedule-look')).toBeNull();
-  // Minimised (the disc, or a tap on the dimmed look behind the sheet), the sparkle and Schedule
-  // look are back.
+  // The field line opens the sheet with its title, over the dimmed look; its close folds it back
+  // to the bar (K8).
+  await fireEvent.press(screen.getByTestId('prompt-rest'));
+  expect(screen.getByText(lookbook.draftLook.dock.title)).toBeTruthy();
   await fireEvent.press(screen.getByTestId('prompt-minimise'));
   await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  // An empty send folds the bar to the sparkle, and Schedule look is back (K6).
+  await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(screen.getByTestId('prompt-spark')).toBeTruthy();
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
   // No styling control on the photo (docked prompt PRD M1): the prompt is the one way to ask.
@@ -586,6 +593,18 @@ test('Robes asks about the reason or the piece she sent', async () => {
   await fireEvent.changeText(await openPrompt(), 'collar up on the coat');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(await screen.findByText(fb.closer)).toBeTruthy();
+  // Folded with the question waiting, the sparkle carries its dot (K3): closed to the bar, then an
+  // empty send folds it.
+  await fireEvent.press(screen.getByTestId('prompt-minimise'));
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  expect(screen.getByTestId('prompt-spark-dot', { includeHiddenElements: true })).toBeTruthy();
+  expect(
+    screen.getByRole('button', {
+      name: `${lookbook.draftLook.dock.open}. ${lookbook.draftLook.dock.waiting}`,
+    }),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-spark'));
   // One reason: its own question.
   await fireEvent.press(screen.getByTestId('thumb-down'));
   await fireEvent.press(await screen.findByTestId('reason-dressy'));
@@ -667,7 +686,8 @@ test('flipping Shop on a saved look raises no Update look', async () => {
     expect(screen.getByTestId('source-shop').props.accessibilityState.checked).toBe(true),
   );
   expect(screen.queryByTestId('update-look')).toBeNull();
-  await fireEvent.press(screen.getByTestId('prompt-minimise'));
+  // An empty send folds the bar to the sparkle (docked prompt K6).
+  await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
 });
 

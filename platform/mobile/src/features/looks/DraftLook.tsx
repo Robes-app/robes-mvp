@@ -13,7 +13,12 @@ import { lookbook, looks as looksCopy } from '@robes/copy';
 import { readsAsThey } from '@robes/core/avatar';
 import {
   type Balance,
+  type DockMove,
+  type DockState,
   defaultSources,
+  dockDot,
+  dockNext,
+  dockStart,
   type ImageStage,
   isCaptureRow,
   nameNoBrand,
@@ -98,7 +103,7 @@ import { RackRowCard } from './RackRow';
 import { ImageStack, useDressOnOpen } from './SavedLook';
 import { Scanning } from './ScanLine';
 import { SeasonsView } from './SeasonsView';
-import { type DockRest, PromptDock, StylingCard } from './StylingCard';
+import { PromptDock, StylingCard } from './StylingCard';
 import { useRemoveLook } from './saved-looks';
 import { TagsView, useLookDetails } from './TagsView';
 import { WornView } from './WornView';
@@ -826,11 +831,12 @@ function NewDraft({
         startAtEnd: true,
         node: (
           <PromptDock
-            open={typing}
-            rest={sent === null ? 'box' : 'pill'}
+            state={typing ? 'thread' : 'bar'}
+            first={sent === null}
             bare={sent === null}
-            line={sent === null ? copy.dock.rest : d.dressing}
+            line={sent === null ? null : d.dressing}
             working={sent !== null}
+            dot={false}
             turns={sent === null ? 0 : 2}
             conversation={
               sent === null ? null : (
@@ -844,11 +850,12 @@ function NewDraft({
                 />
               )
             }
-            onOpen={() => setTyping(true)}
-            onMinimise={() => setTyping(false)}
+            onRestore={() => undefined}
+            onExpand={() => setTyping(true)}
+            onCollapse={() => setTyping(false)}
             box={
               <StylingCard
-                {...context}
+                {...(sent === null ? context : { inline: true })}
                 {...box}
                 onOpen={() => setTyping(true)}
                 onSend={() => (prompt.trim() ? void generate() : setTyping(true))}
@@ -859,7 +866,7 @@ function NewDraft({
             {/* The box she tapped, her field in focus: its place and weather stay (16 Nov, B1), and go
                 under her line once she sends. */}
             <StylingCard
-              {...(sent === null ? context : { inline: true })}
+              {...(sent === null ? { ...context, card: true } : { inline: true })}
               {...box}
               autoFocus
               onSend={() => void generate()}
@@ -1206,16 +1213,13 @@ function DraftBody({
   // above it (look prompt improvements B6, Annie 16 Nov).
   const generate = () => {
     if (busy || (!words && !picked)) return;
-    if (adjust.send(words, { ...sendOpts, draw: true })) setDockOpen(true);
+    adjust.send(words, { ...sendOpts, draw: true });
     setPrompt('');
   };
   // A saved look's send asks, and what Robes changes is kept and drawn as it lands.
   const ask = () => {
     if (busy || (!words && !picked) || rows.length === 0) return;
-    if (adjust.send(words, sendOpts)) {
-      setApplying('asked');
-      setDockOpen(true);
-    }
+    if (adjust.send(words, sendOpts)) setApplying('asked');
     setPrompt('');
   };
   // A draft's model wears the rack as she builds it (Annie, 16 Nov): pieces added, swapped or
@@ -1314,18 +1318,32 @@ function DraftBody({
       />
     ),
   );
-  // The prompt at the look's foot (look prompt PRD F23; redline 14 Nov; testing 15 Nov). At rest
-  // it never covers the look: the box on a draft with no conversation yet, the closed bar with
-  // Robes' question and its thumbs once there is one, the sparkle on a saved look or after a
-  // thumbs up (F6). Opened it is a bottom sheet over the dimmed look. A thumbs down opens it on
-  // what to change; a send keeps it open, the look above it (B6, 16 Nov); minimise, a tap on the
-  // look or a thumbs up folds it, and it opens again when Robes answers in words.
+  // The docked prompt (docked prompt PRD K1–K9): the sparkle, the bar or the open thread. A draft
+  // waiting for her words opens at the bar (K2); one she is building by hand (no set and no brief:
+  // Robes made none of it) rests as the sparkle,
+  // so the bar never covers the rack she is working on (Annie, 18 Nov); a saved look rests as the
+  // sparkle. A thumbs up, or an empty send, folds it to the sparkle (K6); a thumbs down opens the
+  // thread on what to change; the grabber, the field line and the close move between the bar and
+  // the thread, and a tap on the dimmed look folds the thread (K8). Web twin: draft-look.tsx.
   const verdict = adjust.state.verdict;
-  // Her brief's send keeps it open into the draft it made (B6).
-  const [dockOpen, setDockOpen] = useState(brief !== undefined);
+  const dockContext = mode === 'draft' ? 'draft' : 'saved';
+  const [dockState, setDockState] = useState<DockState>(() =>
+    handBuilt && look.setId === null && brief === undefined ? 'spark' : dockStart(dockContext),
+  );
+  const move = (m: DockMove) => setDockState((from) => dockNext(from, m));
+  const dockWas = useRef(dockState);
   useEffect(() => {
-    if (verdict === 'up') setDockOpen(false);
-    if (verdict === 'down') setDockOpen(true);
+    if (dockWas.current === dockState) return;
+    nativeAnalytics.track('dock_state_changed', {
+      from: dockWas.current,
+      to: dockState,
+      context: dockContext,
+    });
+    dockWas.current = dockState;
+  }, [dockState, dockContext]);
+  useEffect(() => {
+    if (verdict === 'up') setDockState((from) => dockNext(from, 'minimise'));
+    if (verdict === 'down') setDockState((from) => dockNext(dockNext(from, 'restore'), 'expand'));
   }, [verdict]);
   const hasThread = adjust.state.thread.length > 0 || adjust.state.question !== null;
   const lastLine = adjust.state.thread.at(-1);
@@ -1334,19 +1352,6 @@ function DraftBody({
     (lastLine?.who === 'robes' || lastLine?.who === 'filed') && lastLine.text !== d.modelDone
       ? lastLine
       : null;
-  const saidId = said?.id ?? null;
-  useEffect(() => {
-    if (saidId !== null) setDockOpen(true);
-  }, [saidId]);
-  const rest: DockRest =
-    verdict === 'ask' ||
-    working ||
-    adjust.busy ||
-    (mode === 'draft' && hasThread && verdict !== 'up')
-      ? 'pill'
-      : mode === 'edit' || hasThread || handBuilt
-        ? 'spark'
-        : 'box';
   // Her first send carries the day's place and weather into the conversation (pin 13).
   const briefed = adjust.state.thread.some((l) => l.who === 'her');
   const dayContext = forDay && mode === 'draft' ? forDay : null;
@@ -1367,17 +1372,19 @@ function DraftBody({
     sources: src.sources,
     onSource: (which: Source) => {
       if (which === 'wardrobe' && src.empty) {
-        backToPrompt.current = dockOpen;
-        setDockOpen(false);
+        backToPrompt.current = dockState === 'thread';
+        move('collapse');
         setEmptyWardrobe(true);
       } else src.toggle(which);
     },
     wardrobeEmpty: src.empty,
     ...(feedbackHint
       ? { placeholder: feedbackHint }
-      : mode === 'edit'
-        ? { placeholder: copy.savedPlaceholder }
-        : { placeholders: copy.placeholders }),
+      : hasThread
+        ? { placeholders: copy.placeholdersAfter }
+        : mode === 'edit'
+          ? { placeholder: copy.savedPlaceholder }
+          : { placeholders: copy.placeholders }),
     value: prompt,
     onChange: setPrompt,
     busy,
@@ -1385,17 +1392,18 @@ function DraftBody({
   const send = mode === 'edit' ? ask : generate;
   const dockNode = captureDraft ? null : (
     <PromptDock
-      open={dockOpen}
-      rest={rest}
+      state={dockState}
+      first={!hasThread}
       line={
         working
-          ? (lastLine?.text ?? '')
+          ? (lastLine?.text ?? null)
           : verdict === 'down'
             ? fb.change
-            : (adjust.state.question ?? said?.text ?? copy.dock.rest)
+            : (adjust.state.question ?? said?.text ?? null)
       }
       working={working}
       thumbs={verdict === 'ask' ? <Thumbs adjust={adjust} /> : null}
+      dot={dockDot(dockState, adjust.state)}
       turns={adjust.state.thread.length + (adjust.state.question ? 1 : 0)}
       maxHeight={Math.round(screen.height * 0.4)}
       conversation={
@@ -1419,36 +1427,35 @@ function DraftBody({
           </>
         ) : null
       }
-      onOpen={() => setDockOpen(true)}
-      onMinimise={() => setDockOpen(false)}
+      onRestore={() => move('restore')}
+      onExpand={() => move('expand')}
+      onCollapse={() => move('collapse')}
       bare={pre}
       box={
         <StylingCard
-          {...context}
+          {...(hasThread ? { inline: true } : context)}
           {...box}
-          onOpen={() => setDockOpen(true)}
-          onSend={() => (words ? send() : setDockOpen(true))}
+          tokens={<FeedbackTokens adjust={adjust} />}
+          onOpen={() => move('expand')}
+          onSend={() => (words || picked ? send() : move('minimise'))}
           emptySend="send"
         />
       }
     >
       <StylingCard
-        {...(pre ? context : { inline: true })}
+        {...(pre ? { ...context, card: true } : { inline: true })}
         {...box}
         autoFocus={verdict !== 'down'}
         tokens={<FeedbackTokens adjust={adjust} />}
-        {...(picked
-          ? { emptySend: 'send' as const }
-          : mode === 'draft'
-            ? { emptySend: 'blur' as const }
-            : {})}
+        {...(picked ? { emptySend: 'send' as const } : { emptySend: 'minimise' as const })}
+        onEmpty={() => move('minimise')}
         onSend={send}
       />
     </PromptDock>
   );
   const dock = dockNode ? { node: dockNode } : null;
   // While the prompt is open or keeping its change there is no button at all (pin 25).
-  const noButton = mode === 'edit' && (dockOpen || applying !== null);
+  const noButton = mode === 'edit' && (dockState !== 'spark' || applying !== null);
   const footButton =
     noButton ? undefined : // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
     // hand edit waits — never both.
@@ -1586,7 +1593,7 @@ function DraftBody({
         open={emptyWardrobe}
         onClose={() => setEmptyWardrobe(false)}
         onClosed={() => {
-          if (backToPrompt.current) setDockOpen(true);
+          if (backToPrompt.current) move('expand');
           backToPrompt.current = false;
         }}
         onAdd={() => {
