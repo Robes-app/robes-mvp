@@ -791,7 +791,9 @@ test('a tap on Wardrobe while it is empty says so and offers the way in', async 
   await fireEvent.press(screen.getByTestId('source-wardrobe'));
   expect(await screen.findByText(copy.emptyWardrobe.title)).toBeTruthy();
   expect(screen.getByTestId('source-wardrobe').props.accessibilityState.checked).toBe(false);
-  await fireEvent.press(screen.getByTestId('empty-wardrobe-add'));
+  // The alert says why (docked prompt PRD W2); Add pieces opens the sheet once it has gone.
+  expect(screen.getByText(copy.emptyWardrobe.body)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: copy.emptyWardrobe.add }));
   expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
 });
 
@@ -807,10 +809,8 @@ test('Wardrobe tapped in the open prompt while it is empty: the prompt comes bac
   await fireEvent.press(dock().getByTestId('source-wardrobe'));
   expect(await screen.findByText(copy.emptyWardrobe.title)).toBeTruthy();
   await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
-  // Closed with its ×: once it has gone, the prompt is open again, her words still in it.
-  await fireEvent.press(
-    within(screen.getByTestId('empty-wardrobe')).getByRole('button', { name: ui.close }),
-  );
+  // Not now: once the alert has gone, the prompt is open again, her words still in it.
+  await fireEvent.press(screen.getByRole('button', { name: copy.emptyWardrobe.notNow }));
   await waitFor(() =>
     expect(screen.getByTestId('draft-prompt').props.value).toBe('Gallery opening'),
   );

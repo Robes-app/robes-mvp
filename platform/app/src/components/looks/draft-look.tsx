@@ -43,7 +43,6 @@ import {
   DrawerHeader,
   ErrorText,
   Image,
-  Sheet,
   Skeleton,
   Tabs,
   useKeyboardInset,
@@ -152,8 +151,10 @@ function useSources(
   };
 }
 
-// A tap on Wardrobe while she owns nothing (S3): one line and the way in.
-function EmptyWardrobeSheet({
+// A tap on Wardrobe while she owns nothing (S3, docked prompt PRD W2): a centred alert, never a
+// switch; Add pieces opens the Add Pieces sheet over the draft. Native twin: DraftLook.tsx
+// EmptyWardrobeAlert.
+function EmptyWardrobeAlert({
   open,
   onClose,
   onAdd,
@@ -163,28 +164,23 @@ function EmptyWardrobeSheet({
   onAdd: () => void;
 }) {
   return (
-    <Sheet
+    <AlertDialog
       open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
       title={copy.emptyWardrobe.title}
-      footer={
-        <Button
-          variant="primary"
-          block
-          onClick={() => {
+      message={copy.emptyWardrobe.body}
+      actions={[
+        {
+          label: copy.emptyWardrobe.add,
+          variant: 'primary',
+          onClick: () => {
             onClose();
             onAdd();
-          }}
-          data-testid="empty-wardrobe-add"
-        >
-          {copy.emptyWardrobe.add}
-        </Button>
-      }
-    >
-      {null}
-    </Sheet>
+          },
+        },
+        { label: copy.emptyWardrobe.notNow, variant: 'outline', onClick: onClose },
+      ]}
+      onDismiss={onClose}
+    />
   );
 }
 
@@ -907,7 +903,7 @@ function NewDraft({
           onClick={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
         />
       </div>
-      <EmptyWardrobeSheet
+      <EmptyWardrobeAlert
         open={emptyWardrobe}
         onClose={() => setEmptyWardrobe(false)}
         onAdd={() => setAdding(true)}
@@ -1080,6 +1076,11 @@ function DraftBody({
   const wishFor = (row: RackRow) => wishOf(row.proposal?.wishlistItemId);
   const imageOf = (row: RackRow) =>
     row.pieceId ? pieceOf(row.pieceId)?.image : (wishFor(row)?.image ?? null);
+  // The photograph of the piece a change swapped out of a row, for its Swapped pill (T3).
+  const wasImageOf = (key: string) => {
+    const was = editor.rack.edits[key]?.was;
+    return was ? (imageOf(was) ?? null) : null;
+  };
   // A wish on the rack opens its own page (Annie, 15 Nov); a proposal Robes made has none.
   const hrefOf = (row: RackRow) =>
     row.pieceId
@@ -1307,6 +1308,7 @@ function DraftBody({
         row={row}
         image={imageOf(row)}
         mark={captureDraft ? null : editor.mark(row.key)}
+        wasImage={wasImageOf(row.key)}
         styled={editor.rack.styling[row.key]}
         {...((mode === 'edit' || captureDraft) && row.pieceId
           ? { wears: pieceOf(row.pieceId)?.wearCount ?? 0 }
@@ -1534,7 +1536,11 @@ function DraftBody({
         <Tabs
           items={TABS}
           value={tab}
-          onChange={setTab}
+          onChange={(next) => {
+            setTab(next);
+            // Edit lives on the Pieces tab only: switching to Details ends it (docked prompt E1).
+            if (next !== TABS[0]) setEditingPieces(false);
+          }}
           label={lookbook.savedLook.tabs.pieces}
           trailing={
             tab === TABS[0] && rows.length > 0 && !capturePieces ? (
@@ -1607,7 +1613,7 @@ function DraftBody({
           </div>
         )}
       </div>
-      <EmptyWardrobeSheet
+      <EmptyWardrobeAlert
         open={emptyWardrobe}
         onClose={() => setEmptyWardrobe(false)}
         onAdd={() => setAdding(true)}

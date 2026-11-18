@@ -1,6 +1,6 @@
 import { shadowNative } from '@robes/tokens';
 import { useEffect, useRef } from 'react';
-import { Animated, Modal, Pressable, View } from 'react-native';
+import { Animated, Modal, Platform, Pressable, View } from 'react-native';
 import { Button, PrimaryScope } from './Button';
 import { useReducedMotion } from './motion';
 import { Text } from './Text';
@@ -23,8 +23,14 @@ export interface AlertDialogProps {
   actions: readonly AlertDialogAction[];
   // A tap outside the card, or the back gesture.
   onDismiss: () => void;
+  // Once the dialog has gone: iOS shows one modal at a time, so a sheet it stepped in for comes
+  // back here (as Sheet's onClosed).
+  onClosed?: () => void;
   testID?: string;
 }
+
+// Longest wait for iOS to confirm a dismissal before `onClosed` fires anyway (as Sheet).
+const DISMISS_FALLBACK_MS = 500;
 
 // Felix's AlertDialog: the centred confirm before anything that can't be undone or needs a choice.
 // A cream card (card radius, the dialog shadow, 22 20 16, centred) over `backdrop-strong` with
@@ -36,9 +42,33 @@ export function AlertDialog({
   message,
   actions,
   onDismiss,
+  onClosed,
   testID,
 }: AlertDialogProps) {
   const reduced = useReducedMotion();
+  const closed = useRef(onClosed);
+  closed.current = onClosed;
+  // `onClosed` once per close: iOS reports the native dismissal (Modal onDismiss), with a short
+  // fallback because onDismiss is not always delivered; elsewhere the modal is gone once hidden.
+  const closing = useRef(false);
+  const fireClosed = useRef(() => {
+    if (!closing.current) return;
+    closing.current = false;
+    closed.current?.();
+  }).current;
+  const shown = useRef(open);
+  useEffect(() => {
+    const hid = shown.current && !open;
+    shown.current = open;
+    if (!hid) return;
+    closing.current = true;
+    if (Platform.OS !== 'ios') {
+      fireClosed();
+      return;
+    }
+    const fallback = setTimeout(fireClosed, DISMISS_FALLBACK_MS);
+    return () => clearTimeout(fallback);
+  }, [open, fireClosed]);
   const fade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!open) {
@@ -56,6 +86,7 @@ export function AlertDialog({
       animationType="none"
       statusBarTranslucent
       onRequestClose={onDismiss}
+      {...(Platform.OS === 'ios' ? { onDismiss: fireClosed } : {})}
       testID={testID}
     >
       <Animated.View

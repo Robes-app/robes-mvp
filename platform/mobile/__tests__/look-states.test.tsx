@@ -172,7 +172,8 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   // The canvas's row (PRD §6.1): the category and role in small caps, the brand under the name,
   // and a piece to find's price behind the bag at the right.
   expect(screen.getByText('Shoes · Exclamation')).toBeTruthy();
-  expect(screen.getByText('Toteme')).toBeTruthy();
+  // A piece Robes proposes new reads as a Shop piece (docked prompt W6).
+  expect(screen.getByText(lookbook.rack.shop('Toteme'))).toBeTruthy();
   expect(screen.getByText('€390')).toBeTruthy();
   expect(screen.getByLabelText(`${lookbook.rack.notYours} · €390`)).toBeTruthy();
   expect(screen.getByText(lookbook.composedByRobes)).toBeTruthy();
@@ -308,7 +309,7 @@ test('a swap can take a wish: the WISHLIST tab stays open, and the wish lands as
   const patches = () => calls.filter((c) => c.method === 'PATCH');
   await waitFor(() => expect(patches()).toHaveLength(1));
   // The coat leaves her pieces; the scarf stands in its place and role as a piece to find, and the
-  // row remembers the coat ("Swapped in · was …").
+  // row remembers the coat (its Swapped pill).
   const body = patches()[0]?.body as {
     pieces: unknown[];
     proposals: { wishlistItemId: string | null; role: string }[];
@@ -563,7 +564,9 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
   expect(patch.edits).toEqual({
     [JEAN]: { was: expect.objectContaining({ name: 'Black pointed mules' }) },
   });
-  expect(screen.getByText(lookbook.rack.swappedIn('the black pointed mules'))).toBeTruthy();
+  // The swapped row carries the Swapped pill, its full line the label (docked prompt T3).
+  expect(screen.getByLabelText(lookbook.rack.swappedFor('the black pointed mules'))).toBeTruthy();
+  expect(screen.getByTestId('swapped-pill')).toHaveTextContent(lookbook.rack.swapped);
   // Sent from the drawer, the picture is drawn once the rack is answered and written (D14).
   await waitFor(() =>
     expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBe(true),

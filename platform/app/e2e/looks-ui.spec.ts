@@ -146,7 +146,10 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   // The change is seen on the rack, never told (redline 14 Nov): Robes only asks about it.
   await expect(page.getByText(/^How does (it|the change) look/)).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('Done.', { exact: false })).toHaveCount(0);
-  await expect(page.getByText('Swapped in · was the white wide-leg trouser')).toBeVisible();
+  // The Swapped pill, its full line the label (docked prompt T3).
+  await expect(
+    page.getByRole('img', { name: 'Swapped in for the white wide-leg trouser' }),
+  ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open Dark straight jean' })).toBeVisible();
 
   // The send keeps the prompt open as a sheet over the dimmed look, the conversation in it

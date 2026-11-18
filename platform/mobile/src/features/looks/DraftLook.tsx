@@ -42,7 +42,6 @@ import {
   Glass,
   Image,
   PrimaryScope,
-  Sheet,
   Skeleton,
   Tabs,
   Text,
@@ -189,10 +188,11 @@ function useSources(
   };
 }
 
-// A tap on Wardrobe while she owns nothing (S3): one line and the way in.
-// iOS shows one sheet at a time, so the prompt's sheet steps down for it; `onClosed` (once it has
-// gone) is where the prompt comes back (B7, 16 Nov).
-function EmptyWardrobeSheet({
+// A tap on Wardrobe while she owns nothing (S3, docked prompt PRD W2): a centred alert, never a
+// switch. iOS shows one modal at a time, so the prompt's sheet steps down for it; `onClosed` (once
+// it has gone) is where the prompt comes back (B7, 16 Nov), and where Add pieces opens its sheet.
+// Web twin: draft-look.tsx EmptyWardrobeAlert.
+function EmptyWardrobeAlert({
   open,
   onClose,
   onClosed,
@@ -203,27 +203,31 @@ function EmptyWardrobeSheet({
   onClosed: () => void;
   onAdd: () => void;
 }) {
+  const adding = useRef(false);
   return (
-    <Sheet
+    <AlertDialog
       open={open}
-      onClose={onClose}
-      onClosed={onClosed}
       title={copy.emptyWardrobe.title}
-      closeButton
-      testID="empty-wardrobe"
-    >
-      <PrimaryScope>
-        <Button
-          onPress={() => {
+      message={copy.emptyWardrobe.body}
+      actions={[
+        {
+          label: copy.emptyWardrobe.add,
+          variant: 'primary',
+          onPress: () => {
+            adding.current = true;
             onClose();
-            onAdd();
-          }}
-          testID="empty-wardrobe-add"
-        >
-          {copy.emptyWardrobe.add}
-        </Button>
-      </PrimaryScope>
-    </Sheet>
+          },
+        },
+        { label: copy.emptyWardrobe.notNow, variant: 'outline', onPress: onClose },
+      ]}
+      onDismiss={onClose}
+      onClosed={() => {
+        if (!adding.current) return onClosed();
+        adding.current = false;
+        onAdd();
+      }}
+      testID="empty-wardrobe"
+    />
   );
 }
 
@@ -888,7 +892,7 @@ function NewDraft({
           onPress={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
         />
       </View>
-      <EmptyWardrobeSheet
+      <EmptyWardrobeAlert
         open={emptyWardrobe}
         onClose={() => setEmptyWardrobe(false)}
         onClosed={() => {
@@ -1072,6 +1076,11 @@ function DraftBody({
   const wishFor = (row: RackRow) => wishOf(row.proposal?.wishlistItemId);
   const imageOf = (row: RackRow) =>
     row.pieceId ? pieceOf(row.pieceId)?.image : (wishFor(row)?.image ?? null);
+  // The photograph of the piece a change swapped out of a row, for its Swapped pill (T3).
+  const wasImageOf = (key: string) => {
+    const was = editor.rack.edits[key]?.was;
+    return was ? (imageOf(was) ?? null) : null;
+  };
   // At rest a row opens its piece (PRD §6.1), a wish its wish; a proposal Robes made has no page.
   const opens = (row: RackRow) => !!row.pieceId || !!wishFor(row);
   const openPiece = (row: RackRow) => {
@@ -1288,6 +1297,7 @@ function DraftBody({
         row={row}
         image={imageOf(row)}
         mark={captureDraft ? null : editor.mark(row.key)}
+        wasImage={wasImageOf(row.key)}
         styled={editor.rack.styling[row.key]}
         {...((mode === 'edit' || captureDraft) && row.pieceId
           ? { wears: pieceOf(row.pieceId)?.wearCount ?? 0 }
@@ -1509,7 +1519,11 @@ function DraftBody({
         <Tabs
           items={TABS}
           value={tab}
-          onChange={setTab}
+          onChange={(next) => {
+            setTab(next);
+            // Edit lives on the Pieces tab only: switching to Details ends it (docked prompt E1).
+            if (next !== TABS[0]) setEditingPieces(false);
+          }}
           trailing={
             tab === TABS[0] && rows.length > 0 && !capturePieces ? (
               <RackControls
@@ -1585,7 +1599,7 @@ function DraftBody({
           </View>
         )}
       </View>
-      <EmptyWardrobeSheet
+      <EmptyWardrobeAlert
         open={emptyWardrobe}
         onClose={() => setEmptyWardrobe(false)}
         onClosed={() => {

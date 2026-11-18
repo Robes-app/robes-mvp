@@ -6,7 +6,7 @@ import { shadowNative } from '@robes/tokens';
 import { IconButton, Text, useColor, useReducedMotion } from '@robes/ui-native';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, View } from 'react-native';
-import { CardRow, type RowMeta } from '@/features/wardrobe/PieceCard';
+import { CardRow, Photo, type RowMeta } from '@/features/wardrobe/PieceCard';
 
 export type RowMark = RowNote | { kind: 'added' };
 
@@ -112,6 +112,45 @@ export function EditDisc({
   );
 }
 
+// A Shop piece (one Robes proposes new, not a wish or a found piece) reads "{brand} · Shop" in
+// every context (docked prompt PRD W6); anything else its brand, or a find's retailer.
+// Web twin: rack-row.tsx shopMaker.
+function shopMaker(row: RackRow, brand: string): string {
+  const p = row.proposal;
+  const maker = brand || p?.retailerHint?.trim() || '';
+  return p && !p.wishlisted && !p.capture && maker ? copy.rack.shop(maker) : maker;
+}
+
+const PILL_THUMB = 16;
+
+// The Swapped pill under a piece a change swapped in (docked prompt PRD T3): a faded round
+// thumbnail of the piece it replaced, an arrow, then "Swapped"; the full line is its label.
+// Web twin: rack-row.tsx SwappedPill.
+function SwappedPill({ name, image }: { name: string; image: PieceImage | null | undefined }) {
+  const muted = useColor('ink-muted');
+  return (
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={copy.rack.swappedFor(theName(name))}
+      testID="swapped-pill"
+      className="flex-row items-center self-start rounded-pill bg-surface-sunk"
+      style={{ gap: 4, paddingVertical: 2, paddingLeft: 2, paddingRight: 8 }}
+    >
+      <View
+        className="overflow-hidden rounded-full"
+        style={{ width: PILL_THUMB, height: PILL_THUMB, opacity: 0.5 }}
+      >
+        <Photo piece={{ id: `was-${name}`, image: image ?? null }} width={PILL_THUMB} />
+      </View>
+      <Icon name="forward" size={9} color={muted} />
+      <Text tone="muted" style={{ fontSize: 11 }}>
+        {copy.rack.swapped}
+      </Text>
+    </View>
+  );
+}
+
 // One piece on a look's rack: the shared piece row (CardRow, PRD §6.1) with the look's own say —
 // its role in the small caps, a find's retailer under the name, and at the right the wears behind a
 // calendar (a piece she owns), a wish's price behind a heart, or a piece to find's price behind a
@@ -129,9 +168,12 @@ export function RackRowCard({
   onWish,
   onRemove,
   editing = false,
+  wasImage,
 }: {
   row: RackRow;
   image?: PieceImage | null;
+  // The photograph of the piece a change swapped out, for the Swapped pill (docked prompt T3).
+  wasImage?: PieceImage | null;
   mark?: RowMark | null;
   styled?: string | null;
   // The piece's own wear count, on a saved look at rest (beta's ledger, L19).
@@ -147,14 +189,9 @@ export function RackRowCard({
   const name = nameNoBrand(row.name, brand);
   const proposal = row.proposal;
   const meta = rackMeta(row, wears);
+  // A swapped piece shows the Swapped pill instead (docked prompt PRD T3).
   const markText =
-    mark?.kind === 'was'
-      ? copy.rack.swappedIn(theName(mark.name))
-      : mark?.kind === 'back'
-        ? copy.rack.backIn
-        : mark?.kind === 'added'
-          ? copy.rack.added
-          : null;
+    mark?.kind === 'back' ? copy.rack.backIn : mark?.kind === 'added' ? copy.rack.added : null;
   const changed = mark?.kind === 'was' || mark?.kind === 'back' || mark?.kind === 'added';
   // Edit mode (Robes MVP 2b; Annie, 15 Nov): the card rocks, × sits on its top-left corner, and at
   // the right only the swap disc and the chevron; no wears or price. A piece to find keeps its ♡
@@ -194,13 +231,14 @@ export function RackRowCard({
         image: image ?? null,
       }}
       {...(row.role ? { role: copy.rack.roles[row.role] } : {})}
-      maker={brand || proposal?.retailerHint?.trim() || ''}
+      maker={shopMaker(row, brand)}
       dashed={!!proposal}
       meta={editing ? null : meta}
       action={actions}
       lines={
-        markText || styled ? (
+        markText || styled || mark?.kind === 'was' ? (
           <>
+            {mark?.kind === 'was' ? <SwappedPill name={mark.name} image={wasImage} /> : null}
             {markText ? (
               <Text numberOfLines={1} tone="muted" style={{ fontSize: 11 }}>
                 {markText}

@@ -371,10 +371,9 @@ export const lookbook = {
     rackCard: {
       eyebrow: 'Your wardrobe',
       pick: 'Pick from your wardrobe',
-      // Before the first send with an empty wardrobe (docked prompt PRD W5).
-      addFirst: 'Add pieces to your wardrobe',
       orRobes: 'Or let Robes style below',
-      add: 'Add your pieces',
+      // With an empty wardrobe (docked prompt PRD W5).
+      add: 'Add pieces to your wardrobe',
       ways: 'Photo, link or receipt',
     },
     // A look from her photograph (Capture PRD 1c, 10 Nov 2026): Home's Capture opens the camera,
@@ -610,7 +609,6 @@ export const lookbook = {
     addPiece: '+ Add a piece',
     notYours: 'Not yours yet',
     wishlist: 'Wishlist',
-    swappedIn: (was: string): string => `Swapped in · was ${was}`,
     // The pill under a piece the last change swapped (docked prompt PRD T3); the full line is
     // its label. `the` as in feedback.notThe.
     swapped: 'Swapped',
