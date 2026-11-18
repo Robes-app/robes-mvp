@@ -56,12 +56,13 @@ export function IconToggle({
           : label
             ? 'border-warm-line text-ink-muted'
             : 'border-warm-line text-ink-faint',
-        faded && 'opacity-45',
+        // Faded, a labelled pill keeps its words readable (4.5:1) and dims the glyph alone.
+        faded && !label && 'opacity-45',
         focusRing,
         className,
       )}
     >
-      <Icon name={icon} size={15} />
+      <Icon name={icon} size={15} className={faded && label ? 'opacity-45' : undefined} />
       {label ? <span aria-hidden>{label}</span> : null}
     </button>
   );

@@ -53,7 +53,8 @@ export function IconToggle({
         minWidth: MIN_TOUCH,
         minHeight: MIN_TOUCH,
         marginHorizontal: label ? 0 : -(MIN_TOUCH - DISC) / 2,
-        opacity: disabled || faded ? 0.45 : 1,
+        // Faded, a labelled pill keeps its words readable (4.5:1) and dims the glyph alone.
+        opacity: disabled || (faded && !label) ? 0.45 : 1,
       }}
       className={cx('items-center justify-center', className)}
     >
@@ -76,7 +77,9 @@ export function IconToggle({
             : { width: DISC, height: DISC, borderWidth: 1 }
         }
       >
-        <Icon name={icon} size={15} color={checked ? ink : muted} />
+        <View style={{ opacity: faded && label ? 0.45 : 1 }}>
+          <Icon name={icon} size={15} color={checked ? ink : muted} />
+        </View>
         {label ? (
           <Text aria-hidden style={{ fontSize: 13, color: checked ? ink : muted }}>
             {label}
