@@ -62,6 +62,7 @@ export function StylingCard({
   onSend,
   emptySend,
   onEmpty,
+  boxed = false,
   busy,
 }: {
   // The day's place and weather, until her first send carries them into the conversation.
@@ -85,6 +86,9 @@ export function StylingCard({
   // waits for her words (L3).
   emptySend?: 'blur' | 'minimise' | 'send';
   onEmpty?: () => void;
+  // Inline, in its own white box on the fine rule: the thread, so the row reads as one field
+  // holding the sources, her tokens and the send (Annie, 18 Nov). On the bar the card is the box.
+  boxed?: boolean;
   busy: boolean;
 }) {
   const turning = useTurningPlaceholder(placeholders ?? [], value.length === 0 && !placeholder);
@@ -165,7 +169,13 @@ export function StylingCard({
   ) : null;
   if (inline) {
     return (
-      <section aria-label={copy.thread} data-testid="styling-card" className="pl-1">
+      <section
+        aria-label={copy.thread}
+        data-testid="styling-card"
+        className={
+          boxed ? 'rounded-lg border border-rule-mid bg-surface-raised py-1.5 pr-1.5 pl-2' : 'pl-1'
+        }
+      >
         <div ref={row} className="flex min-h-[38px] flex-wrap items-center gap-2">
           {toggles}
           {tokens}
@@ -226,6 +236,7 @@ export function PromptDock({
   line,
   working,
   thumbs,
+  answers,
   dot,
   expandable = true,
   conversation,
@@ -241,6 +252,8 @@ export function PromptDock({
   line: string | null;
   working: boolean;
   thumbs?: ReactNode;
+  // After a thumbs down, what she can answer with (the reasons, Which piece?), under the line.
+  answers?: ReactNode;
   // Robes' question waits unanswered (K3).
   dot: boolean;
   // The bar opens into a thread (its grabber); New look's bar, which has none yet, does not.
@@ -316,6 +329,7 @@ export function PromptDock({
                 {thumbs}
               </div>
             ) : null}
+            {answers ? <div className="flex flex-col gap-3 px-4 pb-2">{answers}</div> : null}
           </>
         )}
         <div className="px-2.5">{children}</div>

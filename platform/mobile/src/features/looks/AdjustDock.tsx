@@ -238,9 +238,8 @@ export function Feedback({
   // The look's pieces, for Which piece? (docked prompt PRD Q6).
   pieces: readonly WhichPiece[];
 }) {
-  const { question, verdict, restyle, choosingPiece } = adjust.state;
+  const { question, verdict } = adjust.state;
   if (!question || !verdict) return null;
-  const open = openReasons(adjust.state, { weather });
   return (
     <View className="gap-3" testID="look-feedback">
       <View className="flex-row items-start gap-2.5">
@@ -262,32 +261,57 @@ export function Feedback({
               {fb.change}
             </Text>
           </View>
-          {open.length > 0 || (canRestyle && !restyle) ? (
-            <View className="flex-row flex-wrap pl-9" style={{ gap: 6 }} testID="feedback-reasons">
-              {open.map((r) => (
-                <ReasonChip
-                  key={r}
-                  label={fb.reasons[r].label}
-                  on={false}
-                  onPress={() => adjust.reason(r)}
-                  testID={`reason-${r}`}
-                />
-              ))}
-              {canRestyle && !restyle ? (
-                <ReasonChip
-                  label={fb.restyle.label}
-                  on={false}
-                  restyle
-                  onPress={adjust.restyleAll}
-                  testID="reason-restyle"
-                />
-              ) : null}
-            </View>
-          ) : null}
-          {choosingPiece ? <PieceChoice pieces={pieces} onPick={adjust.piece} /> : null}
+          <Answers adjust={adjust} weather={weather} canRestyle={canRestyle} pieces={pieces} />
         </>
       ) : null}
     </View>
+  );
+}
+
+// What she can answer a thumbs down with (F8, Q6): the reasons not yet picked, Restyle it all
+// set apart, and Which piece? with the look's pieces while she is choosing one. In the thread
+// under "What should change?", and on the bar under the same line, so folding the thread never
+// hides them. Web twin: components/looks/adjust-dock.tsx Answers.
+export function Answers({
+  adjust,
+  weather,
+  canRestyle,
+  pieces,
+}: {
+  adjust: Pick<Adjust, 'state' | 'reason' | 'restyleAll' | 'piece'>;
+  weather: boolean;
+  canRestyle: boolean;
+  pieces: readonly WhichPiece[];
+}) {
+  const { verdict, restyle, choosingPiece } = adjust.state;
+  if (verdict !== 'down') return null;
+  const open = openReasons(adjust.state, { weather });
+  return (
+    <>
+      {open.length > 0 || (canRestyle && !restyle) ? (
+        <View className="flex-row flex-wrap pl-9" style={{ gap: 6 }} testID="feedback-reasons">
+          {open.map((r) => (
+            <ReasonChip
+              key={r}
+              label={fb.reasons[r].label}
+              on={false}
+              onPress={() => adjust.reason(r)}
+              testID={`reason-${r}`}
+            />
+          ))}
+          {canRestyle && !restyle ? (
+            <ReasonChip
+              label={fb.restyle.label}
+              on={false}
+              restyle
+              onPress={adjust.restyleAll}
+              testID="reason-restyle"
+            />
+          ) : null}
+        </View>
+      ) : null}
+      {choosingPiece ? <PieceChoice pieces={pieces} onPick={adjust.piece} /> : null}
+    </>
   );
 }
 

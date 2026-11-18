@@ -76,7 +76,7 @@ import { useArrived, useLeaveSheetFor } from '@/lib/arrival';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { useKeyboardOverlap } from '@/lib/keyboard';
-import { Feedback, FeedbackTokens, ThreadLines, Thumbs } from './AdjustDock';
+import { Answers, Feedback, FeedbackTokens, ThreadLines, Thumbs } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
 import { CapturePieces, CaptureRow, NewPieceSheet, RemovedLine } from './CaptureRack';
 import { useCaptureRack } from './capture-rack';
@@ -866,7 +866,7 @@ function NewDraft({
             {/* The box she tapped, her field in focus: its place and weather stay (16 Nov, B1), and go
                 under her line once she sends. */}
             <StylingCard
-              {...(sent === null ? { ...context, card: true } : { inline: true })}
+              {...(sent === null ? { ...context, card: true } : { inline: true, boxed: true })}
               {...box}
               autoFocus
               onSend={() => void generate()}
@@ -1390,6 +1390,12 @@ function DraftBody({
     busy,
   };
   const send = mode === 'edit' ? ask : generate;
+  // The look's pieces for Which piece? (Q6), in the thread and on the bar alike.
+  const whichPieces = rows.map((r) => ({
+    key: r.key,
+    name: nameNoBrand(r.name, r.brand),
+    image: imageOf(r) ?? null,
+  }));
   const dockNode = captureDraft ? null : (
     <PromptDock
       state={dockState}
@@ -1403,6 +1409,16 @@ function DraftBody({
       }
       working={working}
       thumbs={verdict === 'ask' ? <Thumbs adjust={adjust} /> : null}
+      answers={
+        verdict !== 'down' ? null : (
+          <Answers
+            adjust={adjust}
+            weather={askContext !== undefined}
+            canRestyle={mode === 'draft' && adjust.canRedress}
+            pieces={whichPieces}
+          />
+        )
+      }
       dot={dockDot(dockState, adjust.state)}
       turns={adjust.state.thread.length + (adjust.state.question ? 1 : 0)}
       maxHeight={Math.round(screen.height * 0.4)}
@@ -1418,11 +1434,7 @@ function DraftBody({
               adjust={adjust}
               weather={askContext !== undefined}
               canRestyle={mode === 'draft' && adjust.canRedress}
-              pieces={rows.map((r) => ({
-                key: r.key,
-                name: nameNoBrand(r.name, r.brand),
-                image: imageOf(r) ?? null,
-              }))}
+              pieces={whichPieces}
             />
           </>
         ) : null
@@ -1443,7 +1455,7 @@ function DraftBody({
       }
     >
       <StylingCard
-        {...(pre ? { ...context, card: true } : { inline: true })}
+        {...(pre ? { ...context, card: true } : { inline: true, boxed: true })}
         {...box}
         autoFocus={verdict !== 'down'}
         tokens={<FeedbackTokens adjust={adjust} />}

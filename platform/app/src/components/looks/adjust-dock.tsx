@@ -182,9 +182,8 @@ export function Feedback({
   // The look's pieces, for Which piece? (docked prompt PRD Q6).
   pieces: readonly WhichPiece[];
 }) {
-  const { question, verdict, restyle, choosingPiece } = adjust.state;
+  const { question, verdict } = adjust.state;
   if (!question || !verdict) return null;
-  const open = openReasons(adjust.state, { weather });
   return (
     <div className="flex flex-col gap-3" data-testid="look-feedback">
       <div className="flex items-start gap-2.5">
@@ -202,44 +201,69 @@ export function Feedback({
               {fb.change}
             </p>
           </div>
-          {open.length > 0 || (canRestyle && !restyle) ? (
-            // biome-ignore lint/a11y/useSemanticElements: a group of toggles, not a form fieldset
-            <div
-              role="group"
-              aria-labelledby="feedback-change"
-              className="flex flex-wrap gap-1.5 pl-9"
-              data-testid="feedback-reasons"
-            >
-              {open.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  aria-pressed={false}
-                  onClick={() => adjust.reason(r)}
-                  data-testid={`reason-${r}`}
-                  className={`${chipOff} ${focus}`}
-                >
-                  {fb.reasons[r].label}
-                </button>
-              ))}
-              {canRestyle && !restyle ? (
-                <button
-                  type="button"
-                  aria-pressed={false}
-                  onClick={adjust.restyleAll}
-                  data-testid="reason-restyle"
-                  className={`${chip} border-transparent bg-surface-sunk text-ink-muted hover:text-ink ${focus}`}
-                >
-                  <Icon name="refresh" size={11} />
-                  {fb.restyle.label}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-          {choosingPiece ? <PieceChoice pieces={pieces} onPick={adjust.piece} /> : null}
+          <Answers adjust={adjust} weather={weather} canRestyle={canRestyle} pieces={pieces} />
         </>
       ) : null}
     </div>
+  );
+}
+
+// What she can answer a thumbs down with (F8, Q6): the reasons not yet picked, Restyle it all
+// set apart, and Which piece? with the look's pieces while she is choosing one. In the thread
+// under "What should change?", and on the bar under the same line, so folding the thread never
+// hides them. Native twin: mobile/src/features/looks/AdjustDock.tsx Answers.
+export function Answers({
+  adjust,
+  weather,
+  canRestyle,
+  pieces,
+}: {
+  adjust: Pick<Adjust, 'state' | 'reason' | 'restyleAll' | 'piece'>;
+  weather: boolean;
+  canRestyle: boolean;
+  pieces: readonly WhichPiece[];
+}) {
+  const { verdict, restyle, choosingPiece } = adjust.state;
+  if (verdict !== 'down') return null;
+  const open = openReasons(adjust.state, { weather });
+  return (
+    <>
+      {open.length > 0 || (canRestyle && !restyle) ? (
+        // biome-ignore lint/a11y/useSemanticElements: a group of toggles, not a form fieldset
+        <div
+          role="group"
+          aria-labelledby="feedback-change"
+          className="flex flex-wrap gap-1.5 pl-9"
+          data-testid="feedback-reasons"
+        >
+          {open.map((r) => (
+            <button
+              key={r}
+              type="button"
+              aria-pressed={false}
+              onClick={() => adjust.reason(r)}
+              data-testid={`reason-${r}`}
+              className={`${chipOff} ${focus}`}
+            >
+              {fb.reasons[r].label}
+            </button>
+          ))}
+          {canRestyle && !restyle ? (
+            <button
+              type="button"
+              aria-pressed={false}
+              onClick={adjust.restyleAll}
+              data-testid="reason-restyle"
+              className={`${chip} border-transparent bg-surface-sunk text-ink-muted hover:text-ink ${focus}`}
+            >
+              <Icon name="refresh" size={11} />
+              {fb.restyle.label}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {choosingPiece ? <PieceChoice pieces={pieces} onPick={adjust.piece} /> : null}
+    </>
   );
 }
 

@@ -71,7 +71,7 @@ import { useImageStage } from '@/lib/look-images';
 import { isDraftsFull, useLetGo, useRefreshLooks, useSaveLook } from '@/lib/look-states';
 import { useJob } from '@/lib/use-job';
 import { useWishOf } from '@/lib/wish-of';
-import { Feedback, FeedbackTokens, ThreadLines, Thumbs } from './adjust-dock';
+import { Answers, Feedback, FeedbackTokens, ThreadLines, Thumbs } from './adjust-dock';
 import { CapturePieces, CaptureRow, NewPieceSheet, RemovedLine } from './capture-rack';
 import { DayContext, DayMeta } from './day-context';
 import { DiarySheet } from './diary-sheet';
@@ -1351,6 +1351,12 @@ function DraftBody({
   // Her first send carries the day's place and weather into the conversation (pin 13).
   const briefed = adjust.state.thread.some((l) => l.who === 'her');
   const dayContext = forDay && mode === 'draft' ? forDay : null;
+  // The look's pieces for Which piece? (Q6), in the thread and on the bar alike.
+  const whichPieces = rows.map((r) => ({
+    key: r.key,
+    name: nameNoBrand(r.name, r.brand),
+    image: imageOf(r) ?? null,
+  }));
   const dockNode = captureDraft ? null : (
     <PromptDock
       state={dock}
@@ -1364,6 +1370,16 @@ function DraftBody({
       }
       working={working}
       thumbs={verdict === 'ask' ? <Thumbs adjust={adjust} /> : null}
+      answers={
+        verdict !== 'down' ? null : (
+          <Answers
+            adjust={adjust}
+            weather={askContext !== undefined}
+            canRestyle={mode === 'draft' && adjust.canRedress}
+            pieces={whichPieces}
+          />
+        )
+      }
       dot={dockDot(dock, adjust.state)}
       conversation={
         hasThread ? (
@@ -1377,11 +1393,7 @@ function DraftBody({
               adjust={adjust}
               weather={askContext !== undefined}
               canRestyle={mode === 'draft' && adjust.canRedress}
-              pieces={rows.map((r) => ({
-                key: r.key,
-                name: nameNoBrand(r.name, r.brand),
-                image: imageOf(r) ?? null,
-              }))}
+              pieces={whichPieces}
             />
           </>
         ) : null
@@ -1392,6 +1404,7 @@ function DraftBody({
     >
       <StylingCard
         inline={hasThread}
+        boxed={dock === 'thread'}
         {...(dayContext && !briefed
           ? {
               context: (

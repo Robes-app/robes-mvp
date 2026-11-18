@@ -79,6 +79,7 @@ export function StylingCard({
   emptySend,
   onEmpty,
   card = false,
+  boxed = false,
   busy,
 }: {
   // The day's place and weather, until her first send carries them into the conversation.
@@ -109,6 +110,9 @@ export function StylingCard({
   onEmpty?: () => void;
   // Drawn as its own white card: the bare sheet before her first send, where no dock card holds it.
   card?: boolean;
+  // Inline, in its own white box on the fine rule: the thread's cream sheet, where the row would
+  // otherwise float (Annie, 18 Nov). On the bar the dock's white card is the box.
+  boxed?: boolean;
   busy: boolean;
 }) {
   const turning = useTurningPlaceholder(placeholders ?? [], value.length === 0 && !placeholder);
@@ -217,7 +221,16 @@ export function StylingCard({
   ) : null;
   if (inline) {
     return (
-      <View accessibilityLabel={copy.thread} testID="styling-card" style={{ paddingLeft: 4 }}>
+      <View
+        accessibilityLabel={copy.thread}
+        testID="styling-card"
+        className={boxed ? 'rounded-lg border-rule-mid bg-surface-raised' : undefined}
+        style={
+          boxed
+            ? { borderWidth: 1, paddingVertical: 6, paddingLeft: 8, paddingRight: 6 }
+            : { paddingLeft: 4 }
+        }
+      >
         <View className="flex-row flex-wrap items-center gap-2" style={{ minHeight: 38 }}>
           {toggles}
           {tokens}
@@ -288,6 +301,7 @@ export function PromptDock({
   line,
   working,
   thumbs,
+  answers,
   dot,
   conversation,
   turns = 0,
@@ -306,6 +320,8 @@ export function PromptDock({
   line: string | null;
   working: boolean;
   thumbs?: ReactNode;
+  // After a thumbs down, what she can answer with (the reasons, Which piece?), under the line.
+  answers?: ReactNode;
   // Robes' question waits unanswered (K3).
   dot: boolean;
   conversation?: ReactNode;
@@ -396,6 +412,11 @@ export function PromptDock({
                   </Text>
                   {working ? <ActivityIndicator size="small" color={muted} /> : null}
                   {thumbs}
+                </View>
+              ) : null}
+              {answers ? (
+                <View className="gap-3" style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+                  {answers}
                 </View>
               ) : null}
             </>

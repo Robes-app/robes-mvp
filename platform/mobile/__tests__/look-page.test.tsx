@@ -605,9 +605,14 @@ test('Robes asks about the reason or the piece she sent', async () => {
     }),
   ).toBeTruthy();
   await fireEvent.press(screen.getByTestId('prompt-spark'));
-  // One reason: its own question.
+  // One reason: its own question. Folded to the bar after the thumbs down, the reasons stand
+  // there too (Annie, 18 Nov: folding the thread hid them), and the bar's send carries the one
+  // she taps.
   await fireEvent.press(screen.getByTestId('thumb-down'));
-  await fireEvent.press(await screen.findByTestId('reason-dressy'));
+  await fireEvent.press(screen.getByTestId('prompt-minimise'));
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  expect(within(screen.getByTestId('prompt-bar')).getByTestId('feedback-reasons')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('reason-dressy'));
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() => expect(asks()).toHaveLength(2));
   // The rack already reads this way, so no picture follows: Robes asks once its wait is up.
