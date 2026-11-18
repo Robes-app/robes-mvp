@@ -612,9 +612,13 @@ function SavedShell({
       </ScrollView>
       {barUp ? (
         <View
-          pointerEvents="box-none"
-          className="absolute inset-x-0 bottom-0 flex-row items-center px-5 pt-3"
-          style={{ gap: 12, paddingBottom: keyboard ? 12 : 22, bottom: keyboard }}
+          className="absolute inset-x-0 bottom-0 flex-row items-center border-hairline bg-bg px-5 pt-3"
+          style={{
+            gap: 12,
+            borderTopWidth: FINE_EDGE,
+            paddingBottom: keyboard ? 12 : 22,
+            bottom: keyboard,
+          }}
           ref={foot.ref}
           onLayout={(e) => {
             setBar(e.nativeEvent.layout.height);
@@ -622,8 +626,8 @@ function SavedShell({
           }}
           testID="look-bar"
         >
-          {/* Its one button takes the row, label centred, the sparkle beside it on no band of its
-              own (design 2c; Annie, 18 Nov). */}
+          {/* Sticky on its band: the one button takes the row, label centred, the sparkle beside
+              it (design 2c; Annie, 18 Nov). */}
           <View className="flex-1">
             <PrimaryScope>{footer}</PrimaryScope>
           </View>

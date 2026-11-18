@@ -583,8 +583,8 @@ function SavedShell({
   );
 }
 
-// The saved look's foot (design 2c): its one button, and the sparkle beside it (`beside`), on no
-// band of their own; toasts rise above it, so an Undo never covers the button or the sparkle.
+// The saved look's foot, sticky on its band at the screen's foot: its one button, and the sparkle
+// beside it (`beside`, design 2c); toasts rise above it, so an Undo never covers either.
 // `float` is the prompt's bar, riding just above it with nothing behind it.
 function LookBar({
   children,
@@ -600,7 +600,7 @@ function LookBar({
   return (
     <div
       ref={bar}
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 pb-[max(1.375rem,env(safe-area-inset-bottom))] *:pointer-events-auto"
+      className="fixed inset-x-0 bottom-0 z-30 border-hairline border-t-[0.5px] bg-bg pb-[max(1.375rem,env(safe-area-inset-bottom))]"
       data-testid="look-bar"
     >
       {float ? (
