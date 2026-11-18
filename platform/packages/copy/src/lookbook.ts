@@ -272,6 +272,9 @@ export const lookbook = {
       down: 'Not quite',
       change: 'What should I change?',
       whichPiece: 'Which piece?',
+      // The piece she taps after Which piece? (docked prompt PRD Q6), as its token and her ask:
+      // `the` is the piece's name with "the" in front ("the camel shacket").
+      notThe: (the: string): string => `Not ${the}`,
       placeholder: 'Or tell Robes what to change…',
       placeholderDown: 'Or tell Robes what you need…',
       reasons: {

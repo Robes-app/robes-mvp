@@ -16,6 +16,7 @@ import {
   defaultSources,
   type ImageStage,
   isCaptureRow,
+  nameNoBrand,
   pictureLanding,
   type RackRow,
   type Source,
@@ -1399,6 +1400,11 @@ function DraftBody({
               adjust={adjust}
               weather={askContext !== undefined}
               canRestyle={mode === 'draft' && adjust.canRedress}
+              pieces={rows.map((r) => ({
+                key: r.key,
+                name: nameNoBrand(r.name, r.brand),
+                image: imageOf(r) ?? null,
+              }))}
             />
           </>
         ) : null

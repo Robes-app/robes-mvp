@@ -494,12 +494,19 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   // A saved look carries no weather and is never restyled whole (F13, F14).
   expect(screen.queryByTestId('reason-weather')).toBeNull();
   expect(screen.queryByTestId('reason-restyle')).toBeNull();
-  // "A piece I don't like" with no piece named: Robes asks which, and nothing is sent (F15).
+  // "A piece I don't like" asks which piece first and sends nothing (docked prompt Q6): one
+  // chip per piece, its photograph labelled with its name. The piece she taps stands in the box
+  // as "Not the {piece}"; a tap on it takes it out again.
   await fireEvent.press(screen.getByTestId('reason-piece'));
-  await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(await screen.findByText(fb.whichPiece)).toBeTruthy();
   expect(asks()).toHaveLength(1);
+  const pieces = screen.getAllByTestId(/^which-piece-/);
+  expect(pieces.length).toBeGreaterThan(0);
+  await fireEvent.press(pieces[0] as NonNullable<(typeof pieces)[0]>);
+  expect(screen.queryByText(fb.whichPiece)).toBeNull();
+  expect(screen.getByTestId('reason-piece')).toHaveTextContent(/^Not the /);
   await fireEvent.press(screen.getByTestId('reason-piece'));
+  expect(screen.queryByTestId('which-piece')).toBeNull();
   // Up to three reasons: with three picked no more are offered.
   await fireEvent.press(screen.getByTestId('reason-dressy'));
   await fireEvent.press(screen.getByTestId('reason-colours'));

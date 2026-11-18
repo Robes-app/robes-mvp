@@ -11,8 +11,10 @@ import {
   EMPTY_ADJUST,
   feedbackBubble,
   isWorking,
+  nameNoBrand,
   noteShort,
   pictureLanding,
+  theName,
   threadHistory,
 } from '@robes/core/looks';
 import { useToast } from '@robes/ui';
@@ -43,6 +45,9 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const refresh = useRefreshLooks();
   const { track } = useAnalytics().analytics;
   const [state, dispatch] = useReducer(adjustReduce, EMPTY_ADJUST);
+  // A piece I don't like rides as "Not the {piece}", the one she tapped (docked prompt Q6).
+  const picked = state.piece ? editor.rack.rows.find((r) => r.key === state.piece) : undefined;
+  const notThe = picked ? fb.notThe(theName(nameNoBrand(picked.name, picked.brand))) : null;
   const d = copy.draft;
   // Her brief, when Robes made this look from her words: Restyle it all starts fresh from it.
   const brief = useRef('');
@@ -192,6 +197,7 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
 
   return {
     state,
+    pieceToken: notThe,
     stale,
     badge,
     busy,
@@ -217,13 +223,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       const now = Date.now();
       if (lastSend.current.key === key && now - lastSend.current.at < 1500) return false;
       lastSend.current = { key, at: now };
-      // "A piece I don't like" with no piece named: Robes asks which, rather than guess (F15).
-      if (!text && reasons.includes('piece')) {
-        dispatch({ type: 'robes', text: fb.whichPiece });
-        return false;
-      }
       drawAfter.current = opts.draw === true && look.status === 'draft';
-      const labels = afresh ? [fb.restyle.label] : reasons.map((r) => fb.reasons[r].label);
+      const labels = afresh
+        ? [fb.restyle.label]
+        : reasons.map((r) => (r === 'piece' && notThe ? notThe : fb.reasons[r].label));
       const fromThumb = state.verdict === 'down';
       const report = (action: 'adjust' | 'restyle') => {
         if (!fromThumb) return;
@@ -259,7 +262,7 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       });
       ask.send({
         surface,
-        text,
+        text: notThe ? feedbackBubble([notThe], text) : text,
         ...(reasons.length ? { reasons } : {}),
         thread: threadHistory(state.thread),
         rack: askRack(editor.rack, look.anchor?.id ?? null),
@@ -280,6 +283,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     },
     reason: (reason: AskReason) => dispatch({ type: 'reason', reason }),
     restyleAll: () => dispatch({ type: 'restyle' }),
+    // The piece she taps after Which piece? (Q6), by its rack key.
+    piece: (key: string) => dispatch({ type: 'piece', key }),
     // Robes made this look from her brief just now (the draft's first send): her words head the
     // thread and Robes asks its one question (F1, F3).
     // With no words (a draft Robes made, opened again) only the question is asked. `dressing`:

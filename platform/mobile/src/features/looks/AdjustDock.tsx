@@ -1,9 +1,11 @@
+import type { PieceImage } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { ASK_MAX_CHARS, openReasons, type ThreadLine } from '@robes/core/looks';
 import { Icon, type IconName } from '@robes/icons/native';
 import { fonts, IconButton, Text, useColor } from '@robes/ui-native';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, type ScrollViewInstance, TextInput, View } from 'react-native';
+import { Photo } from '@/features/wardrobe/PieceCard';
 import { nativeAnalytics } from '@/lib/analytics';
 import type { Adjust, AdjustSurface } from './adjust';
 import { RobesAvatar } from './StylingCard';
@@ -227,13 +229,16 @@ export function Feedback({
   adjust,
   weather,
   canRestyle,
+  pieces,
 }: {
-  adjust: Pick<Adjust, 'state' | 'thumb' | 'reason' | 'restyleAll'>;
+  adjust: Pick<Adjust, 'state' | 'thumb' | 'reason' | 'restyleAll' | 'piece'>;
   // The look carries a weather (a draft for a day, its chip standing): F14.
   weather: boolean;
   canRestyle: boolean;
+  // The look's pieces, for Which piece? (docked prompt PRD Q6).
+  pieces: readonly WhichPiece[];
 }) {
-  const { question, verdict, restyle } = adjust.state;
+  const { question, verdict, restyle, choosingPiece } = adjust.state;
   if (!question || !verdict) return null;
   const open = openReasons(adjust.state, { weather });
   return (
@@ -279,9 +284,59 @@ export function Feedback({
               ) : null}
             </View>
           ) : null}
+          {choosingPiece ? <PieceChoice pieces={pieces} onPick={adjust.piece} /> : null}
         </>
       ) : null}
     </View>
+  );
+}
+
+export interface WhichPiece {
+  key: string;
+  name: string;
+  image: PieceImage | null;
+}
+
+const PIECE_CHIP = 56;
+
+// Which piece? (docked prompt PRD Q6): one chip per piece in the look, its photograph only, the
+// piece's name its label; a tap drops "Not the {piece}" into the field. Web twin:
+// components/looks/adjust-dock.tsx PieceChoice.
+function PieceChoice({
+  pieces,
+  onPick,
+}: {
+  pieces: readonly WhichPiece[];
+  onPick: (key: string) => void;
+}) {
+  return (
+    <>
+      <View className="flex-row items-start gap-2.5">
+        <RobesAvatar />
+        <Text
+          accessibilityLiveRegion="polite"
+          className="min-w-0 flex-1 text-ink-muted"
+          style={robesLine}
+        >
+          {fb.whichPiece}
+        </Text>
+      </View>
+      <View className="flex-row flex-wrap pl-9" style={{ gap: 6 }} testID="which-piece">
+        {pieces.map((p) => (
+          <Pressable
+            key={p.key}
+            accessibilityRole="button"
+            accessibilityLabel={p.name}
+            onPress={() => onPick(p.key)}
+            testID={`which-piece-${p.key}`}
+            className="overflow-hidden rounded-xl border-warm-line bg-surface-raised"
+            style={{ width: PIECE_CHIP, borderWidth: 1 }}
+          >
+            <Photo piece={{ id: p.key, image: p.image }} width={PIECE_CHIP} />
+          </Pressable>
+        ))}
+      </View>
+    </>
   );
 }
 
@@ -290,7 +345,7 @@ export function Feedback({
 export function FeedbackTokens({
   adjust,
 }: {
-  adjust: Pick<Adjust, 'state' | 'reason' | 'restyleAll'>;
+  adjust: Pick<Adjust, 'state' | 'reason' | 'restyleAll' | 'pieceToken'>;
 }) {
   const { reasons, restyle } = adjust.state;
   if (reasons.length === 0 && !restyle) return null;
@@ -299,7 +354,7 @@ export function FeedbackTokens({
       {reasons.map((r) => (
         <ReasonChip
           key={r}
-          label={fb.reasons[r].label}
+          label={r === 'piece' && adjust.pieceToken ? adjust.pieceToken : fb.reasons[r].label}
           on
           onPress={() => adjust.reason(r)}
           testID={`reason-${r}`}
