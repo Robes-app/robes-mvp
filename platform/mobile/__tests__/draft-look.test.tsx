@@ -715,6 +715,12 @@ test('the weather left out on New look stays out of the draft it makes', async (
     }),
   );
   await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
+  // Robes' question waits on the sparkle's dot (Annie, 18 Nov); a tap opens the bar on it.
+  await fireEvent.press(
+    await screen
+      .findByTestId('prompt-spark-dot', { includeHiddenElements: true })
+      .then(() => screen.getByTestId('prompt-spark')),
+  );
   await screen.findByText(copy.feedback.questionFor('dinner'));
   // No place or weather under her brief, and none sent with her next words.
   await openPrompt();
@@ -861,10 +867,9 @@ test('her words with no day make one draft in the same sheet, and Robes asks abo
   await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
   await fireEvent.changeText(await openPrompt(), 'relaxed weekend brunch');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  // Sent, her words leave the box for the conversation, Robes at work under them (16 Nov).
-  expect(screen.getByTestId('her-line')).toHaveTextContent('relaxed weekend brunch');
-  expect(dock().getByText(lookbook.draft.dressing)).toBeTruthy();
-  expect(screen.getByTestId('draft-prompt').props.value).toBe('');
+  // Sent, the dock waits as the sparkle while Robes dresses the look, not an open box over it
+  // (Annie, 18 Nov).
+  expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
       prompt: 'relaxed weekend brunch',
@@ -875,8 +880,12 @@ test('her words with no day make one draft in the same sheet, and Robes asks abo
   await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
   expect(mockRouter.replace).not.toHaveBeenCalled();
   const fb = copy.feedback;
-  // The drawer carries on into the draft, the prompt docked as the bar with Robes' question
-  // (docked prompt K2, K7); her brief heads the thread its grabber opens (K8).
+  // The drawer carries on into the draft; Robes' question waits on the sparkle's dot, and a tap
+  // opens the bar on it (docked prompt K3, K7); her brief heads the thread its grabber opens (K8).
+  expect(
+    await screen.findByTestId('prompt-spark-dot', { includeHiddenElements: true }),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-spark'));
   expect(await screen.findByText(fb.questionFor('brunch'))).toBeTruthy();
   expect(screen.getByTestId('prompt-bar')).toBeTruthy();
   await fireEvent.press(screen.getByTestId('prompt-expand'));
@@ -911,6 +920,12 @@ test('with no occasion in her brief, Robes asks the plain question', async () =>
   );
   await fireEvent.changeText(await openPrompt(), 'something easy');
   await fireEvent.press(screen.getByTestId('prompt-send'));
+  // Robes' question waits on the sparkle's dot (Annie, 18 Nov); a tap opens the bar on it.
+  await fireEvent.press(
+    await screen
+      .findByTestId('prompt-spark-dot', { includeHiddenElements: true })
+      .then(() => screen.getByTestId('prompt-spark')),
+  );
   expect(await screen.findByText(copy.feedback.question)).toBeTruthy();
 });
 
@@ -939,17 +954,24 @@ test('while the draft her words made is still being dressed, Robes works and ask
   await fireEvent.changeText(await openPrompt(), 'dinner with friends');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
-  // The model is still being dressed: no question, no thumbs; the bar says Robes is at work (K7).
-  await waitFor(() =>
-    expect(screen.getByTestId('prompt-pill-line')).toHaveTextContent(lookbook.draft.dressing),
-  );
+  // The model is still being dressed: the dock waits as the sparkle, with no dot, rather than an
+  // open box over "Dressing it…" (Annie, 18 Nov); no question, no thumbs.
+  expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
+  expect(screen.queryByTestId('prompt-spark-dot', { includeHiddenElements: true })).toBeNull();
   expect(screen.queryByText(copy.feedback.questionFor('dinner'))).toBeNull();
   expect(screen.queryByTestId('thumb-up')).toBeNull();
-  // The picture lands: the work line goes and Robes asks.
+  // The picture lands: Robes asks, and the sparkle's dot says so; a tap opens the bar on it.
   mockFetch({ ...routes, [`GET /looks/${LOOK_ID}`]: draftOf({ pieces, onModel: 'ready' }) });
   expect(
-    await screen.findByText(copy.feedback.questionFor('dinner'), {}, { timeout: 6000 }),
+    await screen.findByTestId(
+      'prompt-spark-dot',
+      { includeHiddenElements: true },
+      { timeout: 6000 },
+    ),
   ).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-spark'));
+  expect(await screen.findByText(copy.feedback.questionFor('dinner'))).toBeTruthy();
+  expect(screen.getByTestId('thumb-up')).toBeTruthy();
   expect(screen.queryByText(lookbook.draft.dressing)).toBeNull();
 }, 15_000);
 

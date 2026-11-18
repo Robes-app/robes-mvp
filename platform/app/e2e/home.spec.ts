@@ -377,8 +377,10 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/, { timeout: 30_000 });
   await expect(page.getByTestId('draft-look')).toBeVisible();
   await expect(page.getByText('Draft look')).toBeVisible();
-  // The drawer carries on into the draft, the prompt docked as the bar; its thread holds her
-  // words (docked prompt PRD K2, K8), and folds back to the bar.
+  // The drawer carries on into the draft, the prompt waiting as the sparkle while Robes dresses it
+  // (Annie, 18 Nov); the bar it opens leads to the thread, which holds her words (K8), and its
+  // close puts it away again.
+  await page.getByTestId('prompt-spark').click();
   await page.getByTestId('prompt-expand').click();
   await expect(page.getByTestId('prompt-conversation')).toContainText('Dinner with friends');
   await page.getByTestId('prompt-minimise').click();
