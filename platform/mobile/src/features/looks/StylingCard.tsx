@@ -467,6 +467,7 @@ export function PromptDock({
   const head = (
     <View className="flex-row items-center gap-3 pb-1" style={{ marginRight: -6 }}>
       <Text
+        accessibilityRole="header"
         className="flex-1 uppercase text-ink-muted"
         style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 9 * 0.22 }}
       >
