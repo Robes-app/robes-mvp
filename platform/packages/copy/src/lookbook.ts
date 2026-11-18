@@ -275,7 +275,6 @@ export const lookbook = {
       question: 'How does it feel?',
       // With the occasion Robes read in her brief (F3); the plain question when it read none.
       questionFor: (occasion: string): string => `How does this feel for ${occasion}?`,
-      again: 'How about now?',
       // After typed words, two or more reasons, or a note about the picture (docked prompt Q4, M5).
       closer: 'Closer?',
       up: 'Love it',

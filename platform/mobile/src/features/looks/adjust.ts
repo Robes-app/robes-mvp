@@ -6,7 +6,9 @@ import {
   adjustReduce,
   type Balance,
   EMPTY_ADJUST,
+  type FollowUp,
   feedbackBubble,
+  followUp,
   isWorking,
   nameNoBrand,
   noteShort,
@@ -30,6 +32,26 @@ const DRAW_TIMEOUT_MS = 120_000;
 const NO_DRAW_MS = 8_000;
 const fb = copy.draftLook.feedback;
 
+// Robes' question after a change, in words (docked prompt PRD Q1–Q4): `range` is the day's
+// range for Not for the weather ("9–13°"). Twin: the other client's useAdjust.
+function askAfter(f: FollowUp, range: string | null): string {
+  switch (f.kind) {
+    case 'occasion':
+      return fb.questionFor(f.occasion);
+    case 'feel':
+      return fb.question;
+    case 'reason':
+      if (f.reason !== 'weather') return fb.askAfter[f.reason];
+      return range ? fb.askAfter.weather(range) : fb.closer;
+    case 'piece':
+      return fb.withoutPiece(f.piece);
+    case 'restyle':
+      return fb.restyle.ask;
+    case 'closer':
+      return fb.closer;
+  }
+}
+
 // Working a look through the prompt (Front Door design 3b, plan 2026-11-03 §1.4): the same on
 // home's box and on the look's page. Web twin: app/src/lib/adjust.ts.
 export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
@@ -52,6 +74,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const lastSend = useRef({ key: '', at: 0 });
   // The changes she has sent on this look in this session (docked prompt PRD, Analytics).
   const changes = useRef(0);
+  // What her last ask carried, for Robes' question once the change lands (Q2–Q4).
+  const lastAsk = useRef<{ question: string }>({ question: fb.closer });
 
   // A send that asked to draw once answered, and the draw it calls (defined further down).
   const drawAfter = useRef(false);
@@ -94,11 +118,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       drawAfter.current = false;
       if (changed) draw.current();
     }
-    // Robes asks once per returned look (look prompt PRD F3, F19): about the change on a saved
-    // look, "How about now?" on a draft. After the draw's own lines, so it stays open.
-    // Held until the picture wears the change (16 Nov: "How does the pink coat feel?" stood over
-    // the old picture while it was still being dressed).
-    if (changed) setHeldQuestion(result.followUp || fb.again);
+    // Robes asks once per returned look, about what she asked (docked prompt PRD Q2–Q4): held
+    // until the picture wears the change (16 Nov: "How does the pink coat feel?" stood over the
+    // old picture while it was still being dressed).
+    if (changed) setHeldQuestion(lastAsk.current.question);
   });
   const wasReading = useRef(ask.reading);
   useEffect(() => {
@@ -113,7 +136,7 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     dispatch({ type: 'settle' });
     if (job.status === 'succeeded' || job.status === 'partial') {
       dispatch({ type: 'drawn' });
-      dispatch({ type: 'question', text: fb.again });
+      dispatch({ type: 'question', text: fb.restyle.ask });
     } else toast.show({ message: copy.swapFailed });
     // The look itself is read again: the lists' refresh alone never reaches the open look, so a
     // restyle used to leave the old rack standing.
@@ -287,6 +310,18 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
         type: 'work',
         text: only ? fb.reasons[only].work : fromThumb ? fb.adjusting : d.reading,
       });
+      // The day's weather reads "9–13° in Dublin"; the question names its range.
+      const range = opts.context?.weather?.split(' in ')[0] ?? null;
+      lastAsk.current = {
+        question: askAfter(
+          followUp({
+            reasons,
+            piece: picked ? theName(nameNoBrand(picked.name, picked.brand)) : null,
+            text,
+          }),
+          range,
+        ),
+      };
       ask.send({
         surface,
         text: notThe ? feedbackBubble([notThe], text) : text,

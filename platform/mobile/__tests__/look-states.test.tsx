@@ -405,9 +405,9 @@ test('after a change Robes asks; a thumbs down opens the reasons this look can h
   await waitFor(() =>
     expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(true),
   );
-  expect(screen.queryByText(fb.again)).toBeNull();
-  // The picture lands, and Robes asks once: "How about now?" (F19).
-  expect(await screen.findByText(fb.again, {}, { timeout: 8000 })).toBeTruthy();
+  expect(screen.queryByText(fb.closer)).toBeNull();
+  // The picture lands, and Robes asks once; after typed words, "Closer?" (docked prompt Q4).
+  expect(await screen.findByText(fb.closer, {}, { timeout: 8000 })).toBeTruthy();
   expect(screen.queryByTestId('feedback-reasons')).toBeNull();
   // A thumbs down opens the reasons; the other thumb dims and takes no second answer (F5, F7).
   await fireEvent.press(screen.getByTestId('thumb-down'));
@@ -475,7 +475,7 @@ test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.changeText(await openPrompt(), 'swap the mules');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  expect(await screen.findByText(fb.again, {}, { timeout: 8000 })).toBeTruthy();
+  expect(await screen.findByText(fb.closer, {}, { timeout: 8000 })).toBeTruthy();
   const before = calls.length;
   await fireEvent.press(screen.getByTestId('thumb-up'));
   // The prompt closes: to its closed bar while the picture is still drawing, then to the sparkle
@@ -533,9 +533,10 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
   const field = await openPrompt();
   await fireEvent.changeText(field, 'swap the mules for my dark jean');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  // The change is seen on the rack, not told (redline 14 Nov): Robes only asks.
+  // The change is seen on the rack, not told (redline 14 Nov): Robes only asks, "Closer?" after
+  // typed words (docked prompt Q4).
   expect(
-    await screen.findByText(lookbook.draftLook.feedback.again, {}, { timeout: 8000 }),
+    await screen.findByText(lookbook.draftLook.feedback.closer, {}, { timeout: 8000 }),
   ).toBeTruthy();
   expect(screen.queryByText('Done. The dark jean is on the look now.')).toBeNull();
   const ask = calls.find((c) => c.path.endsWith('/ask'))?.body as {

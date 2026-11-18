@@ -425,7 +425,7 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
   expect(screen.queryByTestId('update-look')).toBeNull();
   expect(await screen.findByTestId('thumb-up', {}, { timeout: 8000 })).toBeTruthy();
   await openPrompt();
-  expect(screen.getByText(lookbook.draftLook.feedback.again)).toBeTruthy();
+  expect(screen.getByText(lookbook.draftLook.feedback.closer)).toBeTruthy();
   expect(calls.findIndex((c) => c.path.endsWith('/ask'))).toBeLessThan(
     calls.findIndex((c) => c.method === 'PATCH'),
   );
@@ -474,8 +474,8 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   await fireEvent.press(await screen.findByTestId('prompt-spark'));
   await fireEvent.changeText(await openPrompt(), 'collar up on the coat');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  // Robes' own question about the change it made (F3).
-  expect(await screen.findByText('How does the collar look?')).toBeTruthy();
+  // After typed words Robes asks "Closer?" (docked prompt Q4), not the model's own question.
+  expect(await screen.findByText(lookbook.draftLook.feedback.closer)).toBeTruthy();
   expect(asks()).toHaveLength(1);
   // The change is kept as it lands, with no button and no line saying so.
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
@@ -485,7 +485,7 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   // conversation, the look above it.
   expect(screen.getByTestId('draft-prompt')).toBeTruthy();
   expect(screen.queryByTestId('prompt-pill')).toBeNull();
-  expect(screen.getByText('How does the collar look?')).toBeTruthy();
+  expect(screen.getByText(lookbook.draftLook.feedback.closer)).toBeTruthy();
   expect(screen.getByTestId('thumb-up')).toBeTruthy();
   // A thumbs down on the bar opens the sheet on what to change.
   await fireEvent.press(screen.getByTestId('thumb-down'));
@@ -535,6 +535,75 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
     action: 'adjust',
   });
 });
+
+// Robes' question names what she asked (docked prompt PRD Q2–Q4): a single reason gets its own
+// question, a piece from Which piece? "Better without the {piece}?", typed words "Closer?".
+test('Robes asks about the reason or the piece she sent', async () => {
+  const styled = {
+    intent: 'styled',
+    reply: '',
+    swaps: [],
+    back: [],
+    backAll: false,
+    styled: [{ key: PIECE_ID, note: 'collar up' }],
+    draft: '',
+    rule: '',
+    noticed: false,
+  };
+  // Each ask is its own job, so each answer is new to the screen.
+  const jobs = [1, 2, 3].map((n) => `aaaaaaaa-aaaa-4aaa-8aaa-00000000000${n}`);
+  let sent = 0;
+  const jobRoutes = Object.fromEntries(
+    jobs.map((id) => [
+      `GET /jobs/${id}`,
+      {
+        id,
+        kind: 'look_ask',
+        status: 'succeeded',
+        stage: 'done',
+        output: { ask: styled },
+        error: null,
+        cancelRequested: false,
+        createdAt: '2026-10-15T10:00:00.000Z',
+        updatedAt: '2026-10-15T10:00:00.000Z',
+        finishedAt: '2026-10-15T10:00:01.000Z',
+      },
+    ]),
+  );
+  const calls = mockFetch({
+    ...editRoutes(twoPieces()),
+    [`POST /looks/${LOOK_ID}/render`]: errorReply(503, 'unavailable'),
+    [`POST /looks/${LOOK_ID}/ask`]: () => {
+      const jobId = jobs[Math.min(sent, jobs.length - 1)];
+      sent += 1;
+      return { jobId, status: 'queued' };
+    },
+    ...jobRoutes,
+  });
+  const fb = lookbook.draftLook.feedback;
+  const asks = () => calls.filter((c) => c.path.endsWith('/ask'));
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  await fireEvent.changeText(await openPrompt(), 'collar up on the coat');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  expect(await screen.findByText(fb.closer)).toBeTruthy();
+  // One reason: its own question.
+  await fireEvent.press(screen.getByTestId('thumb-down'));
+  await fireEvent.press(await screen.findByTestId('reason-dressy'));
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  await waitFor(() => expect(asks()).toHaveLength(2));
+  // The rack already reads this way, so no picture follows: Robes asks once its wait is up.
+  expect(await screen.findByText(fb.askAfter.dressy, {}, { timeout: 8000 })).toBeTruthy();
+  // A piece from Which piece?: "Better without the {piece}?".
+  await fireEvent.press(screen.getByTestId('thumb-down'));
+  await fireEvent.press(await screen.findByTestId('reason-piece'));
+  await fireEvent.press(screen.getByTestId(`which-piece-${PIECE_ID}`));
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  await waitFor(() => expect(asks()).toHaveLength(3));
+  expect(
+    await screen.findByText(fb.withoutPiece('the camel wool coat'), {}, { timeout: 8000 }),
+  ).toBeTruthy();
+}, 30_000);
 
 // A note about the whole picture goes through the prompt (docked prompt PRD M5, look-ask v5):
 // the model is drawn again with her note and nothing on the rack changes; Robes asks "Closer?".
