@@ -95,7 +95,7 @@ const DRESS_SETTLE_MS = 800;
 const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const TABS = [lookbook.savedLook.tabs.pieces, lookbook.savedLook.tabs.details] as const;
-// How long "Look updated." stands (Capture PRD 3.5).
+// How long "Look updated" stands (Capture PRD 3.5).
 const UPDATED_MS = 2600;
 type Tab = (typeof TABS)[number];
 

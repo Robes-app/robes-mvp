@@ -111,7 +111,7 @@ const d = lookbook.draft;
 const DRESS_SETTLE_MS = 800;
 // The pencil beside the grid | list toggle, on its 32pt line.
 const RACK_DISC = 32;
-// How long "Look updated." stands (Capture PRD 3.5).
+// How long "Look updated" stands (Capture PRD 3.5).
 const UPDATED_MS = 2600;
 const TABS = [lookbook.savedLook.tabs.pieces, lookbook.savedLook.tabs.details] as const;
 type Tab = (typeof TABS)[number];

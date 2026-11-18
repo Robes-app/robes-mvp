@@ -240,6 +240,13 @@ export const lookbook = {
       'drinks after work…',
     ],
     savedPlaceholder: 'add matching shoes…',
+    // After her first send (docked prompt PRD K5, M4): the field asks for a change, and turns to
+    // a styling note and a picture note so she learns the prompt takes both.
+    placeholdersAfter: [
+      'Or tell Robes what to change…',
+      'roll up the sleeves…',
+      'a different pose…',
+    ],
     // The round send inside the box (P2). Robes styles, it never generates (index.test.ts).
     send: 'Send',
     // Past the limit (P4): said under the field, her words never cut.
@@ -264,7 +271,8 @@ export const lookbook = {
     // Restyle it all alone. Each reason carries the example its placeholder shows and the line
     // that stands while Robes changes it.
     feedback: {
-      question: 'How is this look?',
+      // With no occasion read in her brief (docked prompt PRD Q1).
+      question: 'How does it feel?',
       // With the occasion Robes read in her brief (F3); the plain question when it read none.
       questionFor: (occasion: string): string => `How does this feel for ${occasion}?`,
       again: 'How about now?',
@@ -272,7 +280,19 @@ export const lookbook = {
       closer: 'Closer?',
       up: 'Love it',
       down: 'Not quite',
-      change: 'What should I change?',
+      change: 'What should change?',
+      // Robes' question after one reason (docked prompt PRD Q2); after Not for the weather it
+      // names the day's range and sky ("Better for 9–13° and showers?").
+      askAfter: {
+        dressy: 'Does this feel more relaxed?',
+        casual: 'Does this feel less casual?',
+        colours: 'Do the colours sit better now?',
+        fit: 'Does the shape work better?',
+        weather: (range: string, sky?: string): string =>
+          sky ? `Better for ${range} and ${sky}?` : `Better for ${range}?`,
+      },
+      // After a piece chosen from Which piece? (Q3): `the` as in notThe.
+      withoutPiece: (the: string): string => `Better without ${the}?`,
       whichPiece: 'Which piece?',
       // The piece she taps after Which piece? (docked prompt PRD Q6), as its token and her ask:
       // `the` is the piece's name with "the" in front ("the camel shacket").
@@ -315,6 +335,8 @@ export const lookbook = {
       adjusting: 'Adjusting this look…',
       restyle: {
         label: 'Restyle it all',
+        // Robes' question after Restyle it all (Q2).
+        ask: 'How does this one feel?',
         example: 'try something with more colour…',
         work: (brief: string): string =>
           brief ? `Starting fresh from “${brief}”…` : 'Starting fresh…',
@@ -329,9 +351,17 @@ export const lookbook = {
       minimise: 'Minimise',
       expand: 'Open the prompt',
       rest: 'Tell Robes what you need',
+      // The sparkle's dot, read aloud (docked prompt PRD K3, N5).
+      waiting: 'Robes has a question',
     },
     // A tap on Wardrobe while she owns nothing (S3).
-    emptyWardrobe: { title: 'Your wardrobe is empty', add: 'Add pieces' },
+    // The alert (docked prompt PRD W2): Add pieces opens the Add Pieces sheet over the draft.
+    emptyWardrobe: {
+      title: 'Your wardrobe is empty',
+      body: 'Add your first pieces to your wardrobe, to use what you already own.',
+      add: 'Add pieces',
+      notNow: 'Not now',
+    },
     // The Rack card before the first piece (PRD §4.6): with a wardrobe it opens the picker; empty
     // it opens Add your pieces. The heading shows once a piece hangs.
     rack: 'The Rack',
@@ -341,6 +371,8 @@ export const lookbook = {
     rackCard: {
       eyebrow: 'Your wardrobe',
       pick: 'Pick from your wardrobe',
+      // Before the first send with an empty wardrobe (docked prompt PRD W5).
+      addFirst: 'Add pieces to your wardrobe',
       orRobes: 'Or let Robes style below',
       add: 'Add your pieces',
       ways: 'Photo, link or receipt',
@@ -464,7 +496,12 @@ export const lookbook = {
   saved: 'Saved to your lookbook',
   savedAs: (name: string): string => `${name} saved to your Lookbook ✓`,
   // Update look landed (Capture PRD 3.5).
-  updated: 'Look updated.',
+  updated: 'Look updated',
+  // Under it on a saved look (docked prompt PRD V2): each change is written as she makes it.
+  updatedBody: 'Your changes replace the saved look.',
+  // A draft saved onto a day (docked prompt PRD, Draft saved).
+  savedToDay: (day: string): string => `Saved to ${day}`,
+  savedToDayBody: 'The look and its pieces are on your week.',
   addedToDay: (day: string): string => `In your plan for ${day}.`,
   // Save opens the diary every time (legacy 0.2); closing it is "not yet" and writes nothing.
   // The diary sheet is beta's month (legacy _lkDiaryPaint): any day is one tap, a day gone by
@@ -574,6 +611,12 @@ export const lookbook = {
     notYours: 'Not yours yet',
     wishlist: 'Wishlist',
     swappedIn: (was: string): string => `Swapped in · was ${was}`,
+    // The pill under a piece the last change swapped (docked prompt PRD T3); the full line is
+    // its label. `the` as in feedback.notThe.
+    swapped: 'Swapped',
+    swappedFor: (the: string): string => `Swapped in for ${the}`,
+    // A Shop piece's row, in every context (W6).
+    shop: (brand: string): string => `${brand} · Shop`,
     backIn: 'Back in · from the prompt',
     added: 'Added',
     roles: ROLE,
