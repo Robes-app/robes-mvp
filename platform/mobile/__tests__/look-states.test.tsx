@@ -197,6 +197,7 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
     pieces: 1,
     proposed: 1,
     anchored: true,
+    changes: 0,
   });
   expect(track).toHaveBeenCalledWith('look_pinned', { offset_from_today: 1 });
 });
@@ -428,6 +429,7 @@ test('after a change Robes asks; a thumbs down opens the reasons this look can h
   expect(nativeAnalytics.track).toHaveBeenCalledWith('look_feedback', {
     surface: 'draft',
     verdict: 'down',
+    change_n: 1,
   });
 }, 20_000);
 
@@ -574,6 +576,8 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
     surface: 'draft',
     chars: 'swap the mules for my dark jean'.length,
     from_draft: false,
+    kind: 'typed',
+    change_n: 1,
   });
   expect(track).toHaveBeenCalledWith('look_prompt_applied', {
     surface: 'draft',

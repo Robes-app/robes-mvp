@@ -1034,17 +1034,21 @@ function DraftBody({
   const [newPiece, setNewPiece] = useState<string | null>(null);
   useDressOnOpen(look);
   const leaveSheetFor = useLeaveSheetFor();
-  const save = useSaveLook((saved) => {
-    // Saved for a day: it is on that day and in the Lookbook, and she goes back to the screen
-    // the day was on — the Diary's day (still beneath this sheet, read again on focus) or
-    // Home's day, which shows it as the day's card. Else the saved look opens with the diary
-    // up, so it can be scheduled in the same breath — the sheet gone first, so the diary can
-    // rise over the page (useLeaveSheetFor).
-    if (forDay && dayOrigin() === 'diary') onClose();
-    else if (forDay) router.replace({ pathname: '/', params: { day: forDay, saved: saved.id } });
-    else if (presentation === 'sheet') leaveSheetFor(`/look/${saved.id}?schedule=1`);
-    else router.replace(`/look/${saved.id}?schedule=1`);
-  });
+  const save = useSaveLook(
+    (saved) => {
+      // Saved for a day: it is on that day and in the Lookbook, and she goes back to the screen
+      // the day was on — the Diary's day (still beneath this sheet, read again on focus) or
+      // Home's day, which shows it as the day's card. Else the saved look opens with the diary
+      // up, so it can be scheduled in the same breath — the sheet gone first, so the diary can
+      // rise over the page (useLeaveSheetFor).
+      if (forDay && dayOrigin() === 'diary') onClose();
+      else if (forDay) router.replace({ pathname: '/', params: { day: forDay, saved: saved.id } });
+      else if (presentation === 'sheet') leaveSheetFor(`/look/${saved.id}?schedule=1`);
+      else router.replace(`/look/${saved.id}?schedule=1`);
+    },
+    'draft',
+    () => adjust.changeCount(),
+  );
   const [tab, setTab] = useState<Tab>(TABS[0]);
   const [sheet, setSheet] = useState<DraftSheet | null>(null);
   const [picker, setPicker] = useState<PickerMode | null>(null);

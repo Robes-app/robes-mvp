@@ -240,7 +240,8 @@ export function followUp(sent: {
 // A draft opens at the bar; a saved look at the sparkle. Tapping the sparkle restores the bar;
 // the bar's top edge opens the thread and the close folds it back; an empty send or a thumbs up
 // minimises it to the sparkle (K6). Moves that do not apply leave it where it is.
-export type DockState = 'spark' | 'bar' | 'thread';
+export const DOCK_STATES = ['spark', 'bar', 'thread'] as const;
+export type DockState = (typeof DOCK_STATES)[number];
 export type DockMove = 'restore' | 'expand' | 'collapse' | 'minimise';
 
 export function dockStart(context: 'draft' | 'saved'): DockState {

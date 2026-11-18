@@ -60,7 +60,13 @@ describe('event catalogue', () => {
   it('types and checks the product events the clients send', () => {
     const s = sink();
     const analytics = createAnalytics(s);
-    analytics.track('look_created', { from: 'draft', pieces: 4, proposed: 1, anchored: true });
+    analytics.track('look_created', {
+      from: 'draft',
+      pieces: 4,
+      proposed: 1,
+      anchored: true,
+      changes: 2,
+    });
     analytics.track('camera_opened');
     analytics.track('piece_swapped', { surface: 'saved', cat: 'Tops' });
     // @ts-expect-error a piece's name is never sent (beta's `out`/`in`)
@@ -79,7 +85,7 @@ describe('event catalogue', () => {
     analytics.track('camera_filed', { n: -1 });
     analytics.track('camera_filed', { n: 1.5 });
     expect(s.capture.mock.calls).toEqual([
-      ['look_created', { from: 'draft', pieces: 4, proposed: 1, anchored: true }],
+      ['look_created', { from: 'draft', pieces: 4, proposed: 1, anchored: true, changes: 2 }],
       ['camera_opened', {}],
       ['piece_swapped', { surface: 'saved', cat: 'Tops' }],
     ]);

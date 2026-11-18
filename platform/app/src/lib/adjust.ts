@@ -58,6 +58,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const hushed = useRef(false);
   // Her last send, so one tap that fires twice (the keyboard's send and the button) is one line.
   const lastSend = useRef({ key: '', at: 0 });
+  // The changes she has sent on this look in this session (docked prompt PRD, Analytics).
+  const changes = useRef(0);
 
   // A send that asked to draw once answered, and the draw it calls (defined further down).
   const drawAfter = useRef(false);
@@ -218,6 +220,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   return {
     state,
     pieceToken: notThe,
+    // How many changes she has sent on this look, for the save's event.
+    changeCount: () => changes.current,
     stale,
     badge,
     busy,
@@ -257,16 +261,28 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
           action,
         });
       };
+      const sent = (kind: 'typed' | 'reason' | 'piece' | 'restyle') => {
+        changes.current += 1;
+        track('look_prompt_sent', {
+          surface,
+          chars: text.length,
+          from_draft: false,
+          kind,
+          change_n: changes.current,
+        });
+      };
       dispatch({ type: 'her', text: feedbackBubble(labels, text) });
       // Restyle it all (F12): a new look from the same brief, her words as the note.
       if (afresh) {
         report('restyle');
+        sent('restyle');
         dispatch({ type: 'work', text: fb.restyle.work(brief.current) });
         restyle(text || null);
         return true;
       }
       if (state.asking) {
         dispatch({ type: 'answered' });
+        sent('typed');
         dispatch({ type: 'robes', text: d.thanks });
         dispatch({ type: 'work', text: d.dressingAgain });
         restyle(text);
@@ -274,7 +290,13 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       }
       if (editor.rack.rows.length === 0) return false;
       report('adjust');
-      track('look_prompt_sent', { surface, chars: text.length, from_draft: false });
+      sent(
+        reasons.length === 0
+          ? 'typed'
+          : reasons.length === 1 && reasons[0] === 'piece'
+            ? 'piece'
+            : 'reason',
+      );
       const only = reasons.length === 1 ? reasons[0] : undefined;
       dispatch({
         type: 'work',
@@ -298,7 +320,7 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     // still being drawn; a send waits for it.
     thumb: (verdict: 'up' | 'down') => {
       if (state.verdict !== 'ask') return;
-      track('look_feedback', { surface, verdict });
+      track('look_feedback', { surface, verdict, change_n: changes.current });
       dispatch({ type: verdict });
     },
     reason: (reason: AskReason) => dispatch({ type: 'reason', reason }),

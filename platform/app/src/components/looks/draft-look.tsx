@@ -1039,13 +1039,17 @@ function DraftBody({
   const capturePieces = capture.on && (captureDraft || capture.stage !== 'rack');
   const [newPiece, setNewPiece] = useState<string | null>(null);
   useDressOnOpen(look);
-  const save = useSaveLook((saved) => {
-    // Saved for a day: it is on that day and in the Lookbook, and she goes back to the screen
-    // the day was on — Home's day, or the Diary's day page. Else the saved look opens with the
-    // diary up, so it can be scheduled in the same breath.
-    if (forDay) router.replace(dayReturn(forDay, saved.id));
-    else router.replace(`/look/${saved.id}?schedule=1`);
-  });
+  const save = useSaveLook(
+    (saved) => {
+      // Saved for a day: it is on that day and in the Lookbook, and she goes back to the screen
+      // the day was on — Home's day, or the Diary's day page. Else the saved look opens with the
+      // diary up, so it can be scheduled in the same breath.
+      if (forDay) router.replace(dayReturn(forDay, saved.id));
+      else router.replace(`/look/${saved.id}?schedule=1`);
+    },
+    'draft',
+    () => adjust.changeCount(),
+  );
   const update = useApiMutation('looks.update', {
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.call('looks.get', { params: { id: look.id } }), data);
