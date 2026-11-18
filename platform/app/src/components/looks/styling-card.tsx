@@ -243,6 +243,7 @@ export function PromptDock({
   onRestore,
   onExpand,
   onCollapse,
+  onMinimise,
   children,
 }: {
   state: DockState;
@@ -263,6 +264,8 @@ export function PromptDock({
   onRestore: () => void;
   onExpand: () => void;
   onCollapse: () => void;
+  // The thread's close puts the prompt away, to the sparkle (Annie, 18 Nov).
+  onMinimise?: () => void;
   children: ReactNode;
 }) {
   if (state === 'spark') {
@@ -357,7 +360,7 @@ export function PromptDock({
           type="button"
           aria-label={copy.dock.minimise}
           title={copy.dock.minimise}
-          onClick={onCollapse}
+          onClick={onMinimise ?? onCollapse}
           data-testid="prompt-minimise"
           className={`relative flex size-8 shrink-0 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted after:absolute after:-inset-1.5 after:content-[''] hover:text-ink ${focus}`}
         >

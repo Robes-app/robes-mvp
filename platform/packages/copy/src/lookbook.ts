@@ -704,6 +704,9 @@ export const lookbook = {
     busyChange: 'Changing the look…',
     busyNote: 'Noting it…',
     doneNone: 'Nothing has changed yet, so there’s nothing to put back.',
+    // Robes said it changed the look, but nothing it named could land (a new piece with Shop off,
+    // a piece it could not place): its own words would not be true.
+    didNotLand: 'I couldn’t make that change. Try it another way?',
     noticed: 'Waiting under Robes noticed — keep it there and it becomes a rule.',
     drafted: 'Robes wrote this from your words. Edit it, or press Enter.',
     send: 'Send',
