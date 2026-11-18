@@ -239,6 +239,7 @@ export function PromptDock({
   answers,
   dot,
   expandable = true,
+  beside = false,
   conversation,
   onRestore,
   onExpand,
@@ -258,6 +259,9 @@ export function PromptDock({
   dot: boolean;
   // The bar opens into a thread (its grabber); New look's bar, which has none yet, does not.
   expandable?: boolean;
+  // The sparkle stands beside the saved look's ink button (design 2c): outlined on white, so the
+  // button stays the screen's one ink fill, with no padding of its own.
+  beside?: boolean;
   conversation?: ReactNode;
   // The sparkle back to the bar; the bar up to the thread; the thread down to the bar.
   onRestore: () => void;
@@ -266,27 +270,28 @@ export function PromptDock({
   children: ReactNode;
 }) {
   if (state === 'spark') {
-    return (
-      <div className="flex justify-end px-3 pb-3.5">
-        <button
-          type="button"
-          aria-label={dot ? `${copy.dock.open}. ${copy.dock.waiting}` : copy.dock.open}
-          title={copy.dock.open}
-          onClick={onRestore}
-          data-testid="prompt-spark"
-          className={`relative flex size-14 shrink-0 items-center justify-center rounded-pill bg-ink text-bg ${lift} ${focus}`}
-        >
-          <Icon name="looks" size={20} />
-          {dot ? (
-            <span
-              aria-hidden
-              data-testid="prompt-spark-dot"
-              className="absolute top-0.5 right-0.5 size-3 rounded-pill border-2 border-bg bg-accent-warm"
-            />
-          ) : null}
-        </button>
-      </div>
+    const spark = (
+      <button
+        type="button"
+        aria-label={dot ? `${copy.dock.open}. ${copy.dock.waiting}` : copy.dock.open}
+        title={copy.dock.open}
+        onClick={onRestore}
+        data-testid="prompt-spark"
+        className={`relative flex size-14 shrink-0 items-center justify-center rounded-pill ${
+          beside ? 'border border-warm-line bg-surface-raised text-ink' : 'bg-ink text-bg'
+        } ${lift} ${focus}`}
+      >
+        <Icon name="looks" size={20} />
+        {dot ? (
+          <span
+            aria-hidden
+            data-testid="prompt-spark-dot"
+            className="absolute top-0.5 right-0.5 size-3 rounded-pill border-2 border-bg bg-accent-warm"
+          />
+        ) : null}
+      </button>
     );
+    return beside ? spark : <div className="flex justify-end px-3 pb-3.5">{spark}</div>;
   }
   const card = `mx-2.5 mb-2.5 flex flex-col rounded-[22px] bg-surface-raised ${lift}`;
   if (state === 'bar') {
