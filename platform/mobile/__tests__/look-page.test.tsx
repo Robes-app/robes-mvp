@@ -536,6 +536,52 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   });
 });
 
+// A note about the whole picture goes through the prompt (docked prompt PRD M5, look-ask v5):
+// the model is drawn again with her note and nothing on the rack changes; Robes asks "Closer?".
+test('a note about the picture redraws the model with it and asks Closer?', async () => {
+  const picture = {
+    intent: 'picture',
+    reply: '',
+    swaps: [],
+    back: [],
+    backAll: false,
+    styled: [],
+    draft: '',
+    rule: '',
+    noticed: false,
+    picture: 'a different pose, walking',
+  };
+  const calls = mockFetch({
+    ...editRoutes(twoPieces()),
+    // The draw is refused so the question is asked at once, without waiting for a picture.
+    [`POST /looks/${LOOK_ID}/render`]: errorReply(503, 'unavailable'),
+    [`POST /looks/${LOOK_ID}/ask`]: { jobId: ASK_JOB, status: 'queued' },
+    [`GET /jobs/${ASK_JOB}`]: {
+      id: ASK_JOB,
+      kind: 'look_ask',
+      status: 'succeeded',
+      stage: 'done',
+      output: { ask: picture },
+      error: null,
+      cancelRequested: false,
+      createdAt: '2026-10-15T10:00:00.000Z',
+      updatedAt: '2026-10-15T10:00:00.000Z',
+      finishedAt: '2026-10-15T10:00:01.000Z',
+    },
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  await fireEvent.changeText(await openPrompt(), 'a different pose, walking');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBe(true),
+  );
+  const render = calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'));
+  expect(render?.body).toEqual({ note: 'a different pose, walking' });
+  expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+  expect(await screen.findByText(lookbook.draftLook.feedback.closer)).toBeTruthy();
+});
+
 // Adjust model image is for Robes' picture alone (PRD §6.4): a look whose record is her own
 // photograph carries no disc.
 test('the adjust disc is not on a photograph of hers', async () => {

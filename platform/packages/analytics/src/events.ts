@@ -17,7 +17,7 @@ const category = z.enum(LEGACY_CATEGORIES);
 // home, or the create box (the Lookbook, Create, a piece page).
 const askSurface = z.enum(['suggested', 'draft', 'saved', 'day']);
 const boxSurface = z.enum(['home', 'create']);
-const askIntent = z.enum(['swap', 'back', 'rule', 'styled', 'clarify', 'draft', 'none']);
+const askIntent = z.enum(['swap', 'back', 'rule', 'styled', 'clarify', 'draft', 'none', 'picture']);
 
 export const EVENTS = {
   // A page is shown (web, after consent).

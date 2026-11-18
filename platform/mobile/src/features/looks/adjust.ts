@@ -57,6 +57,26 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
 
   // Her ask: an edit comes back keyed by the rack she sent.
   const ask = useLookAsk(look.id, (result) => {
+    // A note about the whole picture (look-ask v5, docked prompt PRD M5): it becomes the look's
+    // picture note and the model is drawn again with it. Nothing on the rack changes; Robes asks
+    // "Closer?" once the picture lands.
+    if (result.intent === 'picture' && result.picture) {
+      drawAfter.current = false;
+      dispatch({ type: 'work', text: d.dressing });
+      hushed.current = true;
+      sawPending.current = false;
+      setDrawing(true);
+      setHeldQuestion(fb.closer);
+      editor.redraw(result.picture).catch((err) => {
+        setDrawing(false);
+        dispatch({ type: 'settle' });
+        // No picture is coming: Robes asks at once.
+        setHeldQuestion(null);
+        dispatch({ type: 'question', text: fb.closer });
+        toast.show({ message: errorMessage(err) });
+      });
+      return;
+    }
     const changed = askChanges(result);
     // Robes' words stand when nothing changed (it asks back, or says why not). A change is seen
     // on the rack and the model, and Robes only asks its question.
