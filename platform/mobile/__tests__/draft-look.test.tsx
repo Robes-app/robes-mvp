@@ -1065,6 +1065,11 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
   // With a piece on the rack, the add slot is the small + hanger chip, not the big card (Annie,
   // 15 Nov); the card is only for an empty rack.
   expect(screen.queryByTestId('rack-card-add')).toBeNull();
+  // The + opens the picker once her wardrobe's count is in (before it, Add pieces): wait for it.
+  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/wardrobe/summary'))).toBe(true));
+  await act(async () => {
+    await new Promise((done) => setTimeout(done, 50));
+  });
   await fireEvent.press(screen.getByTestId('rack-add'));
   expect(await screen.findByTestId('piece-picker')).toBeTruthy();
   await fireEvent.press(screen.getByRole('tab', { name: wardrobe.segments.wishlist }));
