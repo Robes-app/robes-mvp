@@ -825,6 +825,18 @@ test('with a wardrobe it is the one source; Shop beside it is a mix, Shop alone 
 
 // One draft for every prompt, with or without a day (look prompt PRD D6, D9, F1, F3): the job's
 // look opens in the same sheet, her words head its thread, and Robes asks about the occasion.
+// The sparkle send on an empty box sends nothing and folds the prompt to the sparkle; the sparkle
+// brings the box back (docked prompt K6, Annie 18 Nov).
+test('New look: an empty send folds the box to the sparkle, which brings it back', async () => {
+  mockFetch(BASE);
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  await openPrompt();
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  expect(screen.getByTestId('prompt-rest')).toBeTruthy();
+});
+
 test('her words with no day make one draft in the same sheet, and Robes asks about the occasion', async () => {
   const made = draftOf({
     pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],

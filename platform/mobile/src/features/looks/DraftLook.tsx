@@ -657,6 +657,8 @@ function NewDraft({
   const [prompt, setPrompt] = useState('');
   // The prompt's sheet is up and its field has the keyboard.
   const [typing, setTyping] = useState(false);
+  // An empty send folds the box to the sparkle (docked prompt K6); the sparkle brings it back.
+  const [folded, setFolded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [full, setFull] = useState<{ input: CreateLookInput; oldest: string } | null>(null);
 
@@ -831,7 +833,7 @@ function NewDraft({
         startAtEnd: true,
         node: (
           <PromptDock
-            state={typing ? 'thread' : 'bar'}
+            state={folded ? 'spark' : typing ? 'thread' : 'bar'}
             first={sent === null}
             bare={sent === null}
             line={sent === null ? null : d.dressing}
@@ -850,7 +852,7 @@ function NewDraft({
                 />
               )
             }
-            onRestore={() => undefined}
+            onRestore={() => setFolded(false)}
             onExpand={() => setTyping(true)}
             onCollapse={() => setTyping(false)}
             box={
@@ -858,7 +860,7 @@ function NewDraft({
                 {...(sent === null ? context : { inline: true })}
                 {...box}
                 onOpen={() => setTyping(true)}
-                onSend={() => (prompt.trim() ? void generate() : setTyping(true))}
+                onSend={() => (prompt.trim() ? void generate() : setFolded(true))}
                 emptySend="send"
               />
             }
@@ -870,7 +872,11 @@ function NewDraft({
               {...box}
               autoFocus
               onSend={() => void generate()}
-              emptySend="blur"
+              emptySend="minimise"
+              onEmpty={() => {
+                setTyping(false);
+                setFolded(true);
+              }}
             />
           </PromptDock>
         ),

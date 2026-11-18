@@ -732,6 +732,8 @@ function NewDraft({
   // Her words once sent (16 Nov): they leave the box for the conversation above it, Robes at work
   // under them, until the draft opens; a send that fails puts them back in the box.
   const [sent, setSent] = useState<string | null>(null);
+  // An empty send folds the box to the sparkle (docked prompt K6); the sparkle brings it back.
+  const [folded, setFolded] = useState(false);
   const sentRef = useRef<string | null>(null);
   const unsend = useCallback(() => {
     const words = sentRef.current;
@@ -833,13 +835,13 @@ function NewDraft({
         node: (
           // The bar: the box before her send, then "Dressing it…" until the draft takes over (K7).
           <PromptDock
-            state="bar"
+            state={folded ? 'spark' : 'bar'}
             first={sent === null}
             line={sent === null ? null : d.dressing}
             working={sent !== null}
             dot={false}
             expandable={false}
-            onRestore={() => undefined}
+            onRestore={() => setFolded(false)}
             onExpand={() => undefined}
             onCollapse={() => undefined}
           >
@@ -860,7 +862,8 @@ function NewDraft({
               value={prompt}
               onChange={setPrompt}
               onSend={() => void generate()}
-              emptySend="blur"
+              emptySend="minimise"
+              onEmpty={() => setFolded(true)}
               busy={busy}
             />
           </PromptDock>
