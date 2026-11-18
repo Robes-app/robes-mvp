@@ -117,7 +117,7 @@ async function draftLanded(page: Page, date: string): Promise<void> {
     .toMatch(/^job=null look=[0-9a-f-]+ framePending=false/);
 }
 
-// Getting to know you, eight steps (onboarding PRD, 17 Nov): name and identity are required;
+// Getting to know you, seven steps (onboarding PRD, 17 Nov): name and identity are required;
 // styles and brands may be left empty; Back keeps every answer; Brands saves them without
 // onboarding her; each capture step is skippable; she lands home.
 test('onboarding: four answers saved on Brands, a saved look, the rest skipped, then home', async ({
@@ -182,11 +182,7 @@ test('onboarding: four answers saved on Brands, a saved look, the rest skipped, 
   await expect(title('Saved to your Lookbook. One new look.')).toBeVisible();
   await next.click();
 
-  for (const step of [
-    'The pieces you love most.',
-    'Your digital twin. Your looks, on you.',
-    'Capture what you’re wearing now.',
-  ]) {
+  for (const step of ['The pieces you love most.', 'Capture what you’re wearing now.']) {
     await expect(title(step)).toBeVisible();
     expect(await seriousViolations(page), `onboarding, ${step}`).toEqual([]);
     await page.getByRole('button', { name: 'Skip' }).click();

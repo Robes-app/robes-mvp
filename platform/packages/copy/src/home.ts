@@ -198,24 +198,7 @@ export const firstRun = {
   },
   // Save N, under both cameras.
   save: (n: number): string => `Save ${n}`,
-  // 07 Digital twin: her twin, or a Robes model; consent before any close-up.
-  twin: {
-    you: 'Your digital twin.',
-    youEm: 'Your looks, on you.',
-    ready: 'Ready to dress.',
-    robes: 'A Robes model.',
-    robesEm: 'Swap to you any time.',
-    agree: 'I agree to Robes building my digital twin from my close-up.',
-    go: 'Take my close-up',
-    retake: 'Retake close-up',
-    useOwn: 'Use my own photo instead',
-    useTwin: 'Use my twin',
-    faceGuide: 'Your close-up',
-    // The Privacy sheet: the consent's own rows, collecting the close-up only (PRD decision 5).
-    collects: 'A close-up.',
-    gotIt: 'Got it',
-  },
-  // 08 Today's outfit: hands on to Home's Capture for today.
+  // 07 Today's outfit: hands on to Home's Capture for today.
   outfit: {
     title: 'Capture what you’re',
     titleEm: 'wearing now.',

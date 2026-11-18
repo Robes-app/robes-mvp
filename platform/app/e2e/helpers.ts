@@ -33,7 +33,6 @@ export async function completeOnboarding(page: Page, firstName = 'Niall'): Promi
   for (const title of [
     'Saved looks on your phone?',
     'The pieces you love most.',
-    'Your digital twin. Your looks, on you.',
     'Capture what you’re wearing now.',
   ]) {
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();

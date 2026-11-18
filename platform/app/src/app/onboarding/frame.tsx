@@ -1,11 +1,11 @@
-import { FIRST_RUN_STEPS } from '@robes/contracts';
+import { FIRST_RUN_FLOW } from '@robes/contracts';
 import { firstRun as copy } from '@robes/copy';
 import { Heading } from '@robes/ui';
 import type { ReactNode } from 'react';
 
-const STEPS = FIRST_RUN_STEPS.length;
+const STEPS = FIRST_RUN_FLOW.length;
 
-// The step chrome (handoff 30 Oct, eight steps since the onboarding PRD of 17 Nov; twin: mobile
+// The step chrome (handoff 30 Oct, seven steps since 18 Nov; twin: mobile
 // features/home/FirstRunFrame.tsx): back · the eyebrow · one hairline segment per step, never a
 // number on screen (R-S1) · the title · the body · the step's one action docked at the foot,
 // Skip under it on a capture step (R-S2).
@@ -55,14 +55,14 @@ export function Frame({
         <span />
       </header>
       <div
-        className="grid grid-cols-8 gap-1.5 px-6 pt-3.5"
+        className="grid grid-cols-7 gap-1.5 px-6 pt-3.5"
         role="progressbar"
         aria-valuemin={1}
         aria-valuemax={STEPS}
         aria-valuenow={step}
         aria-label={copy.progress(step, STEPS)}
       >
-        {FIRST_RUN_STEPS.map((_, i) => i + 1).map((n) => (
+        {FIRST_RUN_FLOW.map((_, i) => i + 1).map((n) => (
           <span
             key={n}
             className={`h-px motion-safe:transition-colors motion-safe:duration-[400ms] ${n <= step ? 'bg-ink' : 'bg-hairline'}`}

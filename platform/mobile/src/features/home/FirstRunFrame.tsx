@@ -1,13 +1,13 @@
-import { FIRST_RUN_STEPS } from '@robes/contracts';
+import { FIRST_RUN_FLOW } from '@robes/contracts';
 import { firstRun as copy } from '@robes/copy';
 import { Em, fonts, Heading, maxFontSizeMultiplier, useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { Pressable, Text as RNText, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const STEPS = FIRST_RUN_STEPS.length;
+const STEPS = FIRST_RUN_FLOW.length;
 
-// The step chrome (onboarding handoff 30 Oct, eight steps since the onboarding PRD of 17 Nov; twin:
+// The step chrome (onboarding handoff 30 Oct, seven steps since 18 Nov; twin:
 // app/src/app/onboarding/onboarding-form.tsx Frame): back · the eyebrow · one hairline segment per
 // step, never a number on screen (R-S1) · the title · the body · the step's one action docked
 // above a hairline, Skip under it on a capture step (R-S2).
@@ -87,7 +87,7 @@ export function FirstRunFrame({
         accessibilityLabel={copy.progress(step, STEPS)}
         accessibilityValue={{ min: 1, max: STEPS, now: step }}
       >
-        {FIRST_RUN_STEPS.map((_, i) => i + 1).map((n) => (
+        {FIRST_RUN_FLOW.map((_, i) => i + 1).map((n) => (
           <View key={n} className={`h-px flex-1 ${n <= step ? 'bg-ink' : 'bg-hairline'}`} />
         ))}
       </View>
