@@ -214,7 +214,7 @@ function SwappedPill({ name, image }: { name: string; image: PieceImageData | nu
       role="img"
       aria-label={copy.rack.swappedFor(theName(name))}
       data-testid="swapped-pill"
-      className="inline-flex w-fit items-center gap-1 rounded-pill bg-surface-sunk py-0.5 pr-2 pl-0.5 font-sans text-[11px] text-ink-muted"
+      className="inline-flex w-fit items-center gap-1 rounded-pill bg-surface-sunk py-0.5 pr-2 pl-0.5 font-sans text-[11px] text-ink"
     >
       <span className="size-4 shrink-0 overflow-hidden rounded-full opacity-50">
         {sources ? (

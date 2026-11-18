@@ -127,7 +127,7 @@ const PILL_THUMB = 16;
 // thumbnail of the piece it replaced, an arrow, then "Swapped"; the full line is its label.
 // Web twin: rack-row.tsx SwappedPill.
 function SwappedPill({ name, image }: { name: string; image: PieceImage | null | undefined }) {
-  const muted = useColor('ink-muted');
+  const ink = useColor('ink');
   return (
     <View
       accessible
@@ -143,10 +143,9 @@ function SwappedPill({ name, image }: { name: string; image: PieceImage | null |
       >
         <Photo piece={{ id: `was-${name}`, image: image ?? null }} width={PILL_THUMB} />
       </View>
-      <Icon name="forward" size={9} color={muted} />
-      <Text tone="muted" style={{ fontSize: 11 }}>
-        {copy.rack.swapped}
-      </Text>
+      <Icon name="forward" size={9} color={ink} />
+      {/* Full ink: 11px on the sunk fill needs it for 4.5:1. */}
+      <Text style={{ fontSize: 11 }}>{copy.rack.swapped}</Text>
     </View>
   );
 }

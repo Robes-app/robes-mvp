@@ -51,4 +51,21 @@ describe('IconToggle', () => {
     const { container } = render(<Harness initial />);
     expect(await seriousViolations(container)).toEqual([]);
   });
+
+  it('with a label is a pill showing the name, still announced by its state', () => {
+    render(
+      <IconToggle
+        icon="shop"
+        tip="Shop"
+        checked
+        onChange={() => undefined}
+        labelOn={ON}
+        labelOff={OFF}
+        label="Shop"
+      />,
+    );
+    const sw = screen.getByRole('switch', { name: ON });
+    expect(sw).toHaveTextContent('Shop');
+    expect(sw).not.toHaveClass('w-7');
+  });
 });

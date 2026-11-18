@@ -135,10 +135,10 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   // The draft carries on in the same drawer: the piece on the rack, the model dressed in it and
-  // the prompt at rest as its sparkle (Annie, 16 Nov).
+  // the prompt docked at its foot as the bar (docked prompt PRD K2).
   await expect(page.getByText('Draft look')).toBeVisible();
   await expect(page.getByRole('list', { name: 'The rack · 1 piece' })).toBeVisible();
-  await page.getByTestId('prompt-spark').click();
+  await expect(page.getByTestId('prompt-dock')).toHaveAttribute('data-state', 'bar');
   // Her words go through the look prompt (plan 2026-11-03) and the picture follows (D14).
   const field = page.getByTestId('draft-prompt');
   await field.fill('swap the trouser for the dark straight jean');
@@ -152,15 +152,18 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open Dark straight jean' })).toBeVisible();
 
-  // The send keeps the prompt open as a sheet over the dimmed look, the conversation in it
-  // (look prompt improvements B6, 16 Nov).
-  await expect(page.getByTestId('prompt-scrim')).toBeVisible();
+  // The send leaves the bar where it was, the look live above it: Robes' question and the field
+  // (docked prompt PRD K7), no scrim.
+  await expect(page.getByTestId('prompt-scrim')).toHaveCount(0);
   await expect(field).toBeVisible();
-  // A rule waits under Robes noticed; it changes nothing. The thread's text names what landed,
-  // and Robes' words open the sheet again by themselves.
+  // A rule waits under Robes noticed; it changes nothing. The bar shows Robes' latest line, and
+  // its grabber opens the thread over the dimmed look (K8).
   await field.fill("I don't wear double denim");
   await field.press('Enter');
   const noticed = 'Waiting under Robes noticed — keep it there and it becomes a rule.';
+  await expect(page.getByTestId('prompt-pill-line')).toContainText(noticed, { timeout: 30_000 });
+  await page.getByTestId('prompt-expand').click();
+  await expect(page.getByTestId('prompt-scrim')).toBeVisible();
   const deadline = Date.now() + 30_000;
   let thread = '';
   while (Date.now() < deadline && !thread.includes(noticed)) {
@@ -172,8 +175,8 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   expect(thread, thread).toContain(noticed);
   expect(await seriousViolations(page), 'a draft with its thread').toEqual([]);
 
-  // The sheet stands over the dimmed look until she minimises it; then the done disc saves, and
-  // the saved look opens with the diary up.
+  // The thread stands over the dimmed look until she folds it back to the bar; then the done disc
+  // saves, and the saved look opens with the diary up.
   await page.getByTestId('prompt-minimise').click();
   await expect(page.getByTestId('prompt-scrim')).toHaveCount(0);
   await page.getByTestId('draft-done').click();

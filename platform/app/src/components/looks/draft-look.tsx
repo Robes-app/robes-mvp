@@ -16,7 +16,12 @@ import { readsAsThey } from '@robes/core/avatar';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import {
   type Balance,
+  type DockMove,
+  type DockState,
   defaultSources,
+  dockDot,
+  dockNext,
+  dockStart,
   type ImageStage,
   isCaptureRow,
   nameNoBrand,
@@ -83,7 +88,7 @@ import { RackRowCard } from './rack-row';
 import { ImageStack, useDressOnOpen } from './saved-look';
 import { Scanning } from './scan-line';
 import { SeasonsView } from './seasons-view';
-import { type DockState, PromptDock, StylingCard } from './styling-card';
+import { PromptDock, StylingCard } from './styling-card';
 import { TagsView } from './tags-view';
 import { WornView } from './worn-view';
 
@@ -731,8 +736,6 @@ function NewDraft({
   // under them, until the draft opens; a send that fails puts them back in the box.
   const [sent, setSent] = useState<string | null>(null);
   const sentRef = useRef<string | null>(null);
-  // Minimised while it dresses: the bar says Robes is at work.
-  const [folded, setFolded] = useState(false);
   const unsend = useCallback(() => {
     const words = sentRef.current;
     sentRef.current = null;
@@ -831,25 +834,17 @@ function NewDraft({
       dock={{
         startAtEnd: true,
         node: (
+          // The bar: the box before her send, then "Dressing it…" until the draft takes over (K7).
           <PromptDock
-            state={sent !== null && folded ? 'pill' : 'open'}
-            sheet={sent !== null}
-            line={d.dressing}
-            working
-            conversation={
-              sent === null ? null : (
-                <ThreadLines
-                  thread={[
-                    { id: 1, who: 'her', text: sent },
-                    { id: 2, who: 'work', text: d.dressing },
-                  ]}
-                  compact
-                  {...(day && !weatherOff ? { meta: <DayMeta date={day} /> } : {})}
-                />
-              )
-            }
-            onOpen={() => setFolded(false)}
-            onMinimise={() => setFolded(true)}
+            state="bar"
+            first={sent === null}
+            line={sent === null ? null : d.dressing}
+            working={sent !== null}
+            dot={false}
+            expandable={false}
+            onRestore={() => undefined}
+            onExpand={() => undefined}
+            onCollapse={() => undefined}
           >
             <StylingCard
               {...(day && sent === null
@@ -1212,16 +1207,13 @@ function DraftBody({
   // above it (look prompt improvements B6, Annie 16 Nov).
   const generate = () => {
     if (busy || (!words && !picked)) return;
-    if (adjust.send(words, { ...sendOpts, draw: true })) setDockOpen(true);
+    adjust.send(words, { ...sendOpts, draw: true });
     setPrompt('');
   };
   // A saved look's send asks, and what Robes changes is kept and drawn as it lands.
   const ask = () => {
     if (busy || (!words && !picked) || rows.length === 0) return;
-    if (adjust.send(words, sendOpts)) {
-      setApplying('asked');
-      setDockOpen(true);
-    }
+    if (adjust.send(words, sendOpts)) setApplying('asked');
     setPrompt('');
   };
   // A draft's model wears the rack as she builds it (Annie, 16 Nov): pieces added, swapped or
@@ -1328,18 +1320,25 @@ function DraftBody({
       />
     ),
   );
-  // The prompt at the look's foot (look prompt PRD F23; redline 14 Nov; testing 15 Nov). At rest
-  // it never covers the look: the box on a draft with no conversation yet, the closed bar with
-  // Robes' question and its thumbs once there is one, the sparkle on a saved look or after a
-  // thumbs up (F6). Opened it is a sheet over the dimmed look. A thumbs down opens it on what to
-  // change; a send keeps it open, the look above it (B6, 16 Nov); minimise, a tap on the look or a
-  // thumbs up folds it, and it opens again when Robes answers in words. Native twin: DraftLook.tsx.
+  // The docked prompt (docked prompt PRD K1–K9): the sparkle, the bar or the open thread. A draft
+  // opens at the bar, a saved look at the sparkle (K2). A thumbs up, or an empty send, folds it to
+  // the sparkle (K6); a thumbs down opens the thread on what to change; the grabber and the close
+  // move between the bar and the thread, and a tap on the dimmed look folds the thread (K8).
+  // Native twin: DraftLook.tsx.
+  const { track } = useAnalytics().analytics;
   const verdict = adjust.state.verdict;
-  // Her brief's send keeps it open into the draft it made (B6).
-  const [dockOpen, setDockOpen] = useState(brief !== undefined);
+  const dockContext = mode === 'draft' ? 'draft' : 'saved';
+  const [dock, setDock] = useState<DockState>(() => dockStart(dockContext));
+  const move = (m: DockMove) => setDock((from) => dockNext(from, m));
+  const dockWas = useRef(dock);
   useEffect(() => {
-    if (verdict === 'up') setDockOpen(false);
-    if (verdict === 'down') setDockOpen(true);
+    if (dockWas.current === dock) return;
+    track('dock_state_changed', { from: dockWas.current, to: dock, context: dockContext });
+    dockWas.current = dock;
+  }, [dock, dockContext, track]);
+  useEffect(() => {
+    if (verdict === 'up') setDock((from) => dockNext(from, 'minimise'));
+    if (verdict === 'down') setDock((from) => dockNext(dockNext(from, 'restore'), 'expand'));
   }, [verdict]);
   const hasThread = adjust.state.thread.length > 0 || adjust.state.question !== null;
   const lastLine = adjust.state.thread.at(-1);
@@ -1348,39 +1347,23 @@ function DraftBody({
     (lastLine?.who === 'robes' || lastLine?.who === 'filed') && lastLine.text !== d.modelDone
       ? lastLine
       : null;
-  const saidId = said?.id ?? null;
-  useEffect(() => {
-    if (saidId !== null) setDockOpen(true);
-  }, [saidId]);
-  const rest: 'box' | 'pill' | 'spark' =
-    verdict === 'ask' ||
-    working ||
-    adjust.busy ||
-    (mode === 'draft' && hasThread && verdict !== 'up')
-      ? 'pill'
-      : mode === 'edit' || hasThread || handBuilt
-        ? 'spark'
-        : 'box';
-  // The box with no conversation is typed into where it stands (a hand-built draft's sparkle opens
-  // it there too); everything else opens the sheet.
-  const asSheet = rest !== 'box' && (hasThread || mode === 'edit' || rest === 'pill');
-  const dockState: DockState = rest === 'box' || dockOpen ? 'open' : rest;
   // Her first send carries the day's place and weather into the conversation (pin 13).
   const briefed = adjust.state.thread.some((l) => l.who === 'her');
   const dayContext = forDay && mode === 'draft' ? forDay : null;
   const dockNode = captureDraft ? null : (
     <PromptDock
-      state={dockState}
-      sheet={asSheet}
+      state={dock}
+      first={!hasThread}
       line={
         working
-          ? (lastLine?.text ?? '')
+          ? (lastLine?.text ?? null)
           : verdict === 'down'
             ? fb.change
-            : (adjust.state.question ?? said?.text ?? copy.dock.rest)
+            : (adjust.state.question ?? said?.text ?? null)
       }
       working={working}
       thumbs={verdict === 'ask' ? <Thumbs adjust={adjust} /> : null}
+      dot={dockDot(dock, adjust.state)}
       conversation={
         hasThread ? (
           <>
@@ -1402,11 +1385,12 @@ function DraftBody({
           </>
         ) : null
       }
-      onOpen={() => setDockOpen(true)}
-      onMinimise={() => setDockOpen(false)}
+      onRestore={() => move('restore')}
+      onExpand={() => move('expand')}
+      onCollapse={() => move('collapse')}
     >
       <StylingCard
-        inline={asSheet}
+        inline={hasThread}
         {...(dayContext && !briefed
           ? {
               context: (
@@ -1426,14 +1410,13 @@ function DraftBody({
         wardrobeEmpty={src.empty}
         {...(feedbackHint
           ? { placeholder: feedbackHint }
-          : mode === 'edit'
-            ? { placeholder: copy.savedPlaceholder }
-            : { placeholders: copy.placeholders })}
-        {...(picked
-          ? { emptySend: 'send' as const }
-          : mode === 'draft'
-            ? { emptySend: 'blur' as const }
-            : {})}
+          : hasThread
+            ? { placeholders: copy.placeholdersAfter }
+            : mode === 'edit'
+              ? { placeholder: copy.savedPlaceholder }
+              : { placeholders: copy.placeholders })}
+        {...(picked ? { emptySend: 'send' as const } : { emptySend: 'minimise' as const })}
+        onEmpty={() => move('minimise')}
         value={prompt}
         onChange={setPrompt}
         onSend={mode === 'edit' ? ask : generate}
@@ -1443,14 +1426,13 @@ function DraftBody({
   );
   // Opened, the prompt is a sheet over the dimmed look in every presentation, and a saved look's
   // button steps away: changes are made through the prompt alone (pins 23, 25).
-  const promptSheet = asSheet && dockOpen && dockNode !== null;
-  const dock = dockNode
-    ? { node: dockNode, ...(promptSheet ? { onScrim: () => setDockOpen(false) } : {}) }
+  const shellDock = dockNode
+    ? { node: dockNode, ...(dock === 'thread' ? { onScrim: () => move('collapse') } : {}) }
     : null;
   const footButton =
     // While the prompt is open or keeping its change there is no button at all (pin 25).
     mode === 'edit' &&
-    (dockOpen ||
+    (dock !== 'spark' ||
       applying !==
         null) ? undefined : // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
     // hand edit waits — never both. Native twin: DraftLook.tsx's footer.
@@ -1492,7 +1474,7 @@ function DraftBody({
             }
       }
       {...(footButton ? { footer: footButton } : {})}
-      dock={dock}
+      dock={shellDock}
       over={
         <AdjustSheet
           open={sheet === 'adjust'}
