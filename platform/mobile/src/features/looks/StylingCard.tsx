@@ -310,6 +310,7 @@ export function PromptDock({
   onRestore,
   onExpand,
   onCollapse,
+  onMinimise,
   box,
   bare = false,
   children,
@@ -337,6 +338,8 @@ export function PromptDock({
   onRestore: () => void;
   onExpand: () => void;
   onCollapse: () => void;
+  // Put away to the sparkle: the thread's close.
+  onMinimise?: () => void;
   // The bar's box: the sources, the day's chip, a line that opens the field.
   box: ReactNode;
   // Before her first send on a draft: the sheet holds only the box she tapped (16 Nov, B1).
@@ -413,7 +416,7 @@ export function PromptDock({
                 >
                   <RobesAvatar working={working} />
                   <Text
-                    numberOfLines={1}
+                    // The whole of Robes' line, wrapping, never cut short (Annie, 18 Nov).
                     accessibilityLiveRegion="polite"
                     testID="prompt-pill-line"
                     className="min-w-0 flex-1 text-ink-muted"
@@ -449,7 +452,9 @@ export function PromptDock({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={copy.dock.minimise}
-        onPress={onCollapse}
+        // The close puts the prompt away, to the sparkle (Annie, 18 Nov); the grabber and a tap on
+        // the look fold it to the bar.
+        onPress={onMinimise ?? onCollapse}
         hitSlop={6}
         testID="prompt-minimise"
         className="items-center justify-center rounded-pill bg-surface-sunk"

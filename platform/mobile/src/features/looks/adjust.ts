@@ -106,7 +106,14 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     const changed = askChanges(result);
     // Robes' words stand when nothing changed (it asks back, or says why not). A change is seen
     // on the rack and the model, and Robes only asks its question.
-    if (!changed || !shown) dispatch({ type: 'robes', text: result.reply || copy.prompt.doneNone });
+    // An answer that names a change none of which landed says so plainly: its own "Done. The
+    // scarf is on the look now." stood over a look with no scarf (testing, 18 Nov).
+    const claimed = !changed && ['swap', 'back', 'styled'].includes(result.intent);
+    if (!changed || !shown)
+      dispatch({
+        type: 'robes',
+        text: claimed ? copy.prompt.didNotLand : result.reply || copy.prompt.doneNone,
+      });
     else dispatch({ type: 'settle' });
     if (result.noticed) dispatch({ type: 'filed', text: copy.prompt.noticed });
     const slots = result.swaps.length + result.back.length + result.styled.length;
@@ -235,6 +242,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     stale,
     badge,
     busy,
+    // The model is being dressed again (a change's picture, a restyle), not Robes reading.
+    dressing: redressJob !== null || drawing,
     canRedress: look.setId !== null,
     placeholder: state.asking
       ? d.notRight

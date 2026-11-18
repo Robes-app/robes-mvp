@@ -750,7 +750,11 @@ function NewDraft({
     const words = sentRef.current;
     sentRef.current = null;
     setSent(null);
-    if (words !== null) setPrompt(words);
+    if (words !== null) {
+      setPrompt(words);
+      setFolded(false);
+      setTyping(true);
+    }
   }, []);
   // The job ended without a draft: the wait ends with a word.
   const followed = useJobResult(
@@ -800,7 +804,10 @@ function NewDraft({
   const generate = async () => {
     const words = prompt.trim();
     if (words.length < 2 || busy) return;
-    setTyping(true);
+    // Sent, the dock waits as the sparkle while Robes dresses the look, not an open box over
+    // "Dressing it…" (Annie, 18 Nov); the draft's sparkle carries a dot once Robes asks.
+    setTyping(false);
+    setFolded(true);
     sentRef.current = words;
     setSent(words);
     setPrompt('');
@@ -1372,7 +1379,9 @@ function DraftBody({
   const verdict = adjust.state.verdict;
   const dockContext = mode === 'draft' ? 'draft' : 'saved';
   const [dockState, setDockState] = useState<DockState>(() =>
-    handBuilt && look.setId === null && brief === undefined ? 'spark' : dockStart(dockContext),
+    // Opened from her sent words, Robes is dressing it or about to ask: the sparkle, whose dot says
+    // when (Annie, 18 Nov). Built by hand, the sparkle too; otherwise the bar (K2).
+    brief !== undefined || (handBuilt && look.setId === null) ? 'spark' : dockStart(dockContext),
   );
   const move = (m: DockMove) => setDockState((from) => dockNext(from, m));
   const dockWas = useRef(dockState);
@@ -1385,6 +1394,20 @@ function DraftBody({
     });
     dockWas.current = dockState;
   }, [dockState, dockContext]);
+  // A draft that opens while Robes still draws its picture waits as the sparkle, not an open box
+  // over "Dressing it…"; its dot says when Robes asks how it feels (Annie, 18 Nov). Later redraws
+  // keep the dock where she left it.
+  const [openedDressing] = useState(() => mode === 'draft' && dressing);
+  const firstDress = openedDressing && dressing;
+  useEffect(() => {
+    if (firstDress) setDockState('spark');
+  }, [firstDress]);
+  // On a saved look, while the model is dressed again the dock waits as the sparkle and its dot
+  // says when Robes asks, as a draft does while it is first dressed (Annie, 18 Nov).
+  const savedDressing = mode !== 'draft' && adjust.dressing;
+  useEffect(() => {
+    if (savedDressing) setDockState('spark');
+  }, [savedDressing]);
   useEffect(() => {
     if (verdict === 'up') setDockState((from) => dockNext(from, 'minimise'));
     if (verdict === 'down') setDockState((from) => dockNext(dockNext(from, 'restore'), 'expand'));
@@ -1490,6 +1513,7 @@ function DraftBody({
       onRestore={() => move('restore')}
       onExpand={() => move('expand')}
       onCollapse={() => move('collapse')}
+      onMinimise={() => move('minimise')}
       bare={pre}
       box={
         <StylingCard
