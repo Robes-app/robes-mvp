@@ -134,7 +134,6 @@ export const lookbook = {
   savedLook: {
     tabs: { pieces: 'Pieces', details: 'Details' },
     back: 'Back',
-    adjust: 'Adjust model image',
     // The image stack badge: the count of her photographs, or + before the first.
     images: 'Images of this look',
     schedule: 'Schedule look',
@@ -280,15 +279,13 @@ export const lookbook = {
       up: 'Love it',
       down: 'Not quite',
       change: 'What should change?',
-      // Robes' question after one reason (docked prompt PRD Q2); after Not for the weather it
-      // names the day's range and sky ("Better for 9–13° and showers?").
+      // Robes' question after one reason (docked prompt PRD Q2).
       askAfter: {
         dressy: 'Does this feel more relaxed?',
         casual: 'Does this feel less casual?',
         colours: 'Do the colours sit better now?',
         fit: 'Does the shape work better?',
-        weather: (range: string, sky?: string): string =>
-          sky ? `Better for ${range} and ${sky}?` : `Better for ${range}?`,
+        weather: 'Better for the weather?',
       },
       // After a piece chosen from Which piece? (Q3): `the` as in notThe.
       withoutPiece: (the: string): string => `Better without ${the}?`,
@@ -444,11 +441,6 @@ export const lookbook = {
     context: (place: string, range: string): string => `${place} · ${range}`,
     // Delete, in edit mode (D9).
     delete: 'Delete this look',
-    adjustSheet: {
-      title: 'Adjust model image',
-      placeholder: 'e.g: sleeves rolled up…',
-      send: 'Send',
-    },
     // The piece picker (Felix WardrobePicker): the wardrobe grid as a subview; its search, pills
     // and Photograph one read home's flyout copy.
     picker: {

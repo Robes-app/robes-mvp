@@ -262,7 +262,7 @@ const editRoutes = (mine: Look) => ({
   [`POST /looks/${LOOK_ID}/render`]: { jobId: ASK_JOB, status: 'queued' },
 });
 
-test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjust disc stays on the look', async () => {
+test('3e edits in place: no Edit chip, the pencil reveals swap and ×, and no styling control on the photo', async () => {
   mockFetch(editRoutes(twoPieces()));
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   // At rest a row opens its piece (PRD §6.1, plan R2); the pencil shows the swap and ×.
@@ -311,9 +311,8 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, the adjus
   await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
   expect(screen.getByTestId('prompt-spark')).toBeTruthy();
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
-  // The adjust disc opens the AdjustSheet over the look — never the draft sheet.
-  await fireEvent.press(screen.getByTestId('draft-adjust'));
-  expect(await screen.findByTestId('adjust-sheet')).toBeTruthy();
+  // No styling control on the photo (docked prompt PRD M1): the prompt is the one way to ask.
+  expect(screen.queryByTestId('draft-adjust')).toBeNull();
   expect(mockRouter.push).not.toHaveBeenCalled();
 });
 
@@ -649,22 +648,6 @@ test('a note about the picture redraws the model with it and asks Closer?', asyn
   expect(render?.body).toEqual({ note: 'a different pose, walking' });
   expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
   expect(await screen.findByText(lookbook.draftLook.feedback.closer)).toBeTruthy();
-});
-
-// Adjust model image is for Robes' picture alone (PRD §6.4): a look whose record is her own
-// photograph carries no disc.
-test('the adjust disc is not on a photograph of hers', async () => {
-  const photo = piece().image;
-  mockFetch(
-    editRoutes(
-      twoPieces().photo === null
-        ? { ...twoPieces(), photo, image: photo, record: 'photo' as const }
-        : twoPieces(),
-    ),
-  );
-  await renderWithApi(<LookScreen id={LOOK_ID} />);
-  expect(await screen.findByTestId('saved-look-back')).toBeTruthy();
-  expect(screen.queryByTestId('draft-adjust')).toBeNull();
 });
 
 // The sources on a saved look are the prompt's own setting (redline 14 Nov, pin 25): flipping one

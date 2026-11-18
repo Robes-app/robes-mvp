@@ -75,7 +75,6 @@ import { Feedback, FeedbackTokens, ThreadLines, Thumbs } from './adjust-dock';
 import { CapturePieces, CaptureRow, NewPieceSheet, RemovedLine } from './capture-rack';
 import { DayContext, DayMeta } from './day-context';
 import { DiarySheet } from './diary-sheet';
-import { AdjustSheet } from './draft-sheets';
 import { CardPicture, ImageManager } from './image-manager';
 import { LookDetails } from './look-details';
 import { LookImage } from './look-image';
@@ -107,7 +106,6 @@ type Tab = (typeof TABS)[number];
 // page (Felix 3e: the back disc on the photo, Schedule look at the foot — Update look in its place
 // while a change waits, PRD §6.1; D17).
 export type DraftPresentation = 'drawer' | 'page' | 'saved';
-export type DraftSheet = 'adjust';
 
 const pronoun = (m: Model | undefined) =>
   m?.presence === 'man' ? 'him' : readsAsThey(m?.presence) ? 'them' : 'her';
@@ -291,10 +289,9 @@ function Rack({
 
 // The draft look (Felix DraftLook; plan 2026-11-06 D14, D17, D18): ONE component for every draft
 // — from Describe, built by hand, started from a piece — and for a saved look, which edits in
-// place on its own page (3e) and in the Edit look drawer from Home (3k). The header carries × and the ink done disc; under the photo (the adjust
-// disc, the image stack) sit the name, Pieces · Details, the piece list with its add slot, and the
-// prompt box whose send and the AdjustSheet's Send both feed the one thread (`useAdjust`)
-// and draw the picture once it lands; a look Robes made is restyled whole from the thread's
+// place on its own page (3e) and in the Edit look drawer from Home (3k). The header carries × and the ink done disc; under the photo (the image
+// stack) sit Pieces · Details, the piece list with its add slot, and the docked prompt, whose
+// sends feed the one thread (`useAdjust`) and draw the picture once it lands; a look Robes made is restyled whole from the thread's
 // Restyle it all. `id` is a look,
 // or 'new' before the first piece. The native twin is mobile/src/features/looks/DraftLook.tsx.
 // Her words, when Robes made the draft from them just now: what heads its thread, and what she
@@ -1049,7 +1046,6 @@ function DraftBody({
     onError: (err) => toast({ message: errorCopy(err) }),
   });
   const [tab, setTab] = useState<Tab>(TABS[0]);
-  const [sheet, setSheet] = useState<DraftSheet | null>(null);
   const [picker, setPicker] = useState<PickerMode | null>(null);
   const [subview, setSubview] = useState<'tags' | 'seasons' | 'worn' | null>(null);
   const [diary, setDiary] = useState(schedule);
@@ -1330,9 +1326,7 @@ function DraftBody({
   const { track } = useAnalytics().analytics;
   const verdict = adjust.state.verdict;
   const dockContext = mode === 'draft' ? 'draft' : 'saved';
-  const [dock, setDock] = useState<DockState>(() =>
-    handBuilt ? 'spark' : dockStart(dockContext),
-  );
+  const [dock, setDock] = useState<DockState>(() => (handBuilt ? 'spark' : dockStart(dockContext)));
   const move = (m: DockMove) => setDock((from) => dockNext(from, m));
   const dockWas = useRef(dock);
   useEffect(() => {
@@ -1479,18 +1473,6 @@ function DraftBody({
       }
       {...(footButton ? { footer: footButton } : {})}
       dock={shellDock}
-      over={
-        <AdjustSheet
-          open={sheet === 'adjust'}
-          sending={adjust.busy}
-          // Adjust model image (D21): the picture alone, never the pieces.
-          onSend={(text) => {
-            adjust.picture(text);
-            setSheet(null);
-          }}
-          onClose={() => setSheet(null)}
-        />
-      }
     >
       {managing ? (
         <ImageManager
@@ -1511,7 +1493,6 @@ function DraftBody({
           redressing={adjust.busy && !adjust.state.asking}
           chip={reading ? lookbook.figure.reading : null}
           pronoun={pronoun(model.data)}
-          onAdjust={() => setSheet('adjust')}
           onImages={() => setManaging(true)}
           onRetry={adjust.updateModel}
           stage={stack.stage}
@@ -1699,8 +1680,8 @@ function ReadingChip() {
 
 // The picture: Robes' frame or her model wearing the rack — the model's base layer before
 // anything is drawn — full-bleed at 4:5 on `cream-100`. Stale (dimmed, with the count it is
-// behind) until she asks; scanned while it is drawn; the adjust disc bottom-left opens the
-// AdjustSheet and the image stack bottom-right the ImageManager.
+// behind) until she asks; scanned while it is drawn; the image stack bottom-right opens the
+// ImageManager. It carries no styling control: changes go through the prompt (docked prompt M1).
 function DraftPhoto({
   look,
   model,
@@ -1709,7 +1690,6 @@ function DraftPhoto({
   redressing,
   chip,
   pronoun,
-  onAdjust,
   onImages,
   onRetry,
   stage,
@@ -1722,7 +1702,6 @@ function DraftPhoto({
   redressing: boolean;
   chip: string | null;
   pronoun: string;
-  onAdjust: () => void;
   onImages: () => void;
   onRetry: () => void;
   // What she has done in image mode and not yet applied: its front card shows here.
@@ -1759,8 +1738,6 @@ function DraftPhoto({
     drawing,
   );
   const failed = !drawing && look.onModel === 'failed' && !own;
-  // Adjust model image is for Robes' picture alone (PRD §6.4): never on a photograph of hers.
-  const robesFront = staged ? staged.kind === 'robes' : !own;
   const glass =
     "absolute z-10 flex items-center justify-center rounded-pill bg-veil-soft text-ink backdrop-blur-[8px] after:absolute after:-inset-2.5 after:content-['']";
   return (
@@ -1821,18 +1798,6 @@ function DraftPhoto({
           className={`absolute top-3 right-3 z-10 min-h-11 rounded-pill border border-hairline bg-bg/90 px-3 font-sans text-ink text-xs ${focus}`}
         >
           {lookbook.figure.undressed(pronoun)}
-        </button>
-      ) : null}
-      {robesFront ? (
-        <button
-          type="button"
-          onClick={onAdjust}
-          aria-label={lookbook.savedLook.adjust}
-          title={lookbook.savedLook.adjust}
-          data-testid="draft-adjust"
-          className={`${glass} ${focus} bottom-[25px] left-5 size-6`}
-        >
-          <Icon name="describe" size={13} />
         </button>
       ) : null}
       <ImageStack look={look} onOpen={onImages} />

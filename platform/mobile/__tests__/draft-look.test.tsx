@@ -286,35 +286,17 @@ test('a draft whose picture failed is not dressed again by itself', async () => 
   expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(false);
 });
 
-test('the adjust disc opens the AdjustSheet; her sentence redraws the picture alone (D21)', async () => {
-  const draft = draftOf();
-  const calls = mockFetch({
+// The photo carries no styling control (docked prompt PRD M1): a note about the picture goes
+// through the prompt (look-page.test: a note about the picture redraws the model).
+test('the draft photo carries no Adjust model image', async () => {
+  mockFetch({
     ...BASE,
     'GET /wardrobe/items': { items: [piece()], nextCursor: null },
-    [`GET /looks/${LOOK_ID}`]: draft,
-    [`POST /looks/${LOOK_ID}/render`]: {
-      jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-      status: 'queued',
-    },
+    [`GET /looks/${LOOK_ID}`]: draftOf(),
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
-  await fireEvent.press(await screen.findByTestId('draft-adjust'));
-  expect(await screen.findByTestId('adjust-sheet')).toBeTruthy();
-  await fireEvent.changeText(screen.getByTestId('adjust-sheet-field'), 'sleeves rolled up');
-  await fireEvent.press(
-    within(screen.getByTestId('adjust-sheet')).getByRole('button', { name: copy.adjustSheet.send }),
-  );
-  // Her note goes with the redraw; the look prompt (which could change the pieces) is never asked.
-  await waitFor(() =>
-    expect(calls.find((c) => c.path.endsWith('/render'))?.body).toEqual({
-      note: 'sleeves rolled up',
-    }),
-  );
-  expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
-  // The sheet closes behind the send; her words stand in the thread.
-  expect(screen.queryByTestId('adjust-sheet')).toBeNull();
-  await openPrompt();
-  expect(screen.getByText('sleeves rolled up')).toBeTruthy();
+  expect(await screen.findByTestId('the-rack')).toBeTruthy();
+  expect(screen.queryByTestId('draft-adjust')).toBeNull();
 });
 
 // Restyle it all is how a look Robes made is dressed again (look prompt PRD F12, F13; decision 12

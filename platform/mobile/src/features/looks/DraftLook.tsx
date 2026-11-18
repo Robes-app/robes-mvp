@@ -77,7 +77,6 @@ import { CapturePieces, CaptureRow, NewPieceSheet, RemovedLine } from './Capture
 import { useCaptureRack } from './capture-rack';
 import { DayContext, DayMeta } from './DayContext';
 import { DiarySheet } from './DiarySheet';
-import { AdjustSheet } from './DraftSheets';
 import { CardPicture, ImageManager } from './ImageManager';
 import { LookDetails } from './LookDetails';
 import { LookPicture } from './LookPicture';
@@ -119,7 +118,6 @@ type Tab = (typeof TABS)[number];
 // page (Felix 3e: the back disc on the photo, Schedule look at the foot — Update look in its place
 // while a change waits, PRD §6.1; D17).
 export type DraftPresentation = 'sheet' | 'page' | 'saved';
-export type DraftSheet = 'adjust';
 
 const pronoun = (m: Model | undefined) =>
   m?.presence === 'man' ? 'him' : readsAsThey(m?.presence) ? 'them' : 'her';
@@ -332,9 +330,8 @@ function Rack({
 // — from Describe, built by hand, started from a piece — presented as a form sheet over whatever
 // started it (app/looks/draft/[id].tsx), and for a saved look, which edits in place on its own
 // page (3e) and in the Edit look sheet from Home (3k). The header carries × and the ink done disc;
-// under the photo (the adjust disc, the image stack) sit Pieces · Details, the piece list with its
-// add slot, and the prompt card whose Generate and the AdjustSheet's Send both feed the one thread
-// (`useAdjust`) and draw the picture once it lands; a look Robes made is restyled whole from the
+// under the photo (the image stack) sit Pieces · Details, the piece list with its add slot, and
+// the docked prompt, whose sends feed the one thread (`useAdjust`) and draw the picture once it lands; a look Robes made is restyled whole from the
 // thread's Restyle it all. A
 // saved look's changes wait for Update look. `id` is a look, or 'new' before the first piece. Web
 // twin: app/src/components/looks/draft-look.tsx.
@@ -1054,7 +1051,6 @@ function DraftBody({
     () => adjust.changeCount(),
   );
   const [tab, setTab] = useState<Tab>(TABS[0]);
-  const [sheet, setSheet] = useState<DraftSheet | null>(null);
   const [picker, setPicker] = useState<PickerMode | null>(null);
   const [subview, setSubview] = useState<'tags' | 'seasons' | 'worn' | null>(null);
   const diaryAfterWorn = useRef(false);
@@ -1476,18 +1472,6 @@ function DraftBody({
       done={mode === 'edit' ? null : { label: copy.done, onPress: done, disabled: !canDone }}
       {...(footButton ? { footer: footButton } : {})}
       dock={dock}
-      over={
-        <AdjustSheet
-          open={sheet === 'adjust'}
-          sending={adjust.busy}
-          // Adjust model image (D21): the picture alone, never the pieces.
-          onSend={(text) => {
-            adjust.picture(text);
-            setSheet(null);
-          }}
-          onClose={() => setSheet(null)}
-        />
-      }
     >
       {managing ? (
         <ImageManager
@@ -1508,7 +1492,6 @@ function DraftBody({
           redressing={adjust.busy && !adjust.state.asking}
           chip={snap.reading ? lookbook.figure.reading : null}
           pronoun={pronoun(model.data)}
-          onAdjust={() => setSheet('adjust')}
           onImages={() => setManaging(true)}
           onRetry={adjust.updateModel}
           stage={stack.stage}
@@ -1705,8 +1688,9 @@ function ReadingChip() {
 
 // The picture: Robes' frame or her model wearing the rack — the model's base layer before
 // anything is drawn — full-bleed at 4:5 on `cream-100`. Stale (dimmed, with the count it is
-// behind) until she asks; scanned while it is drawn; the adjust disc bottom-left opens the
-// AdjustSheet and the image stack bottom-right the ImageManager. On the saved look's page (3e) it
+// behind) until she asks; scanned while it is drawn; the image stack bottom-right opens the
+// ImageManager. It carries no styling control: changes go through the prompt (docked prompt M1).
+// On the saved look's page (3e) it
 // starts under the status bar with the back disc top-left.
 function DraftPhoto({
   look,
@@ -1716,7 +1700,6 @@ function DraftPhoto({
   redressing,
   chip,
   pronoun,
-  onAdjust,
   onImages,
   onRetry,
   onBack,
@@ -1729,7 +1712,6 @@ function DraftPhoto({
   redressing: boolean;
   chip: string | null;
   pronoun: string;
-  onAdjust: () => void;
   onImages: () => void;
   // "Couldn't dress her · Try again": draws the picture once more.
   onRetry: () => void;
@@ -1766,8 +1748,6 @@ function DraftPhoto({
     drawing,
   );
   const failed = !drawing && look.onModel === 'failed' && !own;
-  // Adjust model image is for Robes' picture alone (PRD §6.4): never on a photograph of hers.
-  const robesFront = staged ? staged.kind === 'robes' : !own;
   return (
     <View className="overflow-hidden bg-surface-sunk" testID="draft-photo">
       <View
@@ -1838,20 +1818,6 @@ function DraftPhoto({
           <Text size="caption" accessibilityLiveRegion="polite">
             {lookbook.figure.undressed(pronoun)}
           </Text>
-        </Pressable>
-      ) : null}
-      {robesFront ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={lookbook.savedLook.adjust}
-          onPress={onAdjust}
-          hitSlop={10}
-          testID="draft-adjust"
-          className="absolute items-center justify-center rounded-pill"
-          style={{ left: 20, bottom: 25, width: 24, height: 24 }}
-        >
-          <Glass tone="veil-soft" className="absolute inset-0 rounded-pill" />
-          <Icon name="describe" size={13} color={ink} />
         </Pressable>
       ) : null}
       <ImageStack look={look} onOpen={onImages} />

@@ -36,17 +36,16 @@ const DRAW_TIMEOUT_MS = 120_000;
 const NO_DRAW_MS = 8_000;
 const fb = copy.draftLook.feedback;
 
-// Robes' question after a change, in words (docked prompt PRD Q1–Q4): `range` is the day's
-// range for Not for the weather ("9–13°"). Twin: the other client's useAdjust.
-function askAfter(f: FollowUp, range: string | null): string {
+// Robes' question after a change, in words (docked prompt PRD Q1–Q4). Twin: the other client's
+// useAdjust.
+function askAfter(f: FollowUp): string {
   switch (f.kind) {
     case 'occasion':
       return fb.questionFor(f.occasion);
     case 'feel':
       return fb.question;
     case 'reason':
-      if (f.reason !== 'weather') return fb.askAfter[f.reason];
-      return range ? fb.askAfter.weather(range) : fb.closer;
+      return fb.askAfter[f.reason];
     case 'piece':
       return fb.withoutPiece(f.piece);
     case 'restyle':
@@ -325,8 +324,6 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
         type: 'work',
         text: only ? fb.reasons[only].work : fromThumb ? fb.adjusting : d.reading,
       });
-      // The day's weather reads "9–13° in Dublin"; the question names its range.
-      const range = opts.context?.weather?.split(' in ')[0] ?? null;
       lastAsk.current = {
         question: askAfter(
           followUp({
@@ -334,7 +331,6 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
             piece: picked ? theName(nameNoBrand(picked.name, picked.brand)) : null,
             text,
           }),
-          range,
         ),
       };
       ask.send({
@@ -399,21 +395,6 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     },
     updateModel: () => {
       if (!busy) updateModel();
-    },
-    // The AdjustSheet (D21): her words restyle the picture alone, never the pieces. The picture
-    // is drawn again at once with them, and they stay with the look for every later redraw.
-    picture: (words: string) => {
-      const note = words.trim();
-      if (!note || busy) return;
-      dispatch({ type: 'her', text: note });
-      dispatch({ type: 'work', text: d.dressing });
-      sawPending.current = false;
-      setDrawing(true);
-      editor.redraw(note).catch((err) => {
-        setDrawing(false);
-        dispatch({ type: 'settle' });
-        toast({ message: errorCopy(err) });
-      });
     },
     // Save with the picture behind: it is drawn as the look is saved.
     drawForSave: () => {
