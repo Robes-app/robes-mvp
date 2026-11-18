@@ -38,6 +38,7 @@ export function DockSheet({
   bar,
   thread,
   barOnly = false,
+  onClosed,
   testID,
 }: {
   open: boolean;
@@ -52,6 +53,8 @@ export function DockSheet({
   thread: ReactNode;
   // Nothing to open into yet (no conversation): the bar is the only height.
   barOnly?: boolean;
+  // Once the sheet has fully gone: iOS presents nothing over a sheet still on screen.
+  onClosed?: () => void;
   testID?: string;
 }) {
   const fill = useColor('surface-raised');
@@ -69,6 +72,7 @@ export function DockSheet({
         onIsPresentedChange={(presented) => {
           if (!presented) onDismiss();
         }}
+        {...(onClosed ? { onDismiss: onClosed } : {})}
       >
         <Group
           modifiers={[

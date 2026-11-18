@@ -296,7 +296,7 @@ export function RobesAvatar({ working = false }: { working?: boolean }) {
 const DOCK_RADIUS = 22;
 const SPARK = 56;
 // SPIKE (phase 3): iOS's own sheet for the dock, in development builds on iOS only.
-const SPIKE_SHEET = Platform.OS === 'ios' && __DEV__ && process.env.NODE_ENV !== 'test';
+export const SPIKE_SHEET = Platform.OS === 'ios' && __DEV__ && process.env.NODE_ENV !== 'test';
 // The room the page keeps at its foot while the sheet's bar stands over it (K9).
 const SPIKE_BAR_ROOM = 150;
 
@@ -325,6 +325,7 @@ export function PromptDock({
   onExpand,
   onCollapse,
   onMinimise,
+  onSheetClosed,
   box,
   bare = false,
   children,
@@ -354,6 +355,8 @@ export function PromptDock({
   onCollapse: () => void;
   // Put away to the sparkle: the thread's close, and a swipe on iOS's own sheet.
   onMinimise?: () => void;
+  // Once iOS's own sheet has gone (SPIKE): what waited for it to leave runs here.
+  onSheetClosed?: () => void;
   // The bar's box: the sources, the day's chip, a line that opens the field.
   box: ReactNode;
   // Before her first send on a draft: the sheet holds only the box she tapped (16 Nov, B1).
@@ -494,6 +497,7 @@ export function PromptDock({
           onDetent={(d) => (d === 'bar' ? onCollapse() : onExpand())}
           onDismiss={onMinimise}
           barOnly={!conversation}
+          {...(onSheetClosed ? { onClosed: onSheetClosed } : {})}
           testID="prompt-dock"
           bar={
             <View>
