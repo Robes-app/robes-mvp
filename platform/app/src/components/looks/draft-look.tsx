@@ -1425,6 +1425,7 @@ function DraftBody({
       onRestore={() => move('restore')}
       onExpand={() => move('expand')}
       onCollapse={() => move('collapse')}
+      onMinimise={() => move('minimise')}
     >
       <StylingCard
         inline={hasThread}
