@@ -12,15 +12,25 @@ import {
   Text,
   useColor,
 } from '@robes/ui-native';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import {
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   type ScrollViewInstance,
   View,
 } from 'react-native';
+import { DockSheet } from '@/components/DockSheet';
 import { SheetField } from './DraftSheets';
 
 const copy = lookbook.draftLook;
@@ -285,6 +295,13 @@ export function RobesAvatar({ working = false }: { working?: boolean }) {
 
 const DOCK_RADIUS = 22;
 const SPARK = 56;
+// On iOS the bar and thread are iOS's own sheet (docked prompt PRD phase 3, N1–N6); Android keeps
+// the drawn dock, and so do the tests unless one asks for the sheet (ROBES_DRAWN_DOCK=0).
+export function nativeSheet(): boolean {
+  return Platform.OS === 'ios' && process.env.ROBES_DRAWN_DOCK !== '1';
+}
+// The room the page keeps at its foot while the sheet's bar stands over it (K9).
+const SHEET_BAR_ROOM = 150;
 
 // The docked prompt (docked prompt PRD K1–K9; designs 1d, 2c): one white card at the look's foot,
 // inset from its edges, in three states. `spark`: the round ink button alone, bottom right, with a
@@ -311,6 +328,8 @@ export function PromptDock({
   onExpand,
   onCollapse,
   onMinimise,
+  covered = false,
+  onSheetUp,
   box,
   bare = false,
   children,
@@ -338,8 +357,12 @@ export function PromptDock({
   onRestore: () => void;
   onExpand: () => void;
   onCollapse: () => void;
-  // Put away to the sparkle: the thread's close.
+  // Put away to the sparkle: the thread's close, and a swipe on iOS's own sheet.
   onMinimise?: () => void;
+  // The screen is presenting something of its own: iOS's sheet steps aside, keeping its state.
+  covered?: boolean;
+  // iOS's sheet is on screen (true), or has fully gone (false).
+  onSheetUp?: (up: boolean) => void;
   // The bar's box: the sources, the day's chip, a line that opens the field.
   box: ReactNode;
   // Before her first send on a draft: the sheet holds only the box she tapped (16 Nov, B1).
@@ -444,6 +467,7 @@ export function PromptDock({
   const head = (
     <View className="flex-row items-center gap-3 pb-1" style={{ marginRight: -6 }}>
       <Text
+        accessibilityRole="header"
         className="flex-1 uppercase text-ink-muted"
         style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 9 * 0.22 }}
       >
@@ -464,6 +488,99 @@ export function PromptDock({
       </Pressable>
     </View>
   );
+  // iOS's own sheet holds the bar and the thread (phase 3); the sparkle stays drawn on the look.
+  // The real field is in the sheet at every height (no second sheet to type in, Q4), and it never
+  // takes the keyboard by itself.
+  if (nativeSheet() && onMinimise) {
+    const field = isValidElement(children)
+      ? // In the sheet the field is never a card of its own (the sheet is the card).
+        cloneElement(children as ReactElement<{ autoFocus?: boolean; card?: boolean }>, {
+          autoFocus: false,
+          card: false,
+        })
+      : children;
+    return (
+      <>
+        {state === 'spark' ? resting : <View style={{ height: SHEET_BAR_ROOM }} />}
+        <DockSheet
+          open={state !== 'spark' && !covered}
+          detent={state === 'thread' ? 'thread' : 'bar'}
+          onDetent={(d) => (d === 'bar' ? onCollapse() : onExpand())}
+          onDismiss={onMinimise}
+          barOnly={!conversation}
+          {...(onSheetUp ? { onUp: onSheetUp } : {})}
+          testID="prompt-dock"
+          bar={
+            <View>
+              {!first && line ? (
+                <View
+                  className="flex-row items-center"
+                  style={{ paddingHorizontal: 16, paddingBottom: 6, gap: 10 }}
+                >
+                  <RobesAvatar working={working} />
+                  <Text
+                    // The whole of Robes' line, wrapping, never cut short (Annie, 18 Nov).
+                    accessibilityLiveRegion="polite"
+                    testID="prompt-pill-line"
+                    className="min-w-0 flex-1 text-ink-muted"
+                    style={{ fontFamily: fonts.sans, fontSize: 15 }}
+                  >
+                    {line}
+                  </Text>
+                  {working ? <ActivityIndicator size="small" color={muted} /> : null}
+                  {thumbs}
+                </View>
+              ) : null}
+              {answers ? (
+                <View className="gap-3" style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+                  {answers}
+                </View>
+              ) : null}
+              {/* No padding under the field: iOS's own inset sits below it. */}
+              <View style={{ paddingHorizontal: 10 }}>{field}</View>
+            </View>
+          }
+          thread={
+            <View className="flex-1" style={{ paddingHorizontal: 10 }}>
+              {/* The title and close with room around them: below the grabber, away from the
+                  sheet's corner, a fine rule under them (Annie, 18 Nov). */}
+              <View
+                className="border-rule-mid"
+                style={{
+                  paddingLeft: 12,
+                  paddingRight: 18,
+                  paddingTop: 6,
+                  paddingBottom: 12,
+                  marginBottom: 8,
+                  borderBottomWidth: FINE_EDGE,
+                }}
+              >
+                {head}
+              </View>
+              {conversation ? (
+                <ScrollView
+                  ref={scroll}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  className="flex-1"
+                  contentContainerClassName="gap-3 px-2.5 pt-1 pb-3"
+                  // The newest turn and its answer rows stay in view as they arrive (the reasons
+                  // hid under the field after a thumbs down: testing, 18 Nov).
+                  onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
+                  testID="prompt-conversation"
+                >
+                  {conversation}
+                </ScrollView>
+              ) : (
+                <View className="flex-1" />
+              )}
+              <View style={{ paddingBottom: 10 }}>{field}</View>
+            </View>
+          }
+        />
+      </>
+    );
+  }
   return (
     <>
       {resting ? (

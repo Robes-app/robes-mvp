@@ -54,7 +54,7 @@ import {
   useToast,
   useToastLift,
 } from '@robes/ui-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
@@ -104,7 +104,7 @@ import { RackRowCard } from './RackRow';
 import { ImageStack, useDressOnOpen } from './SavedLook';
 import { Scanning } from './ScanLine';
 import { SeasonsView } from './SeasonsView';
-import { PromptDock, StylingCard } from './StylingCard';
+import { nativeSheet, PromptDock, StylingCard } from './StylingCard';
 import { useRemoveLook } from './saved-looks';
 import { TagsView, useLookDetails } from './TagsView';
 import { WornView } from './WornView';
@@ -556,6 +556,42 @@ function Shell({
 // edge, measured in the window, since the screen holding it may not reach the window's foot (a
 // tab's stack screen stands above the tab bar's inset): a lift by the foot's own height fell short
 // and the Undo covered Update look (TestFlight, 18 Nov).
+// iOS presents nothing over the dock's own sheet still on screen (Annie, 18 Nov: ✕ did nothing
+// with the bar up). While the screen wants to present something of its own, or is not the one in
+// view, the sheet steps aside and keeps its state; what wanted to present (`gate`) waits until it
+// has gone. Leaving the screen (`putAwayThen`) puts the dock away to the sparkle first.
+function useDockYield(wants: boolean, putAway: () => void) {
+  const [sheetUp, setSheetUp] = useState(false);
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+  const after = useRef<(() => void) | null>(null);
+  const up = nativeSheet() && sheetUp;
+  return {
+    covered: wants || !focused,
+    gate: (open: boolean) => open && !up,
+    onSheetUp: (next: boolean) => {
+      setSheetUp(next);
+      if (next || !after.current) return;
+      const then = after.current;
+      after.current = null;
+      then();
+    },
+    putAwayThen: (then: () => void) => {
+      if (!up) {
+        then();
+        return;
+      }
+      after.current = then;
+      putAway();
+    },
+  };
+}
+
 function useToastLiftOverFoot(on: boolean) {
   const ref = useRef<HostInstance>(null);
   const [lift, setLift] = useState(0);
@@ -866,11 +902,19 @@ function NewDraft({
     onChange: setPrompt,
     busy,
   };
+  // iOS's own sheet steps aside for what this screen presents (useDockYield).
+  const dockYield = useDockYield(
+    emptyWardrobe || picker !== null || adding || full !== null,
+    () => {
+      setTyping(false);
+      setFolded(true);
+    },
+  );
   return (
     <Shell
       presentation={presentation}
       title={copy.title}
-      onClose={onClose}
+      onClose={() => dockYield.putAwayThen(onClose)}
       done={{ label: copy.done, onPress: () => undefined, disabled: true }}
       // The prompt box floats at the foot, in thumb reach from the start (look prompt PRD F23); a
       // tap on its line opens the sheet, where she types.
@@ -900,6 +944,12 @@ function NewDraft({
             onRestore={() => setFolded(false)}
             onExpand={() => setTyping(true)}
             onCollapse={() => setTyping(false)}
+            onMinimise={() => {
+              setTyping(false);
+              setFolded(true);
+            }}
+            covered={dockYield.covered}
+            onSheetUp={dockYield.onSheetUp}
             box={
               <StylingCard
                 {...(sent === null ? context : { inline: true })}
@@ -948,7 +998,7 @@ function NewDraft({
         />
       </View>
       <EmptyWardrobeAlert
-        open={emptyWardrobe}
+        open={dockYield.gate(emptyWardrobe)}
         onClose={() => setEmptyWardrobe(false)}
         onClosed={() => {
           if (backToPrompt.current) setTyping(true);
@@ -960,7 +1010,7 @@ function NewDraft({
         }}
       />
       <PiecePicker
-        mode={picker}
+        mode={dockYield.gate(picker !== null) ? picker : null}
         onRack={[]}
         onClose={() => setPicker(null)}
         onPick={start}
@@ -968,13 +1018,13 @@ function NewDraft({
         onAddPieces={() => setAdding(true)}
       />
       <AddPiecesSheet
-        open={adding}
+        open={dockYield.gate(adding)}
         onClose={() => setAdding(false)}
         onPhoto={() => void snap.snap()}
         draft
       />
       <AlertDialog
-        open={full !== null}
+        open={dockYield.gate(full !== null)}
         title={lookbook.drafts.fullTitle}
         {...(full ? { message: lookbook.drafts.fullBody(full.oldest) } : {})}
         actions={[
@@ -1384,6 +1434,16 @@ function DraftBody({
     brief !== undefined || (handBuilt && look.setId === null) ? 'spark' : dockStart(dockContext),
   );
   const move = (m: DockMove) => setDockState((from) => dockNext(from, m));
+  const dockYield = useDockYield(
+    emptyWardrobe ||
+      picker !== null ||
+      newPiece !== null ||
+      adding ||
+      subview !== null ||
+      diary ||
+      dialog !== null,
+    () => setDockState('spark'),
+  );
   const dockWas = useRef(dockState);
   useEffect(() => {
     if (dockWas.current === dockState) return;
@@ -1532,6 +1592,8 @@ function DraftBody({
       onExpand={() => move('expand')}
       onCollapse={() => move('collapse')}
       onMinimise={() => move('minimise')}
+      covered={dockYield.covered}
+      onSheetUp={dockYield.onSheetUp}
       bare={pre}
       box={
         <StylingCard
@@ -1575,10 +1637,14 @@ function DraftBody({
     <Shell
       presentation={presentation}
       title={mode === 'edit' ? copy.editTitle : copy.title}
-      onClose={close}
+      onClose={() => dockYield.putAwayThen(close)}
       // One confirm per screen (audit P1): Edit look's accept is Update look at the foot, so its
       // header carries no ✓; a draft keeps the header ✓ that saves it.
-      done={mode === 'edit' ? null : { label: copy.done, onPress: done, disabled: !canDone }}
+      done={
+        mode === 'edit'
+          ? null
+          : { label: copy.done, onPress: () => dockYield.putAwayThen(done), disabled: !canDone }
+      }
       {...(footButton ? { footer: footButton } : {})}
       dock={dock}
     >
@@ -1692,7 +1758,7 @@ function DraftBody({
         )}
       </View>
       <EmptyWardrobeAlert
-        open={emptyWardrobe}
+        open={dockYield.gate(emptyWardrobe)}
         onClose={() => setEmptyWardrobe(false)}
         onClosed={() => {
           if (backToPrompt.current) move('expand');
@@ -1704,7 +1770,7 @@ function DraftBody({
         }}
       />
       <PiecePicker
-        mode={picker}
+        mode={dockYield.gate(picker !== null) ? picker : null}
         onRack={onRackIds(rows)}
         onClose={() => setPicker(null)}
         onPick={(pieces, wishes) => {
@@ -1732,7 +1798,9 @@ function DraftBody({
         onAddPieces={() => setAdding(true)}
       />
       <NewPieceSheet
-        row={rows.find((r) => r.key === newPiece) ?? null}
+        row={
+          dockYield.gate(newPiece !== null) ? (rows.find((r) => r.key === newPiece) ?? null) : null
+        }
         look={look}
         capture={capture}
         onClose={() => setNewPiece(null)}
@@ -1741,7 +1809,7 @@ function DraftBody({
         }}
       />
       <AddPiecesSheet
-        open={adding}
+        open={dockYield.gate(adding)}
         onClose={() => setAdding(false)}
         onPhoto={() => {
           snapFor.current = { add: true };
@@ -1749,13 +1817,21 @@ function DraftBody({
         }}
         draft
       />
-      <TagsView look={look} open={subview === 'tags'} onBack={() => setSubview(null)} />
-      <SeasonsView look={look} open={subview === 'seasons'} onBack={() => setSubview(null)} />
+      <TagsView
+        look={look}
+        open={dockYield.gate(subview === 'tags')}
+        onBack={() => setSubview(null)}
+      />
+      <SeasonsView
+        look={look}
+        open={dockYield.gate(subview === 'seasons')}
+        onBack={() => setSubview(null)}
+      />
       {mode === 'edit' ? (
         <>
           <WornView
             look={look}
-            open={subview === 'worn'}
+            open={dockYield.gate(subview === 'worn')}
             onBack={() => setSubview(null)}
             // iOS presents nothing over a sheet still leaving: the diary rises once Worn has gone.
             onAddDate={() => {
@@ -1768,11 +1844,11 @@ function DraftBody({
               setDiary(true);
             }}
           />
-          <DiarySheet look={diary ? look : null} onClose={() => setDiary(false)} />
+          <DiarySheet look={dockYield.gate(diary) ? look : null} onClose={() => setDiary(false)} />
         </>
       ) : null}
       <AlertDialog
-        open={dialog !== null}
+        open={dockYield.gate(dialog !== null)}
         title={dialog?.title ?? ''}
         {...(dialog ? { message: dialog.message } : {})}
         actions={dialog?.actions ?? []}
