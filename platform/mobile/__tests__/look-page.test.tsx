@@ -8,7 +8,7 @@ import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { drawnOnAsk } from './support/drawn';
 import { LOOK_ID, look, modelData, PIECE_ID, piece } from './support/fixtures';
-import { openPrompt } from './support/prompt';
+import { openAnswer, openPrompt } from './support/prompt';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -496,15 +496,14 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   await fireEvent.changeText(await openPrompt(), 'collar up on the coat');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   // Robes' own question about the change it made (F3; kept over the fixed list, Annie 18 Nov).
+  await openAnswer();
   expect(await screen.findByText('How does the collar look?')).toBeTruthy();
   expect(asks()).toHaveLength(1);
   // The change is kept as it lands, with no button and no line saying so.
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(screen.queryByTestId('update-look')).toBeNull();
   expect(screen.queryByText('Collar up.')).toBeNull();
-  // The send keeps the sheet open (B6, 16 Nov): the question and its thumbs stand in the
-  // conversation, the look above it.
-  expect(screen.getByTestId('draft-prompt')).toBeTruthy();
+  // Opened from the sparkle, the bar holds the question and its thumbs, the look above it.
   expect(screen.queryByTestId('prompt-pill')).toBeNull();
   expect(screen.getByText('How does the collar look?')).toBeTruthy();
   expect(screen.getByTestId('thumb-up')).toBeTruthy();
@@ -543,8 +542,10 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
     text: '',
     reasons: ['dressy', 'colours'],
   });
-  // Her choice is one bubble (F17), in the sheet the send kept open (B6).
-  expect(screen.getByTestId('draft-prompt')).toBeTruthy();
+  // The send puts the dock away while Robes works (Annie, 18 Nov); opened again, her choice is one
+  // bubble in the thread (F17).
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  await fireEvent.press(await screen.findByTestId('prompt-expand'));
   expect(
     await screen.findByText(`${fb.reasons.dressy.label} · ${fb.reasons.colours.label}`),
   ).toBeTruthy();
@@ -592,6 +593,7 @@ test('a change that never landed is said plainly, never claimed', async () => {
   await fireEvent.press(await screen.findByTestId('prompt-spark'));
   await fireEvent.changeText(await openPrompt(), 'add a scarf');
   await fireEvent.press(screen.getByTestId('prompt-send'));
+  await openAnswer();
   expect(await screen.findByText(lookbook.prompt.didNotLand)).toBeTruthy();
   expect(screen.queryByText('Done. The scarf is on the look now.')).toBeNull();
   expect(screen.queryByTestId('thumb-up')).toBeNull();
@@ -647,17 +649,21 @@ test('Robes asks about the reason or the piece she sent', async () => {
   await fireEvent.press(await screen.findByTestId('prompt-spark'));
   await fireEvent.changeText(await openPrompt(), 'collar up on the coat');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  expect(await screen.findByText(fb.closer)).toBeTruthy();
-  // Closed with the question waiting, the sparkle carries its dot (K3).
-  await fireEvent.press(screen.getByTestId('prompt-minimise'));
-  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
-  expect(screen.getByTestId('prompt-spark-dot', { includeHiddenElements: true })).toBeTruthy();
+  // Robes works with the dock put away; the question waiting, the sparkle carries its dot (K3).
+  expect(
+    await screen.findByTestId(
+      'prompt-spark-dot',
+      { includeHiddenElements: true },
+      { timeout: 8000 },
+    ),
+  ).toBeTruthy();
   expect(
     screen.getByRole('button', {
       name: `${lookbook.draftLook.dock.open}. ${lookbook.draftLook.dock.waiting}`,
     }),
   ).toBeTruthy();
   await fireEvent.press(screen.getByTestId('prompt-spark'));
+  expect(await screen.findByText(fb.closer)).toBeTruthy();
   // One reason: its own question. Back on the bar after the thumbs down (closed, then the
   // sparkle), the reasons stand there too (Annie, 18 Nov: folding the thread hid them), and the
   // bar's send carries the one she taps.
@@ -670,6 +676,7 @@ test('Robes asks about the reason or the piece she sent', async () => {
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() => expect(asks()).toHaveLength(2));
   // The rack already reads this way, so no picture follows: Robes asks once its wait is up.
+  await openAnswer();
   expect(await screen.findByText(fb.askAfter.dressy, {}, { timeout: 8000 })).toBeTruthy();
   // A piece from Which piece?: "Better without the {piece}?".
   await fireEvent.press(screen.getByTestId('thumb-down'));
@@ -677,6 +684,7 @@ test('Robes asks about the reason or the piece she sent', async () => {
   await fireEvent.press(screen.getByTestId(`which-piece-${PIECE_ID}`));
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() => expect(asks()).toHaveLength(3));
+  await openAnswer();
   expect(
     await screen.findByText(fb.withoutPiece('the camel wool coat'), {}, { timeout: 8000 }),
   ).toBeTruthy();
@@ -725,6 +733,7 @@ test('a note about the picture redraws the model with it and asks Closer?', asyn
   const render = calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'));
   expect(render?.body).toEqual({ note: 'a different pose, walking' });
   expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+  await openAnswer();
   expect(await screen.findByText(lookbook.draftLook.feedback.closer)).toBeTruthy();
 });
 
