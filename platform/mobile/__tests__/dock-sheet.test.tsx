@@ -1,5 +1,5 @@
 import { lookbook, ui } from '@robes/copy';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { LookScreen } from '../src/features/looks/LookScreen';
 import { mockFetch, renderWithApi } from './support/api';
 import { LOOK_ID, look } from './support/fixtures';
@@ -62,4 +62,26 @@ test('the sheet steps aside for Tags and comes back at the bar once it closes', 
   await fireEvent.press(within(screen.getByTestId('tags-view')).getByLabelText(ui.back));
   expect(await screen.findByTestId('prompt-dock')).toBeTruthy();
   expect(screen.queryByTestId('prompt-spark')).toBeNull();
+});
+
+// Dragged up to full height, the thread's close still puts the prompt away to the sparkle
+// (Annie, 18 Nov: the close did nothing).
+test('the thread’s close puts the sheet away from any height', async () => {
+  mockFetch(routes());
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'collar up');
+  const drag = async (to: unknown) => {
+    const modifiers = screen.getByTestId('sheet-presentation').props.modifiers as {
+      $type: string;
+      options?: { onSelectionChange: (d: unknown) => void };
+    }[];
+    const detents = modifiers.find((m) => m.$type === 'presentationDetents');
+    await act(async () => detents?.options?.onSelectionChange(to));
+  };
+  await drag('large');
+  expect(await screen.findByTestId('prompt-minimise')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-minimise'));
+  await waitFor(() => expect(screen.queryByTestId('prompt-dock')).toBeNull());
+  expect(screen.getByTestId('prompt-spark')).toBeTruthy();
 });

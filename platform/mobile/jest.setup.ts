@@ -103,7 +103,11 @@ jest.mock('@expo/ui/swift-ui/modifiers', () => ({
   }),
   presentationCornerRadius: (radius: unknown) => ({ $type: 'presentationCornerRadius', radius }),
   presentationBackground: (style: unknown) => ({ $type: 'presentationBackground', style }),
-  presentationDetents: (detents: unknown) => ({ $type: 'presentationDetents', detents }),
+  presentationDetents: (detents: unknown, options?: unknown) => ({
+    $type: 'presentationDetents',
+    detents,
+    options,
+  }),
   presentationDragIndicator: (visibility: unknown) => ({
     $type: 'presentationDragIndicator',
     visibility,
