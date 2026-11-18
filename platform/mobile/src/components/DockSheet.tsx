@@ -26,6 +26,9 @@ const RADIUS = 22;
 const GRABBER = 18;
 // Toasts stand this far clear of the bar.
 const TOAST_GAP = 8;
+// Pulled this far past the bar, the sheet shows the thread while she is still dragging, and below
+// it the bar again: the content follows her finger instead of waiting for the drag to settle.
+const PULL = 48;
 
 function same(a: PresentationDetent, b: PresentationDetent): boolean {
   if (typeof a === 'string' || typeof b === 'string') return a === b;
@@ -68,6 +71,10 @@ export function DockSheet({
   // run into it (ignoring the safe area does not reach the hosted view: taking the inset off the
   // height cut the field off, 18 Nov). The bar is its content's height; the inset is iOS's.
   const BAR: PresentationDetent = { height: barHeight };
+  // The sheet's own height as iOS lays it out, which follows her drag.
+  const [shown, setShown] = useState(0);
+  const pulled = shown > barHeight + PULL;
+  const asThread = detent === 'bar' ? pulled : !(shown > 0 && shown <= barHeight + PULL / 2);
   const toDetent = (d: DockDetent): PresentationDetent =>
     d === 'bar' ? BAR : d === 'thread' ? THREAD : 'large';
   const fromDetent = (d: PresentationDetent): DockDetent =>
@@ -107,8 +114,12 @@ export function DockSheet({
         >
           <RNHostView>
             <ScrollView.Context.Provider value={null}>
-              <View className="flex-1 bg-surface-raised" testID={testID}>
-                {detent === 'bar' ? (
+              <View
+                className="flex-1 bg-surface-raised"
+                testID={testID}
+                onLayout={(e) => setShown(Math.round(e.nativeEvent.layout.height))}
+              >
+                {!asThread ? (
                   // Laid out at its own height, not the sheet's, so the measure can grow the sheet
                   // (measured inside the sheet it shrank to fit nothing: spike, 18 Nov).
                   <View
