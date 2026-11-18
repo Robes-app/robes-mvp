@@ -480,8 +480,8 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   await fireEvent.press(await screen.findByTestId('prompt-spark'));
   await fireEvent.changeText(await openPrompt(), 'collar up on the coat');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  // After typed words Robes asks "Closer?" (docked prompt Q4), not the model's own question.
-  expect(await screen.findByText(lookbook.draftLook.feedback.closer)).toBeTruthy();
+  // Robes' own question about the change it made (F3; kept over the fixed list, Annie 18 Nov).
+  expect(await screen.findByText('How does the collar look?')).toBeTruthy();
   expect(asks()).toHaveLength(1);
   // The change is kept as it lands, with no button and no line saying so.
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
@@ -491,7 +491,7 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   // conversation, the look above it.
   expect(screen.getByTestId('draft-prompt')).toBeTruthy();
   expect(screen.queryByTestId('prompt-pill')).toBeNull();
-  expect(screen.getByText(lookbook.draftLook.feedback.closer)).toBeTruthy();
+  expect(screen.getByText('How does the collar look?')).toBeTruthy();
   expect(screen.getByTestId('thumb-up')).toBeTruthy();
   // A thumbs down on the bar opens the sheet on what to change.
   await fireEvent.press(screen.getByTestId('thumb-down'));

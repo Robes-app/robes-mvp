@@ -145,9 +145,9 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   const field = page.getByTestId('draft-prompt');
   await field.fill('swap the trouser for the dark straight jean');
   await field.press('Enter');
-  // The change is seen on the rack, never told (redline 14 Nov): Robes only asks, "Closer?" after
-  // typed words (docked prompt Q4).
-  await expect(page.getByText('Closer?', { exact: true })).toBeVisible({ timeout: 30_000 });
+  // The change is seen on the rack, never told (redline 14 Nov): Robes only asks, its own question
+  // about the change it made (kept over the fixed list, Annie 18 Nov).
+  await expect(page.getByText(/^How does (it|the change) look/)).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('Done.', { exact: false })).toHaveCount(0);
   // The Swapped pill, its full line the label (docked prompt T3).
   await expect(

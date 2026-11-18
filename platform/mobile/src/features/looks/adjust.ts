@@ -118,10 +118,11 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       drawAfter.current = false;
       if (changed) draw.current();
     }
-    // Robes asks once per returned look, about what she asked (docked prompt PRD Q2–Q4): held
-    // until the picture wears the change (16 Nov: "How does the pink coat feel?" stood over the
-    // old picture while it was still being dressed).
-    if (changed) setHeldQuestion(lastAsk.current.question);
+    // Robes asks once per returned look: its own question about the change it made when it
+    // wrote one ("Does the chartreuse coat feel more exciting?", Annie 18 Nov), else the one
+    // about what she asked (docked prompt PRD Q2–Q4). Held until the picture wears the change
+    // (16 Nov: "How does the pink coat feel?" stood over the old picture while it was dressed).
+    if (changed) setHeldQuestion(result.followUp || lastAsk.current.question);
   });
   const wasReading = useRef(ask.reading);
   useEffect(() => {
