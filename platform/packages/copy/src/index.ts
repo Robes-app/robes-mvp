@@ -44,7 +44,6 @@ export const auth = {
   // Sign in and sign up (design "Sign in and sign up", 18 Nov): two screens, one email code.
   signUpTitle: 'Create your account.',
   firstNameLabel: 'First name (optional)',
-  firstNamePlaceholder: 'Isabel',
   toSignUp: { lead: 'New to Robes?', link: 'Create an account' },
   toSignIn: { lead: 'Already have an account?', link: 'Sign in' },
   // The code screen's two ways out, as sentences with a link each.
