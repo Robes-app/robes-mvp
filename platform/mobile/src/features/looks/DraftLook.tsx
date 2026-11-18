@@ -104,7 +104,7 @@ import { RackRowCard } from './RackRow';
 import { ImageStack, useDressOnOpen } from './SavedLook';
 import { Scanning } from './ScanLine';
 import { SeasonsView } from './SeasonsView';
-import { PromptDock, StylingCard } from './StylingCard';
+import { PromptDock, SPIKE_SHEET, StylingCard } from './StylingCard';
 import { useRemoveLook } from './saved-looks';
 import { TagsView, useLookDetails } from './TagsView';
 import { WornView } from './WornView';
@@ -1227,6 +1227,17 @@ function DraftBody({
       if (ok) setManaging(false);
     });
   };
+  // SPIKE (phase 3): iOS presents nothing over the dock's own sheet, so ✕ puts the dock away first
+  // and asks once it has gone (Annie, 18 Nov: ✕ did nothing with the bar up).
+  const afterSheet = useRef<(() => void) | null>(null);
+  const closeOrPutAway = () => {
+    if (SPIKE_SHEET && dockState !== 'spark') {
+      afterSheet.current = close;
+      setDockState('spark');
+      return;
+    }
+    close();
+  };
   const close = () => {
     // A strip left open without its ✓ still asks, so a photo she added is never lost unasked.
     if (mode === 'edit' && !pending && !stack.changed) {
@@ -1514,6 +1525,11 @@ function DraftBody({
       onExpand={() => move('expand')}
       onCollapse={() => move('collapse')}
       onMinimise={() => move('minimise')}
+      onSheetClosed={() => {
+        const then = afterSheet.current;
+        afterSheet.current = null;
+        then?.();
+      }}
       bare={pre}
       box={
         <StylingCard
@@ -1557,7 +1573,7 @@ function DraftBody({
     <Shell
       presentation={presentation}
       title={mode === 'edit' ? copy.editTitle : copy.title}
-      onClose={close}
+      onClose={closeOrPutAway}
       // One confirm per screen (audit P1): Edit look's accept is Update look at the foot, so its
       // header carries no ✓; a draft keeps the header ✓ that saves it.
       done={mode === 'edit' ? null : { label: copy.done, onPress: done, disabled: !canDone }}
