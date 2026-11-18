@@ -8,6 +8,7 @@ export * from './capture';
 export * from './draft';
 export * from './dress';
 export * from './images';
+export * from './rack-layout';
 
 export const LOOK_STATUSES = ['suggested', 'draft', 'saved'] as const;
 export type LookStatus = (typeof LOOK_STATUSES)[number];
