@@ -1462,12 +1462,30 @@ function DraftBody({
   useEffect(() => {
     if (firstDress) setDockState('spark');
   }, [firstDress]);
-  // On a saved look, while the model is dressed again the dock waits as the sparkle and its dot
-  // says when Robes asks, as a draft does while it is first dressed (Annie, 18 Nov).
-  const savedDressing = mode !== 'draft' && adjust.dressing;
+  // On a saved look her send puts the dock away to the sparkle while Robes works, as a draft does
+  // while it is first dressed; the sparkle's dot says when Robes has answered, a question or its
+  // words (Annie, 18 Nov).
+  const savedWorking = mode !== 'draft' && adjust.busy;
   useEffect(() => {
-    if (savedDressing) setDockState('spark');
-  }, [savedDressing]);
+    if (savedWorking) setDockState('spark');
+  }, [savedWorking]);
+  const [unread, setUnread] = useState(false);
+  const dockNow = useRef(dockState);
+  dockNow.current = dockState;
+  const turnCount = adjust.state.thread.length;
+  const lastWho = adjust.state.thread.at(-1)?.who;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each new turn is checked
+  useEffect(() => {
+    if (
+      mode !== 'draft' &&
+      dockNow.current === 'spark' &&
+      (lastWho === 'robes' || lastWho === 'filed')
+    )
+      setUnread(true);
+  }, [turnCount, lastWho, mode]);
+  useEffect(() => {
+    if (dockState !== 'spark') setUnread(false);
+  }, [dockState]);
   useEffect(() => {
     if (verdict === 'up') setDockState((from) => dockNext(from, 'minimise'));
     if (verdict === 'down') setDockState((from) => dockNext(dockNext(from, 'restore'), 'expand'));
@@ -1549,7 +1567,7 @@ function DraftBody({
           />
         )
       }
-      dot={dockDot(dockState, adjust.state)}
+      dot={dockDot(dockState, adjust.state) || (dockState === 'spark' && unread)}
       beside={besideButton}
       turns={adjust.state.thread.length + (adjust.state.question ? 1 : 0)}
       maxHeight={Math.round(screen.height * 0.4)}

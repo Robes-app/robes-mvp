@@ -20,3 +20,10 @@ export async function openPrompt() {
   }
   return screen.getByTestId('draft-prompt');
 }
+
+// On a saved look her send puts the dock away to the sparkle while Robes works (Annie, 18 Nov):
+// waits for the sparkle's dot, Robes' answer, and opens the bar on it.
+export async function openAnswer() {
+  await screen.findByTestId('prompt-spark-dot', { includeHiddenElements: true }, { timeout: 8000 });
+  await fireEvent.press(screen.getByTestId('prompt-spark'));
+}
