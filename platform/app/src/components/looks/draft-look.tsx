@@ -1321,14 +1321,18 @@ function DraftBody({
     ),
   );
   // The docked prompt (docked prompt PRD K1–K9): the sparkle, the bar or the open thread. A draft
-  // opens at the bar, a saved look at the sparkle (K2). A thumbs up, or an empty send, folds it to
+  // waiting for her words opens at the bar (K2); one she is building by hand rests as the sparkle,
+  // so the bar never covers the rack she is working on (Annie, 18 Nov); a saved look rests as the
+  // sparkle. A thumbs up, or an empty send, folds it to
   // the sparkle (K6); a thumbs down opens the thread on what to change; the grabber and the close
   // move between the bar and the thread, and a tap on the dimmed look folds the thread (K8).
   // Native twin: DraftLook.tsx.
   const { track } = useAnalytics().analytics;
   const verdict = adjust.state.verdict;
   const dockContext = mode === 'draft' ? 'draft' : 'saved';
-  const [dock, setDock] = useState<DockState>(() => dockStart(dockContext));
+  const [dock, setDock] = useState<DockState>(() =>
+    handBuilt ? 'spark' : dockStart(dockContext),
+  );
   const move = (m: DockMove) => setDock((from) => dockNext(from, m));
   const dockWas = useRef(dock);
   useEffect(() => {
