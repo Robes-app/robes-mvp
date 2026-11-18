@@ -1490,6 +1490,7 @@ function DraftBody({
       onRestore={() => move('restore')}
       onExpand={() => move('expand')}
       onCollapse={() => move('collapse')}
+      onMinimise={() => move('minimise')}
       bare={pre}
       box={
         <StylingCard
