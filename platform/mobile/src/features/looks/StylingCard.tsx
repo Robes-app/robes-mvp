@@ -303,6 +303,7 @@ export function PromptDock({
   thumbs,
   answers,
   dot,
+  beside = false,
   conversation,
   turns = 0,
   maxHeight,
@@ -325,6 +326,9 @@ export function PromptDock({
   answers?: ReactNode;
   // Robes' question waits unanswered (K3).
   dot: boolean;
+  // The sparkle stands beside the saved look's ink button (design 2c): outlined on white, so the
+  // button stays the screen's one ink fill, with no padding of its own.
+  beside?: boolean;
   conversation?: ReactNode;
   // How many turns the conversation holds: a new one scrolls it to its end.
   turns?: number;
@@ -345,6 +349,7 @@ export function PromptDock({
 }) {
   const muted = useColor('ink-muted');
   const onInk = useColor('bg');
+  const ink = useColor('ink');
   const rule = useColor('rule-mid');
   const scroll = useRef<ScrollViewInstance>(null);
   const open = state === 'thread';
@@ -356,16 +361,22 @@ export function PromptDock({
   }, [turns, open]);
   const resting =
     state === 'spark' ? (
-      <View className="items-end" style={{ paddingHorizontal: 12, paddingBottom: 14 }}>
+      <View
+        className="items-end"
+        style={beside ? undefined : { paddingHorizontal: 12, paddingBottom: 14 }}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={dot ? `${copy.dock.open}. ${copy.dock.waiting}` : copy.dock.open}
           onPress={onRestore}
           testID="prompt-spark"
-          className="items-center justify-center rounded-pill bg-ink"
-          style={[shadowNative.float, { width: SPARK, height: SPARK }]}
+          className={`items-center justify-center rounded-pill ${beside ? 'border-warm-line bg-surface-raised' : 'bg-ink'}`}
+          style={[
+            shadowNative.float,
+            { width: SPARK, height: SPARK, ...(beside ? { borderWidth: 1 } : {}) },
+          ]}
         >
-          <Icon name="looks" size={20} color={onInk} />
+          <Icon name="looks" size={20} color={beside ? ink : onInk} />
           {dot ? (
             <View
               aria-hidden

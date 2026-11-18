@@ -294,6 +294,10 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, and no st
   expect(screen.queryByTestId('draft-close')).toBeNull();
   expect(screen.getByTestId('saved-look-back')).toBeTruthy();
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
+  // The sparkle stands beside Schedule look in the foot's one row (design 2c, Annie 18 Nov).
+  const foot = within(screen.getByTestId('look-bar'));
+  expect(foot.getByTestId('schedule-look')).toBeTruthy();
+  expect(foot.getByTestId('prompt-spark')).toBeTruthy();
   // A saved look rests as the sparkle (docked prompt K2). Tapped, it is the bar, its field line
   // reading "add matching shoes…", and the look's button steps away (pins 23, 25).
   expect(screen.queryByTestId('draft-prompt')).toBeNull();

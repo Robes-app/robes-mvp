@@ -393,6 +393,9 @@ interface ShellDock {
   // A new look opens scrolled to its foot, so the Rack's card stands clear above the prompt box
   // and never under it.
   startAtEnd?: boolean;
+  // The sparkle stands beside the saved look's one button, in its row (design 2c), rather than
+  // floating above it.
+  beside?: boolean;
 }
 
 // The open prompt inside a frame that already rides the keyboard (the drawer's body): a scrim
@@ -560,7 +563,9 @@ function SavedShell({
       {h1 ? <h1 className="sr-only">{h1}</h1> : null}
       {children}
       {footer && !sheet ? (
-        <LookBar float={dock?.node}>{footer}</LookBar>
+        <LookBar {...(dock?.beside ? { beside: dock.node } : { float: dock?.node })}>
+          {footer}
+        </LookBar>
       ) : dock && !sheet ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md pb-[env(safe-area-inset-bottom)] *:pointer-events-auto">
           {dock.node}
@@ -578,9 +583,18 @@ function SavedShell({
   );
 }
 
-// The saved look's bar at the foot; toasts rise above it, so an Undo never covers Update look.
-// `float` is the closed prompt, riding just above the bar with nothing behind it.
-function LookBar({ children, float }: { children: ReactNode; float?: ReactNode }) {
+// The saved look's foot, sticky on its band at the screen's foot: its one button, and the sparkle
+// beside it (`beside`, design 2c); toasts rise above it, so an Undo never covers either.
+// `float` is the prompt's bar, riding just above it with nothing behind it.
+function LookBar({
+  children,
+  float,
+  beside,
+}: {
+  children: ReactNode;
+  float?: ReactNode;
+  beside?: ReactNode;
+}) {
   const bar = useRef<HTMLDivElement>(null);
   useToastLiftOver(bar);
   return (
@@ -594,8 +608,11 @@ function LookBar({ children, float }: { children: ReactNode; float?: ReactNode }
           {float}
         </div>
       ) : null}
-      {/* Its one button spans the bar, label centred (Robes MVP; Annie, 16 Nov). */}
-      <div className="mx-auto flex w-full max-w-md flex-col px-5 pt-3 *:w-full">{children}</div>
+      {/* Its one button takes the row, label centred, the sparkle beside it (Annie, 18 Nov). */}
+      <div className="mx-auto flex w-full max-w-md items-center gap-3 px-5 pt-3">
+        <div className="flex min-w-0 flex-1 flex-col *:w-full">{children}</div>
+        {beside}
+      </div>
     </div>
   );
 }
@@ -1400,6 +1417,9 @@ function DraftBody({
     name: nameNoBrand(r.name, r.brand),
     image: imageOf(r) ?? null,
   }));
+  // On the saved look's page the resting sparkle stands beside its one button (design 2c), while
+  // that button stands (not while a prompt change is being kept).
+  const besideButton = presentation === 'saved' && dock === 'spark' && applying === null;
   const dockNode = captureDraft ? null : (
     <PromptDock
       state={dock}
@@ -1424,6 +1444,7 @@ function DraftBody({
         )
       }
       dot={dockDot(dock, adjust.state) || (dock === 'spark' && unread)}
+      beside={besideButton}
       conversation={
         hasThread ? (
           <>
@@ -1485,7 +1506,11 @@ function DraftBody({
   // Opened, the prompt is a sheet over the dimmed look in every presentation, and a saved look's
   // button steps away: changes are made through the prompt alone (pins 23, 25).
   const shellDock = dockNode
-    ? { node: dockNode, ...(dock === 'thread' ? { onScrim: () => move('collapse') } : {}) }
+    ? {
+        node: dockNode,
+        ...(dock === 'thread' ? { onScrim: () => move('collapse') } : {}),
+        ...(besideButton ? { beside: true } : {}),
+      }
     : null;
   const footButton =
     // While the prompt is open or keeping its change there is no button at all (pin 25).

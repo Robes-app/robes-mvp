@@ -57,6 +57,7 @@ import {
 import { useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Dimensions,
   type HostInstance,
   Pressable,
   ScrollView,
@@ -444,6 +445,9 @@ interface ShellDock {
   // A new look opens scrolled to its foot, so the Rack's card stands clear above the prompt box
   // and never under it (testing, 15 Nov).
   startAtEnd?: boolean;
+  // The sparkle stands beside the saved look's one button, in its row (design 2c), rather than
+  // floating above it.
+  beside?: boolean;
 }
 
 function Shell({
@@ -473,6 +477,8 @@ function Shell({
   const [dockHeight, setDockHeight] = useState(0);
   const body = useRef<ScrollViewInstance>(null);
   const atEnd = useRef(false);
+  // The drawer's footer (Update look on the Edit look drawer) lifts toasts above it too.
+  const sheetFoot = useToastLiftOverFoot(Boolean(footer) && presentation !== 'saved');
   if (presentation === 'saved') {
     return (
       <SavedShell over={over} footer={footer} dock={dock ?? null}>
@@ -531,6 +537,8 @@ function Shell({
       </View>
       {footer ? (
         <View
+          ref={sheetFoot.ref}
+          onLayout={sheetFoot.measure}
           className="border-hairline bg-bg px-5 pt-3"
           style={{
             borderTopWidth: FINE_EDGE,
@@ -542,6 +550,23 @@ function Shell({
       ) : null}
     </View>
   );
+}
+
+// Lifts toasts above a foot held at the screen's foot by its distance from the window's bottom
+// edge, measured in the window, since the screen holding it may not reach the window's foot (a
+// tab's stack screen stands above the tab bar's inset): a lift by the foot's own height fell short
+// and the Undo covered Update look (TestFlight, 18 Nov).
+function useToastLiftOverFoot(on: boolean) {
+  const ref = useRef<HostInstance>(null);
+  const [lift, setLift] = useState(0);
+  useToastLift(on ? lift : 0);
+  const measure = () => {
+    ref.current?.measureInWindow((_x, y) => {
+      const fromFoot = Math.round(Dimensions.get('window').height - y);
+      if (fromFoot > 0) setLift(fromFoot);
+    });
+  };
+  return { ref, measure };
 }
 
 // A saved look's own page (3e): no header, the photo starts under the status bar with the back
@@ -562,16 +587,18 @@ function SavedShell({
 }) {
   useBareScreen();
   const insets = useSafeAreaInsets();
-  // The toast rises above the bar while it stands, so an Undo never covers Update look.
+  // The toast rises above the bar while it stands, so an Undo never covers its button or the
+  // sparkle beside it.
   const [bar, setBar] = useState(0);
   const barUp = Boolean(footer);
-  useToastLift(barUp ? bar : 0);
+  const foot = useToastLiftOverFoot(barUp);
   const root = useRef<HostInstance>(null);
   const keyboard = useKeyboardOverlap(root);
   // The prompt never covers the look (15 Nov; audit P1): the body ends clear of the bar and the
   // sparkle above it, as measured, so the last Rack row's wears and › and Details' rows show.
   const [dockH, setDockH] = useState(0);
-  const clear = (barUp ? bar : insets.bottom) + (dock ? dockH : 0) + 24;
+  const floating = dock && !(barUp && dock.beside);
+  const clear = (barUp ? bar : insets.bottom) + (floating ? dockH : 0) + 24;
   return (
     <View ref={root} className="flex-1 bg-bg">
       <ScrollView
@@ -586,17 +613,28 @@ function SavedShell({
       {barUp ? (
         <View
           className="absolute inset-x-0 bottom-0 flex-row items-center border-hairline bg-bg px-5 pt-3"
-          style={{ borderTopWidth: FINE_EDGE, paddingBottom: keyboard ? 12 : 22, bottom: keyboard }}
-          onLayout={(e) => setBar(e.nativeEvent.layout.height)}
+          style={{
+            gap: 12,
+            borderTopWidth: FINE_EDGE,
+            paddingBottom: keyboard ? 12 : 22,
+            bottom: keyboard,
+          }}
+          ref={foot.ref}
+          onLayout={(e) => {
+            setBar(e.nativeEvent.layout.height);
+            foot.measure();
+          }}
           testID="look-bar"
         >
-          {/* Its one button spans the bar, label centred (Robes MVP; Annie, 16 Nov). */}
+          {/* Sticky on its band: the one button takes the row, label centred, the sparkle beside
+              it (design 2c; Annie, 18 Nov). */}
           <View className="flex-1">
             <PrimaryScope>{footer}</PrimaryScope>
           </View>
+          {dock?.beside ? dock.node : null}
         </View>
       ) : null}
-      {dock ? (
+      {floating ? (
         <View
           pointerEvents="box-none"
           className="absolute inset-x-0"
@@ -1437,6 +1475,9 @@ function DraftBody({
     busy,
   };
   const send = mode === 'edit' ? ask : generate;
+  // On the saved look's page the resting sparkle stands beside its one button (design 2c), while
+  // that button stands (not while a prompt change is being kept).
+  const besideButton = presentation === 'saved' && dockState === 'spark' && applying === null;
   // The look's pieces for Which piece? (Q6), in the thread and on the bar alike.
   const whichPieces = rows.map((r) => ({
     key: r.key,
@@ -1467,6 +1508,7 @@ function DraftBody({
         )
       }
       dot={dockDot(dockState, adjust.state) || (dockState === 'spark' && unread)}
+      beside={besideButton}
       turns={adjust.state.thread.length + (adjust.state.question ? 1 : 0)}
       maxHeight={Math.round(screen.height * 0.4)}
       conversation={
@@ -1513,7 +1555,7 @@ function DraftBody({
       />
     </PromptDock>
   );
-  const dock = dockNode ? { node: dockNode } : null;
+  const dock = dockNode ? { node: dockNode, ...(besideButton ? { beside: true } : {}) } : null;
   // While the prompt is open or keeping its change there is no button at all (pin 25).
   const noButton = mode === 'edit' && (dockState !== 'spark' || applying !== null);
   const footButton =
