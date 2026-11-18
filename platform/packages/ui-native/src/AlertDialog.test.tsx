@@ -35,3 +35,24 @@ test('shows nothing while closed', async () => {
   );
   expect(screen.queryByText('Discard this draft?')).toBeNull();
 });
+
+test('says once it has gone, so a sheet it stepped in for can come back', async () => {
+  jest.useFakeTimers();
+  const closed = jest.fn();
+  const props = {
+    title: 'Your wardrobe is empty',
+    actions: [{ label: 'Not now', variant: 'outline' as const, onPress: () => undefined }],
+    onDismiss: () => undefined,
+    onClosed: closed,
+  };
+  const view = await render(<AlertDialog open {...props} />);
+  expect(closed).not.toHaveBeenCalled();
+  await view.rerender(<AlertDialog open={false} {...props} />);
+  // iOS waits for the native dismissal, with a short fallback; it fires once.
+  jest.advanceTimersByTime(600);
+  expect(closed).toHaveBeenCalledTimes(1);
+  await view.rerender(<AlertDialog open={false} {...props} />);
+  jest.advanceTimersByTime(600);
+  expect(closed).toHaveBeenCalledTimes(1);
+  jest.useRealTimers();
+});

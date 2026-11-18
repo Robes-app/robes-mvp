@@ -96,7 +96,12 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
 
 // `from` picks beta's toast: a suggestion saved as it stands, or a look she worked on, by name.
 // The web twin is app/src/lib/look-states.ts.
-export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 'draft' = 'draft') {
+// `changes`: how many changes she sent through the prompt before saving, for the event.
+export function useSaveLook(
+  onSaved?: (look: Look) => void,
+  from: 'suggested' | 'draft' = 'draft',
+  changes: () => number = () => 0,
+) {
   const toast = useToast();
   const refresh = useInvalidateLooks();
   return useApiMutation('looks.save', {
@@ -106,6 +111,7 @@ export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 
         pieces: look.pieces.length,
         proposed: look.proposals.length,
         anchored: look.anchor !== null,
+        changes: changes(),
       });
       haptic.success();
       refresh(look);

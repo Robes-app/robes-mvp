@@ -1,5 +1,5 @@
 import { lookbook } from '@robes/copy';
-import { ASK_MAX_CHARS, type Source, type Sources } from '@robes/core/looks';
+import { ASK_MAX_CHARS, type DockState, type Source, type Sources } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import { shadowNative } from '@robes/tokens';
 import {
@@ -13,7 +13,14 @@ import {
   useColor,
 } from '@robes/ui-native';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Keyboard, Pressable, ScrollView, type ScrollViewInstance, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  type ScrollViewInstance,
+  View,
+} from 'react-native';
 import { SheetField } from './DraftSheets';
 
 const copy = lookbook.draftLook;
@@ -70,6 +77,9 @@ export function StylingCard({
   onChange,
   onSend,
   emptySend,
+  onEmpty,
+  card = false,
+  boxed = false,
   busy,
 }: {
   // The day's place and weather, until her first send carries them into the conversation.
@@ -92,10 +102,17 @@ export function StylingCard({
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
-  // What a send does on an empty field. `blur`: a draft's send stays ready, sends nothing and the
-  // keyboard goes (D5). `send`: she tapped what to change, which stands for her words (F10).
-  // Unset: a saved look's send waits for her words (L3).
-  emptySend?: 'blur' | 'send';
+  // What a send does on an empty field. `blur`: the send stays ready, sends nothing and the
+  // keyboard goes (D5). `minimise`: the same, and the dock folds to the sparkle (docked prompt K6),
+  // by `onEmpty`. `send`: she tapped what to change, which stands for her words (F10). Unset: the
+  // send waits for her words (L3).
+  emptySend?: 'blur' | 'minimise' | 'send';
+  onEmpty?: () => void;
+  // Drawn as its own white card: the bare sheet before her first send, where no dock card holds it.
+  card?: boolean;
+  // Inline, in its own white box on the fine rule: the thread's cream sheet, where the row would
+  // otherwise float (Annie, 18 Nov). On the bar the dock's white card is the box.
+  boxed?: boolean;
   busy: boolean;
 }) {
   const turning = useTurningPlaceholder(placeholders ?? [], value.length === 0 && !placeholder);
@@ -106,8 +123,9 @@ export function StylingCard({
   const ready = !busy && !tooLong && (words.length > 0 || emptySend !== undefined);
   const send = () => {
     if (!ready) return;
-    if (!words && emptySend === 'blur') {
+    if (!words && (emptySend === 'blur' || emptySend === 'minimise')) {
       Keyboard.dismiss();
+      if (emptySend === 'minimise') onEmpty?.();
       return;
     }
     onSend();
@@ -121,6 +139,7 @@ export function StylingCard({
         labelOn={copy.sources.wardrobe.on}
         labelOff={wardrobeEmpty ? copy.sources.wardrobe.empty : copy.sources.wardrobe.off}
         faded={wardrobeEmpty}
+        {...(inline ? {} : { label: copy.sources.wardrobe.tip })}
         testID="source-wardrobe"
       />
       <IconToggle
@@ -129,6 +148,7 @@ export function StylingCard({
         onChange={() => onSource('shop')}
         labelOn={copy.sources.shop.on}
         labelOff={copy.sources.shop.off}
+        {...(inline ? {} : { label: copy.sources.shop.tip })}
         testID="source-shop"
       />
     </View>
@@ -204,8 +224,12 @@ export function StylingCard({
       <View
         accessibilityLabel={copy.thread}
         testID="styling-card"
-        className="rounded-lg border-rule-mid bg-surface-raised"
-        style={{ borderWidth: 1, paddingVertical: 6, paddingLeft: 8, paddingRight: 6 }}
+        className={boxed ? 'rounded-lg border-rule-mid bg-surface-raised' : undefined}
+        style={
+          boxed
+            ? { borderWidth: 1, paddingVertical: 6, paddingLeft: 8, paddingRight: 6 }
+            : { paddingLeft: 4 }
+        }
       >
         <View className="flex-row flex-wrap items-center gap-2" style={{ minHeight: 38 }}>
           {toggles}
@@ -223,8 +247,8 @@ export function StylingCard({
     <View
       accessibilityLabel={copy.thread}
       testID="styling-card"
-      className="gap-1 border-rule-mid bg-surface-raised px-3 pt-3 pb-1"
-      style={[shadowNative.sheet, { borderWidth: 1, borderRadius: 14 }]}
+      className={card ? 'gap-1 bg-surface-raised px-3 pt-3 pb-1' : 'gap-1 px-1.5 pt-1.5'}
+      style={card ? [shadowNative.sheet, { borderRadius: DOCK_RADIUS }] : undefined}
     >
       <View className="min-h-7 flex-row flex-wrap items-center gap-2.5">
         {toggles}
@@ -259,127 +283,152 @@ export function RobesAvatar({ working = false }: { working?: boolean }) {
   );
 }
 
-// Where the prompt stands (look prompt PRD F23; redline 14 Nov; testing 15 Nov). At rest it
-// floats at the look's foot and never takes the keyboard: `box` is the prompt box before there is
-// a conversation, `pill` the closed bar — Robes' avatar, the line it is on, the thumbs while
-// Robes is asking, the disc that opens it — and `spark` the sparkle (a saved look, a draft after
-// a thumbs up). Opened before her first send on a draft (`bare`), the sheet holds only the box
-// she tapped, place and weather and all (16 Nov). Opened once there is a conversation, it is the
-// app's own bottom sheet: anchored to the screen's foot, standing on the keyboard, the look dimmed behind it and closed by a tap there — the tracked title and
-// the minimise disc, the turns scrolling newest-last, and the box with the field in focus. Web
-// twin: app/src/components/looks/styling-card.tsx.
-export type DockRest = 'box' | 'pill' | 'spark';
+const DOCK_RADIUS = 22;
+const SPARK = 56;
 
+// The docked prompt (docked prompt PRD K1–K9; designs 1d, 2c): one white card at the look's foot,
+// inset from its edges, in three states. `spark`: the round ink button alone, bottom right, with a
+// dot while Robes' question waits (K3). `bar`: before her first send the box (the labelled
+// sources, the day, a line that opens the field); after it the grabber, Robes' latest line with
+// its thumbs (K7), and the sources and field line. `thread`: the app's own bottom sheet over the
+// dimmed look — the title and close, the turns scrolling newest-last, the field in focus (K8);
+// before her first send (`bare`) it holds only the box she tapped. Typing happens in that sheet,
+// which stands on the keyboard: the bar's field line opens it (15 Nov). Web twin:
+// app/src/components/looks/styling-card.tsx.
 export function PromptDock({
-  open,
-  rest,
+  state,
+  first,
   line,
   working,
   thumbs,
+  answers,
+  dot,
   conversation,
   turns = 0,
   maxHeight,
-  onOpen,
+  onRestore,
+  onExpand,
+  onCollapse,
   onMinimise,
   box,
   bare = false,
   children,
 }: {
-  open: boolean;
-  rest: DockRest;
-  // What the closed bar says: Robes' open question, the work in hand, or the invitation.
-  line: string;
+  state: DockState;
+  // Before her first send: the box alone, with no grabber and no line from Robes.
+  first: boolean;
+  // Robes' latest line on the bar: its question, the work in hand, or what it said.
+  line: string | null;
   working: boolean;
   thumbs?: ReactNode;
+  // After a thumbs down, what she can answer with (the reasons, Which piece?), under the line.
+  answers?: ReactNode;
+  // Robes' question waits unanswered (K3).
+  dot: boolean;
   conversation?: ReactNode;
   // How many turns the conversation holds: a new one scrolls it to its end.
   turns?: number;
   // The most the turns may take of the screen before they scroll (pin 15).
   maxHeight?: number;
-  onOpen: () => void;
-  onMinimise: () => void;
-  // The resting prompt box (`rest` "box"): the sources, the day's chip, a line that opens the sheet.
-  box?: ReactNode;
-  // Before her first send on a draft (Prompt states, the draft's open box): no title, no shade,
-  // no panel, only the box she tapped, rising on the keyboard with its place and weather.
+  // The sparkle back to the bar; the bar up to the thread; the thread down to the bar.
+  onRestore: () => void;
+  onExpand: () => void;
+  onCollapse: () => void;
+  // Put away to the sparkle: the thread's close.
+  onMinimise?: () => void;
+  // The bar's box: the sources, the day's chip, a line that opens the field.
+  box: ReactNode;
+  // Before her first send on a draft: the sheet holds only the box she tapped (16 Nov, B1).
   bare?: boolean;
   // The sheet's box, its field in focus.
   children: ReactNode;
 }) {
   const muted = useColor('ink-muted');
   const onInk = useColor('bg');
+  const rule = useColor('rule-mid');
   const scroll = useRef<ScrollViewInstance>(null);
-  // The resting row's height, held while the sheet is up so the screen behind never jumps as the
-  // row leaves (16 Nov).
+  const open = state === 'thread';
+  // The bar's height, held while the sheet is up so the screen behind never jumps (16 Nov).
   const [restHeight, setRestHeight] = useState(0);
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrolls when a turn lands
   useEffect(() => {
     scroll.current?.scrollToEnd({ animated: true });
   }, [turns, open]);
-  const resting = open ? null : rest === 'spark' ? (
-    <View className="items-end" style={{ paddingHorizontal: 12, paddingBottom: 14 }}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={copy.dock.open}
-        onPress={onOpen}
-        testID="prompt-spark"
-        className="items-center justify-center rounded-pill bg-ink"
-        style={[shadowNative.float, { width: MIN_TOUCH, height: MIN_TOUCH }]}
-      >
-        <Icon name="looks" size={18} color={onInk} />
-      </Pressable>
-    </View>
-  ) : rest === 'pill' ? (
-    <View style={{ paddingHorizontal: 12, paddingBottom: 14 }}>
-      <View
-        testID="prompt-pill"
-        className="flex-row items-center rounded-pill border-rule-mid bg-surface-raised"
-        style={[
-          shadowNative.float,
-          { minHeight: MIN_TOUCH, padding: 6, gap: 10, borderWidth: FINE_EDGE },
-        ]}
-      >
-        <RobesAvatar working={working} />
+  const resting =
+    state === 'spark' ? (
+      <View className="items-end" style={{ paddingHorizontal: 12, paddingBottom: 14 }}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={line}
-          accessibilityState={{ expanded: false }}
-          onPress={onOpen}
-          hitSlop={{ top: 6, bottom: 6 }}
-          testID="prompt-pill-line"
-          className="min-w-0 flex-1 justify-center"
-          style={{ minHeight: DISC }}
+          accessibilityLabel={dot ? `${copy.dock.open}. ${copy.dock.waiting}` : copy.dock.open}
+          onPress={onRestore}
+          testID="prompt-spark"
+          className="items-center justify-center rounded-pill bg-ink"
+          style={[shadowNative.float, { width: SPARK, height: SPARK }]}
         >
-          <Text
-            numberOfLines={1}
-            className="text-ink-muted"
-            style={{ fontFamily: fonts.sans, fontSize: 13 }}
-          >
-            {line}
-          </Text>
-        </Pressable>
-        {thumbs}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.dock.expand}
-          onPress={onOpen}
-          hitSlop={6}
-          testID="prompt-expand"
-          className="items-center justify-center rounded-pill bg-surface-sunk"
-          style={{ width: DISC, height: DISC }}
-        >
-          <View style={{ transform: [{ rotate: '180deg' }] }}>
-            <Icon name="down" size={14} color={muted} />
-          </View>
+          <Icon name="looks" size={20} color={onInk} />
+          {dot ? (
+            <View
+              aria-hidden
+              testID="prompt-spark-dot"
+              className="absolute rounded-pill border-bg bg-accent-warm"
+              style={{ top: 2, right: 2, width: 12, height: 12, borderWidth: 2 }}
+            />
+          ) : null}
         </Pressable>
       </View>
-    </View>
-  ) : (
-    <View style={{ padding: 10 }} testID="prompt-box">
-      {box}
-    </View>
-  );
-  // The title and minimise under the sheet's slim handle (Prompt States: 20pt in on the left, 14pt
+    ) : state === 'bar' ? (
+      <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
+        <View
+          testID="prompt-bar"
+          className="bg-surface-raised"
+          style={[shadowNative.sheet, { borderRadius: DOCK_RADIUS, paddingBottom: 10 }]}
+        >
+          {first ? null : (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={copy.dock.expand}
+                onPress={onExpand}
+                testID="prompt-expand"
+                className="items-center justify-center"
+                style={{ height: 24 }}
+              >
+                <View
+                  className="rounded-pill"
+                  style={{ width: 36, height: 4, backgroundColor: rule }}
+                />
+              </Pressable>
+              {line ? (
+                <View
+                  className="flex-row items-center"
+                  style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6, gap: 10 }}
+                >
+                  <RobesAvatar working={working} />
+                  <Text
+                    // The whole of Robes' line, wrapping, never cut short (Annie, 18 Nov).
+                    accessibilityLiveRegion="polite"
+                    testID="prompt-pill-line"
+                    className="min-w-0 flex-1 text-ink-muted"
+                    style={{ fontFamily: fonts.sans, fontSize: 15 }}
+                  >
+                    {line}
+                  </Text>
+                  {working ? <ActivityIndicator size="small" color={muted} /> : null}
+                  {thumbs}
+                </View>
+              ) : null}
+              {answers ? (
+                <View className="gap-3" style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+                  {answers}
+                </View>
+              ) : null}
+            </>
+          )}
+          <View style={{ paddingHorizontal: 10 }}>{box}</View>
+        </View>
+      </View>
+    ) : null;
+  // The title and close under the sheet's slim handle (Prompt States: 20pt in on the left, 14pt
   // on the right, 4pt under).
   const head = (
     <View className="flex-row items-center gap-3 pb-1" style={{ marginRight: -6 }}>
@@ -392,7 +441,9 @@ export function PromptDock({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={copy.dock.minimise}
-        onPress={onMinimise}
+        // The close puts the prompt away, to the sparkle (Annie, 18 Nov); the grabber and a tap on
+        // the look fold it to the bar.
+        onPress={onMinimise ?? onCollapse}
         hitSlop={6}
         testID="prompt-minimise"
         className="items-center justify-center rounded-pill bg-surface-sunk"
@@ -409,7 +460,7 @@ export function PromptDock({
       ) : (
         <View style={{ height: restHeight }} />
       )}
-      <Sheet open={open} onClose={onMinimise} floating bare={bare} head={head} testID="prompt-dock">
+      <Sheet open={open} onClose={onCollapse} floating bare={bare} head={head} testID="prompt-dock">
         {conversation ? (
           <ScrollView
             ref={scroll}
@@ -422,9 +473,6 @@ export function PromptDock({
             {conversation}
           </ScrollView>
         ) : null}
-        {/* The box runs wider than the sheet's own gutter: 10pt from each side (pin 1). Bare, the
-        sheet's gutter is those 10pt. */}
-        {/* Open, the box stands 20pt in from the sheet's sides, as the turns do (Prompt States). */}
         {children}
       </Sheet>
     </>

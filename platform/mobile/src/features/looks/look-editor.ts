@@ -170,7 +170,7 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
       write.mutate({ params: { id: look.id }, input: rackUpdate(rack, { keepEdits: true }) }),
     rename: (name: string) => write.mutate({ params: { id: look.id }, input: { name } }),
     // The picture drawn again for the rack as it stands: Robes' frame, else her model.
-    // `note`: her Adjust model image words (D21), kept on the look for every later redraw; the
+    // `note`: her note about the picture (D21; from the prompt, look-ask v5), kept on the look for every later redraw; the
     // pieces never change for it.
     redraw: async (note?: string) => {
       await inFlight.current;

@@ -286,35 +286,17 @@ test('a draft whose picture failed is not dressed again by itself', async () => 
   expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(false);
 });
 
-test('the adjust disc opens the AdjustSheet; her sentence redraws the picture alone (D21)', async () => {
-  const draft = draftOf();
-  const calls = mockFetch({
+// The photo carries no styling control (docked prompt PRD M1): a note about the picture goes
+// through the prompt (look-page.test: a note about the picture redraws the model).
+test('the draft photo carries no Adjust model image', async () => {
+  mockFetch({
     ...BASE,
     'GET /wardrobe/items': { items: [piece()], nextCursor: null },
-    [`GET /looks/${LOOK_ID}`]: draft,
-    [`POST /looks/${LOOK_ID}/render`]: {
-      jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-      status: 'queued',
-    },
+    [`GET /looks/${LOOK_ID}`]: draftOf(),
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
-  await fireEvent.press(await screen.findByTestId('draft-adjust'));
-  expect(await screen.findByTestId('adjust-sheet')).toBeTruthy();
-  await fireEvent.changeText(screen.getByTestId('adjust-sheet-field'), 'sleeves rolled up');
-  await fireEvent.press(
-    within(screen.getByTestId('adjust-sheet')).getByRole('button', { name: copy.adjustSheet.send }),
-  );
-  // Her note goes with the redraw; the look prompt (which could change the pieces) is never asked.
-  await waitFor(() =>
-    expect(calls.find((c) => c.path.endsWith('/render'))?.body).toEqual({
-      note: 'sleeves rolled up',
-    }),
-  );
-  expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
-  // The sheet closes behind the send; her words stand in the thread.
-  expect(screen.queryByTestId('adjust-sheet')).toBeNull();
-  await openPrompt();
-  expect(screen.getByText('sleeves rolled up')).toBeTruthy();
+  expect(await screen.findByTestId('the-rack')).toBeTruthy();
+  expect(screen.queryByTestId('draft-adjust')).toBeNull();
 });
 
 // Restyle it all is how a look Robes made is dressed again (look prompt PRD F12, F13; decision 12
@@ -733,6 +715,12 @@ test('the weather left out on New look stays out of the draft it makes', async (
     }),
   );
   await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
+  // Robes' question waits on the sparkle's dot (Annie, 18 Nov); a tap opens the bar on it.
+  await fireEvent.press(
+    await screen
+      .findByTestId('prompt-spark-dot', { includeHiddenElements: true })
+      .then(() => screen.getByTestId('prompt-spark')),
+  );
   await screen.findByText(copy.feedback.questionFor('dinner'));
   // No place or weather under her brief, and none sent with her next words.
   await openPrompt();
@@ -791,7 +779,9 @@ test('a tap on Wardrobe while it is empty says so and offers the way in', async 
   await fireEvent.press(screen.getByTestId('source-wardrobe'));
   expect(await screen.findByText(copy.emptyWardrobe.title)).toBeTruthy();
   expect(screen.getByTestId('source-wardrobe').props.accessibilityState.checked).toBe(false);
-  await fireEvent.press(screen.getByTestId('empty-wardrobe-add'));
+  // The alert says why (docked prompt PRD W2); Add pieces opens the sheet once it has gone.
+  expect(screen.getByText(copy.emptyWardrobe.body)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: copy.emptyWardrobe.add }));
   expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
 });
 
@@ -807,10 +797,8 @@ test('Wardrobe tapped in the open prompt while it is empty: the prompt comes bac
   await fireEvent.press(dock().getByTestId('source-wardrobe'));
   expect(await screen.findByText(copy.emptyWardrobe.title)).toBeTruthy();
   await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
-  // Closed with its ×: once it has gone, the prompt is open again, her words still in it.
-  await fireEvent.press(
-    within(screen.getByTestId('empty-wardrobe')).getByRole('button', { name: ui.close }),
-  );
+  // Not now: once the alert has gone, the prompt is open again, her words still in it.
+  await fireEvent.press(screen.getByRole('button', { name: copy.emptyWardrobe.notNow }));
   await waitFor(() =>
     expect(screen.getByTestId('draft-prompt').props.value).toBe('Gallery opening'),
   );
@@ -843,6 +831,18 @@ test('with a wardrobe it is the one source; Shop beside it is a mix, Shop alone 
 
 // One draft for every prompt, with or without a day (look prompt PRD D6, D9, F1, F3): the job's
 // look opens in the same sheet, her words head its thread, and Robes asks about the occasion.
+// The sparkle send on an empty box sends nothing and folds the prompt to the sparkle; the sparkle
+// brings the box back (docked prompt K6, Annie 18 Nov).
+test('New look: an empty send folds the box to the sparkle, which brings it back', async () => {
+  mockFetch(BASE);
+  await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
+  await openPrompt();
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  expect(screen.getByTestId('prompt-rest')).toBeTruthy();
+});
+
 test('her words with no day make one draft in the same sheet, and Robes asks about the occasion', async () => {
   const made = draftOf({
     pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
@@ -867,10 +867,9 @@ test('her words with no day make one draft in the same sheet, and Robes asks abo
   await renderWithApi(<DraftLook id="new" presentation="sheet" onClose={() => undefined} />);
   await fireEvent.changeText(await openPrompt(), 'relaxed weekend brunch');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  // Sent, her words leave the box for the conversation, Robes at work under them (16 Nov).
-  expect(screen.getByTestId('her-line')).toHaveTextContent('relaxed weekend brunch');
-  expect(dock().getByText(lookbook.draft.dressing)).toBeTruthy();
-  expect(screen.getByTestId('draft-prompt').props.value).toBe('');
+  // Sent, the dock waits as the sparkle while Robes dresses the look, not an open box over it
+  // (Annie, 18 Nov).
+  expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
       prompt: 'relaxed weekend brunch',
@@ -881,9 +880,15 @@ test('her words with no day make one draft in the same sheet, and Robes asks abo
   await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
   expect(mockRouter.replace).not.toHaveBeenCalled();
   const fb = copy.feedback;
-  // The drawer stays open into the draft (B6): her brief heads the conversation, and Robes asks.
+  // The drawer carries on into the draft; Robes' question waits on the sparkle's dot, and a tap
+  // opens the bar on it (docked prompt K3, K7); her brief heads the thread its grabber opens (K8).
+  expect(
+    await screen.findByTestId('prompt-spark-dot', { includeHiddenElements: true }),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-spark'));
   expect(await screen.findByText(fb.questionFor('brunch'))).toBeTruthy();
-  expect(screen.queryByTestId('prompt-pill')).toBeNull();
+  expect(screen.getByTestId('prompt-bar')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-expand'));
   expect(screen.getByText('relaxed weekend brunch')).toBeTruthy();
   // The question is open: two thumbs, and the box offers to take a change instead.
   expect(screen.getByTestId('thumb-up').props.accessibilityState.disabled).toBe(false);
@@ -915,6 +920,12 @@ test('with no occasion in her brief, Robes asks the plain question', async () =>
   );
   await fireEvent.changeText(await openPrompt(), 'something easy');
   await fireEvent.press(screen.getByTestId('prompt-send'));
+  // Robes' question waits on the sparkle's dot (Annie, 18 Nov); a tap opens the bar on it.
+  await fireEvent.press(
+    await screen
+      .findByTestId('prompt-spark-dot', { includeHiddenElements: true })
+      .then(() => screen.getByTestId('prompt-spark')),
+  );
   expect(await screen.findByText(copy.feedback.question)).toBeTruthy();
 });
 
@@ -943,16 +954,24 @@ test('while the draft her words made is still being dressed, Robes works and ask
   await fireEvent.changeText(await openPrompt(), 'dinner with friends');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
-  // The model is still being dressed: no question, no thumbs, Robes at work under her words.
-  await waitFor(() => expect(screen.getByText(lookbook.draft.dressing)).toBeTruthy());
-  expect(screen.getByText('dinner with friends')).toBeTruthy();
+  // The model is still being dressed: the dock waits as the sparkle, with no dot, rather than an
+  // open box over "Dressing it…" (Annie, 18 Nov); no question, no thumbs.
+  expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
+  expect(screen.queryByTestId('prompt-spark-dot', { includeHiddenElements: true })).toBeNull();
   expect(screen.queryByText(copy.feedback.questionFor('dinner'))).toBeNull();
   expect(screen.queryByTestId('thumb-up')).toBeNull();
-  // The picture lands: the work line goes and Robes asks.
+  // The picture lands: Robes asks, and the sparkle's dot says so; a tap opens the bar on it.
   mockFetch({ ...routes, [`GET /looks/${LOOK_ID}`]: draftOf({ pieces, onModel: 'ready' }) });
   expect(
-    await screen.findByText(copy.feedback.questionFor('dinner'), {}, { timeout: 6000 }),
+    await screen.findByTestId(
+      'prompt-spark-dot',
+      { includeHiddenElements: true },
+      { timeout: 6000 },
+    ),
   ).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-spark'));
+  expect(await screen.findByText(copy.feedback.questionFor('dinner'))).toBeTruthy();
+  expect(screen.getByTestId('thumb-up')).toBeTruthy();
   expect(screen.queryByText(lookbook.draft.dressing)).toBeNull();
 }, 15_000);
 
@@ -1021,6 +1040,11 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
   // With a piece on the rack, the add slot is the small + hanger chip, not the big card (Annie,
   // 15 Nov); the card is only for an empty rack.
   expect(screen.queryByTestId('rack-card-add')).toBeNull();
+  // The + opens the picker once her wardrobe's count is in (before it, Add pieces): wait for it.
+  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/wardrobe/summary'))).toBe(true));
+  await act(async () => {
+    await new Promise((done) => setTimeout(done, 50));
+  });
   await fireEvent.press(screen.getByTestId('rack-add'));
   expect(await screen.findByTestId('piece-picker')).toBeTruthy();
   await fireEvent.press(screen.getByRole('tab', { name: wardrobe.segments.wishlist }));

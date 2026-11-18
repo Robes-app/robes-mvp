@@ -377,8 +377,11 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/, { timeout: 30_000 });
   await expect(page.getByTestId('draft-look')).toBeVisible();
   await expect(page.getByText('Draft look')).toBeVisible();
-  // The send kept the drawer open into the draft, her words in it (B6, 16 Nov); minimised, the
-  // header is hers again.
+  // The drawer carries on into the draft, the prompt waiting as the sparkle while Robes dresses it
+  // (Annie, 18 Nov); the bar it opens leads to the thread, which holds her words (K8), and its
+  // close puts it away again.
+  await page.getByTestId('prompt-spark').click();
+  await page.getByTestId('prompt-expand').click();
   await expect(page.getByTestId('prompt-conversation')).toContainText('Dinner with friends');
   await page.getByTestId('prompt-minimise').click();
   // The done disc saves and pins it to the day in the same act: home shows it as the day's card.
@@ -403,7 +406,6 @@ test('Create: her words become the day’s one draft, which dresses in the slot'
   await page.getByTestId('draft-prompt').fill('Something easy for the gallery');
   await page.getByTestId('prompt-send').click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/, { timeout: 30_000 });
-  await page.getByTestId('prompt-minimise').click();
   await page.getByRole('button', { name: 'Close' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Keep for later' }).click();
   await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
