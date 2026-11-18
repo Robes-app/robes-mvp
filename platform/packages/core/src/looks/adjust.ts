@@ -35,14 +35,23 @@ export interface AdjustState {
   verdict: Verdict | null;
   reasons: AskReason[];
   restyle: boolean;
+  // A piece I don't like (docked prompt PRD Q6): Robes asks "Which piece?" and shows the look's
+  // pieces; the one she taps rides with the 'piece' reason as "Not the {piece}", by its rack key.
+  choosingPiece: boolean;
+  piece: string | null;
   nextId: number;
 }
 
-const noQuestion = (): Pick<AdjustState, 'question' | 'verdict' | 'reasons' | 'restyle'> => ({
+const noQuestion = (): Pick<
+  AdjustState,
+  'question' | 'verdict' | 'reasons' | 'restyle' | 'choosingPiece' | 'piece'
+> => ({
   question: null,
   verdict: null,
   reasons: [],
   restyle: false,
+  choosingPiece: false,
+  piece: null,
 });
 
 export const EMPTY_ADJUST: AdjustState = {
@@ -74,6 +83,8 @@ export type AdjustEvent =
   | { type: 'up' }
   | { type: 'down' }
   | { type: 'reason'; reason: AskReason }
+  // The piece she taps after "Which piece?" (Q6), by its rack key.
+  | { type: 'piece'; key: string }
   | { type: 'restyle' }
   | { type: 'reset' };
 
@@ -106,13 +117,7 @@ export function adjustReduce(state: AdjustState, event: AdjustEvent): AdjustStat
     }
     case 'question':
       // It stands apart from the thread, so a work line (the picture being drawn) stays.
-      return {
-        ...state,
-        question: event.text,
-        verdict: 'ask',
-        reasons: [],
-        restyle: false,
-      };
+      return { ...state, ...noQuestion(), question: event.text, verdict: 'ask' };
     case 'up':
     case 'down':
       // One answer per question (F5).
@@ -120,18 +125,31 @@ export function adjustReduce(state: AdjustState, event: AdjustEvent): AdjustStat
     case 'reason': {
       if (state.verdict !== 'down') return state;
       const on = state.reasons.includes(event.reason);
-      if (!on && state.reasons.length >= ASK_REASONS_MAX) return state;
+      if (on) {
+        return {
+          ...state,
+          reasons: state.reasons.filter((r) => r !== event.reason),
+          piece: event.reason === 'piece' ? null : state.piece,
+        };
+      }
+      if (state.reasons.length >= ASK_REASONS_MAX) return state;
+      // A piece I don't like asks which piece first (Q6); the token lands with her tap.
+      if (event.reason === 'piece') return { ...state, restyle: false, choosingPiece: true };
+      return { ...state, restyle: false, reasons: [...state.reasons, event.reason] };
+    }
+    case 'piece':
+      if (!state.choosingPiece) return state;
       return {
         ...state,
-        restyle: false,
-        reasons: on
-          ? state.reasons.filter((r) => r !== event.reason)
-          : [...state.reasons, event.reason],
+        choosingPiece: false,
+        piece: event.key,
+        reasons: [...state.reasons, 'piece'],
       };
-    }
     case 'restyle':
       // Restyle it all stands alone (F8).
-      return state.verdict === 'down' ? { ...state, restyle: !state.restyle, reasons: [] } : state;
+      return state.verdict === 'down'
+        ? { ...state, restyle: !state.restyle, reasons: [], choosingPiece: false, piece: null }
+        : state;
     case 'settle':
       return { ...state, thread: withoutWork(state.thread) };
     case 'changed':
@@ -166,11 +184,16 @@ export function isWorking(state: Pick<AdjustState, 'thread'>): boolean {
 // room for another and Restyle it all is not picked. "Not for the weather" shows only while the
 // look carries a weather.
 export function openReasons(
-  state: Pick<AdjustState, 'reasons' | 'restyle'>,
+  state: Pick<AdjustState, 'reasons' | 'restyle'> & Partial<Pick<AdjustState, 'choosingPiece'>>,
   opts: { weather: boolean },
 ): AskReason[] {
   if (state.restyle || state.reasons.length >= ASK_REASONS_MAX) return [];
-  return ASK_REASONS.filter((r) => !state.reasons.includes(r) && (r !== 'weather' || opts.weather));
+  return ASK_REASONS.filter(
+    (r) =>
+      !state.reasons.includes(r) &&
+      (r !== 'weather' || opts.weather) &&
+      (r !== 'piece' || !state.choosingPiece),
+  );
 }
 
 // Her choice as one bubble (F17): what she tapped, then her words in quotes, joined by a middle
@@ -179,4 +202,65 @@ export function feedbackBubble(labels: readonly string[], text: string): string 
   const words = text.trim();
   if (labels.length === 0) return words;
   return [...labels, ...(words ? [`“${words}”`] : [])].join(' · ');
+}
+
+// Robes' one question after a look comes back (docked prompt PRD Q1–Q4), as which question, not
+// its words: the clients take the words from @robes/copy. The first look asks about the occasion;
+// a single reason, with or without her words, gets its own; Restyle it all and a piece get theirs;
+// typed words alone, or two or more reasons, get "Closer?".
+export type FollowUp =
+  | { kind: 'occasion'; occasion: string }
+  | { kind: 'feel' }
+  | { kind: 'reason'; reason: Exclude<AskReason, 'piece'> }
+  | { kind: 'piece'; piece: string }
+  | { kind: 'restyle' }
+  | { kind: 'closer' };
+
+export function followUp(sent: {
+  first?: boolean;
+  occasion?: string | null;
+  reasons?: readonly AskReason[];
+  restyle?: boolean;
+  // The piece's name, for "Better without the {piece}?".
+  piece?: string | null;
+  text?: string;
+}): FollowUp {
+  if (sent.first)
+    return sent.occasion ? { kind: 'occasion', occasion: sent.occasion } : { kind: 'feel' };
+  if (sent.restyle) return { kind: 'restyle' };
+  const reasons = sent.reasons ?? [];
+  const [only] = reasons;
+  if (reasons.length !== 1 || only === undefined) return { kind: 'closer' };
+  if (only === 'piece')
+    return sent.piece ? { kind: 'piece', piece: sent.piece } : { kind: 'closer' };
+  return { kind: 'reason', reason: only };
+}
+
+// The dock (K2): the sparkle alone, the bar (the latest line and the field), or the open thread.
+// A draft opens at the bar; a saved look at the sparkle. Tapping the sparkle restores the bar;
+// the bar's top edge opens the thread and the close folds it back; an empty send or a thumbs up
+// minimises it to the sparkle (K6). Moves that do not apply leave it where it is.
+export type DockState = 'spark' | 'bar' | 'thread';
+export type DockMove = 'restore' | 'expand' | 'collapse' | 'minimise';
+
+export function dockStart(context: 'draft' | 'saved'): DockState {
+  return context === 'draft' ? 'bar' : 'spark';
+}
+
+export function dockNext(state: DockState, move: DockMove): DockState {
+  switch (move) {
+    case 'restore':
+      return state === 'spark' ? 'bar' : state;
+    case 'expand':
+      return state === 'bar' ? 'thread' : state;
+    case 'collapse':
+      return state === 'thread' ? 'bar' : state;
+    case 'minimise':
+      return 'spark';
+  }
+}
+
+// The sparkle's dot (K3): folded, with Robes' question unanswered.
+export function dockDot(state: DockState, adjust: Pick<AdjustState, 'verdict'>): boolean {
+  return state === 'spark' && adjust.verdict === 'ask';
 }
