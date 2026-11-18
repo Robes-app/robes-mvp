@@ -402,7 +402,7 @@ export function PromptDock({
                 >
                   <RobesAvatar working={working} />
                   <Text
-                    numberOfLines={1}
+                    // The whole of Robes' line, wrapping, never cut short (Annie, 18 Nov).
                     accessibilityLiveRegion="polite"
                     testID="prompt-pill-line"
                     className="min-w-0 flex-1 text-ink-muted"

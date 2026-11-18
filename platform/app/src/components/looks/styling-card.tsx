@@ -318,7 +318,7 @@ export function PromptDock({
                 <p
                   aria-live="polite"
                   data-testid="prompt-pill-line"
-                  className="flex min-w-0 flex-1 items-center gap-2 truncate font-sans text-[15px] text-ink-muted"
+                  className="flex min-w-0 flex-1 items-start gap-2 font-sans text-[15px] text-ink-muted"
                 >
                   {working ? (
                     <Icon
@@ -327,7 +327,8 @@ export function PromptDock({
                       className="shrink-0 motion-safe:animate-spin [animation-direction:reverse]"
                     />
                   ) : null}
-                  <span className="truncate">{line}</span>
+                  {/* The whole of Robes' line, wrapping, never cut short (Annie, 18 Nov). */}
+                  <span className="min-w-0">{line}</span>
                 </p>
                 {thumbs}
               </div>
