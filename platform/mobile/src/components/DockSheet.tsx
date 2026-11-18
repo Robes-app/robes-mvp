@@ -1,6 +1,5 @@
 import { BottomSheet, Group, Host, RNHostView } from '@expo/ui/swift-ui';
 import {
-  ignoreSafeArea,
   type PresentationDetent,
   presentationBackground,
   presentationBackgroundInteraction,
@@ -11,7 +10,6 @@ import {
 import { useColor, useToastLift } from '@robes/ui-native';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // The docked prompt's bar and thread as iOS's own sheet (docked prompt PRD phase 3, N1–N3), on
 // iOS only. Three heights: the bar, fitted to what it holds, with the look live and scrolling
@@ -66,11 +64,10 @@ export function DockSheet({
   const fill = useColor('surface-raised');
   // The bar's height follows its content (Robes' line, the answer rows, the field).
   const [barHeight, setBarHeight] = useState(160);
-  // iOS keeps the home indicator's inset under a height-sized sheet's content, so the bar stood
-  // on 34pt of empty sheet (Annie, 18 Nov): at the bar the content runs into that inset and the
-  // height leaves it out.
-  const { bottom } = useSafeAreaInsets();
-  const BAR: PresentationDetent = { height: Math.max(barHeight - bottom, 80) };
+  // iOS keeps the home indicator's inset (34pt) under a sheet's content, and our content cannot
+  // run into it (ignoring the safe area does not reach the hosted view: taking the inset off the
+  // height cut the field off, 18 Nov). The bar is its content's height; the inset is iOS's.
+  const BAR: PresentationDetent = { height: barHeight };
   const toDetent = (d: DockDetent): PresentationDetent =>
     d === 'bar' ? BAR : d === 'thread' ? THREAD : 'large';
   const fromDetent = (d: PresentationDetent): DockDetent =>
@@ -106,9 +103,6 @@ export function DockSheet({
             presentationCornerRadius(RADIUS),
             presentationBackground(fill),
             presentationDragIndicator('visible'),
-            ...(detent === 'bar'
-              ? [ignoreSafeArea({ regions: 'container', edges: 'bottom' })]
-              : []),
           ]}
         >
           <RNHostView>

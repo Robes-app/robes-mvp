@@ -535,7 +535,8 @@ export function PromptDock({
                   {answers}
                 </View>
               ) : null}
-              <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>{field}</View>
+              {/* No padding under the field: iOS's own inset sits below it. */}
+              <View style={{ paddingHorizontal: 10 }}>{field}</View>
             </View>
           }
           thread={
