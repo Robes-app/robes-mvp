@@ -1,17 +1,19 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import {
   FIRST_RUN_CAPTURES,
-  FIRST_RUN_STEPS,
+  FIRST_RUN_FLOW,
   FIRST_RUN_VERSION,
   type FirstRunCapture,
+  type FirstRunFlowStep,
   type FirstRunStep,
+  firstRunResume,
   type Me,
 } from '@robes/contracts';
 import { firstRun as copy, onboarding, ui } from '@robes/copy';
 import { onboardingBrands, STYLE_TYPES, type StyleType } from '@robes/core/style-dna';
 import { Button, ErrorText, Field, PrimaryScope, Wordmark } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
@@ -24,18 +26,16 @@ import {
   IdentityStep,
   StylesStep,
 } from '@/features/onboarding/Steps';
-import { TwinStep } from '@/features/onboarding/TwinStep';
-import { READ_PARAM, useSelfieRead } from '@/features/you/use-selfie';
 import { nativeAnalytics } from '@/lib/analytics';
 import { readPref, writePref } from '@/lib/prefs';
 
 const SPLASH_MS = 2_000;
 const isCapture = (s: FirstRunStep): s is FirstRunCapture =>
   (FIRST_RUN_CAPTURES as readonly string[]).includes(s);
-const after = (s: FirstRunStep): FirstRunStep | null =>
-  FIRST_RUN_STEPS[FIRST_RUN_STEPS.indexOf(s) + 1] ?? null;
-const before = (s: FirstRunStep): FirstRunStep | null =>
-  FIRST_RUN_STEPS[FIRST_RUN_STEPS.indexOf(s) - 1] ?? null;
+const after = (s: FirstRunFlowStep): FirstRunFlowStep | null =>
+  FIRST_RUN_FLOW[FIRST_RUN_FLOW.indexOf(s) + 1] ?? null;
+const before = (s: FirstRunFlowStep): FirstRunFlowStep | null =>
+  FIRST_RUN_FLOW[FIRST_RUN_FLOW.indexOf(s) - 1] ?? null;
 
 // Her answers so far, kept on the phone as she goes (audit F7): closing the app mid-way brings
 // her back to the step she was on, never to step 1. Per account; cleared once she finishes. Past
@@ -51,9 +51,9 @@ const draftKey = (userId: string) => `robes.onboarding.${userId}`;
 const toggle = <T,>(list: readonly T[], v: T): T[] =>
   list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
-// Getting to know you, eight steps (onboarding PRD, 17 Nov; design "Robes onboarding — prototype";
-// the first four as live since the handoff of 30 Oct): Splash → name → identity → styles → brands
-// → saved looks → pieces you love → digital twin → today's outfit → Home. Her answers save on
+// Getting to know you, seven steps (onboarding PRD, 17 Nov; design "Robes onboarding — prototype";
+// the first four as live since the handoff of 30 Oct; the digital twin out since 18 Nov): Splash →
+// name → identity → styles → brands → saved looks → pieces you love → today's outfit → Home. Her answers save on
 // Brands without onboarding her; each capture step is skippable; she is onboarded as she leaves
 // for Home. An account onboarded before walks it once, its answers prefilled.
 // Web twin: app/src/app/onboarding/onboarding-form.tsx.
@@ -61,9 +61,8 @@ export default function Onboarding() {
   const router = useRouter();
   const api = useApiClient();
   const queryClient = useQueryClient();
-  const params = useLocalSearchParams<{ [READ_PARAM]?: string }>();
   const me = useApi('me.get');
-  const [step, setStep] = useState<FirstRunStep | 'splash'>('splash');
+  const [step, setStep] = useState<FirstRunFlowStep | 'splash'>('splash');
   const [firstName, setFirstName] = useState('');
   const [touched, setTouched] = useState(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
@@ -77,12 +76,9 @@ export default function Onboarding() {
   // Past Brands, or a re-run: her answers as her profile holds them.
   const answered = me.data ? me.data.onboarded || me.data.firstRun.step !== null : false;
   const dna = useApi('me.dna.get', undefined, { enabled: answered });
-  // Her close-up's read, followed here rather than on the twin step: it goes on — and draws her
-  // twin when it lands — while she moves on to Today's outfit (R-S4: she never waits on a read).
-  const read = useSelfieRead();
 
   // Back where she left off (audit F7, R-S3), decided once we know whose it is: the close-up
-  // coming back to the twin step, else her step on the server, else this phone's draft.
+  // her step on the server, else this phone's draft.
   const restored = useRef(false);
   useEffect(() => {
     if (!userId || !me.data || restored.current) return;
@@ -96,12 +92,8 @@ export default function Onboarding() {
       setStyles(dna.data.types.filter((t): t is StyleType => STYLE_TYPES.includes(t as StyleType)));
       setBrands(dna.data.brands);
     }
-    if (params[READ_PARAM]) {
-      setStep('twin');
-      return;
-    }
     if (server.step && isCapture(server.step)) {
-      setStep(server.step);
+      setStep(firstRunResume(server.step));
       return;
     }
     void readPref(draftKey(userId)).then((raw) => {
@@ -111,12 +103,13 @@ export default function Onboarding() {
         setIdentity(d.identity ?? null);
         setStyles(d.styles ?? []);
         setBrands(d.brands ?? []);
-        if (FIRST_RUN_STEPS.includes(d.step) && d.step !== 'name') setStep(d.step);
+        const saved = FIRST_RUN_FLOW.find((s) => s === d.step);
+        if (saved && saved !== 'name') setStep(saved);
       } catch {
         // A draft that doesn't read starts her afresh.
       }
     });
-  }, [userId, me.data, answered, dna.data, dna.isError, params]);
+  }, [userId, me.data, answered, dna.data, dna.isError]);
 
   // Each answer is kept on the phone as she gives it, and her step on the server.
   useEffect(() => {
@@ -159,16 +152,16 @@ export default function Onboarding() {
 
   const track = (s: FirstRunStep, outcome: 'answered' | 'skipped') =>
     nativeAnalytics.track('onboarding_step', { step: s, outcome });
-  const go = (s: FirstRunStep | null) => {
+  const go = (s: FirstRunFlowStep | null) => {
     setError(null);
     if (s) setStep(s);
   };
-  const skip = (s: FirstRunCapture) => {
+  const skip = (s: FirstRunCapture & FirstRunFlowStep) => {
     track(s, 'skipped');
     setSkipped((all) => (all.includes(s) ? all : [...all, s]));
     go(after(s));
   };
-  const done = (s: FirstRunCapture) => {
+  const done = (s: FirstRunCapture & FirstRunFlowStep) => {
     track(s, 'answered');
     setSkipped((all) => all.filter((x) => x !== s));
     go(after(s));
@@ -257,7 +250,7 @@ export default function Onboarding() {
     );
   }
 
-  const n = FIRST_RUN_STEPS.indexOf(step) + 1;
+  const n = FIRST_RUN_FLOW.indexOf(step) + 1;
   const back = () => go(before(step));
 
   if (step === 'looks' || step === 'pieces') {
@@ -270,23 +263,6 @@ export default function Onboarding() {
           onBack={back}
           onDone={() => done(step)}
           onSkip={() => skip(step)}
-        />
-      </PrimaryScope>
-    );
-  }
-  if (step === 'twin') {
-    return (
-      <PrimaryScope>
-        <TwinStep
-          step={n}
-          read={read}
-          onBack={back}
-          onDone={(own) => {
-            nativeAnalytics.track('onboarding_captured', { step: 'twin', n: own ? 1 : 0 });
-            if (own) done('twin');
-            else skip('twin');
-          }}
-          onSkip={() => skip('twin')}
         />
       </PrimaryScope>
     );

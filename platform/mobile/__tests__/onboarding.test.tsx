@@ -50,7 +50,7 @@ const saves = (calls: { method: string; path: string; body: unknown }[]) =>
   calls.filter((c) => c.method === 'PATCH' && c.path.endsWith('/me/onboarding')).map((c) => c.body);
 
 // Getting to know you, eight steps (onboarding PRD, 17 Nov).
-test('eight steps: answers saved on Brands without onboarding her, each capture skippable, onboarded on the way Home', async () => {
+test('seven steps: answers saved on Brands without onboarding her, each capture skippable, onboarded on the way Home', async () => {
   let finished = false;
   const calls = mockFetch({
     ...STEPS,
@@ -67,7 +67,7 @@ test('eight steps: answers saved on Brands without onboarding her, each capture 
   await fireEvent.press(screen.getByTestId('splash'));
   expect(screen.getByText(copy.eyebrow)).toBeTruthy();
   // Eight hairline segments, no number on screen (R-S1).
-  expect(screen.getByLabelText(copy.progress(1, 8))).toBeTruthy();
+  expect(screen.getByLabelText(copy.progress(1, 7))).toBeTruthy();
   expect(screen.queryByRole('button', { name: copy.backLabel })).toBeNull();
   await fireEvent.changeText(screen.getByLabelText(copy.name.label), 'Niall Maher');
   await fireEvent.press(next());
@@ -106,20 +106,16 @@ test('eight steps: answers saved on Brands without onboarding her, each capture 
     step: 'looks',
   });
   expect(calls.some((c) => c.path.endsWith('/me/onboarding/complete'))).toBe(false);
-  expect(screen.getByLabelText(copy.progress(5, 8))).toBeTruthy();
+  expect(screen.getByLabelText(copy.progress(5, 7))).toBeTruthy();
 
   // Each capture step skips on to the next.
   await fireEvent.press(skip());
   await waitFor(() => expect(title(copy.pieces.title, copy.pieces.titleEm)).toBeTruthy());
-  await fireEvent.press(skip());
-  await waitFor(() => expect(screen.getByText(copy.twin.youEm, { exact: false })).toBeTruthy());
-  // No close-up before her yes (R-7.3).
-  expect(
-    screen.getByRole('button', { name: copy.twin.go }).props.accessibilityState?.disabled,
-  ).toBe(true);
+  // Pieces goes straight on to Today's outfit: no digital twin (Annie, 18 Nov).
   await fireEvent.press(skip());
   await waitFor(() => expect(title(copy.outfit.title, copy.outfit.titleEm)).toBeTruthy());
   const today = localDate();
+  expect(screen.getByLabelText(copy.progress(7, 7))).toBeTruthy();
   expect(
     screen.getByText(copy.outfit.today(`${weekdayShort(today)} ${dayMonth(today)}`)),
   ).toBeTruthy();
@@ -133,7 +129,7 @@ test('eight steps: answers saved on Brands without onboarding her, each capture 
   });
   expect(saves(calls).at(-1)).toEqual({
     step: 'outfit',
-    skipped: ['looks', 'pieces', 'twin'],
+    skipped: ['looks', 'pieces'],
   });
   const me = queryClient.getQueryData<Me>(queryKeys.call('me.get'));
   expect(me?.onboarded).toBe(true);
@@ -180,12 +176,23 @@ test('a failed save on Brands stays and says so', async () => {
 test('leaving and returning resumes at the step on her profile (R-S3)', async () => {
   mockFetch({
     ...STEPS,
+    'GET /me': { ...NEW, firstRun: { version: null, step: 'pieces', skipped: ['looks'] } },
+    'GET /me/dna': styleDna({ gender: 'woman', types: ['Minimal'], brands: ['COS'] }),
+  });
+  await renderWithApi(<Onboarding />);
+  await waitFor(() => expect(screen.getByText(copy.pieces.titleEm, { exact: false })).toBeTruthy());
+  expect(screen.getByLabelText(copy.progress(6, 7))).toBeTruthy();
+});
+
+test('a profile left on the digital twin, since dropped, resumes on Today’s outfit', async () => {
+  mockFetch({
+    ...STEPS,
     'GET /me': { ...NEW, firstRun: { version: null, step: 'twin', skipped: ['looks'] } },
     'GET /me/dna': styleDna({ gender: 'woman', types: ['Minimal'], brands: ['COS'] }),
   });
   await renderWithApi(<Onboarding />);
-  await waitFor(() => expect(screen.getByText(copy.twin.youEm, { exact: false })).toBeTruthy());
-  expect(screen.getByLabelText(copy.progress(7, 8))).toBeTruthy();
+  await waitFor(() => expect(screen.getByText(copy.outfit.titleEm, { exact: false })).toBeTruthy());
+  expect(screen.getByLabelText(copy.progress(7, 7))).toBeTruthy();
 });
 
 test('an account onboarded before walks the new flow once, its answers prefilled', async () => {

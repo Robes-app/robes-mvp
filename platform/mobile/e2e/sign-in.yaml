@@ -53,10 +53,6 @@ appId: host.exp.Exponent
 - assertVisible: 'The pieces you love most.'
 - tapOn: 'Skip'
 - extendedWaitUntil:
-    visible: 'Your digital twin. Your looks, on you.'
-    timeout: 15000
-- tapOn: 'Skip'
-- extendedWaitUntil:
     visible: 'Capture what you’re wearing now.'
     timeout: 15000
 - tapOn: 'Skip'

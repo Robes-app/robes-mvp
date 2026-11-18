@@ -15,8 +15,8 @@ export const NotificationPrefs = z.object({
 });
 export type NotificationPrefs = z.infer<typeof NotificationPrefs>;
 
-// Getting to know you (onboarding PRD, 17 Nov): four questions, then four capture steps, each
-// skippable. Version 2 is the eight-step flow; every account below it walks the flow once more.
+// Getting to know you (onboarding PRD, 17 Nov): four questions, then the capture steps, each
+// skippable. Version 2 is the new flow; every account below it walks the flow once more.
 export const FIRST_RUN_VERSION = 2;
 export const FIRST_RUN_QUESTIONS = ['name', 'identity', 'styles', 'brands'] as const;
 export const FIRST_RUN_CAPTURES = ['looks', 'pieces', 'twin', 'outfit'] as const;
@@ -25,6 +25,14 @@ export const FirstRunStep = z.enum(FIRST_RUN_STEPS);
 export type FirstRunStep = z.infer<typeof FirstRunStep>;
 export const FirstRunCapture = z.enum(FIRST_RUN_CAPTURES);
 export type FirstRunCapture = z.infer<typeof FirstRunCapture>;
+// The steps she walks: the digital twin is out of the flow (Annie, 18 Nov: slow, and without her
+// facts it falls short); it stays above so a profile left on it still reads, and resumes on
+// Today's outfit. Her twin is made from You.
+export type FirstRunFlowStep = Exclude<FirstRunStep, 'twin'>;
+export const FIRST_RUN_FLOW: readonly FirstRunFlowStep[] = FIRST_RUN_STEPS.filter(
+  (s): s is FirstRunFlowStep => s !== 'twin',
+);
+export const firstRunResume = (s: FirstRunStep): FirstRunFlowStep => (s === 'twin' ? 'outfit' : s);
 
 export const Me = z.object({
   id: z.uuid(),
@@ -38,7 +46,7 @@ export const Me = z.object({
   homeCity: z.string().nullable(),
   onboarded: z.boolean(),
   notifications: NotificationPrefs,
-  // Getting to know you, eight steps (onboarding PRD, 17 Nov). Defaulted across version skew, so an
+  // Getting to know you (onboarding PRD, 17 Nov). Defaulted across version skew, so an
   // older server's /me still parses (and reads as a flow never finished).
   firstRun: z
     .object({

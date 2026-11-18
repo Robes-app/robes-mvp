@@ -2,9 +2,10 @@
 
 import { useApiClient } from '@robes/api-client/react';
 import {
-  FIRST_RUN_STEPS,
+  FIRST_RUN_FLOW,
   FIRST_RUN_VERSION,
   type FirstRunCapture,
+  type FirstRunFlowStep,
   type FirstRunStep,
 } from '@robes/contracts';
 import { firstRun as copy, onboarding } from '@robes/copy';
@@ -13,20 +14,16 @@ import { Button, ErrorText, Field, Wordmark } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
-import { useSelfieRead } from '@/lib/use-selfie';
 import { CaptureStep } from './capture-step';
 import { Frame } from './frame';
 import { OutfitStep } from './outfit-step';
 import { BrandsStep, type Identity, IdentityStep, StylesStep } from './steps';
-import { TwinStep } from './twin-step';
 
 const SPLASH_MS = 2_000;
-const _isCapture = (s: FirstRunStep): s is FirstRunCapture =>
-  s === 'looks' || s === 'pieces' || s === 'twin' || s === 'outfit';
-const after = (s: FirstRunStep): FirstRunStep | null =>
-  FIRST_RUN_STEPS[FIRST_RUN_STEPS.indexOf(s) + 1] ?? null;
-const before = (s: FirstRunStep): FirstRunStep | null =>
-  FIRST_RUN_STEPS[FIRST_RUN_STEPS.indexOf(s) - 1] ?? null;
+const after = (s: FirstRunFlowStep): FirstRunFlowStep | null =>
+  FIRST_RUN_FLOW[FIRST_RUN_FLOW.indexOf(s) + 1] ?? null;
+const before = (s: FirstRunFlowStep): FirstRunFlowStep | null =>
+  FIRST_RUN_FLOW[FIRST_RUN_FLOW.indexOf(s) - 1] ?? null;
 
 const firstWord = (name: string): string | null => name.trim().split(/\s+/)[0] || null;
 const toggle = <T,>(list: readonly T[], v: T): T[] =>
@@ -34,18 +31,16 @@ const toggle = <T,>(list: readonly T[], v: T): T[] =>
 
 export interface FirstRunStart {
   // Where she left off (a capture step), or null to start at the splash.
-  step: FirstRunCapture | null;
-  // Back from the selfie camera with its read: the twin step, straight away.
-  twin: boolean;
+  step: (FirstRunCapture & FirstRunFlowStep) | null;
   skipped: FirstRunCapture[];
   identity: Identity | null;
   styles: StyleType[];
   brands: string[];
 }
 
-// Getting to know you, eight steps (onboarding PRD, 17 Nov; twin: mobile app/onboarding/): Splash
-// → name → identity → styles → brands → saved looks → pieces you love → digital twin → today's
-// outfit → Home. The first four as live since the handoff of 30 Oct; her answers save on Brands
+// Getting to know you, seven steps (onboarding PRD, 17 Nov; the digital twin out since 18 Nov;
+// twin: mobile app/onboarding/): Splash → name → identity → styles → brands → saved looks →
+// pieces you love → today's outfit → Home. The first four as live since the handoff of 30 Oct; her answers save on Brands
 // without onboarding her; each capture step is skippable; she is onboarded as she leaves for
 // Home. Her step is on her profile, so she resumes where she left; an account onboarded before
 // walks it once, its answers prefilled.
@@ -59,9 +54,7 @@ export function OnboardingForm({
   const router = useRouter();
   const api = useApiClient();
   const { track } = useAnalytics().analytics;
-  const [step, setStep] = useState<FirstRunStep | 'splash'>(
-    start.twin ? 'twin' : (start.step ?? 'splash'),
-  );
+  const [step, setStep] = useState<FirstRunFlowStep | 'splash'>(start.step ?? 'splash');
   const [name, setName] = useState(initialFirstName);
   const [saved, setSaved] = useState(initialFirstName);
   const [identity, setIdentity] = useState<Identity | null>(start.identity);
@@ -70,9 +63,6 @@ export function OnboardingForm({
   const [skipped, setSkipped] = useState<FirstRunCapture[]>(start.skipped);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // Her close-up's read, followed here rather than on the twin step: it goes on — and draws her
-  // twin when it lands — while she moves on to Today's outfit (R-S4: she never waits on a read).
-  const read = useSelfieRead();
 
   // Her houses lead; one she picked stays on the wall when her styles change.
   const wall = useMemo(() => {
@@ -102,16 +92,16 @@ export function OnboardingForm({
 
   const answered = (s: FirstRunStep, outcome: 'answered' | 'skipped' = 'answered') =>
     track('onboarding_step', { step: s, outcome });
-  const go = (s: FirstRunStep | null) => {
+  const go = (s: FirstRunFlowStep | null) => {
     setError(null);
     if (s) setStep(s);
   };
-  const skip = (s: FirstRunCapture) => {
+  const skip = (s: FirstRunCapture & FirstRunFlowStep) => {
     answered(s, 'skipped');
     setSkipped((all) => (all.includes(s) ? all : [...all, s]));
     go(after(s));
   };
-  const done = (s: FirstRunCapture) => {
+  const done = (s: FirstRunCapture & FirstRunFlowStep) => {
     answered(s);
     setSkipped((all) => all.filter((x) => x !== s));
     go(after(s));
@@ -185,7 +175,7 @@ export function OnboardingForm({
     );
   }
 
-  const n = FIRST_RUN_STEPS.indexOf(step) + 1;
+  const n = FIRST_RUN_FLOW.indexOf(step) + 1;
   const back = () => go(before(step));
 
   if (step === 'looks' || step === 'pieces') {
@@ -197,21 +187,6 @@ export function OnboardingForm({
         onBack={back}
         onDone={() => done(step)}
         onSkip={() => skip(step)}
-      />
-    );
-  }
-  if (step === 'twin') {
-    return (
-      <TwinStep
-        step={n}
-        read={read}
-        onBack={back}
-        onDone={(own) => {
-          track('onboarding_captured', { step: 'twin', n: own ? 1 : 0 });
-          if (own) done('twin');
-          else skip('twin');
-        }}
-        onSkip={() => skip('twin')}
       />
     );
   }
