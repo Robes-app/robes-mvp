@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Platform, ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Unrecorded } from '@/components/Unrecorded';
 import { authClient } from '@/lib/auth-client';
 import { LEGAL_URLS } from '@/lib/config';
@@ -29,6 +30,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // offers Google beside it, as the web does. Web twin: app/src/app/auth/auth-form.tsx.
 export function AuthScreen({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const api = useApiClient();
   const queryClient = useQueryClient();
   // The screen a link was opening when she had no session (SessionGate).
@@ -115,12 +117,15 @@ export function AuthScreen({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         <WarmGround />
         {/* A scroll, its form at the foot while it fits: on a small iPhone with the keyboard up,
             the legal line and the links scroll into reach instead of standing under it (audit,
-            native: keyboard). */}
+            native: keyboard). The safe area is padding, never iOS's automatic content inset: that
+            inset sits outside a `grow` container, so the screen opened taller than itself and the
+            legal line and its links stood under the fold (Annie, 18 Nov). */}
         <ScrollView
           automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerClassName="grow justify-between gap-10 px-6 pt-4 pb-14"
+          contentInsetAdjustmentBehavior="never"
+          contentContainerClassName="grow justify-between gap-10 px-6"
+          contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }}
         >
           <Wordmark />
           {step === 'email' ? (
