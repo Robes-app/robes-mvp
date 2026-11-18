@@ -55,3 +55,22 @@ test('a wrong code is rejected', async ({ page }) => {
   ).toBeVisible();
   await expect(page).toHaveURL(/\/auth\/sign-in/);
 });
+
+test('sign up keeps her first name, and sign in and sign up link to each other', async ({
+  page,
+}) => {
+  const email = uniqueEmail('e2e-signup');
+  await page.goto('/auth/sign-in');
+  await page.getByRole('link', { name: 'Create an account' }).click();
+  await expect(page).toHaveURL(/\/auth\/sign-up$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Create your account.' })).toBeVisible();
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('First name (optional)').fill('Isabel');
+  await page.getByRole('button', { name: 'Email me a code' }).click();
+  await expect(page.getByRole('heading', { name: 'Check your email.' })).toBeVisible();
+  await page.getByLabel('Code').fill(await latestCodeFor(email));
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page).not.toHaveURL(/\/auth\//);
+  const me = await page.request.get('/api/v1/me');
+  expect(await me.json()).toMatchObject({ email, firstName: 'Isabel' });
+});

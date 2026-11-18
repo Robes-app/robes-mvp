@@ -55,7 +55,7 @@ Postgres is a private database behind the API: no RLS, no client-side queries, n
 
 **Auth (Better Auth, `packages/auth`)**
 10. Sessions are server-side rows (`app.sessions`); web uses httpOnly secure cookies, native uses the Expo plugin (SecureStore). Never store tokens in `localStorage`/AsyncStorage.
-11. Sign-in is passwordless email OTP, Apple and Google. OTPs are stored hashed, expire in 10 minutes and allow 3 attempts; Better Auth's rate limiter uses the database store (never memory in deployed envs).
+11. Sign-in is passwordless email OTP, plus Google on the web and Android; iOS is the email code alone (design "Sign in and sign up", 18 Nov; the server still runs Apple for existing accounts). Sign in and sign up are twin screens (web `app/auth/auth-form.tsx`, native `features/auth/AuthScreen.tsx`); sign up's optional first name saves only onto an account with none (`signUpFirstName`). OTPs are stored hashed, expire in 10 minutes and allow 3 attempts; Better Auth's rate limiter uses the database store (never memory in deployed envs).
 12. `trustedOrigins` and OAuth redirect URLs are exact — no wildcards in production. `BETTER_AUTH_SECRET` is ≥32 random bytes per environment; rotating it logs everyone out (runbooks/key-rotation.md).
 13. Account deletion goes through the deletion job (SEC-80), which deletes the `app.users` row last (everything cascades from it).
 

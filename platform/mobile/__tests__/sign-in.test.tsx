@@ -1,6 +1,8 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { Platform } from 'react-native';
 import SignIn from '../src/app/(auth)/sign-in';
-import { mockFetch, renderWithApi } from './support/api';
+import SignUp from '../src/app/(auth)/sign-up';
+import { ME, mockFetch, renderWithApi } from './support/api';
 
 const mockSendVerificationOtp = jest.fn(async () => ({ error: null }));
 const mockSignInEmailOtp = jest.fn(async () => ({ error: { message: 'bad' } }));
@@ -86,43 +88,56 @@ test.each([
   }
 });
 
-// F5: the phone shows the providers the server runs, in the web's order (Apple, then Google).
-test('shows no provider buttons while the server offers none', async () => {
-  const calls = mockFetch(EMAIL_ONLY);
+// Design "Sign in and sign up", 18 Nov: iOS is the email code alone, and never asks the server.
+test('an iPhone offers no provider, even when the server runs them', async () => {
+  const calls = mockFetch({ 'GET /public/auth-providers': { apple: true, google: true } });
   await renderWithApi(<SignIn />);
-  await waitFor(() => expect(calls.map((c) => c.path)).toContain('/api/v1/public/auth-providers'));
+  await screen.findByRole('button', { name: 'Email me a code' });
+  expect(calls).toHaveLength(0);
   expect(screen.queryByText('or')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
 });
 
-test('shows no provider buttons when the server cannot be asked', async () => {
-  const calls = mockFetch({});
-  await renderWithApi(<SignIn />);
-  await waitFor(() => expect(calls.length).toBe(1));
-  expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
+describe('on Android', () => {
+  beforeEach(() => jest.replaceProperty(Platform, 'OS', 'android'));
+  afterEach(() => jest.restoreAllMocks());
+
+  test('shows no provider buttons while the server offers none', async () => {
+    const calls = mockFetch(EMAIL_ONLY);
+    await renderWithApi(<SignIn />);
+    await waitFor(() =>
+      expect(calls.map((c) => c.path)).toContain('/api/v1/public/auth-providers'),
+    );
+    expect(screen.queryByText('or')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
+  });
+
+  test('signs in with Google when the server offers it, then goes home', async () => {
+    mockFetch({ 'GET /public/auth-providers': { apple: true, google: true } });
+    mockGetSession.mockResolvedValueOnce({ data: { user: { id: 'u' } } });
+    await renderWithApi(<SignIn />);
+    expect(screen.queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Continue with Google' }));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'));
+    expect(mockSignInSocial).toHaveBeenCalledWith({ provider: 'google', callbackURL: '/' });
+  });
+
+  test('stays put when she cancels Google, and says when it fails', async () => {
+    mockFetch({ 'GET /public/auth-providers': { apple: false, google: true } });
+    await renderWithApi(<SignIn />);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Continue with Google' }));
+    await waitFor(() => expect(mockGetSession).toHaveBeenCalled());
+    expect(mockReplace).not.toHaveBeenCalled();
+
+    mockSignInSocial.mockResolvedValueOnce({ error: { message: 'nope' } });
+    await fireEvent.press(screen.getByRole('button', { name: 'Continue with Google' }));
+    expect(await screen.findByText('Robes couldn’t sign you in. Try again.')).toBeTruthy();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
 });
 
-// App Store 4.8: a third-party sign-in needs Sign in with Apple beside it.
-test('an iPhone hides Google until the server offers Apple too', async () => {
-  const calls = mockFetch({ 'GET /public/auth-providers': { apple: false, google: true } });
-  await renderWithApi(<SignIn />);
-  await waitFor(() => expect(calls.map((c) => c.path)).toContain('/api/v1/public/auth-providers'));
-  await waitFor(() => expect(calls.length).toBe(1));
-  expect(screen.queryByText('or')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
-});
-
-test('signs in with Google when the server offers it, then goes home', async () => {
-  mockFetch({ 'GET /public/auth-providers': { apple: true, google: true } });
-  mockGetSession.mockResolvedValueOnce({ data: { user: { id: 'u' } } });
-  await renderWithApi(<SignIn />);
-  await fireEvent.press(await screen.findByRole('button', { name: 'Continue with Google' }));
-  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'));
-  expect(mockSignInSocial).toHaveBeenCalledWith({ provider: 'google', callbackURL: '/' });
-});
-
-// Web twin: the line under app/src/app/auth/sign-in/sign-in-form.tsx.
+// Web twin: the lines under app/src/app/auth/auth-form.tsx.
 test('names the Terms and the Privacy notice before she signs in, and opens each', async () => {
   mockFetch(EMAIL_ONLY);
   await renderWithApi(<SignIn />);
@@ -134,22 +149,68 @@ test('names the Terms and the Privacy notice before she signs in, and opens each
   ]);
 });
 
-test('puts Apple first, stays put when she cancels, and says when it fails', async () => {
-  mockFetch({ 'GET /public/auth-providers': { apple: true, google: true } });
+test('sign in and sign up link to each other, keeping the link she was opening', async () => {
+  mockSearch.next = '/look/0a1b';
+  try {
+    mockFetch(EMAIL_ONLY);
+    await renderWithApi(<SignIn />);
+    await fireEvent.press(screen.getByRole('link', { name: 'Create an account' }));
+    expect(mockReplace).toHaveBeenCalledWith({
+      pathname: '/sign-up',
+      params: { next: '/look/0a1b' },
+    });
+    await renderWithApi(<SignUp />);
+    await fireEvent.press(screen.getByRole('link', { name: 'Sign in' }));
+    expect(mockReplace).toHaveBeenLastCalledWith({
+      pathname: '/sign-in',
+      params: { next: '/look/0a1b' },
+    });
+  } finally {
+    delete mockSearch.next;
+  }
+});
+
+test('the code step offers a new code and a different email', async () => {
+  mockFetch(EMAIL_ONLY);
   await renderWithApi(<SignIn />);
-  await screen.findByRole('button', { name: 'Continue with Google' });
-  const labels = screen
-    .getAllByRole('button')
-    .map((b) => b.props.accessibilityLabel as string | undefined)
-    .filter((l) => l?.startsWith('Continue with'));
-  expect(labels).toEqual(['Continue with Apple', 'Continue with Google']);
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'niall@test.dev');
+  await fireEvent.press(screen.getByRole('button', { name: 'Email me a code' }));
+  await fireEvent.press(await screen.findByRole('link', { name: 'send a new code' }));
+  await waitFor(() => expect(mockSendVerificationOtp).toHaveBeenCalledTimes(2));
+  await fireEvent.press(screen.getByRole('link', { name: 'Use a different one' }));
+  expect(await screen.findByText('Sign in.')).toBeTruthy();
+});
 
-  await fireEvent.press(screen.getByRole('button', { name: 'Continue with Apple' }));
-  await waitFor(() => expect(mockGetSession).toHaveBeenCalled());
-  expect(mockReplace).not.toHaveBeenCalled();
+describe('sign up', () => {
+  test('saves her first name once the code is verified', async () => {
+    mockSignInEmailOtp.mockResolvedValueOnce({ error: null } as never);
+    const calls = mockFetch({
+      ...EMAIL_ONLY,
+      'GET /me': { ...ME, firstName: null },
+      'PATCH /me': { ...ME, firstName: 'Isabel' },
+    });
+    await renderWithApi(<SignUp />);
+    expect(screen.getByText('Create your account.')).toBeTruthy();
+    await fireEvent.changeText(screen.getByLabelText('Email'), 'isabel@test.dev');
+    await fireEvent.changeText(screen.getByLabelText('First name (optional)'), ' Isabel M ');
+    await fireEvent.press(screen.getByRole('button', { name: 'Email me a code' }));
+    await fireEvent.changeText(await screen.findByLabelText('Code'), '123456');
+    await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'));
+    const patch = calls.find((c) => c.method === 'PATCH' && c.path === '/api/v1/me');
+    expect(patch?.body).toEqual({ firstName: 'Isabel' });
+  });
 
-  mockSignInSocial.mockResolvedValueOnce({ error: { message: 'nope' } });
-  await fireEvent.press(screen.getByRole('button', { name: 'Continue with Google' }));
-  expect(await screen.findByText('Robes couldn’t sign you in. Try again.')).toBeTruthy();
-  expect(mockReplace).not.toHaveBeenCalled();
+  test('never renames an account that already has a name', async () => {
+    mockSignInEmailOtp.mockResolvedValueOnce({ error: null } as never);
+    const calls = mockFetch({ ...EMAIL_ONLY, 'GET /me': { ...ME, firstName: 'Niall' } });
+    await renderWithApi(<SignUp />);
+    await fireEvent.changeText(screen.getByLabelText('Email'), 'niall@test.dev');
+    await fireEvent.changeText(screen.getByLabelText('First name (optional)'), 'Isabel');
+    await fireEvent.press(screen.getByRole('button', { name: 'Email me a code' }));
+    await fireEvent.changeText(await screen.findByLabelText('Code'), '123456');
+    await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'));
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+  });
 });

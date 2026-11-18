@@ -41,6 +41,20 @@ export const auth = {
   verifying: 'Checking…',
   resend: 'Send a new code',
   useDifferentEmail: 'Use a different email',
+  // Sign in and sign up (design "Sign in and sign up", 18 Nov): two screens, one email code.
+  signUpTitle: 'Create your account.',
+  firstNameLabel: 'First name (optional)',
+  firstNamePlaceholder: 'Isabel',
+  toSignUp: { lead: 'New to Robes?', link: 'Create an account' },
+  toSignIn: { lead: 'Already have an account?', link: 'Sign in' },
+  // The code screen's two ways out, as sentences with a link each.
+  notArrived: {
+    lead: 'Not arrived? Check your spam folder, or',
+    link: 'send a new code',
+    end: '.',
+  },
+  wrongEmail: { lead: 'Wrong email?', link: 'Use a different one' },
+  photoAlt: 'A Robes member in a fringed white jumper, photographed in a mirror',
   or: 'or',
   apple: 'Continue with Apple',
   google: 'Continue with Google',
@@ -50,7 +64,12 @@ export const auth = {
   invalidCode: 'That code didn’t match. Check it and try again.',
   sendFailed: 'Robes couldn’t send a code just now. Try again in a moment.',
   signOut: 'Sign out',
-  legal: { lead: 'By continuing you agree to the', and: 'and', end: '.' },
+  legal: {
+    lead: 'By continuing you agree to the',
+    signUpLead: 'By creating an account you agree to the',
+    and: 'and',
+    end: '.',
+  },
 } as const;
 
 export const emails = {
