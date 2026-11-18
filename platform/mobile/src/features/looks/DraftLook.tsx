@@ -57,6 +57,7 @@ import {
 import { useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Dimensions,
   type HostInstance,
   Pressable,
   ScrollView,
@@ -476,6 +477,8 @@ function Shell({
   const [dockHeight, setDockHeight] = useState(0);
   const body = useRef<ScrollViewInstance>(null);
   const atEnd = useRef(false);
+  // The drawer's footer (Update look on the Edit look drawer) lifts toasts above it too.
+  const sheetFoot = useToastLiftOverFoot(Boolean(footer) && presentation !== 'saved');
   if (presentation === 'saved') {
     return (
       <SavedShell over={over} footer={footer} dock={dock ?? null}>
@@ -534,6 +537,8 @@ function Shell({
       </View>
       {footer ? (
         <View
+          ref={sheetFoot.ref}
+          onLayout={sheetFoot.measure}
           className="border-hairline bg-bg px-5 pt-3"
           style={{
             borderTopWidth: FINE_EDGE,
@@ -545,6 +550,23 @@ function Shell({
       ) : null}
     </View>
   );
+}
+
+// Lifts toasts above a foot held at the screen's foot by its distance from the window's bottom
+// edge, measured in the window, since the screen holding it may not reach the window's foot (a
+// tab's stack screen stands above the tab bar's inset): a lift by the foot's own height fell short
+// and the Undo covered Update look (TestFlight, 18 Nov).
+function useToastLiftOverFoot(on: boolean) {
+  const ref = useRef<HostInstance>(null);
+  const [lift, setLift] = useState(0);
+  useToastLift(on ? lift : 0);
+  const measure = () => {
+    ref.current?.measureInWindow((_x, y) => {
+      const fromFoot = Math.round(Dimensions.get('window').height - y);
+      if (fromFoot > 0) setLift(fromFoot);
+    });
+  };
+  return { ref, measure };
 }
 
 // A saved look's own page (3e): no header, the photo starts under the status bar with the back
@@ -565,10 +587,11 @@ function SavedShell({
 }) {
   useBareScreen();
   const insets = useSafeAreaInsets();
-  // The toast rises above the bar while it stands, so an Undo never covers Update look.
+  // The toast rises above the bar while it stands, so an Undo never covers its button or the
+  // sparkle beside it.
   const [bar, setBar] = useState(0);
   const barUp = Boolean(footer);
-  useToastLift(barUp ? bar : 0);
+  const foot = useToastLiftOverFoot(barUp);
   const root = useRef<HostInstance>(null);
   const keyboard = useKeyboardOverlap(root);
   // The prompt never covers the look (15 Nov; audit P1): the body ends clear of the bar and the
@@ -592,7 +615,11 @@ function SavedShell({
           pointerEvents="box-none"
           className="absolute inset-x-0 bottom-0 flex-row items-center px-5 pt-3"
           style={{ gap: 12, paddingBottom: keyboard ? 12 : 22, bottom: keyboard }}
-          onLayout={(e) => setBar(e.nativeEvent.layout.height)}
+          ref={foot.ref}
+          onLayout={(e) => {
+            setBar(e.nativeEvent.layout.height);
+            foot.measure();
+          }}
           testID="look-bar"
         >
           {/* Its one button takes the row, label centred, the sparkle beside it on no band of its
