@@ -308,14 +308,16 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, and no st
   expect(screen.queryByTestId('update-model')).toBeNull();
   expect(screen.queryByTestId('update-look')).toBeNull();
   expect(screen.queryByTestId('schedule-look')).toBeNull();
-  // The field line opens the sheet with its title, over the dimmed look; its close folds it back
-  // to the bar (K8).
+  // An empty send on the bar folds it to the sparkle, and Schedule look is back (K6).
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
+  // The field line opens the sheet with its title, over the dimmed look; its close puts the
+  // prompt away, to the sparkle (Annie, 18 Nov).
+  await fireEvent.press(screen.getByTestId('prompt-spark'));
   await fireEvent.press(screen.getByTestId('prompt-rest'));
   expect(screen.getByText(lookbook.draftLook.dock.title)).toBeTruthy();
   await fireEvent.press(screen.getByTestId('prompt-minimise'));
   await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
-  // An empty send folds the bar to the sparkle, and Schedule look is back (K6).
-  await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(screen.getByTestId('prompt-spark')).toBeTruthy();
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
   // No styling control on the photo (docked prompt PRD M1): the prompt is the one way to ask.
@@ -551,6 +553,46 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   });
 });
 
+// An answer that names a change none of which landed says so plainly (testing, 18 Nov: "Done. The
+// scarf is on the look now." stood over a look with no scarf); no question follows, since nothing
+// changed.
+test('a change that never landed is said plainly, never claimed', async () => {
+  const claimed = {
+    intent: 'swap',
+    reply: 'Done. The scarf is on the look now.',
+    swaps: [],
+    back: [],
+    backAll: false,
+    styled: [],
+    draft: '',
+    rule: '',
+    noticed: false,
+  };
+  mockFetch({
+    ...editRoutes(twoPieces()),
+    [`POST /looks/${LOOK_ID}/ask`]: { jobId: ASK_JOB, status: 'queued' },
+    [`GET /jobs/${ASK_JOB}`]: {
+      id: ASK_JOB,
+      kind: 'look_ask',
+      status: 'succeeded',
+      stage: 'done',
+      output: { ask: claimed },
+      error: null,
+      cancelRequested: false,
+      createdAt: '2026-10-15T10:00:00.000Z',
+      updatedAt: '2026-10-15T10:00:00.000Z',
+      finishedAt: '2026-10-15T10:00:01.000Z',
+    },
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  await fireEvent.changeText(await openPrompt(), 'add a scarf');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  expect(await screen.findByText(lookbook.prompt.didNotLand)).toBeTruthy();
+  expect(screen.queryByText('Done. The scarf is on the look now.')).toBeNull();
+  expect(screen.queryByTestId('thumb-up')).toBeNull();
+});
+
 // Robes' question names what she asked (docked prompt PRD Q2–Q4): a single reason gets its own
 // question, a piece from Which piece? "Better without the {piece}?", typed words "Closer?".
 test('Robes asks about the reason or the piece she sent', async () => {
@@ -602,11 +644,9 @@ test('Robes asks about the reason or the piece she sent', async () => {
   await fireEvent.changeText(await openPrompt(), 'collar up on the coat');
   await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(await screen.findByText(fb.closer)).toBeTruthy();
-  // Folded with the question waiting, the sparkle carries its dot (K3): closed to the bar, then an
-  // empty send folds it.
+  // Closed with the question waiting, the sparkle carries its dot (K3).
   await fireEvent.press(screen.getByTestId('prompt-minimise'));
   await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
-  await fireEvent.press(screen.getByTestId('prompt-send'));
   expect(screen.getByTestId('prompt-spark-dot', { includeHiddenElements: true })).toBeTruthy();
   expect(
     screen.getByRole('button', {
@@ -614,12 +654,13 @@ test('Robes asks about the reason or the piece she sent', async () => {
     }),
   ).toBeTruthy();
   await fireEvent.press(screen.getByTestId('prompt-spark'));
-  // One reason: its own question. Folded to the bar after the thumbs down, the reasons stand
-  // there too (Annie, 18 Nov: folding the thread hid them), and the bar's send carries the one
-  // she taps.
+  // One reason: its own question. Back on the bar after the thumbs down (closed, then the
+  // sparkle), the reasons stand there too (Annie, 18 Nov: folding the thread hid them), and the
+  // bar's send carries the one she taps.
   await fireEvent.press(screen.getByTestId('thumb-down'));
   await fireEvent.press(screen.getByTestId('prompt-minimise'));
   await waitFor(() => expect(screen.queryByTestId('draft-prompt')).toBeNull());
+  await fireEvent.press(screen.getByTestId('prompt-spark'));
   expect(within(screen.getByTestId('prompt-bar')).getByTestId('feedback-reasons')).toBeTruthy();
   await fireEvent.press(screen.getByTestId('reason-dressy'));
   await fireEvent.press(screen.getByTestId('prompt-send'));
