@@ -431,11 +431,20 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
   // what it did: the change is seen, and it only asks.
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(screen.queryByText('Collar up.')).toBeNull();
-  // While the model wears it Robes waits to ask (16 Nov): no thumbs yet. Once the picture lands
-  // the question comes, with its thumbs.
+  // While the model wears it the dock waits as the sparkle (Annie, 18 Nov): no thumbs yet. Once
+  // the picture lands the question comes on the sparkle's dot, and a tap opens it, with its thumbs.
+  expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
   expect(screen.queryByTestId('thumb-up')).toBeNull();
   expect(screen.queryByTestId('update-look')).toBeNull();
-  expect(await screen.findByTestId('thumb-up', {}, { timeout: 8000 })).toBeTruthy();
+  expect(
+    await screen.findByTestId(
+      'prompt-spark-dot',
+      { includeHiddenElements: true },
+      { timeout: 8000 },
+    ),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-spark'));
+  expect(await screen.findByTestId('thumb-up')).toBeTruthy();
   await openPrompt();
   expect(screen.getByText(lookbook.draftLook.feedback.closer)).toBeTruthy();
   expect(calls.findIndex((c) => c.path.endsWith('/ask'))).toBeLessThan(

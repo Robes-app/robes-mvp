@@ -256,6 +256,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     stale,
     badge,
     busy,
+    // The model is being dressed again (a change's picture, a restyle), not Robes reading.
+    dressing: redressJob !== null || drawing,
     // Dress it again re-writes a look Robes made; a hand-built draft has no brief to dress again.
     canRedress: look.setId !== null,
     placeholder: state.asking
