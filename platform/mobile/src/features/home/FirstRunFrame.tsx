@@ -91,7 +91,10 @@ export function FirstRunFrame({
           <View key={n} className={`h-px flex-1 ${n <= step ? 'bg-ink' : 'bg-hairline'}`} />
         ))}
       </View>
+      {/* Keyed by step: one ScrollView serves every step, so without it a step opens at the
+          offset the last one was scrolled to, title out of view. */}
       <ScrollView
+        key={step}
         className="flex-1"
         contentContainerClassName="gap-7 px-6 pt-7 pb-6"
         contentContainerStyle={fill ? { flexGrow: 1 } : undefined}
