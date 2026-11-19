@@ -27,6 +27,7 @@ import {
   nameNoBrand,
   pictureLanding,
   type RackRow,
+  rackLayoutFor,
   type Source,
   type Sources,
   type StageCard,
@@ -993,11 +994,8 @@ function DraftBody({
   const hasWardrobe = owned !== null && owned > 0;
   const src = useSources(owned, brief?.sources ?? null);
   const [emptyWardrobe, setEmptyWardrobe] = useState(false);
-  // A look Robes made from her words opens on its pieces' photographs; one she builds, on the list
-  // (Annie, 16 Nov). Native twin: DraftLook.tsx.
-  const [rackLayout, setRackLayout] = useState<WardrobeLayout>(
-    look.composedByRobes ? 'grid' : 'list',
-  );
+  // Her pick on the toggle; until she makes one the Rack opens as `rackLayoutFor` says.
+  const [pickedLayout, setRackLayout] = useState<WardrobeLayout | null>(null);
   const [editingPieces, setEditingPieces] = useState(false);
   const [adding, setAdding] = useState(false);
   // Left out on New look, the weather stays out of the draft it made (look prompt improvements B4).
@@ -1093,6 +1091,10 @@ function DraftBody({
   const wishFor = (row: RackRow) => wishOf(row.proposal?.wishlistItemId);
   const imageOf = (row: RackRow) =>
     row.pieceId ? pieceOf(row.pieceId)?.image : (wishFor(row)?.image ?? null);
+  // Robes' look opens on the tiles and hers on the list; either opens on the list once more than
+  // two in five of its pieces have no photograph to tile (Annie, 18 Nov). Read on every render, so
+  // wishes that load after the look still count. Native twin: DraftLook.tsx.
+  const rackLayout = pickedLayout ?? rackLayoutFor(look.composedByRobes, rows.map(imageOf));
   // The photograph of the piece a change swapped out of a row, for its Swapped pill (T3).
   const wasImageOf = (key: string) => {
     const was = editor.rack.edits[key]?.was;
