@@ -53,4 +53,42 @@ describe('ui state repo', () => {
     expect(keys).toContain(`k:${DISMISSED_MAX + 4}`);
     expect(keys).not.toContain('k:0');
   });
+
+  it('keeps when she last opened the bell and her onboarding cards, hers alone', async () => {
+    const at = new Date('2026-11-19T09:00:00Z');
+    expect(await uiState.bell(ann)).toEqual({
+      seenAt: null,
+      cards: { twinHad: false, twin: null, dna: null },
+    });
+    await uiState.markBellSeen(ann, at);
+    await uiState.markTwinHad(ann);
+    await uiState.putAwayCard(ann, 'dna', 1, at);
+    const mine = await uiState.bell(ann);
+    expect(mine.seenAt?.toISOString()).toBe(at.toISOString());
+    expect(mine.cards).toEqual({
+      twinHad: true,
+      twin: null,
+      dna: { n: 1, at: at.toISOString() },
+    });
+    expect(await uiState.bell(bea)).toEqual({
+      seenAt: null,
+      cards: { twinHad: false, twin: null, dna: null },
+    });
+  });
+
+  it('moves a card only from the round it is on, so a stale swipe never skips the week', async () => {
+    const first = new Date('2026-11-01T09:00:00Z');
+    const again = new Date('2026-11-02T09:00:00Z');
+    await uiState.putAwayCard(bea, 'twin', 1, first);
+    // A second swipe on round one (a cached sheet) changes nothing.
+    await uiState.putAwayCard(bea, 'twin', 1, again);
+    // Round two never moves before round one has.
+    await uiState.putAwayCard(bea, 'dna', 2, again);
+    expect((await uiState.bell(bea)).cards).toMatchObject({
+      twin: { n: 1, at: first.toISOString() },
+      dna: null,
+    });
+    await uiState.putAwayCard(bea, 'twin', 2, again);
+    expect((await uiState.bell(bea)).cards.twin).toEqual({ n: 2, at: again.toISOString() });
+  });
 });

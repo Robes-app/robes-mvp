@@ -149,20 +149,21 @@ export const DAY_ONE_KEYS = { model: 'dayone:model', pieces: 'dayone:pieces' } a
 
 // The bell's diary nudges (plan 2026-11-02): the days of the last week she logged no wear on, newest
 // first — only days since her account began, and only once she has a look to log. Pure, so the
-// server and its test agree; the dates are plain YYYY-MM-DD in her timezone. At most the five
-// newest (Annie, 16 Nov): a week of nudges read as a backlog, not a reminder.
+// server and its test agree; the dates are plain YYYY-MM-DD in her timezone. At most the three
+// newest (design "Onboarding notifications", 19 Nov, over five of 16 Nov); a dismissed day keeps
+// its place empty, so older days drop off rather than queue up.
 export const BELL_NUDGE_DAYS = 7;
-export const BELL_NUDGE_MAX = 5;
+export const BELL_NUDGE_MAX = 3;
 export function bellNudgeDays(o: {
   today: string;
   since: string;
   wornDays: Iterable<string>;
   hasLooks: boolean;
-  // Days whose nudge she dismissed: they never return, and never hold one of the five places.
+  // Days whose nudge she dismissed: they never return, and no older day takes their place.
   dismissed?: Iterable<string>;
 }): string[] {
   if (!o.hasLooks) return [];
-  const worn = new Set([...o.wornDays, ...(o.dismissed ?? [])]);
+  const worn = new Set(o.wornDays);
   const out: string[] = [];
   for (let i = 1; i <= BELL_NUDGE_DAYS; i++) {
     const day = shiftDay(o.today, -i);
@@ -170,7 +171,50 @@ export function bellNudgeDays(o: {
     if (!worn.has(day)) out.push(day);
     if (out.length === BELL_NUDGE_MAX) break;
   }
-  return out;
+  const dismissed = new Set(o.dismissed ?? []);
+  return out.filter((d) => !dismissed.has(d));
+}
+
+// Style DNA is complete once these five are answered (design 19 Nov), in the order the bell's card
+// opens the first one missing. The lines she adds over time (loves, avoids, rules) never count.
+export const STYLE_DNA_SECTIONS = ['gender', 'age', 'investment', 'types', 'brands'] as const;
+export type StyleDnaSection = (typeof STYLE_DNA_SECTIONS)[number];
+export function styleDnaProgress(dna: {
+  gender: string | null;
+  age: string | null;
+  investment: string | null;
+  types: readonly string[];
+  brands: readonly string[];
+}): { answered: number; next: StyleDnaSection | null } {
+  const filled = (v: string | null | readonly string[]) =>
+    typeof v === 'string' ? v.trim() !== '' : (v?.some((x) => x.trim() !== '') ?? false);
+  const missing = STYLE_DNA_SECTIONS.filter((s) => !filled(dna[s]));
+  return { answered: STYLE_DNA_SECTIONS.length - missing.length, next: missing[0] ?? null };
+}
+
+// The Twin and Style DNA cards put away once come back once, a week later; twice is for good.
+export const BELL_COMEBACK_MS = 7 * 24 * 60 * 60 * 1000;
+export function onboardingRound(
+  put: { n: 1 | 2; at: string } | null,
+  now: Date,
+): { round: 1 | 2; since: string | null } | null {
+  if (!put) return { round: 1, since: null };
+  if (put.n === 2) return null;
+  const back = Date.parse(put.at) + BELL_COMEBACK_MS;
+  return now.getTime() >= back ? { round: 2, since: new Date(back).toISOString() } : null;
+}
+
+// Whether a card lights the bell's dot: it appeared after she last opened the sheet. A diary day
+// appears the morning after it, so it is seen once she opened the bell on a later day (`seenDay`,
+// her local day at `seenAt`). A card with no `since` has stood since before any opening.
+export function bellUnseen(
+  card: { since?: string | null; day?: string },
+  seenAt: string | null,
+  seenDay?: string,
+): boolean {
+  if (seenAt === null) return true;
+  if (card.day !== undefined) return seenDay === undefined || card.day >= seenDay;
+  return card.since != null && Date.parse(card.since) > Date.parse(seenAt);
 }
 
 function shiftDay(date: string, n: number): string {

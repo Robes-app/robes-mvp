@@ -230,6 +230,17 @@ async function addPending(
 
 export function styleDnaRepo(db: Db) {
   return {
+    // When the newest Observation still waiting for her arrived; null when none waits (the bell).
+    async pendingSince(userId: UserId): Promise<Date | null> {
+      const row = await db
+        .selectFrom('styleBriefLines')
+        .select((eb) => eb.fn.max('createdAt').as('at'))
+        .where('userId', '=', userId)
+        .where('state', '=', 'pending')
+        .executeTakeFirst();
+      return row?.at ? new Date(row.at) : null;
+    },
+
     async get(userId: UserId) {
       const [profile, style, lines, heroes] = await Promise.all([
         db

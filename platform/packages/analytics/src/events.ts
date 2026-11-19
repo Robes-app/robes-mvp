@@ -17,6 +17,7 @@ const category = z.enum(LEGACY_CATEGORIES);
 // home, or the create box (the Lookbook, Create, a piece page).
 const askSurface = z.enum(['suggested', 'draft', 'saved', 'day']);
 const boxSurface = z.enum(['home', 'create']);
+const bellKind = z.enum(['twin', 'dna', 'observations', 'receipts', 'diary', 'overnight']);
 const askIntent = z.enum(['swap', 'back', 'rule', 'styled', 'clarify', 'draft', 'none', 'picture']);
 // The docked prompt (docked prompt PRD, Analytics): its three states, and how many changes she
 // has sent on the look this session (0 for the first look).
@@ -168,6 +169,13 @@ export const EVENTS = {
     .strict(),
   // The box holds her ask to ask where its pieces come from.
 
+  // The bell's sheet is opened, with how many cards she had not seen.
+  bell_opened: z.object({ unseen: z.number().int().min(0).max(50) }).strict(),
+  // A card in the bell is tapped through, or dismissed (design "Onboarding notifications").
+  bell_card_tapped: z.object({ kind: bellKind }).strict(),
+  bell_card_dismissed: z.object({ kind: bellKind }).strict(),
+  // Her first digital twin is on file (her close-up given, or a twin drawing), seen by the bell.
+  twin_created: none,
   // Home: a step card (O1–O4) is shown.
   home_module_view: z.object({ id: z.enum(HOME_STEPS) }).strict(),
   // Home: Later on a step card.
