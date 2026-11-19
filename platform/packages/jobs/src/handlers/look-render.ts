@@ -24,6 +24,7 @@ import {
   twinInputsOf,
   twinSpec,
 } from '@robes/core/avatar';
+import { categoryFromWords } from '@robes/core/taxonomy';
 import type { StoredFrame, SystemRepositories } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -274,11 +275,13 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       throw new JobError('empty_look');
     }
     const feature = RENDER_FEATURE;
+    // What the picture was asked for is kept with the call, as a text call's is (SEC-82).
+    const prompt = buildRenderPrompt(gender, pieces, twinLine, found.look.pictureNote);
     try {
       const { image, usage } = await deps.ai.generateImage({
         feature,
         capability: 'image.hero',
-        prompt: buildRenderPrompt(gender, pieces, twinLine, found.look.pictureNote),
+        prompt,
         references,
         aspectRatio: '4:5',
         signal: ctx.signal,
@@ -289,6 +292,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         userId: ctx.userId,
         feature,
         status: 'ok',
+        prompt,
       });
       const assetId = await deps.styling.createGeneratedAsset(ctx.userId);
       const key = mediaKeys.original(ctx.userId, assetId);
@@ -309,6 +313,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           userId: ctx.userId,
           feature,
           status: err.code === 'timeout' ? 'timeout' : 'error',
+          prompt,
         });
       }
       await model.failRender(ctx.userId, lookId, renderKey);
@@ -343,7 +348,8 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       })),
       ...proposals.map((p) => ({
         name: p.name,
-        category: p.category,
+        // A proposal filed as Other before it was read from its name (19 Nov) draws as what it is.
+        category: categoryFromWords(p.category, p.name),
         color: p.color,
         brand: p.brand,
         imageAssetId: null,
@@ -411,16 +417,17 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         if (photo) references.push({ mimeType: 'image/jpeg', data: photo });
         pieces.push({ ...p, hasImage: Boolean(photo) });
       }
+      const prompt = buildFrameRenderPrompt(
+        gender,
+        pieces,
+        found.look.pictureNote,
+        anchor?.image ? { face: anchor.face !== null, figure: anchor.figure } : undefined,
+      );
       try {
         const { image, usage } = await deps.ai.generateImage({
           feature: FRAME_FEATURE,
           capability: 'image.hero',
-          prompt: buildFrameRenderPrompt(
-            gender,
-            pieces,
-            found.look.pictureNote,
-            anchor?.image ? { face: anchor.face !== null, figure: anchor.figure } : undefined,
-          ),
+          prompt,
           references,
           aspectRatio: '4:5',
           signal: ctx.signal,
@@ -431,6 +438,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           userId: ctx.userId,
           feature: FRAME_FEATURE,
           status: 'ok',
+          prompt,
         });
         assetId = await deps.styling.createGeneratedAsset(ctx.userId);
         const key = mediaKeys.original(ctx.userId, assetId);
@@ -444,6 +452,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
             userId: ctx.userId,
             feature: FRAME_FEATURE,
             status: err.code === 'timeout' ? 'timeout' : 'error',
+            prompt,
           });
         }
         return fail(err);

@@ -1,4 +1,5 @@
 import { styleDnaPromptBlock } from '@robes/core/style-dna';
+import { categoryFromWords } from '@robes/core/taxonomy';
 import { z } from 'zod';
 import { FENCE_RULE, fenceUserText } from '../../fence';
 import { genderDirective } from '../style-piece/v3';
@@ -210,9 +211,13 @@ export function normaliseAnswer(out: Output, ctx: Pick<AskContext, 'rack' | 'poo
     if (held) continue;
     const name = clip(s.name, 120);
     if (!name) continue;
+    // A category not of ours is read from her words, else the row's (19 Nov: a coat as Other).
+    const read = categoryFromWords(s.category, name);
     const category = (CATEGORIES as readonly string[]).includes(s.category)
       ? s.category
-      : r.category || 'Other';
+      : read !== 'Other' && (CATEGORIES as readonly string[]).includes(read)
+        ? read
+        : r.category || 'Other';
     swaps.push({
       i: s.i,
       to: {

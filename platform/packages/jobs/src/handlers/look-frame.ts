@@ -210,28 +210,30 @@ export async function drawSuggestedFrame(
     });
   }
   const feature = `${FEATURE}.image`;
+  // What the picture was asked for is kept with the call, as a text call's is (SEC-82).
+  const prompt = withPictureNote(
+    buildImagePrompt({
+      wearer: opts.wearer,
+      mode: opts.mode,
+      fallback: opts.fallback,
+      pieceLabel: opts.pieceLabel,
+      hasModel: Boolean(opts.model),
+      hasFace: face !== null,
+      figure: opts.model ? (opts.figure ?? '') : '',
+      hasPiecePhoto: Boolean(opts.piecePhoto),
+      styleIcons: opts.styleIcons,
+      brief: opts.brief,
+      way: opts.way,
+      pieces,
+      ...(opts.setting ? { setting: opts.setting } : {}),
+    }),
+    opts.pictureNote,
+  );
   try {
     const { image, usage } = await deps.ai.generateImage({
       feature,
       capability: opts.capability,
-      prompt: withPictureNote(
-        buildImagePrompt({
-          wearer: opts.wearer,
-          mode: opts.mode,
-          fallback: opts.fallback,
-          pieceLabel: opts.pieceLabel,
-          hasModel: Boolean(opts.model),
-          hasFace: face !== null,
-          figure: opts.model ? (opts.figure ?? '') : '',
-          hasPiecePhoto: Boolean(opts.piecePhoto),
-          styleIcons: opts.styleIcons,
-          brief: opts.brief,
-          way: opts.way,
-          pieces,
-          ...(opts.setting ? { setting: opts.setting } : {}),
-        }),
-        opts.pictureNote,
-      ),
+      prompt,
       ...(references.length ? { references } : {}),
       aspectRatio: '4:5',
       signal: ctx.signal,
@@ -242,6 +244,7 @@ export async function drawSuggestedFrame(
       userId: ctx.userId,
       feature,
       status: 'ok',
+      prompt,
     });
     const assetId = await deps.styling.createGeneratedAsset(ctx.userId);
     const key = mediaKeys.original(ctx.userId, assetId);
@@ -256,6 +259,7 @@ export async function drawSuggestedFrame(
         userId: ctx.userId,
         feature,
         status: err.code === 'timeout' ? 'timeout' : 'error',
+        prompt,
       });
     }
     throw err;
