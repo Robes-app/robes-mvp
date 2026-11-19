@@ -98,7 +98,7 @@ export function SavedTile({
       className="flex-1"
       metaIcon="calendar"
       meta={cardMeta(look)}
-      mark={look.proposals.length ? { icon: 'bag', label: copy.card.shop } : null}
+      mark={look.proposals.length ? { icon: 'shop', label: copy.card.shop } : null}
       onImage={
         onDiary ? (
           <View className="absolute bottom-2 left-2">
@@ -263,7 +263,7 @@ export function SuggestedTile({
       eyebrow={copy.suggestedTile.eyebrow}
       eyebrowTone="warm"
       meta={reasonLine(look)}
-      mark={look.proposals.length ? { icon: 'bag', label: copy.card.shop } : null}
+      mark={look.proposals.length ? { icon: 'shop', label: copy.card.shop } : null}
       testID={`suggested-${look.id}`}
       onImage={
         <>

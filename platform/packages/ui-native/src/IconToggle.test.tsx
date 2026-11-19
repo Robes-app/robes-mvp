@@ -9,7 +9,7 @@ function Harness() {
   const [on, setOn] = useState(false);
   return (
     <IconToggle
-      icon="bag"
+      icon="shop"
       checked={on}
       onChange={setOn}
       labelOn={ON}

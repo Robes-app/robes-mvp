@@ -11,7 +11,7 @@ const OFF = 'Shop is off: no wishlist or new pieces added';
 function Harness({ initial = false }: { initial?: boolean }) {
   const [on, setOn] = useState(initial);
   return (
-    <IconToggle icon="bag" tip="Shop" checked={on} onChange={setOn} labelOn={ON} labelOff={OFF} />
+    <IconToggle icon="shop" tip="Shop" checked={on} onChange={setOn} labelOn={ON} labelOff={OFF} />
   );
 }
 
