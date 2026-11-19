@@ -8,6 +8,7 @@ export * from './capture';
 export * from './draft';
 export * from './dress';
 export * from './images';
+export * from './rack-layout';
 
 export const LOOK_STATUSES = ['suggested', 'draft', 'saved'] as const;
 export type LookStatus = (typeof LOOK_STATUSES)[number];
@@ -442,13 +443,19 @@ function fnv(s: string, seed: number): string {
 
 export function frameKey(
   pieceIds: readonly string[],
-  proposals: readonly { name: string; brand?: string | null }[],
+  proposals: readonly { name: string; brand?: string | null; key?: string }[],
   styling: Readonly<Record<string, string>>,
   pictureNote?: string | null,
 ): string {
+  // How a proposed piece is worn is keyed by its proposal key, and counts as for her own pieces:
+  // "worn open over the hoodie" on a proposed coat used to leave the key as it was, so no redraw
+  // started (testing, 19 Nov). With no note a proposal reads as before, so drawn frames stand.
   const parts = [
     ...pieceIds.map((id) => `${id}~${styling[id] ?? ''}`),
-    ...proposals.map((p) => `${p.name}|${p.brand ?? ''}`),
+    ...proposals.map((p) => {
+      const worn = p.key ? styling[p.key]?.trim() : '';
+      return `${p.name}|${p.brand ?? ''}${worn ? `~${worn}` : ''}`;
+    }),
   ].sort();
   const note = pictureNote?.trim();
   const s = parts.join(';') + (note ? `\u0000note:${note}` : '');

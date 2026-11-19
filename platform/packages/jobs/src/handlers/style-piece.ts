@@ -501,6 +501,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       const assetId = await drawSuggestedFrame(frameDeps(), ctx, {
         ...draw,
         model: model.image,
+        face: model.face,
+        figure: model.figure,
         capability: 'image.hero',
       });
       // Lands only while the look still wants this rack (she may have changed it meanwhile), and
@@ -511,6 +513,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         specKey(o.spec, o.pictureNote),
         assetId,
         model.on,
+        model.cellId,
       );
       await deps.styling.trackImage({
         jobId: ctx.jobId,

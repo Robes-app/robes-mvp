@@ -128,6 +128,12 @@ export const ICONS = {
   bell: ['M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z', 'M10 20.5a2 2 0 0 0 4 0'],
   pin: ['M12 21s-6-6-6-11a6 6 0 0 1 12 0c0 5-6 11-6 11z', 'M10 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0'],
   receipt: ['M6 3h12v18l-3-2-3 2-3-2-3 2z', 'M9 8h6M9 12h6'],
+  // The bell's Style DNA and Observations cards (design "Onboarding notifications", 19 Nov).
+  dna: ['M8 3c0 5 8 4.5 8 9s-8 4-8 9', 'M16 3c0 5-8 4.5-8 9s8 4 8 9', 'M9.5 6.5h5M9.5 17.5h5'],
+  eye: [
+    'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z',
+    'M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0',
+  ],
   // Felix Design System (2026-11-06): the Draft Look's actions, the Details rows' tag, the
   // season picker and the alerts' calendar.
   capture: [
@@ -154,11 +160,11 @@ export const ICONS = {
   ],
   autumn: ['M5 19C5 11 10 5 20 4c-1 10-7 15-15 15z', 'M5 19l8-8'],
   winter: ['M12 2v20', 'M3.3 7l17.4 10M3.3 17l17.4-10', 'M9 4l3 2 3-2M9 20l3-2 3 2'],
-  // Front Door PRD rev 3 (Felix's bookmark and bag): the Lookbook's Saved tab and the save on a
-  // suggestion; the Wardrobe's Shop tab and the mark on a look with pieces still to find.
+  // Front Door PRD rev 3 (Felix's bookmark): the Lookbook's Saved tab and the save on a suggestion.
   bookmark: ['M7 4h10v16l-5-3.5L7 20z'],
-  bag: ['M5 11h14v9.5H5z', 'M9 11C9 6.5 10.3 4 12 4s3 2.5 3 7'],
-  // The prompt box's Shop source (redline 14 Nov): a shopping bag seen three-quarter on.
+  // Shop, everywhere (redline 14 Nov; Annie 19 Nov retired Felix's flat bag): a shopping bag seen
+  // three-quarter on. The prompt box's Shop source, the Wardrobe's and the picker's Shop tab, and
+  // the mark on a look, a rack row or a card with pieces still to find.
   shop: [
     'M8 9.5V6.9C8 5.3 9 4.2 10.25 4.2S12.5 5.3 12.5 6.9V9.5',
     'M5.5 9.5H14.6V20.4H5.5Z',

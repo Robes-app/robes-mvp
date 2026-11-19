@@ -11,8 +11,10 @@ import { uploadPhoto } from '@/lib/upload';
 import { useJob } from '@/lib/use-job';
 
 const copy = you.style;
-// The read's job, carried in the address from the camera to Your digital twin.
-export const READ_PARAM = 'read';
+
+import { READ_PARAM } from './selfie-params';
+
+export { READ_PARAM };
 export const SELFIE_ROUTE = '/you/selfie';
 
 // The one door to her twin (plan 2026-11-05 §2.6), behind every selfie button: the selfie camera
@@ -25,7 +27,10 @@ export function useSelfie(): { start: () => void } {
 // The photograph she keeps on the review (design 05): uploaded as her close-up and read for her
 // colouring, then Your digital twin with the read's job in the address so that page follows the
 // read (and her twin, which draws alongside it).
-export function useSelfieSend(): {
+export function useSelfieSend(
+  // Where the read goes on: Your digital twin, or Getting to know you's twin step.
+  returnTo = '/you/model',
+): {
   send: (photo: File) => Promise<void>;
   busy: boolean;
   error: string | null;
@@ -43,7 +48,7 @@ export function useSelfieSend(): {
       const started = await api.call('me.style.analyse', {
         input: { kind: 'colour', assetId: asset.id },
       });
-      router.replace(`/you/model?${READ_PARAM}=${encodeURIComponent(started.jobId)}`);
+      router.replace(`${returnTo}?${READ_PARAM}=${encodeURIComponent(started.jobId)}`);
     } catch (err) {
       setError(errorCopy(err));
     } finally {

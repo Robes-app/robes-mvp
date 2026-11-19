@@ -29,7 +29,7 @@ export function dailyLooksRepo(db: Db) {
     // The look Robes made overnight for her calendar date (M5 task 3), if any.
     overnightFor(userId: UserId, date: string) {
       return active()
-        .select(['id', 'title', 'subtitle'])
+        .select(['id', 'title', 'subtitle', 'createdAt'])
         .where('userId', '=', userId)
         .where(sql<boolean>`data->>'overnight' = 'true'`)
         .where(sql<boolean>`data->>'date' = ${date}`)

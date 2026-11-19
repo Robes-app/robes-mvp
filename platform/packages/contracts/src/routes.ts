@@ -83,6 +83,7 @@ import {
   RegisterPushTokenInput,
   ReportClientErrorInput,
   RequestDeletionInput,
+  SaveOnboardingInput,
   StyleOverrides,
   StyleProfile,
   UpdateLocationInput,
@@ -211,6 +212,14 @@ export const routes = {
     input: EmptyInput,
     output: Features,
   },
+  // The eight-step flow as she goes (onboarding PRD): where she is, and on Brands her answers.
+  'me.onboarding.save': {
+    method: 'PATCH',
+    path: '/me/onboarding',
+    auth: 'user',
+    input: SaveOnboardingInput,
+    output: Ok,
+  },
   'me.onboarding.complete': {
     method: 'POST',
     path: '/me/onboarding/complete',
@@ -234,7 +243,7 @@ export const routes = {
     input: HomeLaterInput,
     output: HomeLater,
   },
-  // The bell: receipts to review and days with no wear logged, computed on each read.
+  // The bell: its cards and the older items, computed on each read.
   'notifications.list': {
     method: 'GET',
     path: '/me/notifications',
@@ -248,6 +257,14 @@ export const routes = {
     path: '/me/notifications/dismiss',
     auth: 'user',
     input: DismissNotificationInput,
+    output: Ok,
+  },
+  // She opened the sheet: what it shows stops lighting the dot. Naturally idempotent.
+  'notifications.seen': {
+    method: 'POST',
+    path: '/me/notifications/seen',
+    auth: 'user',
+    input: EmptyInput,
     output: Ok,
   },
   'me.deletion.get': {

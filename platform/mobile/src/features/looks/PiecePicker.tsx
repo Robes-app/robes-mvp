@@ -45,6 +45,7 @@ export function PiecePicker({
   onSnap,
   onAddNew,
   onAddPieces,
+  onGone,
 }: {
   mode: PickerMode | null;
   // The pieces and wishes already on the rack, by id.
@@ -58,6 +59,8 @@ export function PiecePicker({
   // Every other +: the Add pieces sheet over the look, once the picker has gone. Without it the
   // + opens the sheet over the Wardrobe.
   onAddPieces?: () => void;
+  // The sheet has fully gone (on iOS, its dismissal finished).
+  onGone?: () => void;
 }) {
   const router = useRouter();
   const addNext = useRef(false);
@@ -152,6 +155,7 @@ export function PiecePicker({
       }
       onClose={onClose}
       onClosed={() => {
+        onGone?.();
         if (!addNext.current) return;
         addNext.current = false;
         onAddPieces?.();
@@ -176,7 +180,7 @@ export function PiecePicker({
           icons={{
             [wardrobe.segments.owned]: 'wardrobe',
             [wardrobe.segments.wishlist]: 'heart',
-            [wardrobe.segments.shop]: 'bag',
+            [wardrobe.segments.shop]: 'shop',
           }}
           disabled={off}
           trailing={

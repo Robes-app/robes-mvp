@@ -693,6 +693,14 @@ test('grid | list switches the layout; the list swipes (or acts) to Delete, aske
   expect(screen.getByText(wardrobe.card.swipeDelete)).toBeTruthy();
   await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.grid }));
   expect(screen.queryByRole('button', { name: removeLabel })).toBeNull();
+  // The grid's tile is held for its menu (iOS): Delete piece asks first, and Cancel keeps it.
+  const tile = await screen.findByTestId(`piece-tile-${PIECE_ID}`);
+  expect(tile.props.accessibilityActions).toEqual([
+    { name: 'delete', label: wardrobe.card.menu.delete },
+  ]);
+  await act(() => tile.props.onAccessibilityAction({ nativeEvent: { actionName: 'delete' } }));
+  expect(await screen.findByText(wardrobe.piece.deleteTitle)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.cancel }));
   await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.list }));
   // Cancel keeps the piece.
   await fireEvent(screen.getByRole('button', { name: removeLabel }), 'press');
@@ -830,4 +838,19 @@ test('an old Inbox link opens the Inbox', async () => {
   } finally {
     delete mockParams.segment;
   }
+});
+
+// The photograph's disc is the twin's (Annie, 19 Nov): it opens the piece camera, one piece per
+// photo, her photos in reach; never the legacy camera-or-library list.
+test("the photo's disc opens the piece camera", async () => {
+  mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.piece.changePhoto }));
+  expect(await screen.findByText(wardrobe.piece.camera.hint)).toBeTruthy();
+  expect(screen.getByLabelText(wardrobe.piece.camera.photos)).toBeTruthy();
+  expect(screen.queryByText(wardrobe.add.doors.cameraRoll)).toBeNull();
 });

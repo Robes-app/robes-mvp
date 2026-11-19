@@ -162,7 +162,56 @@ export const firstRun = {
     titleEm: 'love or avoid.',
     control: (family: string): string => `${family}: love, no view or avoid`,
   },
+  // The eight-step flow's capture steps (onboarding PRD and design, 17 Nov), each skippable.
+  skip: 'Skip',
+  addMore: 'Add more',
+  removePhoto: 'Remove this photo',
+  // 05 Saved looks: each photo saves as its own look.
+  looks: {
+    title: 'Saved looks',
+    titleEm: 'on your phone?',
+    sub: 'The mirror selfie you loved, or the screenshots you keep going back to.',
+    choose: 'Choose saved looks',
+    hint: 'From your photos, or the mirror · Head to toe',
+    next: 'Add more, or review when you’re done',
+    ready: (n: number): string =>
+      n === 1 ? '1 look for your Lookbook' : `${n} looks for your Lookbook`,
+    full: 'That’s twelve. Save these, then add more.',
+    saved: 'Saved to your Lookbook.',
+    savedEm: (n: number): string => `${countWord(n)} new ${n === 1 ? 'look' : 'looks'}.`,
+    failed: 'Robes couldn’t save these looks. Try again.',
+  },
+  // 06 Pieces you love: one photo files one piece, starred.
+  pieces: {
+    title: 'The pieces',
+    titleEm: 'you love most.',
+    examples: ['Jacket', 'Knit', 'Jeans', 'Dress', 'Boots', 'Bag'],
+    add: 'Add favourite pieces',
+    hint: 'One piece per photo · Lay it flat, hang it up, or find it saved in your phone',
+    next: 'Next piece, or review when you’re done',
+    ready: (n: number): string =>
+      n === 1 ? '1 piece for your Wardrobe' : `${n} pieces for your Wardrobe`,
+    full: 'That’s twelve. Save these, then add more.',
+    saved: 'In your wardrobe.',
+    savedEm: (n: number): string => `${countWord(n)} new ${n === 1 ? 'piece' : 'pieces'}.`,
+    failed: 'Robes couldn’t file these pieces. Try again.',
+  },
+  // Save N, under both cameras.
+  save: (n: number): string => `Save ${n}`,
+  // 07 Today's outfit: hands on to Home's Capture for today.
+  outfit: {
+    title: 'Capture what you’re',
+    titleEm: 'wearing now.',
+    capture: 'Capture today’s outfit',
+    today: (date: string): string => `Today · ${date}`,
+  },
 } as const;
+
+// One to six as words, as the design reads them ("Two new looks."); figures past that.
+const COUNT_WORDS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'] as const;
+function countWord(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
 
 const ordinal = (n: number): string => {
   const rem = n % 100;
@@ -177,11 +226,21 @@ export const bell = {
   open: 'Notifications',
   // The unread dot is never colour alone: the count lives in the bell's label.
   openNew: (n: number): string => (n > 0 ? `Notifications, ${n} new` : 'Notifications'),
-  empty: 'Nothing new.',
+  empty: 'All caught up.',
   dismiss: 'Dismiss',
-  // The sheet's ✓.
-  clear: 'Clear all',
-  dest: { receipts: 'Wardrobe', diary: 'Diary', overnight: 'Lookbook' },
+  dest: {
+    twin: 'Digital twin',
+    dna: 'Style DNA',
+    observations: 'Style DNA',
+    receipts: 'Wardrobe',
+    diary: 'Diary',
+    overnight: 'Lookbook',
+  },
+  // The onboarding cards (design "Onboarding notifications", 19 Nov).
+  twin: 'Create your digital twin',
+  dna: (answered: number): string =>
+    answered === 0 ? 'Start your Style DNA' : 'Finish your Style DNA',
+  observations: 'New observations to review',
   overnight: (weekday: string): string => `See ${weekday}’s look`,
   receipts: (n: number): string => (n === 1 ? '1 receipt to review' : `${n} receipts to review`),
   receiptsLine: (retailers: readonly string[]): string | null => {

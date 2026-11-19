@@ -12,6 +12,7 @@ test('legacy app paths land on their new homes, query strings kept', async ({ re
     ['/wishlist', '/wardrobe/wishlist'],
     ['/diary', '/plan'],
     ['/signup.html?mode=signin', '/auth/sign-in?mode=signin'],
+    ['/signup.html', '/auth/sign-up'],
     ['/look/a1b2c3d4e5', '/'],
     ['/board/a1b2c3d4e5', '/share/a1b2c3d4e5'],
     ['/wardrobe?receipts=1', '/wardrobe/inbox?receipts=1'],

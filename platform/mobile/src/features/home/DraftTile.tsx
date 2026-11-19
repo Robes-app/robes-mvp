@@ -8,7 +8,7 @@ import { fonts, Image, maxFontSizeMultiplier, Skeleton, Text, useColor } from '@
 import { useRouter } from 'expo-router';
 import { Pressable, Text as RNText, View } from 'react-native';
 import { useDressingLine } from '@/features/looks/DraftLook';
-import { lookHero } from '@/features/looks/LookTile';
+import { lookHero, PERSON_CROP } from '@/features/looks/LookTile';
 import { ScanLine } from '@/features/looks/ScanLine';
 import { renditionUri } from '@/lib/images';
 
@@ -65,9 +65,15 @@ export function DraftTile({
       <View className="aspect-[4/5] overflow-hidden bg-surface">
         <View style={{ opacity: generating ? 0.55 : stale ? 0.8 : 1 }}>
           {uri ? (
-            <Image source={uri} alt="" aspect="4:5" blurhash={look?.image?.blurhash} />
+            <Image
+              source={uri}
+              alt=""
+              aspect="4:5"
+              blurhash={look?.image?.blurhash}
+              contentPosition={PERSON_CROP}
+            />
           ) : stand ? (
-            <Image source={stand} alt="" aspect="4:5" />
+            <Image source={stand} alt="" aspect="4:5" contentPosition={PERSON_CROP} />
           ) : (
             <Skeleton width="100%" aspectRatio={4 / 5} />
           )}

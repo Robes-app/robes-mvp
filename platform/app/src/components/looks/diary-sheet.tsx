@@ -78,8 +78,11 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     onClose();
   };
   const settle = (message: string) => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
+    // Home's week and the day page show the day too (19 Nov: a look scheduled for Saturday was
+    // in the Diary and not on Home; twin: mobile useRefreshDays).
+    for (const key of ['plan.get', 'plan.day', 'today.get', 'looks.list'] as const) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.route(key) });
+    }
     // The look's own page reads the count and the record of days: both follow a wear.
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') });
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') });

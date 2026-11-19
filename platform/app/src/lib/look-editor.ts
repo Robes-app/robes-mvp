@@ -180,17 +180,20 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     rename: (name: string) => write.mutate({ params: { id: look.id }, input: { name } }),
     // The picture drawn again for the rack as it stands: Robes' frame, else her model. Resolves
     // once the job is started; the look then reads pending until it lands.
-    // `note`: her Adjust model image words (D21), kept on the look for every later redraw; the
+    // `note`: her note about the picture (D21; from the prompt, look-ask v5), kept on the look for every later redraw; the
     // pieces never change for it.
-    redraw: async (note?: string) => {
+    // True when a picture is now being drawn; false when the one shown already wears this rack.
+    redraw: async (note?: string): Promise<boolean> => {
       await inFlight.current;
       const input = note === undefined ? {} : { note };
-      if (look.frame || look.setId)
-        await api.call('looks.frame', { params: { id: look.id }, input });
-      else await api.call('looks.renderOnModel', { params: { id: look.id }, input });
+      const { status } =
+        look.frame || look.setId
+          ? await api.call('looks.frame', { params: { id: look.id }, input })
+          : await api.call('looks.renderOnModel', { params: { id: look.id }, input });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.call('looks.get', { params: { id: look.id } }),
       });
+      return status === 'queued' || status === 'running';
     },
     answer: (result: LookAskResult) => {
       if (askChanges(result)) change(applyAsk(rack, result));

@@ -10,7 +10,7 @@ export interface TabsProps<T extends string> {
   value: T;
   onChange: (item: T) => void;
   // A 12pt glyph before a tab's label (the Lookbook's bookmark and sparkle, the Wardrobe's
-  // hanger, heart and bag). Front Door PRD rev 3 §2.4.
+  // hanger, heart and shop bag). Front Door PRD rev 3 §2.4.
   icons?: Partial<Record<T, IconName>>;
   // A count after a tab's label, lighter ("INBOX 13").
   counts?: Partial<Record<T, number>>;

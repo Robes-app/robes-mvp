@@ -8,9 +8,10 @@ import { z } from 'zod';
 import { DiaryHome } from '@/components/home/diary-home';
 import { WaitlistForm } from '@/components/marketing/waitlist-form';
 import { AppShell } from '@/components/shell/app-shell';
+import { UsageAsk } from '@/components/usage-ask';
 import { env } from '@/server/env';
 import { clientFeatures } from '@/server/flags';
-import { currentProfile, displayName } from '@/server/session';
+import { currentConsents, currentProfile, displayName } from '@/server/session';
 import { loadToday } from '@/server/today';
 
 export function generateMetadata(): Metadata {
@@ -75,6 +76,7 @@ export default async function Home({
   if (!profile.onboardedAt) redirect('/onboarding');
 
   const params = await searchParams;
+  const session = await currentConsents();
   return (
     <AppShell name={displayName(profile)} features={await clientFeatures()}>
       {/* The OOTD diary home (plan 2026-11-02); the bell's nudges land on their day. */}
@@ -83,6 +85,8 @@ export default async function Home({
         day={z.iso.date().safeParse(params.day).data ?? null}
         saved={z.uuid().safeParse(params.saved).data ?? null}
       />
+      {/* Home sits outside (app), so it mounts the usage ask itself (see (app)/layout.tsx). */}
+      {session ? <UsageAsk current={session.consents} /> : null}
     </AppShell>
   );
 }

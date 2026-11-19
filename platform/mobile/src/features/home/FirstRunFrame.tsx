@@ -1,14 +1,16 @@
+import { FIRST_RUN_FLOW } from '@robes/contracts';
 import { firstRun as copy } from '@robes/copy';
 import { Em, fonts, Heading, maxFontSizeMultiplier, useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { Pressable, Text as RNText, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const STEPS = 5;
+const STEPS = FIRST_RUN_FLOW.length;
 
-// The step chrome (onboarding handoff 30 Oct; twin: app/src/app/onboarding/onboarding-form.tsx
-// Frame): back · the eyebrow · five segments · the title · the body · one ink button docked above
-// a hairline.
+// The step chrome (onboarding handoff 30 Oct, seven steps since 18 Nov; twin:
+// app/src/app/onboarding/onboarding-form.tsx Frame): back · the eyebrow · one hairline segment per
+// step, never a number on screen (R-S1) · the title · the body · the step's one action docked
+// above a hairline, Skip under it on a capture step (R-S2).
 export function FirstRunFrame({
   step,
   title,
@@ -16,7 +18,10 @@ export function FirstRunFrame({
   onBack,
   children,
   footer,
+  fill = false,
 }: {
+  // The body takes the height left under the title (a capture card, design Q6).
+  fill?: boolean;
   step: number;
   title: string;
   titleEm: string;
@@ -82,13 +87,17 @@ export function FirstRunFrame({
         accessibilityLabel={copy.progress(step, STEPS)}
         accessibilityValue={{ min: 1, max: STEPS, now: step }}
       >
-        {[1, 2, 3, 4, 5].map((n) => (
+        {FIRST_RUN_FLOW.map((_, i) => i + 1).map((n) => (
           <View key={n} className={`h-px flex-1 ${n <= step ? 'bg-ink' : 'bg-hairline'}`} />
         ))}
       </View>
+      {/* Keyed by step: one ScrollView serves every step, so without it a step opens at the
+          offset the last one was scrolled to, title out of view. */}
       <ScrollView
+        key={step}
         className="flex-1"
         contentContainerClassName="gap-7 px-6 pt-7 pb-6"
+        contentContainerStyle={fill ? { flexGrow: 1 } : undefined}
         keyboardShouldPersistTaps="handled"
       >
         <Heading style={{ fontSize: 30, lineHeight: 33 }}>

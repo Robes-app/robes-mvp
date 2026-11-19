@@ -10,8 +10,7 @@ import { wardrobe as copy, errors } from '@robes/copy';
 import { useToast } from '@robes/ui-native';
 import { type InfiniteData, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { type PhotoSource, pickOne } from '@/features/home/file-photo';
-import { uploadPhoto } from './add-pieces';
+import { type PickedPhoto, uploadPhoto } from './add-pieces';
 
 const PAGE = 40;
 // The API's largest page: the fewest calls to read the whole wardrobe.
@@ -138,21 +137,21 @@ export function usePiecePhoto(id: string) {
       toast.show({ message: errors.internal });
     },
   });
-  const take = async (from: PhotoSource) => {
-    const picked = await pickOne(from);
-    if (!picked || picked === 'denied') return;
+  // The photograph from the piece camera; true once it is uploaded and on its way to the piece.
+  const use = async (picked: PickedPhoto): Promise<boolean> => {
     setUploading(true);
     try {
       const assetId = await uploadPhoto(api, picked);
       setPreview(picked.uri);
       attach.mutate({ params: { id }, input: { assetId } });
+      return true;
     } catch {
-      toast.show({ message: errors.internal });
+      return false;
     } finally {
       setUploading(false);
     }
   };
-  return { take, preview, busy: uploading || attach.isPending };
+  return { use, preview, busy: uploading || attach.isPending };
 }
 
 // Soft delete that disappears at once and offers Undo for ≥6 s (UX-13/15).

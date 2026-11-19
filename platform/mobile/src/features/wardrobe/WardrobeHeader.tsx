@@ -41,7 +41,7 @@ export function HeaderRow({
       icons={{
         [copy.segments.owned]: 'wardrobe',
         [copy.segments.wishlist]: 'heart',
-        [copy.segments.shop]: 'bag',
+        [copy.segments.shop]: 'shop',
       }}
       disabled={[copy.segments.shop]}
       trailing={

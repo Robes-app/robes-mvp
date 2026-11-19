@@ -387,7 +387,7 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
   // applies the change, she stays on the look, and Schedule look comes back.
   await expect(look3e.getByRole('button', { name: 'Schedule look' })).toHaveCount(0);
   await look3e.getByTestId('update-look').click();
-  await expect(page.getByText('Look updated.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Look updated', { exact: true })).toBeVisible();
   await expect(look3e.getByRole('button', { name: 'Schedule look' })).toBeVisible();
   await expect
     .poll(async () =>

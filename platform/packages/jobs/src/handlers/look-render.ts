@@ -1,4 +1,4 @@
-import { AiError, type AiProvider, type ImageCapability } from '@robes/ai';
+import { AiError, type AiProvider, type ImageCapability, type InlineImage } from '@robes/ai';
 import {
   buildFrameRenderPrompt,
   buildRenderPrompt,
@@ -24,12 +24,13 @@ import {
   twinInputsOf,
   twinSpec,
 } from '@robes/core/avatar';
+import { categoryFromWords } from '@robes/core/taxonomy';
 import type { StoredFrame, SystemRepositories } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
 import { JobError, type JobHandler } from '../runtime';
-import { drawSuggestedFrame, type FrameRackPiece, modelReference } from './look-frame';
+import { drawSuggestedFrame, type FrameRackPiece, frameAnchor, modelReference } from './look-frame';
 import { frameSetting, StoredSet } from './style-piece';
 
 export interface LookRenderDeps {
@@ -91,6 +92,7 @@ const StoredProposals = z
   )
   .catch([]);
 const StoredStyling = z.record(z.string(), z.string()).catch({});
+const isStoodOn = (v: string | null): v is StoodOn => v === 'twin' || v === 'cell' || v === 'robes';
 const StoredDaily = z.object({
   look: z.object({
     occasionLabel: z.string(),
@@ -273,11 +275,13 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       throw new JobError('empty_look');
     }
     const feature = RENDER_FEATURE;
+    // What the picture was asked for is kept with the call, as a text call's is (SEC-82).
+    const prompt = buildRenderPrompt(gender, pieces, twinLine, found.look.pictureNote);
     try {
       const { image, usage } = await deps.ai.generateImage({
         feature,
         capability: 'image.hero',
-        prompt: buildRenderPrompt(gender, pieces, twinLine, found.look.pictureNote),
+        prompt,
         references,
         aspectRatio: '4:5',
         signal: ctx.signal,
@@ -288,6 +292,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         userId: ctx.userId,
         feature,
         status: 'ok',
+        prompt,
       });
       const assetId = await deps.styling.createGeneratedAsset(ctx.userId);
       const key = mediaKeys.original(ctx.userId, assetId);
@@ -308,6 +313,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           userId: ctx.userId,
           feature,
           status: err.code === 'timeout' ? 'timeout' : 'error',
+          prompt,
         });
       }
       await model.failRender(ctx.userId, lookId, renderKey);
@@ -342,7 +348,8 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       })),
       ...proposals.map((p) => ({
         name: p.name,
-        category: p.category,
+        // A proposal filed as Other before it was read from its name (19 Nov) draws as what it is.
+        category: categoryFromWords(p.category, p.name),
         color: p.color,
         brand: p.brand,
         imageAssetId: null,
@@ -361,14 +368,44 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
     let assetId: string;
     // A frame drawn anew records what it stood on; a re-dressed frame keeps its first model.
     let stoodOn: StoodOn | null | undefined;
+    let stoodOnCell: string | null = null;
+    const frameDeps = {
+      ai: deps.ai,
+      storage: deps.storage,
+      styling: deps.styling,
+      ...(deps.model ? { cells: deps.model } : {}),
+      ledger: deps.ledger,
+      ...(deps.onGenerated ? { onGenerated: deps.onGenerated } : {}),
+    };
     if (found.look.frameAssetId) {
       const frame = await deps.storage
         .getObject(mediaKeys.master(ctx.userId, found.look.frameAssetId))
         .catch(() => null);
       if (!frame) return fail(new Error('frame_missing'));
-      const references: { mimeType: 'image/jpeg'; data: Uint8Array }[] = [
-        { mimeType: 'image/jpeg', data: frame },
-      ];
+      const gender = styleCtx.gender === 'man' ? 'man' : 'woman';
+      // The person comes from the model the frame stood on, never from the last picture alone: a
+      // copy of a copy drifts (a Robes model aged ~25 years over a day of edits, 17 Nov).
+      const recorded = isStoodOn(found.look.stoodOn) ? found.look.stoodOn : null;
+      let anchor = await frameAnchor(frameDeps, ctx.userId, {
+        on: recorded,
+        cellId: found.look.stoodOnCell,
+      });
+      // shortcut: a frame from before `stood_on_cell` names only the kind of model; the model she
+      // stands on now is taken when it is that kind, and recorded so later re-dresses keep it.
+      if (!anchor && recorded && recorded !== 'twin') {
+        const now = await modelReference(frameDeps, ctx.userId, {
+          wearer: gender,
+          index: found.look.setIndex ?? 0,
+        });
+        if (now.image && now.on === recorded) {
+          anchor = now;
+          stoodOn = now.on;
+          stoodOnCell = now.cellId;
+        }
+      }
+      const references: InlineImage[] = [{ mimeType: 'image/jpeg', data: frame }];
+      if (anchor?.image) references.push(anchor.image);
+      if (anchor?.image && anchor.face) references.push(anchor.face);
       const pieces = [];
       for (const p of rack) {
         let photo: Uint8Array | null = null;
@@ -380,12 +417,17 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         if (photo) references.push({ mimeType: 'image/jpeg', data: photo });
         pieces.push({ ...p, hasImage: Boolean(photo) });
       }
-      const gender = styleCtx.gender === 'man' ? 'man' : 'woman';
+      const prompt = buildFrameRenderPrompt(
+        gender,
+        pieces,
+        found.look.pictureNote,
+        anchor?.image ? { face: anchor.face !== null, figure: anchor.figure } : undefined,
+      );
       try {
         const { image, usage } = await deps.ai.generateImage({
           feature: FRAME_FEATURE,
           capability: 'image.hero',
-          prompt: buildFrameRenderPrompt(gender, pieces, found.look.pictureNote),
+          prompt,
           references,
           aspectRatio: '4:5',
           signal: ctx.signal,
@@ -396,6 +438,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           userId: ctx.userId,
           feature: FRAME_FEATURE,
           status: 'ok',
+          prompt,
         });
         assetId = await deps.styling.createGeneratedAsset(ctx.userId);
         const key = mediaKeys.original(ctx.userId, assetId);
@@ -409,6 +452,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
             userId: ctx.userId,
             feature: FRAME_FEATURE,
             status: err.code === 'timeout' ? 'timeout' : 'error',
+            prompt,
           });
         }
         return fail(err);
@@ -427,14 +471,6 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
             .getObject(mediaKeys.master(ctx.userId, anchor.imageAssetId))
             .catch(() => null)
         : null;
-      const frameDeps = {
-        ai: deps.ai,
-        storage: deps.storage,
-        styling: deps.styling,
-        ...(deps.model ? { cells: deps.model } : {}),
-        ledger: deps.ledger,
-        ...(deps.onGenerated ? { onGenerated: deps.onGenerated } : {}),
-      };
       const wearer: 'woman' | 'man' = set?.success
         ? set.data.wearer
         : styleCtx.gender === 'man'
@@ -446,6 +482,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           index: found.look.setIndex ?? 0,
         });
         stoodOn = ref.on;
+        stoodOnCell = ref.cellId;
         assetId = await drawSuggestedFrame(frameDeps, ctx, {
           wearer,
           mode: set?.success && set.data.mode === 'prompt' ? 'dress-me' : 'piece',
@@ -453,6 +490,8 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           pieceLabel: anchor?.label ?? null,
           piecePhoto,
           model: ref.image,
+          face: ref.face,
+          figure: ref.figure,
           styleIcons: styleCtx.styleIcons,
           brief: set?.success ? set.data.prompt : null,
           way: {
@@ -469,7 +508,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         return fail(err);
       }
     }
-    if (!(await suggested.setFrame(ctx.userId, lookId, frameKey, assetId, stoodOn))) {
+    if (!(await suggested.setFrame(ctx.userId, lookId, frameKey, assetId, stoodOn, stoodOnCell))) {
       await deps.styling.discardGenerated(ctx.userId, assetId);
     }
     await ctx.writeStage('images', { images: [{ idx: 0, status: 'ready', assetId }] });

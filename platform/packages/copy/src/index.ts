@@ -41,6 +41,19 @@ export const auth = {
   verifying: 'Checking…',
   resend: 'Send a new code',
   useDifferentEmail: 'Use a different email',
+  // Sign in and sign up (design "Sign in and sign up", 18 Nov): two screens, one email code.
+  signUpTitle: 'Create your account.',
+  firstNameLabel: 'First name (optional)',
+  toSignUp: { lead: 'New to Robes?', link: 'Create an account' },
+  toSignIn: { lead: 'Already have an account?', link: 'Sign in' },
+  // The code screen's two ways out, as sentences with a link each.
+  notArrived: {
+    lead: 'Not arrived? Check your spam folder, or',
+    link: 'send a new code',
+    end: '.',
+  },
+  wrongEmail: { lead: 'Wrong email?', link: 'Use a different one' },
+  photoAlt: 'A Robes member in a fringed white jumper, photographed in a mirror',
   or: 'or',
   apple: 'Continue with Apple',
   google: 'Continue with Google',
@@ -50,7 +63,12 @@ export const auth = {
   invalidCode: 'That code didn’t match. Check it and try again.',
   sendFailed: 'Robes couldn’t send a code just now. Try again in a moment.',
   signOut: 'Sign out',
-  legal: { lead: 'By continuing you agree to the', and: 'and', end: '.' },
+  legal: {
+    lead: 'By continuing you agree to the',
+    signUpLead: 'By creating an account you agree to the',
+    and: 'and',
+    end: '.',
+  },
 } as const;
 
 export const emails = {
@@ -285,9 +303,12 @@ export const consent = {
   privacyTitle: 'Privacy.',
   analyticsLabel: 'Usage counts',
   analyticsHint: 'Which screens you open and what you tap, so Robes can get better.',
-  // Asked once on the phone, after sign-in, while she has given no answer (Annie's words, 11 Nov).
-  askTitle: 'Allow usage counts?',
-  askBody: 'Robes will learn from the screens you open and tap to improve.',
+  // Asked once on the phone and the web, after sign-in, while she has given no answer. One yes turns on all
+  // three below, each still its own switch in You › Your data (Annie, 19 Nov); the body names each,
+  // her sizes included, so the yes is an informed one.
+  askTitle: 'Share how you use Robes?',
+  askBody:
+    'Usage counts, screen recordings and the looks you ask for, with your sizes, so Robes keeps improving. Never your photos or email. Change any of it in You › Your data.',
   askYes: 'Allow',
   askNo: 'Not now',
   replayLabel: 'Screen recordings',
@@ -555,7 +576,8 @@ export const you = {
     save: 'Save',
     saving: 'Saving…',
     saved: 'Saved.',
-    homeCity: 'Home city',
+    // Her phone's location fills it when she allows it; she can type one (Annie, 19 Nov).
+    homeCity: 'Default location',
     homeCityHint: 'Robes checks its weather when it styles your day.',
   },
   notifications: {
@@ -752,6 +774,11 @@ export const plan = {
     // A day she wore a look carries it after the count (legacy .dy-r-worn).
     worn: 'Worn',
     open: (day: string): string => `Open ${day}`,
+    // A day's row swipes to take its looks off the day (Annie, 17 Nov).
+    swipe: 'Remove',
+    clear: (day: string): string => `Take the looks off ${day}`,
+    clearToday: 'Take the looks off today',
+    cleared: (n: number): string => (n === 1 ? 'Look removed.' : 'Looks removed.'),
   },
   // The day page: the one door every day opens (legacy ff87e89).
   day: {

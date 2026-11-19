@@ -356,6 +356,7 @@ export interface Looks {
   source: Generated<string>;
   status: Generated<string>;
   stoodOn: string | null;
+  stoodOnCell: string | null;
   styling: Json | null;
   updatedAt: Generated<Timestamp>;
   userId: string;
@@ -416,6 +417,9 @@ export interface Profiles {
   createdAt: Generated<Timestamp>;
   currency: Generated<string>;
   firstName: string | null;
+  firstRunSkipped: Generated<string[]>;
+  firstRunStep: string | null;
+  firstRunVersion: number | null;
   genderIdentity: Generated<string>;
   heightCm: number | null;
   homeCity: string | null;
@@ -600,6 +604,8 @@ export interface Users {
 }
 
 export interface UserUiState {
+  bellCards: Generated<Json>;
+  bellSeenAt: Timestamp | null;
   dismissed: Generated<Json>;
   lastVisitAt: Timestamp | null;
   seenFeatures: Generated<string[]>;

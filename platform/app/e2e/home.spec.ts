@@ -1,9 +1,11 @@
 import { expect, type Page, test } from '@playwright/test';
 import { Today } from '@robes/contracts';
 import {
+  answerUsageAsk,
   declineConsent,
   explainError,
   isolateClientIp,
+  PHOTO,
   seriousViolations,
   signIn,
   styledPiece,
@@ -116,9 +118,10 @@ async function draftLanded(page: Page, date: string): Promise<void> {
     .toMatch(/^job=null look=[0-9a-f-]+ framePending=false/);
 }
 
-// Getting to know you (handoff 30 Oct): name and identity are required; styles, brands and
-// colours may be left empty; Back keeps every answer; Get started files them all and lands home.
-test('onboarding: name, identity, styles, brands and colours, saved once, then home', async ({
+// Getting to know you, seven steps (onboarding PRD, 17 Nov): name and identity are required;
+// styles and brands may be left empty; Back keeps every answer; Brands saves them without
+// onboarding her; each capture step is skippable; she lands home.
+test('onboarding: four answers saved on Brands, a saved look, the rest skipped, then home', async ({
   page,
 }) => {
   const email = uniqueEmail('e2e-home-onb');
@@ -168,15 +171,26 @@ test('onboarding: name, identity, styles, brands and colours, saved once, then h
   expect(await seriousViolations(page), 'onboarding, brands').toEqual([]);
   await next.click();
 
-  await expect(title('Colours you love or avoid.')).toBeVisible();
-  const blacks = page.getByRole('radiogroup', { name: 'Blacks: love, no view or avoid' });
-  await blacks.getByRole('radio', { name: 'Love' }).click();
-  const pinks = page.getByRole('radiogroup', { name: 'Pinks: love, no view or avoid' });
-  await pinks.getByRole('radio', { name: 'Avoid' }).click();
-  expect(await seriousViolations(page), 'onboarding, colours').toEqual([]);
-  await page.getByRole('button', { name: 'Get started' }).click();
+  // Saved on Brands; not onboarded yet.
+  await expect(title('Saved looks on your phone?')).toBeVisible();
+  expect((await (await page.request.get('/api/v1/me')).json()).onboarded).toBe(false);
+  expect(await seriousViolations(page), 'onboarding, saved looks').toEqual([]);
+  // Choose saved looks opens her photos at once; Save 1 makes one look.
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Choose saved looks' }).click();
+  await (await chooser).setFiles(PHOTO);
+  await page.getByRole('button', { name: 'Save 1' }).click();
+  await expect(title('Saved to your Lookbook. One new look.')).toBeVisible();
+  await next.click();
+
+  for (const step of ['The pieces you love most.', 'Capture what you’re wearing now.']) {
+    await expect(title(step)).toBeVisible();
+    expect(await seriousViolations(page), `onboarding, ${step}`).toEqual([]);
+    await page.getByRole('button', { name: 'Skip' }).click();
+  }
 
   await expect(page).toHaveURL(/\/$/);
+  await answerUsageAsk(page, 'Not now');
   await expect(page.getByRole('heading', { level: 1, name: /, Annie\.$/ })).toBeVisible();
   const dna = await (await page.request.get('/api/v1/me/dna')).json();
   expect(dna).toMatchObject({
@@ -184,8 +198,8 @@ test('onboarding: name, identity, styles, brands and colours, saved once, then h
     brands: ['Barbour'],
     gender: 'man',
   });
-  const style = await (await page.request.get('/api/v1/me/style')).json();
-  expect(style.palette.fam).toEqual({ blacks: 1, pinks: -1 });
+  const looks = await (await page.request.get('/api/v1/looks?status=saved')).json();
+  expect(looks.items).toHaveLength(1);
 });
 
 test('a styled piece lands on the deck and home carries it on', async ({ page }) => {
@@ -365,8 +379,11 @@ test('the diary: the strip selects a day, the slot adds and changes its look, Cr
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/, { timeout: 30_000 });
   await expect(page.getByTestId('draft-look')).toBeVisible();
   await expect(page.getByText('Draft look')).toBeVisible();
-  // The send kept the drawer open into the draft, her words in it (B6, 16 Nov); minimised, the
-  // header is hers again.
+  // The drawer carries on into the draft, the prompt waiting as the sparkle while Robes dresses it
+  // (Annie, 18 Nov); the bar it opens leads to the thread, which holds her words (K8), and its
+  // close puts it away again.
+  await page.getByTestId('prompt-spark').click();
+  await page.getByTestId('prompt-expand').click();
   await expect(page.getByTestId('prompt-conversation')).toContainText('Dinner with friends');
   await page.getByTestId('prompt-minimise').click();
   // The done disc saves and pins it to the day in the same act: home shows it as the day's card.
@@ -391,7 +408,6 @@ test('Create: her words become the day’s one draft, which dresses in the slot'
   await page.getByTestId('draft-prompt').fill('Something easy for the gallery');
   await page.getByTestId('prompt-send').click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/, { timeout: 30_000 });
-  await page.getByTestId('prompt-minimise').click();
   await page.getByRole('button', { name: 'Close' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Keep for later' }).click();
   await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });

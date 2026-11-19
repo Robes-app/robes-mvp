@@ -5,7 +5,8 @@ import { imageSources } from '@/lib/image';
 import { localPreview } from '@/lib/local-previews';
 
 // Robes' render when there is one, else the first piece's photo, else a quiet frame. The aspect
-// is the surface's: 4:5 on the look page, 3:4 in the Lookbook grid and on a day (beta).
+// is the surface's: 4:5 on the look page, 3:4 in the Lookbook grid and on a day (beta). The crop
+// keeps a person's head and takes more from the feet (17 Nov). Twin: native LookTile's LookPhoto.
 export function LookImage({
   look,
   sizes,
@@ -34,6 +35,7 @@ export function LookImage({
       aspect={aspect}
       blurhash={image?.blurhash ?? null}
       priority={priority}
+      className="object-[50%_20%]"
     />
   );
 }

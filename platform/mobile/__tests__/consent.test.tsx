@@ -67,22 +67,26 @@ test('a yes already given goes straight to the camera', async () => {
   expect(screen.queryByText(copy.title)).toBeNull();
 });
 
-test('usage counts are asked once, and nothing is counted before a yes', async () => {
+// One yes turns on usage counts, screen recordings and Share my looks (Annie, 19 Nov).
+test('asked once, nothing counted before a yes, and one yes turns on all three', async () => {
   const start = jest.spyOn(nativeAnalytics, 'start').mockResolvedValue();
   const calls = mockFetch({
     'GET /me': ME,
     'GET /me/consents': UNANSWERED,
-    'POST /me/consents': { ...UNANSWERED, analytics: true },
+    'POST /me/consents': {
+      ...UNANSWERED,
+      ...{ analytics: true, recordings: true, look_sharing: true },
+    },
   });
   await renderWithApi(<AnalyticsSetup />);
   expect(await screen.findByText(consent.askTitle)).toBeTruthy();
   expect(start).not.toHaveBeenCalled();
 
   await fireEvent.press(screen.getByRole('button', { name: consent.askYes }));
-  await waitFor(() => expect(start).toHaveBeenCalledWith(ME.id, { recordings: false }));
+  await waitFor(() => expect(start).toHaveBeenCalledWith(ME.id, { recordings: true }));
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     source: 'ios',
-    consents: { analytics: true },
+    consents: { analytics: true, recordings: true, look_sharing: true },
   });
   await waitFor(() => expect(screen.queryByText(consent.askTitle)).toBeNull());
 });
@@ -92,14 +96,17 @@ test('a no is saved and counts nothing', async () => {
   const calls = mockFetch({
     'GET /me': ME,
     'GET /me/consents': UNANSWERED,
-    'POST /me/consents': { ...UNANSWERED, analytics: false },
+    'POST /me/consents': {
+      ...UNANSWERED,
+      ...{ analytics: false, recordings: false, look_sharing: false },
+    },
   });
   await renderWithApi(<AnalyticsSetup />);
   await fireEvent.press(await screen.findByRole('button', { name: consent.askNo }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       source: 'ios',
-      consents: { analytics: false },
+      consents: { analytics: false, recordings: false, look_sharing: false },
     }),
   );
   await waitFor(() => expect(screen.queryByText(consent.askTitle)).toBeNull());

@@ -16,6 +16,7 @@ import type {
   LookStatus,
 } from '@robes/contracts';
 import { lookbook as copy, errors, ui } from '@robes/copy';
+import { pictureLanding } from '@robes/core/looks';
 import { haptic, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -27,14 +28,15 @@ import { isTerminal, JOB_REFRESH_MS } from './ideas';
 // The API's largest page of looks; the Lookbook reads every page (TestFlight, 16 Nov).
 const LIMIT = 60;
 
-export function useLooksByStatus(status: LookStatus, opts: { refetch?: boolean } = {}) {
+export function useLooksByStatus(status: LookStatus) {
   return useApiAll(
     'looks.list',
     { input: { limit: LIMIT, status } },
     {
-      // A suggestion's frame lands after its job; keep looking while one is coming.
+      // A suggestion's frame lands after its job, her photograph's renditions after its upload:
+      // keep looking while a picture is coming (a saved look's tile stayed blank, 19 Nov).
       refetchInterval: (q) =>
-        opts.refetch && q.state.data?.items.some((l) => l.framePending) ? JOB_REFRESH_MS : false,
+        q.state.data?.items.some((l) => pictureLanding(l)) ? JOB_REFRESH_MS : false,
     },
   );
 }
@@ -96,7 +98,12 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
 
 // `from` picks beta's toast: a suggestion saved as it stands, or a look she worked on, by name.
 // The web twin is app/src/lib/look-states.ts.
-export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 'draft' = 'draft') {
+// `changes`: how many changes she sent through the prompt before saving, for the event.
+export function useSaveLook(
+  onSaved?: (look: Look) => void,
+  from: 'suggested' | 'draft' = 'draft',
+  changes: () => number = () => 0,
+) {
   const toast = useToast();
   const refresh = useInvalidateLooks();
   return useApiMutation('looks.save', {
@@ -106,6 +113,7 @@ export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 
         pieces: look.pieces.length,
         proposed: look.proposals.length,
         anchored: look.anchor !== null,
+        changes: changes(),
       });
       haptic.success();
       refresh(look);

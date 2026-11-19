@@ -152,6 +152,21 @@ describe('look_ask handler (the look prompt)', () => {
     });
   });
 
+  it('a note about the whole picture comes back as a picture note, the look unchanged', async () => {
+    const { run, answer, lookPrompt } = setup();
+    await run('a different pose, walking');
+    expect(answer()).toMatchObject({
+      intent: 'picture',
+      picture: 'a different pose, walking',
+      reply: '',
+      swaps: [],
+      adds: [],
+      styled: [],
+      noticed: false,
+    });
+    expect(lookPrompt.notice).not.toHaveBeenCalled();
+  });
+
   it('puts every changed row back when none is named, and drafts a vague ask', async () => {
     const { run, answer } = setup();
     await run('put it back');

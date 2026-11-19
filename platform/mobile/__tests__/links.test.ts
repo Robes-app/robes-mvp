@@ -22,6 +22,7 @@ test.each([
   [`/wardrobe/wishlist/${ID}`, `/wish/${ID}`],
   ['/soon/trips', '/soon'],
   ['/auth/sign-in', '/sign-in'],
+  ['/auth/sign-up', '/sign-up'],
   // Paths both apps share pass through.
   ['/', '/'],
   ['/looks', '/looks'],

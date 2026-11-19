@@ -9,7 +9,7 @@ function Harness() {
   const [on, setOn] = useState(false);
   return (
     <IconToggle
-      icon="bag"
+      icon="shop"
       checked={on}
       onChange={setOn}
       labelOn={ON}
@@ -44,4 +44,21 @@ test('stays pressable while faded, so a tap can say why it is off', async () => 
   );
   await fireEvent.press(screen.getByRole('switch', { name: 'Nothing in your wardrobe yet' }));
   expect(onChange).toHaveBeenCalledWith(true);
+});
+
+test('with a label is a pill showing the name, still announced by its state', async () => {
+  await render(
+    <IconToggle
+      icon="shop"
+      checked
+      onChange={() => undefined}
+      labelOn="Shop is on"
+      labelOff="Shop is off"
+      label="Shop"
+      testID="t"
+    />,
+  );
+  expect(screen.getByRole('switch', { name: 'Shop is on' })).toBeTruthy();
+  // Drawn for the eye; the switch's label is what a reader hears.
+  expect(screen.getByText('Shop', { includeHiddenElements: true })).toBeTruthy();
 });

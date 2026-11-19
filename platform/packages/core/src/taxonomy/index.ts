@@ -1,5 +1,10 @@
 import { TAXONOMY_GROUPS } from './groups';
-import type { LegacyCategory, ResolvedTaxonomy, TaxonomyRow } from './types';
+import {
+  LEGACY_CATEGORIES,
+  type LegacyCategory,
+  type ResolvedTaxonomy,
+  type TaxonomyRow,
+} from './types';
 
 export { TAXONOMY_GROUPS } from './groups';
 export * from './tag-defaults';
@@ -80,4 +85,37 @@ export function itemTypesOf(l2: string): string[] {
 // Compact tree for the analyse prompt: one line per (l1 › l2) group.
 export function taxonomyPromptBlock(): string {
   return TAXONOMY_GROUPS.map((g) => `${g.l1} › ${g.l2}: ${g.l3.join(' | ')}`).join('\n');
+}
+
+// A garment's last word ("coat" in "Oversized wool-blend coat"), singular, to the category it
+// folds into; a word the tree files under two categories ("top", "shirt") decides nothing.
+const headOf = (words: string) =>
+  words
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter(Boolean)
+    .at(-1)
+    ?.replace(/(es|s)$/, '') ?? '';
+const HEADS = (() => {
+  const seen = new Map<string, Set<LegacyCategory>>();
+  for (const g of TAXONOMY_GROUPS) {
+    for (const term of [g.l2, ...g.l3]) {
+      const head = headOf(term);
+      if (head) seen.set(head, (seen.get(head) ?? new Set()).add(g.l1));
+    }
+  }
+  const heads = new Map<string, LegacyCategory>();
+  for (const [head, cats] of seen)
+    if (cats.size === 1) heads.set(head, [...cats][0] as LegacyCategory);
+  return heads;
+})();
+
+// The category of a piece a model named, when the category it gave is not one of ours or is
+// "Other": its own word for it ("Coats"), else the garment its name ends on. A proposed coat
+// filed as Other was drawn as a line with no layer in it and left off the picture (19 Nov).
+export function categoryFromWords(category: string, name: string): LegacyCategory {
+  const said = category.trim().toLowerCase();
+  const legacy = LEGACY_CATEGORIES.find((c) => c.toLowerCase() === said);
+  if (legacy && legacy !== 'Other') return legacy;
+  return HEADS.get(headOf(category)) ?? HEADS.get(headOf(name)) ?? legacy ?? 'Other';
 }

@@ -1,7 +1,7 @@
 import { JOB_KINDS, LEGACY_CATEGORIES } from '@robes/core';
 import { ADD_DESTINATIONS } from '@robes/core/add-flow';
 import { HOME_STEPS } from '@robes/core/home';
-import { ASK_REASONS, LOOK_STATUSES } from '@robes/core/looks';
+import { ASK_REASONS, DOCK_STATES, LOOK_STATUSES } from '@robes/core/looks';
 import { z } from 'zod';
 
 // One catalogue for web, native and server (infrastructure.md §9). Props are ids, counts, booleans
@@ -17,7 +17,12 @@ const category = z.enum(LEGACY_CATEGORIES);
 // home, or the create box (the Lookbook, Create, a piece page).
 const askSurface = z.enum(['suggested', 'draft', 'saved', 'day']);
 const boxSurface = z.enum(['home', 'create']);
-const askIntent = z.enum(['swap', 'back', 'rule', 'styled', 'clarify', 'draft', 'none']);
+const bellKind = z.enum(['twin', 'dna', 'observations', 'receipts', 'diary', 'overnight']);
+const askIntent = z.enum(['swap', 'back', 'rule', 'styled', 'clarify', 'draft', 'none', 'picture']);
+// The docked prompt (docked prompt PRD, Analytics): its three states, and how many changes she
+// has sent on the look this session (0 for the first look).
+const dockState = z.enum(DOCK_STATES);
+const changeN = count;
 
 export const EVENTS = {
   // A page is shown (web, after consent).
@@ -31,9 +36,25 @@ export const EVENTS = {
   // 'piece' stays for builds that still carry the first-piece step.
   onboarding_step: z
     .object({
-      step: z.enum(['name', 'identity', 'styles', 'brands', 'colours', 'piece']),
+      step: z.enum([
+        'name',
+        'identity',
+        'styles',
+        'brands',
+        'colours',
+        'piece',
+        // The eight-step flow's capture steps (onboarding PRD, 17 Nov).
+        'looks',
+        'pieces',
+        'twin',
+        'outfit',
+      ]),
       outcome: z.enum(['shown', 'answered', 'skipped']),
     })
+    .strict(),
+  // A capture step done (onboarding PRD): how many photos she kept there; never which.
+  onboarding_captured: z
+    .object({ step: z.enum(['looks', 'pieces', 'twin', 'outfit']), n: count })
     .strict(),
   // Get started: how many styles, brands and colours she marked; never which.
   onboarding_answered: z.object({ styles: count, brands: count, colours: count }).strict(),
@@ -83,6 +104,8 @@ export const EVENTS = {
       pieces: count,
       proposed: count,
       anchored: z.boolean(),
+      // Changes she sent through the prompt before saving (0 when none).
+      changes: count,
     })
     .strict(),
   // The diary sheet: a look is pinned to a day (0 today, negative never — that is a wear).
@@ -96,9 +119,21 @@ export const EVENTS = {
 
   // The look prompt opens on a look.
   look_prompt_opened: z.object({ surface: askSurface }).strict(),
-  // The look prompt: she sends an ask (`chars` counts her words; `from_draft` sends Robes' wording).
+  // The docked prompt moves between the sparkle, the bar and the open thread.
+  dock_state_changed: z
+    .object({ from: dockState, to: dockState, context: z.enum(['draft', 'saved']) })
+    .strict(),
+  // The look prompt: she sends an ask (`chars` counts her words; `from_draft` sends Robes' wording;
+  // `kind` what she sent: words alone, reasons, a piece from Which piece?, or Restyle it all;
+  // `change_n` which change on the look this is, from 1).
   look_prompt_sent: z
-    .object({ surface: askSurface, chars: count, from_draft: z.boolean() })
+    .object({
+      surface: askSurface,
+      chars: count,
+      from_draft: z.boolean(),
+      kind: z.enum(['typed', 'reason', 'piece', 'restyle']),
+      change_n: changeN,
+    })
     .strict(),
   // The look prompt: Robes' answer changed rows on the rack.
   look_prompt_applied: z.object({ surface: askSurface, intent: askIntent, slots: count }).strict(),
@@ -111,7 +146,9 @@ export const EVENTS = {
   // The feedback thread (look prompt PRD F, M): her thumb on Robes' question; and a change sent
   // from it — the reason she tapped (`several` for more than one, `none` for words alone),
   // whether words rode with it, and whether it adjusted the look or restyled it all.
-  look_feedback: z.object({ surface: askSurface, verdict: z.enum(['up', 'down']) }).strict(),
+  look_feedback: z
+    .object({ surface: askSurface, verdict: z.enum(['up', 'down']), change_n: changeN })
+    .strict(),
   look_feedback_sent: z
     .object({
       surface: askSurface,
@@ -132,6 +169,13 @@ export const EVENTS = {
     .strict(),
   // The box holds her ask to ask where its pieces come from.
 
+  // The bell's sheet is opened, with how many cards she had not seen.
+  bell_opened: z.object({ unseen: z.number().int().min(0).max(50) }).strict(),
+  // A card in the bell is tapped through, or dismissed (design "Onboarding notifications").
+  bell_card_tapped: z.object({ kind: bellKind }).strict(),
+  bell_card_dismissed: z.object({ kind: bellKind }).strict(),
+  // Her first digital twin is on file (her close-up given, or a twin drawing), seen by the bell.
+  twin_created: none,
   // Home: a step card (O1–O4) is shown.
   home_module_view: z.object({ id: z.enum(HOME_STEPS) }).strict(),
   // Home: Later on a step card.

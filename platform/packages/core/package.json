@@ -30,7 +30,8 @@
     "./landscape": "./src/landscape/index.ts",
     "./weather": "./src/weather/index.ts",
     "./fence": "./src/fence/index.ts",
-    "./app-links": "./src/app-links/index.ts"
+    "./app-links": "./src/app-links/index.ts",
+    "./auth": "./src/auth/index.ts"
   },
   "scripts": {
     "test": "vitest run",

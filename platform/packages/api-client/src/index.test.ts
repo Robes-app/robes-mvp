@@ -22,6 +22,7 @@ const me = {
   homeCity: null,
   onboarded: true,
   notifications: { looksReady: true, morningCue: true, nudges: false, receipts: true },
+  firstRun: { version: null, step: null, skipped: [] },
 };
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {

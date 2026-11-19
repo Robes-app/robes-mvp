@@ -1,3 +1,4 @@
+import { categoryFromWords } from '@robes/core/taxonomy';
 import { z } from 'zod';
 import * as v3 from './v3';
 
@@ -100,7 +101,10 @@ export function normaliseAnswer(out: Output, ctx: Pick<v3.AskContext, 'rack' | '
       adds.push({
         proposal: {
           name,
-          category: (CATEGORIES as readonly string[]).includes(a.category) ? a.category : 'Other',
+          category: (() => {
+            const c = categoryFromWords(a.category, name);
+            return (CATEGORIES as readonly string[]).includes(c) ? c : 'Other';
+          })(),
           brand: clip(a.brand, 60),
           retailerHint: clip(a.retailer_hint, 60),
           pricePoint: clip(a.price_point, 20),

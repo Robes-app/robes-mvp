@@ -29,6 +29,7 @@ const RULES: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   rule(`/wardrobe/wishlist/${UUID}`, (m) => `/wish/${m[1]}`),
   rule('/soon/[a-z-]+', () => '/soon'),
   rule('/auth/sign-in', () => '/sign-in'),
+  rule('/auth/sign-up', () => '/sign-up'),
 ];
 
 // The query keys a native screen reads from a link; anything else (from=email, utm_…) is dropped
@@ -97,6 +98,7 @@ export function nativePath(pathOrUrl: string): string {
 export function afterSignIn(next: string | string[] | undefined): string {
   const path = Array.isArray(next) ? next[0] : next;
   if (!path?.startsWith('/') || path.startsWith('//') || path.includes('://')) return '/';
-  if (path.startsWith('/sign-in') || path.startsWith('/onboarding')) return '/';
+  if (path.startsWith('/sign-in') || path.startsWith('/sign-up') || path.startsWith('/onboarding'))
+    return '/';
   return path;
 }

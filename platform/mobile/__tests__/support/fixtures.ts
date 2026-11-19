@@ -189,3 +189,27 @@ export const modelData = (over: object = {}) => ({
 });
 // Her own model stands (a twin or a hand-built cell): the doors open, the lineup ticks her.
 export const ownStand = { imageUrl: null, generic: false, on: 'cell' };
+
+// GET /today with nothing on it yet (the shape shell.test.tsx stubs), for her date.
+export const todayData = (date: string) => ({
+  date,
+  hour: 9,
+  firstName: 'Niall',
+  nextStep: { rule: 'start' },
+  today: [],
+  week: Array.from({ length: 7 }, () => ({ date, looks: 0 })),
+  tray: [],
+  ideas: [],
+  inboxCount: 0,
+  overnight: null,
+  home: {
+    state: { styleConfirmed: false, twinOnFile: false, pics: 0, ownLookSaved: false, snoozed: {} },
+    rows: { brands: [], icons: [], styles: [] },
+    recent: [],
+    candidates: [],
+    receipts: null,
+    noticed: null,
+    saved: [],
+    suggested: [],
+  },
+});

@@ -11,8 +11,9 @@ import {
   Skeleton,
   useColor,
 } from '@robes/ui-native';
+import { Link } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { SwipeRow } from '@/components/SwipeRow';
 import { renditionUri } from '@/lib/images';
 
@@ -170,7 +171,7 @@ export function StarButton({
 // a calendar ("New" before the first), a wish's price, a piece to find's price behind a bag or —
 // on a look — a wish's price behind a heart. `label` is what a reader hears.
 export interface RowMeta {
-  icon?: 'calendar' | 'heart' | 'bag';
+  icon?: 'calendar' | 'heart' | 'shop';
   text?: string;
   label: string;
 }
@@ -422,5 +423,48 @@ export function HeartButton({
     >
       <Icon name="heart" size={14} color={ink} filled />
     </Pressable>
+  );
+}
+
+// The Wardrobe grid's tile on iOS: a tap opens the piece, a long press peeks at it with the system
+// menu (Delete piece, asked first), as the Lookbook's saved card does (Annie, 17 Nov). Elsewhere it
+// is the plain tile: the list's rows swipe to Delete. The web has no long press: its piece page
+// keeps Delete piece.
+export function HeldTile({
+  piece,
+  status,
+  onOpen,
+  onDelete,
+}: {
+  piece: CardPiece;
+  status: CardStatus;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  if (Platform.OS !== 'ios')
+    return <CardTile piece={piece} status={status} onOpen={onOpen} compact />;
+  return (
+    <Link href={`/piece/${piece.id}`} asChild>
+      <Link.Trigger>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={piece.label}
+          accessibilityActions={[{ name: 'delete', label: copy.card.menu.delete }]}
+          onAccessibilityAction={(e) => {
+            if (e.nativeEvent.actionName === 'delete') onDelete();
+          }}
+          className="flex-1"
+          testID={`piece-tile-${piece.id}`}
+        >
+          <CardTile piece={piece} status={status} compact />
+        </Pressable>
+      </Link.Trigger>
+      <Link.Preview />
+      <Link.Menu>
+        <Link.MenuAction icon="trash" destructive onPress={onDelete}>
+          {copy.card.menu.delete}
+        </Link.MenuAction>
+      </Link.Menu>
+    </Link>
   );
 }

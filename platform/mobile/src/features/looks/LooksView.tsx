@@ -46,7 +46,7 @@ export function LooksView() {
   }, [params.tab]);
   const saved = useLooksByStatus('saved');
   const drafts = useLooksByStatus('draft');
-  const suggested = useLooksByStatus('suggested', { refetch: true });
+  const suggested = useLooksByStatus('suggested');
   const restyle = useRestyle();
   const letGo = useLetGo();
   const save = useSaveLook(undefined, 'suggested');

@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   type AdjustEvent,
   adjustReduce,
+  dockDot,
+  dockNext,
+  dockStart,
   EMPTY_ADJUST,
   feedbackBubble,
+  followUp,
   isWorking,
   openReasons,
   threadHistory,
@@ -149,5 +153,112 @@ describe('the question about a look', () => {
       'The colours · “less matching”',
     );
     expect(feedbackBubble([], 'swap the trainers for boots')).toBe('swap the trainers for boots');
+  });
+});
+
+describe('A piece I don’t like (Q6)', () => {
+  const run = (events: AdjustEvent[]) => events.reduce(adjustReduce, EMPTY_ADJUST);
+  const down: AdjustEvent[] = [{ type: 'question', text: 'How is this look?' }, { type: 'down' }];
+
+  it('asks which piece before it becomes a token', () => {
+    const s = run([...down, { type: 'reason', reason: 'piece' }]);
+    expect(s.choosingPiece).toBe(true);
+    expect(s.reasons).toEqual([]);
+    expect(openReasons(s, { weather: true })).not.toContain('piece');
+  });
+
+  it('drops "Not the {piece}" in as a token once a piece is tapped', () => {
+    const s = run([
+      ...down,
+      { type: 'reason', reason: 'dressy' },
+      { type: 'reason', reason: 'piece' },
+      { type: 'piece', key: 'r2' },
+    ]);
+    expect(s.choosingPiece).toBe(false);
+    expect(s.reasons).toEqual(['dressy', 'piece']);
+    expect(s.piece).toBe('r2');
+    // A tap on the token clears the reason and the piece with it.
+    const cleared = adjustReduce(s, { type: 'reason', reason: 'piece' });
+    expect(cleared.reasons).toEqual(['dressy']);
+    expect(cleared.piece).toBeNull();
+  });
+
+  it('offers no piece once three reasons are picked, and ignores a piece tap unasked', () => {
+    const full = run([
+      ...down,
+      { type: 'reason', reason: 'dressy' },
+      { type: 'reason', reason: 'fit' },
+      { type: 'reason', reason: 'colours' },
+      { type: 'reason', reason: 'piece' },
+    ]);
+    expect(full.choosingPiece).toBe(false);
+    expect(run([...down, { type: 'piece', key: 'r1' }]).reasons).toEqual([]);
+  });
+
+  it('closes the choice when Restyle it all is picked or she sends', () => {
+    const asked = run([...down, { type: 'reason', reason: 'piece' }]);
+    expect(adjustReduce(asked, { type: 'restyle' }).choosingPiece).toBe(false);
+    const sent = adjustReduce(asked, { type: 'her', text: 'the shoes' });
+    expect(sent.choosingPiece).toBe(false);
+    expect(sent.piece).toBeNull();
+  });
+});
+
+describe('the follow-up question (Q1–Q4)', () => {
+  it('asks about the occasion after the first look, else how it feels', () => {
+    expect(followUp({ first: true, occasion: 'the office' })).toEqual({
+      kind: 'occasion',
+      occasion: 'the office',
+    });
+    expect(followUp({ first: true })).toEqual({ kind: 'feel' });
+  });
+
+  it('asks about the one reason she sent, with or without words', () => {
+    expect(followUp({ reasons: ['dressy'] })).toEqual({ kind: 'reason', reason: 'dressy' });
+    expect(followUp({ reasons: ['weather'], text: 'it will rain' })).toEqual({
+      kind: 'reason',
+      reason: 'weather',
+    });
+    expect(followUp({ reasons: ['piece'], piece: 'the loafers' })).toEqual({
+      kind: 'piece',
+      piece: 'the loafers',
+    });
+    expect(followUp({ restyle: true })).toEqual({ kind: 'restyle' });
+  });
+
+  it('asks "Closer?" after typed words alone or two or more reasons', () => {
+    expect(followUp({ text: 'roll up the sleeves' })).toEqual({ kind: 'closer' });
+    expect(followUp({ reasons: ['dressy', 'colours'] })).toEqual({ kind: 'closer' });
+    expect(followUp({ reasons: ['dressy', 'piece'], piece: 'the loafers' })).toEqual({
+      kind: 'closer',
+    });
+  });
+});
+
+describe('the dock (K2, K3, K6, K8)', () => {
+  it('opens at the bar on a draft and at the sparkle on a saved look', () => {
+    expect(dockStart('draft')).toBe('bar');
+    expect(dockStart('saved')).toBe('spark');
+  });
+
+  it('moves between sparkle, bar and thread', () => {
+    expect(dockNext('spark', 'restore')).toBe('bar');
+    expect(dockNext('bar', 'expand')).toBe('thread');
+    expect(dockNext('thread', 'collapse')).toBe('bar');
+    // An empty send or a thumbs up folds it to the sparkle from anywhere.
+    expect(dockNext('bar', 'minimise')).toBe('spark');
+    expect(dockNext('thread', 'minimise')).toBe('spark');
+    // Moves that do not apply leave it where it is.
+    expect(dockNext('spark', 'expand')).toBe('spark');
+    expect(dockNext('spark', 'collapse')).toBe('spark');
+    expect(dockNext('thread', 'restore')).toBe('thread');
+  });
+
+  it('marks the sparkle while a question waits', () => {
+    const asked = adjustReduce(EMPTY_ADJUST, { type: 'question', text: 'How is this look?' });
+    expect(dockDot('spark', asked)).toBe(true);
+    expect(dockDot('bar', asked)).toBe(false);
+    expect(dockDot('spark', adjustReduce(asked, { type: 'up' }))).toBe(false);
+    expect(dockDot('spark', EMPTY_ADJUST)).toBe(false);
   });
 });

@@ -238,6 +238,7 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
         rule: answer.rule,
         noticed: false,
         ...(answer.followUp ? { followUp: answer.followUp } : {}),
+        ...(answer.picture ? { picture: answer.picture } : {}),
       };
       // Every line she sends is a verdict on the look: it lands in her memory (legacy k:'ask').
       await deps.lookPrompt.remember(ctx.userId, {

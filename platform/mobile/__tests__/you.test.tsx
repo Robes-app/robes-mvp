@@ -18,26 +18,26 @@ jest.mock('../src/lib/auth-client', () => ({
 
 beforeEach(() => jest.clearAllMocks());
 
-const WAITING = {
-  items: [
-    {
-      key: 'receipts:2',
-      kind: 'receipts',
-      text: '2 receipts to review',
-      line: null,
-      date: null,
-      lookId: null,
-    },
-    {
-      key: 'diary:2026-09-30',
-      kind: 'diary',
-      text: 'Log Wednesday’s wear',
-      line: null,
-      date: '2026-09-30',
-      lookId: null,
-    },
-  ],
-};
+const ITEMS = [
+  {
+    key: 'receipts:2',
+    kind: 'receipts',
+    text: '2 receipts to review',
+    line: null,
+    date: null,
+    lookId: null,
+  },
+  {
+    key: 'diary:2026-09-30',
+    kind: 'diary',
+    text: 'Log Wednesday’s wear',
+    line: null,
+    date: '2026-09-30',
+    lookId: null,
+  },
+];
+// The row counts the cards she has not seen (design "Onboarding notifications", 19 Nov).
+const WAITING = { items: ITEMS, cards: ITEMS.map((i) => ({ ...i, seen: false, section: null })) };
 
 test('Settings (Felix SettingsView): Tabs over one drill card each; Account keeps every row', async () => {
   mockFetch({ 'GET /me': ME, 'GET /me/dna': styleDna(), 'GET /me/notifications': WAITING });
@@ -103,7 +103,7 @@ test('with nothing waiting, Notifications carries no value', async () => {
   const calls = mockFetch({
     'GET /me': ME,
     'GET /me/dna': styleDna(),
-    'GET /me/notifications': { items: [] },
+    'GET /me/notifications': { items: [], cards: [] },
   });
   const { queryClient } = await renderWithApi(<YouMenu initialTab="account" />);
   await waitFor(() => expect(calls.some((c) => c.path.endsWith('/me/notifications'))).toBe(true));

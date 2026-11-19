@@ -18,6 +18,7 @@ import type {
 } from '@robes/contracts';
 import { lookbook as copy, wardrobe } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
+import { pictureLanding } from '@robes/core/looks';
 import { useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -41,8 +42,10 @@ export function useLooksByStatus(status: LookStatus, opts: { anchorPieceId?: str
       },
     },
     {
+      // A frame lands after its job, her photograph's renditions after its upload (twin: mobile
+      // look-states.ts).
       refetchInterval: (q) =>
-        q.state.data?.items.some((l) => l.framePending) ? FRAME_REFRESH_MS : false,
+        q.state.data?.items.some((l) => pictureLanding(l)) ? FRAME_REFRESH_MS : false,
     },
   );
 }
@@ -101,7 +104,12 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
 }
 
 // `from` picks beta's toast: a suggestion saved as it stands, or a look she worked on, by name.
-export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 'draft' = 'draft') {
+// `changes`: how many changes she sent through the prompt before saving, for the event.
+export function useSaveLook(
+  onSaved?: (look: Look) => void,
+  from: 'suggested' | 'draft' = 'draft',
+  changes: () => number = () => 0,
+) {
   const toast = useToast();
   const refresh = useRefreshLooks();
   const { track } = useAnalytics().analytics;
@@ -112,6 +120,7 @@ export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 
         pieces: look.pieces.length,
         proposed: look.proposals.length,
         anchored: look.anchor !== null,
+        changes: changes(),
       });
       refresh(look);
       onSaved?.(look);
