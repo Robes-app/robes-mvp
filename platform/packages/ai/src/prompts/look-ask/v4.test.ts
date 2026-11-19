@@ -93,6 +93,15 @@ describe('look-ask v4', () => {
     expect(answer.followUp).toBe('Do the heels work?');
   });
 
+  it('files an added coat as outerwear when its category is not one of ours (19 Nov)', () => {
+    const coat = { ...heels, name: 'Oversized wool-blend coat', brand: 'COS', category: 'Coats' };
+    const [add] = normaliseAnswer(out({ adds: [coat] }), ctx).adds;
+    expect(add && 'proposal' in add ? add.proposal.category : null).toBe('Outerwear');
+    const odd = { ...coat, category: 'Warm layer' };
+    const [again] = normaliseAnswer(out({ adds: [odd] }), ctx).adds;
+    expect(again && 'proposal' in again ? again.proposal.category : null).toBe('Outerwear');
+  });
+
   it('adds a piece she owns by its pool index, once', () => {
     const flats = { ...heels, pool_index: 0, name: '' };
     expect(normaliseAnswer(out({ adds: [flats, flats] }), ctx).adds).toEqual([{ poolIndex: 0 }]);

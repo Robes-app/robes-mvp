@@ -73,6 +73,7 @@ function setup(
     getObject: vi.fn(async () => new Uint8Array([1])),
     putObject: vi.fn(async () => {}),
   };
+  const ledger = { record: vi.fn(async (_call: object) => {}) };
   const handler = createLookRenderHandler({
     ai,
     storage,
@@ -80,7 +81,7 @@ function setup(
     frames: {} as never,
     suggested: suggested as never,
     ...(model ? { model: model as never } : {}),
-    ledger: { record: vi.fn(async () => {}) },
+    ledger,
   });
   const run = (frameKey = 'k1') =>
     handler.run({
@@ -91,7 +92,7 @@ function setup(
       writeStage: vi.fn(async () => {}),
       isCancelled: async () => false,
     });
-  return { run, generateImage, suggested, storage };
+  return { run, generateImage, suggested, storage, ledger };
 }
 
 const CLOSE_UP = '99999999-9999-4999-8999-999999999999';
@@ -252,6 +253,29 @@ describe('look_render: Robes’ frame of a look', () => {
       '44444444-4444-4444-8444-444444444444',
       undefined,
       null,
+    );
+  });
+
+  // Testing 19 Nov: "can you add a warm coat" put a coat filed as Other on the rack, worn open over
+  // the top; the re-dress kept the top and left the coat out.
+  it('draws a proposed coat filed as Other as the outer layer, and keeps the prompt it sent', async () => {
+    const coat = {
+      key: 'p-coat1111',
+      name: 'Oversized wool-blend coat',
+      category: 'Other',
+      brand: 'COS',
+    };
+    const { run, generateImage, ledger } = setup({
+      proposals: [coat],
+      styling: { 'p-coat1111': 'worn open over the shirt' },
+    });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    const prompt = generateImage.mock.calls[0]?.[0]?.prompt;
+    expect(prompt).toContain(
+      '- the Oversized wool-blend coat (Outerwear by COS). Worn: worn open over the shirt.\nLAYERS: the Oversized wool-blend coat is the outer layer, worn over the Silk shirt',
+    );
+    expect(ledger.record).toHaveBeenCalledWith(
+      expect.objectContaining({ feature: 'avatar.frame', status: 'ok', prompt }),
     );
   });
 

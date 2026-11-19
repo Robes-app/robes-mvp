@@ -286,6 +286,12 @@ describe('the frame key', () => {
     expect(frameKey(['y', 'x'], [{ name: 'Mules', brand: 'Toteme' }], {})).toBe(a);
     expect(frameKey(['x'], [{ name: 'Mules', brand: 'Toteme' }], {})).not.toBe(a);
     expect(frameKey(['x', 'y'], [{ name: 'Mules', brand: 'Toteme' }], { x: 'tucked' })).not.toBe(a);
+    // How a proposed piece is worn counts too (19 Nov: a note on a proposed coat drew nothing),
+    // and a proposal with no note keys as it always has.
+    const coat = { name: 'Wool coat', brand: 'COS', key: 'p-coat' };
+    const bare = frameKey(['x'], [coat], {});
+    expect(frameKey(['x'], [{ name: 'Wool coat', brand: 'COS' }], {})).toBe(bare);
+    expect(frameKey(['x'], [coat], { 'p-coat': 'worn open over the hoodie' })).not.toBe(bare);
     expect(a).toMatch(/^[0-9a-z]{14}$/);
   });
 

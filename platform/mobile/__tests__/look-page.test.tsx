@@ -558,6 +558,50 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
   });
 });
 
+// Testing 19 Nov: a change the picture already wore drew nothing, yet the thread waited two
+// minutes for a picture before Robes asked. A draw that never starts asks at once.
+test('a saved look: when nothing new is drawn, Robes asks straight away', async () => {
+  const styled = {
+    intent: 'styled',
+    reply: '',
+    swaps: [],
+    back: [],
+    backAll: false,
+    styled: [{ key: PIECE_ID, note: 'worn open' }],
+    draft: '',
+    rule: '',
+    noticed: false,
+    followUp: 'Does the coat feel warm enough?',
+  };
+  const calls = mockFetch({
+    ...editRoutes(twoPieces()),
+    // The picture already wears this rack: the server hands back the draw that made it.
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: ASK_JOB, status: 'succeeded' },
+    [`POST /looks/${LOOK_ID}/ask`]: { jobId: ASK_JOB, status: 'queued' },
+    [`GET /jobs/${ASK_JOB}`]: {
+      id: ASK_JOB,
+      kind: 'look_ask',
+      status: 'succeeded',
+      stage: 'done',
+      output: { ask: styled },
+      error: null,
+      cancelRequested: false,
+      createdAt: '2026-10-15T10:00:00.000Z',
+      updatedAt: '2026-10-15T10:00:00.000Z',
+      finishedAt: '2026-10-15T10:00:01.000Z',
+    },
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  await fireEvent.changeText(await openPrompt(), 'can you add a warm coat');
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBe(true),
+  );
+  await openAnswer();
+  expect(await screen.findByText('Does the coat feel warm enough?')).toBeTruthy();
+}, 20_000);
+
 // An answer that names a change none of which landed says so plainly (testing, 18 Nov: "Done. The
 // scarf is on the look now." stood over a look with no scarf); no question follows, since nothing
 // changed.

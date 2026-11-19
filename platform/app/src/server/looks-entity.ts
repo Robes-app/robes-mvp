@@ -163,7 +163,7 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
         ? row.frameKey !==
           frameKey(
             lookPieces.map((p) => p.piece.id),
-            proposals.map((p) => ({ name: p.name, brand: p.brand })),
+            proposals.map((p) => ({ name: p.name, brand: p.brand, key: p.key })),
             styling,
             row.pictureNote,
           )
