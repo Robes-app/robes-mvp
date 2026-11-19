@@ -45,7 +45,7 @@ export function WardrobeHeader({
           icons={{
             [wardrobe.segments.owned]: 'wardrobe',
             [wardrobe.segments.wishlist]: 'heart',
-            [wardrobe.segments.shop]: 'bag',
+            [wardrobe.segments.shop]: 'shop',
           }}
           disabled={[wardrobe.segments.shop]}
           trailing={add}

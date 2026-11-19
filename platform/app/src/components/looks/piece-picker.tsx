@@ -166,7 +166,7 @@ export function PiecePicker({
           icons={{
             [wardrobe.segments.owned]: 'wardrobe',
             [wardrobe.segments.wishlist]: 'heart',
-            [wardrobe.segments.shop]: 'bag',
+            [wardrobe.segments.shop]: 'shop',
           }}
           disabled={off}
           trailing={

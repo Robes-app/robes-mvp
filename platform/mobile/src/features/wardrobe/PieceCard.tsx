@@ -171,7 +171,7 @@ export function StarButton({
 // a calendar ("New" before the first), a wish's price, a piece to find's price behind a bag or —
 // on a look — a wish's price behind a heart. `label` is what a reader hears.
 export interface RowMeta {
-  icon?: 'calendar' | 'heart' | 'bag';
+  icon?: 'calendar' | 'heart' | 'shop';
   text?: string;
   label: string;
 }
