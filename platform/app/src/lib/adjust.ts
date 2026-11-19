@@ -239,13 +239,25 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       setDrawing(true);
     }
     dispatch({ type: 'drawn' });
-    editor.redraw().catch((err) => {
-      setDrawing(false);
-      dispatch({ type: 'settle' });
-      // No picture is coming: Robes asks about the change as it stands.
-      askHeld.current();
-      if (!quiet) toast({ message: errorCopy(err) });
-    });
+    editor.redraw().then(
+      (started) => {
+        // Nothing new to draw (the picture already wears this rack): Robes asks now, never after
+        // waiting out DRAW_TIMEOUT_MS for a picture that is not coming (19 Nov: two minutes,
+        // then "How does the coat sit with the hoodie?" over the old picture).
+        if (started || quiet) return;
+        sawPending.current = false;
+        setDrawing(false);
+        dispatch({ type: 'settle' });
+        askHeld.current();
+      },
+      (err) => {
+        setDrawing(false);
+        dispatch({ type: 'settle' });
+        // No picture is coming: Robes asks about the change as it stands.
+        askHeld.current();
+        if (!quiet) toast({ message: errorCopy(err) });
+      },
+    );
   };
 
   return {

@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Linking, ScrollView, View } from 'react-native';
-import { useNotifications } from '@/components/Bell';
+import { unseenCount, useNotifications } from '@/components/Bell';
 import { Unrecorded } from '@/components/Unrecorded';
 import { LEGAL_URLS } from '@/lib/config';
 import { useSignOut } from '@/lib/use-sign-out';
@@ -92,7 +92,7 @@ function Account() {
   const signOut = useSignOut();
   const faint = useColor('ink-faint');
   const { data: me } = useApi('me.get');
-  const waiting = useNotifications().data?.items.length ?? 0;
+  const waiting = unseenCount(useNotifications().data);
   const name = [me?.firstName, me?.lastName].filter(Boolean).join(' ');
   const external = <Icon name="external" size={14} color={faint} />;
   return (

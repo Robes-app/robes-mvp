@@ -4,7 +4,7 @@ import { UNRECORDED } from '@robes/analytics';
 import { twin, you } from '@robes/copy';
 import { DrillList, DrillRowContent, drillRowClass } from '@robes/ui';
 import { DrillLink } from '@/components/settings/settings-chrome';
-import { useNotifications } from '@/components/shell/bell';
+import { unseenCount, useNotifications } from '@/components/shell/bell';
 import { SignOutButton } from '@/components/sign-out-button';
 import { DeleteAccount } from './delete-account';
 
@@ -13,7 +13,7 @@ import { DeleteAccount } from './delete-account';
 // Notifications carries "2 new" while anything waits behind the bell. Native twin:
 // mobile/src/features/you/YouMenu.tsx Account.
 export function AccountTab({ name, email }: { name: string; email: string }) {
-  const waiting = useNotifications().data?.items.length ?? 0;
+  const waiting = unseenCount(useNotifications().data);
   return (
     <div className="flex flex-col gap-6">
       <DrillList label={twin.tabs.account}>

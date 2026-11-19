@@ -6,29 +6,32 @@ test.beforeEach(({ context }) => isolateClientIp(context));
 test('Settings (Felix SettingsView): the subview header, Tabs, one drill card each; Account keeps every row', async ({
   page,
 }) => {
+  const items = [
+    {
+      key: 'receipts:2',
+      kind: 'receipts',
+      text: '2 receipts to review',
+      line: null,
+      date: null,
+      lookId: null,
+    },
+    {
+      key: 'diary:2026-11-04',
+      kind: 'diary',
+      text: 'Log Wednesday’s wear',
+      line: null,
+      date: '2026-11-04',
+      lookId: null,
+    },
+  ];
+  // The row counts the cards she has not seen (design "Onboarding notifications", 19 Nov).
   await page.route(/\/api\/v1\/me\/notifications(\?.*)?$/, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        items: [
-          {
-            key: 'receipts:2',
-            kind: 'receipts',
-            text: '2 receipts to review',
-            line: null,
-            date: null,
-            lookId: null,
-          },
-          {
-            key: 'diary:2026-11-04',
-            kind: 'diary',
-            text: 'Log Wednesday’s wear',
-            line: null,
-            date: '2026-11-04',
-            lookId: null,
-          },
-        ],
+        items,
+        cards: items.map((i) => ({ ...i, seen: false, section: null })),
       }),
     }),
   );

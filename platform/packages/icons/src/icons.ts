@@ -128,6 +128,12 @@ export const ICONS = {
   bell: ['M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z', 'M10 20.5a2 2 0 0 0 4 0'],
   pin: ['M12 21s-6-6-6-11a6 6 0 0 1 12 0c0 5-6 11-6 11z', 'M10 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0'],
   receipt: ['M6 3h12v18l-3-2-3 2-3-2-3 2z', 'M9 8h6M9 12h6'],
+  // The bell's Style DNA and Observations cards (design "Onboarding notifications", 19 Nov).
+  dna: ['M8 3c0 5 8 4.5 8 9s-8 4-8 9', 'M16 3c0 5-8 4.5-8 9s8 4 8 9', 'M9.5 6.5h5M9.5 17.5h5'],
+  eye: [
+    'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z',
+    'M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0',
+  ],
   // Felix Design System (2026-11-06): the Draft Look's actions, the Details rows' tag, the
   // season picker and the alerts' calendar.
   capture: [

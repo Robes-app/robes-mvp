@@ -250,4 +250,20 @@ describe('style DNA repos', () => {
     expect(ev.kept.map((l) => l.text)).toContain('No double denim');
     expect((await styleBrief.evidence(bea)).looks.map((l) => l.name)).toEqual(['Bea look']);
   });
+
+  it('says when the newest Observation still waiting arrived, hers alone', async () => {
+    const fresh = await createTestUser(db, 'Cleo Fay');
+    try {
+      expect(await repos.styleDna.pendingSince(fresh)).toBeNull();
+      await repos.styleDna.notice(fresh, { list: 'rules', text: 'Always a belt' });
+      const at = await repos.styleDna.pendingSince(fresh);
+      expect(at).toBeInstanceOf(Date);
+      // Another woman's waiting lines never count.
+      expect(await repos.styleDna.pendingSince(fresh)).toEqual(at);
+      await repos.styleDna.notice(bea, { list: 'rules', text: 'Never a belt' });
+      expect(await repos.styleDna.pendingSince(fresh)).toEqual(at);
+    } finally {
+      await deleteTestUsers(db, fresh);
+    }
+  });
 });

@@ -121,7 +121,13 @@ export async function restyleLook(
 }
 
 const StoredProposals = z
-  .array(z.looseObject({ name: z.string(), brand: z.string().default('') }))
+  .array(
+    z.looseObject({
+      name: z.string(),
+      brand: z.string().default(''),
+      key: z.string().optional(),
+    }),
+  )
   .catch([]);
 
 // Robes' frame for the rack as it stands: a suggestion's first frame when she reaches it (lazy,

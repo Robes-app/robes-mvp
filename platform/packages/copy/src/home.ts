@@ -226,11 +226,21 @@ export const bell = {
   open: 'Notifications',
   // The unread dot is never colour alone: the count lives in the bell's label.
   openNew: (n: number): string => (n > 0 ? `Notifications, ${n} new` : 'Notifications'),
-  empty: 'Nothing new.',
+  empty: 'All caught up.',
   dismiss: 'Dismiss',
-  // The sheet's ✓.
-  clear: 'Clear all',
-  dest: { receipts: 'Wardrobe', diary: 'Diary', overnight: 'Lookbook' },
+  dest: {
+    twin: 'Digital twin',
+    dna: 'Style DNA',
+    observations: 'Style DNA',
+    receipts: 'Wardrobe',
+    diary: 'Diary',
+    overnight: 'Lookbook',
+  },
+  // The onboarding cards (design "Onboarding notifications", 19 Nov).
+  twin: 'Create your digital twin',
+  dna: (answered: number): string =>
+    answered === 0 ? 'Start your Style DNA' : 'Finish your Style DNA',
+  observations: 'New observations to review',
   overnight: (weekday: string): string => `See ${weekday}’s look`,
   receipts: (n: number): string => (n === 1 ? '1 receipt to review' : `${n} receipts to review`),
   receiptsLine: (retailers: readonly string[]): string | null => {

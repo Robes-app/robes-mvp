@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  categoryFromWords,
   defaultTagsFor,
   itemTypesOf,
   resolveTaxonomy,
@@ -86,5 +87,21 @@ describe('the picker levels', () => {
       categoryL3: 'Crew neck t-shirt',
     });
     expect(subcategoriesOf('Nothing')).toEqual([]);
+  });
+});
+
+describe('categoryFromWords', () => {
+  it('keeps a category of ours', () => {
+    expect(categoryFromWords('Shoes', 'Black wool coat')).toBe('Shoes');
+    expect(categoryFromWords('outerwear', 'Anything')).toBe('Outerwear');
+  });
+  it('reads a proposed coat filed as Other as outerwear (19 Nov)', () => {
+    expect(categoryFromWords('Other', 'Oversized wool-blend coat')).toBe('Outerwear');
+    expect(categoryFromWords('Coats', 'Camel wrap')).toBe('Outerwear');
+    expect(categoryFromWords('', 'Off-white trail running trainers')).toBe('Shoes');
+  });
+  it('decides nothing from a word filed under two categories', () => {
+    expect(categoryFromWords('Other', 'Black top')).toBe('Other');
+    expect(categoryFromWords('nonsense', 'Something')).toBe('Other');
   });
 });

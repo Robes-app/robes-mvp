@@ -243,7 +243,7 @@ export const routes = {
     input: HomeLaterInput,
     output: HomeLater,
   },
-  // The bell: receipts to review and days with no wear logged, computed on each read.
+  // The bell: its cards and the older items, computed on each read.
   'notifications.list': {
     method: 'GET',
     path: '/me/notifications',
@@ -257,6 +257,14 @@ export const routes = {
     path: '/me/notifications/dismiss',
     auth: 'user',
     input: DismissNotificationInput,
+    output: Ok,
+  },
+  // She opened the sheet: what it shows stops lighting the dot. Naturally idempotent.
+  'notifications.seen': {
+    method: 'POST',
+    path: '/me/notifications/seen',
+    auth: 'user',
+    input: EmptyInput,
     output: Ok,
   },
   'me.deletion.get': {
