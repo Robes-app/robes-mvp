@@ -839,3 +839,18 @@ test('an old Inbox link opens the Inbox', async () => {
     delete mockParams.segment;
   }
 });
+
+// The photograph's disc is the twin's (Annie, 19 Nov): it opens the piece camera, one piece per
+// photo, her photos in reach; never the legacy camera-or-library list.
+test("the photo's disc opens the piece camera", async () => {
+  mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.piece.changePhoto }));
+  expect(await screen.findByText(wardrobe.piece.camera.hint)).toBeTruthy();
+  expect(screen.getByLabelText(wardrobe.piece.camera.photos)).toBeTruthy();
+  expect(screen.queryByText(wardrobe.add.doors.cameraRoll)).toBeNull();
+});
