@@ -93,9 +93,21 @@ jest.mock('@expo/ui/swift-ui', () => {
     },
   };
 });
+// The look prompt's dock is drawn under jest; a test that drives iOS's own sheet sets this to 0.
+process.env.ROBES_DRAWN_DOCK = '1';
 jest.mock('@expo/ui/swift-ui/modifiers', () => ({
+  ignoreSafeArea: (params: unknown) => ({ $type: 'ignoreSafeArea', params }),
+  presentationBackgroundInteraction: (params: unknown) => ({
+    $type: 'presentationBackgroundInteraction',
+    params,
+  }),
+  presentationCornerRadius: (radius: unknown) => ({ $type: 'presentationCornerRadius', radius }),
   presentationBackground: (style: unknown) => ({ $type: 'presentationBackground', style }),
-  presentationDetents: (detents: unknown) => ({ $type: 'presentationDetents', detents }),
+  presentationDetents: (detents: unknown, options?: unknown) => ({
+    $type: 'presentationDetents',
+    detents,
+    options,
+  }),
   presentationDragIndicator: (visibility: unknown) => ({
     $type: 'presentationDragIndicator',
     visibility,

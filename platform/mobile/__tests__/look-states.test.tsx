@@ -172,7 +172,8 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   // The canvas's row (PRD §6.1): the category and role in small caps, the brand under the name,
   // and a piece to find's price behind the bag at the right.
   expect(screen.getByText('Shoes · Exclamation')).toBeTruthy();
-  expect(screen.getByText('Toteme')).toBeTruthy();
+  // A piece Robes proposes new reads as a Shop piece (docked prompt W6).
+  expect(screen.getByText(lookbook.rack.shop('Toteme'))).toBeTruthy();
   expect(screen.getByText('€390')).toBeTruthy();
   expect(screen.getByLabelText(`${lookbook.rack.notYours} · €390`)).toBeTruthy();
   expect(screen.getByText(lookbook.composedByRobes)).toBeTruthy();
@@ -197,6 +198,7 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
     pieces: 1,
     proposed: 1,
     anchored: true,
+    changes: 0,
   });
   expect(track).toHaveBeenCalledWith('look_pinned', { offset_from_today: 1 });
 });
@@ -307,7 +309,7 @@ test('a swap can take a wish: the WISHLIST tab stays open, and the wish lands as
   const patches = () => calls.filter((c) => c.method === 'PATCH');
   await waitFor(() => expect(patches()).toHaveLength(1));
   // The coat leaves her pieces; the scarf stands in its place and role as a piece to find, and the
-  // row remembers the coat ("Swapped in · was …").
+  // row remembers the coat (its Swapped pill).
   const body = patches()[0]?.body as {
     pieces: unknown[];
     proposals: { wishlistItemId: string | null; role: string }[];
@@ -403,9 +405,9 @@ test('after a change Robes asks; a thumbs down opens the reasons this look can h
   await waitFor(() =>
     expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(true),
   );
-  expect(screen.queryByText(fb.again)).toBeNull();
-  // The picture lands, and Robes asks once: "How about now?" (F19).
-  expect(await screen.findByText(fb.again, {}, { timeout: 8000 })).toBeTruthy();
+  expect(screen.queryByText(fb.closer)).toBeNull();
+  // The picture lands, and Robes asks once; after typed words, "Closer?" (docked prompt Q4).
+  expect(await screen.findByText(fb.closer, {}, { timeout: 8000 })).toBeTruthy();
   expect(screen.queryByTestId('feedback-reasons')).toBeNull();
   // A thumbs down opens the reasons; the other thumb dims and takes no second answer (F5, F7).
   await fireEvent.press(screen.getByTestId('thumb-down'));
@@ -428,10 +430,11 @@ test('after a change Robes asks; a thumbs down opens the reasons this look can h
   expect(nativeAnalytics.track).toHaveBeenCalledWith('look_feedback', {
     surface: 'draft',
     verdict: 'down',
+    change_n: 1,
   });
 }, 20_000);
 
-test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
+test('a thumbs up ends it there: the like is kept, nothing is sent, saved or filed', async () => {
   const draft = look({
     status: 'draft',
     pieces: [{ piece: piece(), slot: null, role: 'anchor' }],
@@ -472,7 +475,7 @@ test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.changeText(await openPrompt(), 'swap the mules');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  expect(await screen.findByText(fb.again, {}, { timeout: 8000 })).toBeTruthy();
+  expect(await screen.findByText(fb.closer, {}, { timeout: 8000 })).toBeTruthy();
   const before = calls.length;
   await fireEvent.press(screen.getByTestId('thumb-up'));
   // The prompt closes: to its closed bar while the picture is still drawing, then to the sparkle
@@ -485,7 +488,17 @@ test('a thumbs up ends it there: nothing is sent, saved or filed', async () => {
   // One answer per question.
   await fireEvent.press(screen.getByTestId('thumb-down'));
   expect(screen.queryByTestId('feedback-reasons')).toBeNull();
-  expect(calls.slice(before).some((c) => c.method !== 'GET')).toBe(false);
+  // The one write is the like, kept in her style memory with her words (docked prompt Q10):
+  // nothing is sent to Robes, saved to the look or filed.
+  const writes = calls.slice(before).filter((c) => c.method !== 'GET');
+  expect(writes.map((c) => c.path)).toEqual(['/api/v1/me/memory']);
+  expect(writes[0]?.body).toMatchObject({
+    kind: 'verdict',
+    verdict: 1,
+    surface: 'draft',
+    lookId: expect.any(String),
+    body: 'swap the mules',
+  });
 }, 20_000);
 
 test('the look prompt lands a swap on a draft and remembers what it replaced', async () => {
@@ -530,9 +543,10 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
   const field = await openPrompt();
   await fireEvent.changeText(field, 'swap the mules for my dark jean');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  // The change is seen on the rack, not told (redline 14 Nov): Robes only asks.
+  // The change is seen on the rack, not told (redline 14 Nov): Robes only asks, "Closer?" after
+  // typed words (docked prompt Q4).
   expect(
-    await screen.findByText(lookbook.draftLook.feedback.again, {}, { timeout: 8000 }),
+    await screen.findByText(lookbook.draftLook.feedback.closer, {}, { timeout: 8000 }),
   ).toBeTruthy();
   expect(screen.queryByText('Done. The dark jean is on the look now.')).toBeNull();
   const ask = calls.find((c) => c.path.endsWith('/ask'))?.body as {
@@ -561,7 +575,9 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
   expect(patch.edits).toEqual({
     [JEAN]: { was: expect.objectContaining({ name: 'Black pointed mules' }) },
   });
-  expect(screen.getByText(lookbook.rack.swappedIn('the black pointed mules'))).toBeTruthy();
+  // The swapped row carries the Swapped pill, its full line the label (docked prompt T3).
+  expect(screen.getByLabelText(lookbook.rack.swappedFor('the black pointed mules'))).toBeTruthy();
+  expect(screen.getByTestId('swapped-pill')).toHaveTextContent(lookbook.rack.swapped);
   // Sent from the drawer, the picture is drawn once the rack is answered and written (D14).
   await waitFor(() =>
     expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBe(true),
@@ -574,6 +590,8 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
     surface: 'draft',
     chars: 'swap the mules for my dark jean'.length,
     from_draft: false,
+    kind: 'typed',
+    change_n: 1,
   });
   expect(track).toHaveBeenCalledWith('look_prompt_applied', {
     surface: 'draft',

@@ -11,7 +11,7 @@ const OFF = 'Shop is off: no wishlist or new pieces added';
 function Harness({ initial = false }: { initial?: boolean }) {
   const [on, setOn] = useState(initial);
   return (
-    <IconToggle icon="bag" tip="Shop" checked={on} onChange={setOn} labelOn={ON} labelOff={OFF} />
+    <IconToggle icon="shop" tip="Shop" checked={on} onChange={setOn} labelOn={ON} labelOff={OFF} />
   );
 }
 
@@ -50,5 +50,22 @@ describe('IconToggle', () => {
   it('has no serious accessibility violations', async () => {
     const { container } = render(<Harness initial />);
     expect(await seriousViolations(container)).toEqual([]);
+  });
+
+  it('with a label is a pill showing the name, still announced by its state', () => {
+    render(
+      <IconToggle
+        icon="shop"
+        tip="Shop"
+        checked
+        onChange={() => undefined}
+        labelOn={ON}
+        labelOff={OFF}
+        label="Shop"
+      />,
+    );
+    const sw = screen.getByRole('switch', { name: ON });
+    expect(sw).toHaveTextContent('Shop');
+    expect(sw).not.toHaveClass('w-7');
   });
 });

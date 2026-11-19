@@ -19,7 +19,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { DetentSheet } from '@/components/DetentSheet';
-import { dayLabel, usePinLook } from '@/features/plan/plan';
+import { dayLabel, usePinLook, useRefreshDays } from '@/features/plan/plan';
 import { nativeAnalytics } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
 import { LookPhoto } from './LookTile';
@@ -37,6 +37,7 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
   const queryClient = useQueryClient();
   const router = useRouter();
   const pin = usePinLook();
+  const refreshDays = useRefreshDays();
   const rose = useColor('accent-inspire');
   const ink = useColor('ink');
   const muted = useColor('ink-muted');
@@ -73,10 +74,8 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     onClose();
   };
   const settle = (message: string) => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
-    // The look's own page reads the count and the record of days: both follow a wear.
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') });
+    void refreshDays();
+    // The look's own page reads the record of days: it follows a wear.
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') });
     haptic.success();
     toast.show({ message });

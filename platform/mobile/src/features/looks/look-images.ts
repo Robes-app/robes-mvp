@@ -14,15 +14,6 @@ import { errorMessage } from '@/lib/errors';
 
 export type StageUpdate = (update: (stage: ImageStage) => ImageStage) => void;
 
-// The photo she just picked, shown from the file on the phone until its renditions are made.
-const local = new Map<string, string>();
-export function rememberLocalPhoto(assetId: string, uri: string): void {
-  local.set(assetId, uri);
-}
-export function localPhoto(assetId: string): string | null {
-  return local.get(assetId) ?? null;
-}
-
 // The image stack she is working (D19, D20): what she added, took out, hid and left in front,
 // held until she keeps it (a saved look's on the strip's ✓, a draft's as it is saved). `commit`
 // writes it in an order the server's "one image always remains" rule accepts at every step:

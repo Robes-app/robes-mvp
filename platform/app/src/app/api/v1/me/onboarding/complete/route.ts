@@ -17,7 +17,11 @@ export const POST = route({
   // Her answers ride the finish (all optional: an older phone build sends none).
   handler: async ({ user, input }) => {
     const userId = verifiedUserId(user.id);
-    const at = await repos.profiles.completeOnboarding(userId, onboardingAnswers(input));
+    const at = await repos.profiles.completeOnboarding(
+      userId,
+      onboardingAnswers(input),
+      input.firstRun,
+    );
     if (!at) throw new ApiError('not_found');
     // Her wearer's five Robes models, drawn once ever if nobody has yet: a man's have no seeds
     // (runbooks/robes-models.md), so without this his lineup stays empty until his first look.

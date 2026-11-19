@@ -472,7 +472,17 @@ export const LookAskJobInput = LookAskFields.extend({ lookId: z.uuid() }).refine
   path: ['text'],
 });
 
-export const AskIntent = z.enum(['swap', 'back', 'rule', 'styled', 'clarify', 'draft', 'none']);
+export const AskIntent = z.enum([
+  'swap',
+  'back',
+  'rule',
+  'styled',
+  'clarify',
+  'draft',
+  'none',
+  // A note about the whole photograph (look-ask v5, docked prompt PRD M5): `picture` carries it.
+  'picture',
+]);
 export const AskTarget = z.union([
   z.object({
     pieceId: z.uuid(),
@@ -514,6 +524,9 @@ export const LookAskResult = z.object({
   // Robes' one question about the change it made ("How do the new shoes look?", F3); absent
   // from an older worker's answer, and the client falls back to its own.
   followUp: z.string().max(120).optional(),
+  // Her note about the whole photograph ("a different pose"), for the look's picture note and a
+  // redraw; only with intent "picture", absent from an older worker's answer.
+  picture: z.string().max(240).optional(),
 });
 export type LookAskResult = z.infer<typeof LookAskResult>;
 

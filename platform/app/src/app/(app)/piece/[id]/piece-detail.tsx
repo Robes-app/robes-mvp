@@ -204,8 +204,10 @@ export function PieceDetail({ id }: { id: string }) {
   );
 }
 
-// The pill at the photograph's bottom-right (legacy rb-pc-rephoto): ↻ Change photo, or the camera
-// when there is none yet. Native twin: ChangePhoto in mobile/src/features/wardrobe/PieceDetail.tsx.
+// The disc at the photograph's bottom-right, the twin's redraw disc (model-view.tsx; Annie, 19 Nov):
+// ↻, or the camera when there is no photo yet. The web's piece photo is her file picker, as in Add
+// pieces; native opens the piece camera. Native twin: ChangePhoto in
+// mobile/src/features/wardrobe/PieceDetail.tsx.
 function ChangePhoto({ id, hasPhoto }: { id: string; hasPhoto: boolean }) {
   const file = useRef<HTMLInputElement>(null);
   const photo = usePiecePhoto(id);
@@ -217,16 +219,17 @@ function ChangePhoto({ id, hasPhoto }: { id: string; hasPhoto: boolean }) {
         onClick={() => file.current?.click()}
         disabled={photo.busy}
         aria-busy={photo.busy}
-        className="absolute right-3.5 bottom-3.5 z-10 flex min-h-11 items-center gap-2 rounded-pill border border-hairline bg-bg/95 pr-4 pl-3.5 font-sans text-ink text-sm shadow-sm hover:bg-bg focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:text-ink-faint"
+        aria-label={label}
+        title={label}
+        className="absolute right-3.5 bottom-3.5 z-10 flex size-11 items-center justify-center rounded-pill bg-veil text-ink shadow-float backdrop-blur-[22px] focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-50"
       >
-        <Icon name={hasPhoto ? 'swap' : 'camera'} size={16} />
-        {label}
+        <Icon name={hasPhoto ? 'refresh' : 'camera'} size={18} />
       </button>
       <input
         ref={file}
         type="file"
         accept={PHOTO_ACCEPT}
-        // The pill is the door; the input itself is hidden from assistive tech.
+        // The disc is the door; the input itself is hidden from assistive tech.
         aria-hidden
         aria-label={label}
         tabIndex={-1}

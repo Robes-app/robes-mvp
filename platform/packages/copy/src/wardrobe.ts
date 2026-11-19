@@ -1,6 +1,9 @@
 import { SEASON_LABELS } from './seasons';
 import { countWord } from './words';
 
+// The camera's line wherever a piece is photographed (Capture PRD 3c).
+const ONE_PIECE_HINT = 'One piece per photo · Lay it flat or hang it up';
+
 export const wardrobe = {
   title: 'Your wardrobe',
   newPiece: 'New piece',
@@ -54,6 +57,23 @@ export const wardrobe = {
     // The pill on the record's photograph (legacy rb-pc-rephoto); with no photo, it adds one.
     changePhoto: 'Change photo',
     addPhoto: 'Add a photo',
+    // The disc on the photograph opens the piece camera, the Add pieces camera taking one photo
+    // (Annie, 19 Nov: the twin's disc, never the legacy picker).
+    camera: {
+      title: 'Photograph the piece',
+      hint: ONE_PIECE_HINT,
+      close: 'Back to the piece',
+      photos: 'Choose from your photos',
+      shutter: 'Take photo',
+      review: 'Review your photo',
+      reviewNote: '',
+      back: 'Back to the piece',
+      retake: 'Retake',
+      another: 'Another',
+      use: 'Use photo',
+      denied: 'Allow the camera in your settings to take a photo here.',
+      failed: 'That photo didn’t upload. Try it again.',
+    },
     // The record's sections (legacy Piece_Sheet 01): every fact is a row, a tap opens its drawer.
     sections: {
       piece: 'The piece',
@@ -207,6 +227,8 @@ export const wardrobe = {
     heroFull: 'The Hero Rack holds ten. Remove one first.',
     swipeRemove: 'Remove',
     swipeDelete: 'Delete',
+    // A tile held in the grid peeks at the piece with the system menu.
+    menu: { delete: 'Delete piece' },
     noPhoto: 'Photograph it',
   },
   filter: {
@@ -355,7 +377,7 @@ export const wardrobe = {
   // sitting, reviewed together, added at once. Every string is the PRD's.
   capture: {
     camera: {
-      hint: 'One piece per photo · Lay it flat or hang it up',
+      hint: ONE_PIECE_HINT,
       next: 'Next piece, or review when you’re done',
       ready: (n: number): string => (n === 1 ? '1 piece ready' : `${n} pieces ready`),
       review: (n: number): string => `Review ${n}`,

@@ -15,6 +15,25 @@ export const NotificationPrefs = z.object({
 });
 export type NotificationPrefs = z.infer<typeof NotificationPrefs>;
 
+// Getting to know you (onboarding PRD, 17 Nov): four questions, then the capture steps, each
+// skippable. Version 2 is the new flow; every account below it walks the flow once more.
+export const FIRST_RUN_VERSION = 2;
+export const FIRST_RUN_QUESTIONS = ['name', 'identity', 'styles', 'brands'] as const;
+export const FIRST_RUN_CAPTURES = ['looks', 'pieces', 'twin', 'outfit'] as const;
+export const FIRST_RUN_STEPS = [...FIRST_RUN_QUESTIONS, ...FIRST_RUN_CAPTURES] as const;
+export const FirstRunStep = z.enum(FIRST_RUN_STEPS);
+export type FirstRunStep = z.infer<typeof FirstRunStep>;
+export const FirstRunCapture = z.enum(FIRST_RUN_CAPTURES);
+export type FirstRunCapture = z.infer<typeof FirstRunCapture>;
+// The steps she walks: the digital twin is out of the flow (Annie, 18 Nov: slow, and without her
+// facts it falls short); it stays above so a profile left on it still reads, and resumes on
+// Today's outfit. Her twin is made from You.
+export type FirstRunFlowStep = Exclude<FirstRunStep, 'twin'>;
+export const FIRST_RUN_FLOW: readonly FirstRunFlowStep[] = FIRST_RUN_STEPS.filter(
+  (s): s is FirstRunFlowStep => s !== 'twin',
+);
+export const firstRunResume = (s: FirstRunStep): FirstRunFlowStep => (s === 'twin' ? 'outfit' : s);
+
 export const Me = z.object({
   id: z.uuid(),
   email: z.string(),
@@ -27,6 +46,17 @@ export const Me = z.object({
   homeCity: z.string().nullable(),
   onboarded: z.boolean(),
   notifications: NotificationPrefs,
+  // Getting to know you (onboarding PRD, 17 Nov). Defaulted across version skew, so an
+  // older server's /me still parses (and reads as a flow never finished).
+  firstRun: z
+    .object({
+      // The flow she finished; below FIRST_RUN_VERSION she walks it (again) on the phone.
+      version: z.number().int().nullable(),
+      // Where she was, so leaving and returning resumes there (R-S3).
+      step: FirstRunStep.nullable(),
+      skipped: z.array(FirstRunCapture),
+    })
+    .default({ version: null, step: null, skipped: [] }),
 });
 export type Me = z.infer<typeof Me>;
 
@@ -130,10 +160,28 @@ export const CompleteOnboardingInput = z
     brands: z.array(z.string().trim().min(1).max(80)).max(40),
     // Love (1) or avoid (-1) by colour family; a missing family is no view.
     colours: z.partialRecord(ids(COLOUR_FAMILY_IDS), pref),
+    // The eight-step flow's finish (onboarding PRD): the version she walked. Sent with no answers,
+    // which were already saved on Brands (me.onboarding.save); without it, the old finish.
+    firstRun: z.number().int().min(1).max(100),
   })
   .partial()
   .strict();
 export type CompleteOnboardingInput = z.infer<typeof CompleteOnboardingInput>;
+
+// As she goes through the eight steps (onboarding PRD R-4.2, R-S3): where she is, which capture
+// steps she skipped, and on Brands her answers — saved, but she is not onboarded until she
+// reaches Home. Answers sent here replace what the profile holds (a re-run asks them again).
+export const SaveOnboardingInput = z
+  .object({
+    step: FirstRunStep,
+    skipped: z.array(FirstRunCapture).max(FIRST_RUN_CAPTURES.length),
+    identity: z.enum(GENDER_IDENTITIES),
+    styles: z.array(z.enum(STYLE_TYPES)).max(STYLE_TYPES.length),
+    brands: z.array(z.string().trim().min(1).max(80)).max(40),
+  })
+  .partial()
+  .strict();
+export type SaveOnboardingInput = z.infer<typeof SaveOnboardingInput>;
 export type Palette = z.infer<typeof Palette>;
 
 export const StyleProfile = z.object({

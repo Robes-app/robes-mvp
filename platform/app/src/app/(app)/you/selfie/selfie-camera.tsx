@@ -1,6 +1,6 @@
 'use client';
 
-import { twin, wardrobe } from '@robes/copy';
+import { twin, ui, wardrobe } from '@robes/copy';
 import { Icon, type IconName } from '@robes/icons/web';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -31,7 +31,14 @@ type Photo = { file: File; url: string; from: 'camera' | 'library' };
 // a tap away (the system's picker, design 04), then the review (05): Retake goes back to where
 // the photo came from, Use photo reads it and opens Your digital twin. Without a camera (a laptop,
 // a refusal) her photos still work. Native twin: mobile/src/features/you/SelfieCamera.tsx.
-export function SelfieCamera() {
+export function SelfieCamera({
+  returnTo,
+  onClose,
+}: {
+  // Getting to know you opens it in place: the read comes back to `returnTo`, × closes it there.
+  returnTo?: string;
+  onClose?: () => void;
+} = {}) {
   const router = useRouter();
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -40,7 +47,7 @@ export function SelfieCamera() {
   const [live, setLive] = useState(false);
   const [refused, setRefused] = useState(false);
   const [photo, setPhoto] = useState<Photo | null>(null);
-  const { send, busy, error } = useSelfieSend();
+  const { send, busy, error } = useSelfieSend(returnTo);
 
   const stop = useCallback(() => {
     for (const track of stream.current?.getTracks() ?? []) track.stop();
@@ -86,9 +93,10 @@ export function SelfieCamera() {
 
   const close = useCallback(() => {
     stop();
-    if (window.history.length > 1) router.back();
+    if (onClose) onClose();
+    else if (window.history.length > 1) router.back();
     else router.replace('/you/model');
-  }, [router, stop]);
+  }, [onClose, router, stop]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -205,7 +213,8 @@ export function SelfieCamera() {
                 onClick={() => void send(photo.file)}
                 className={`${WIDE} bg-ink900 text-cream50 ${DARK_FOCUS}`}
               >
-                {copy.use}
+                {/* Her close-up uploads before anything moves on: say so, never a still button. */}
+                {busy ? ui.loading : copy.use}
               </button>
             </div>
           </div>

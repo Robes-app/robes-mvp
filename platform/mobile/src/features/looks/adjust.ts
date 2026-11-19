@@ -6,10 +6,14 @@ import {
   adjustReduce,
   type Balance,
   EMPTY_ADJUST,
+  type FollowUp,
   feedbackBubble,
+  followUp,
   isWorking,
+  nameNoBrand,
   noteShort,
   pictureLanding,
+  theName,
   threadHistory,
 } from '@robes/core/looks';
 import { useToast } from '@robes/ui-native';
@@ -28,6 +32,25 @@ const DRAW_TIMEOUT_MS = 120_000;
 const NO_DRAW_MS = 8_000;
 const fb = copy.draftLook.feedback;
 
+// Robes' question after a change, in words (docked prompt PRD Q1–Q4). Twin: the other client's
+// useAdjust.
+function askAfter(f: FollowUp): string {
+  switch (f.kind) {
+    case 'occasion':
+      return fb.questionFor(f.occasion);
+    case 'feel':
+      return fb.question;
+    case 'reason':
+      return fb.askAfter[f.reason];
+    case 'piece':
+      return fb.withoutPiece(f.piece);
+    case 'restyle':
+      return fb.restyle.ask;
+    case 'closer':
+      return fb.closer;
+  }
+}
+
 // Working a look through the prompt (Front Door design 3b, plan 2026-11-03 §1.4): the same on
 // home's box and on the look's page. Web twin: app/src/lib/adjust.ts.
 export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
@@ -35,6 +58,9 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const toast = useToast();
   const refresh = useInvalidateLooks();
   const [state, dispatch] = useReducer(adjustReduce, EMPTY_ADJUST);
+  // A piece I don't like rides as "Not the {piece}", the one she tapped (docked prompt Q6).
+  const picked = state.piece ? editor.rack.rows.find((r) => r.key === state.piece) : undefined;
+  const notThe = picked ? fb.notThe(theName(nameNoBrand(picked.name, picked.brand))) : null;
   const d = copy.draft;
   // Her brief, when Robes made this look from her words: Restyle it all starts fresh from it.
   const brief = useRef('');
@@ -45,6 +71,11 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const hushed = useRef(false);
   // Her last send, so one tap that fires twice (the keyboard's send and the button) is one line.
   const lastSend = useRef({ key: '', at: 0 });
+  // The changes she has sent on this look in this session (docked prompt PRD, Analytics).
+  const changes = useRef(0);
+  // What her last ask carried: Robes' question once the change lands (Q2–Q4), and her words for
+  // the like a thumbs up keeps (Q10).
+  const lastAsk = useRef<{ question: string; said: string }>({ question: fb.closer, said: '' });
 
   // A send that asked to draw once answered, and the draw it calls (defined further down).
   const drawAfter = useRef(false);
@@ -52,10 +83,37 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
 
   // Her ask: an edit comes back keyed by the rack she sent.
   const ask = useLookAsk(look.id, (result) => {
+    // A note about the whole picture (look-ask v5, docked prompt PRD M5): it becomes the look's
+    // picture note and the model is drawn again with it. Nothing on the rack changes; Robes asks
+    // "Closer?" once the picture lands.
+    if (result.intent === 'picture' && result.picture) {
+      drawAfter.current = false;
+      dispatch({ type: 'work', text: d.dressing });
+      hushed.current = true;
+      sawPending.current = false;
+      setDrawing(true);
+      setHeldQuestion(fb.closer);
+      editor.redraw(result.picture).catch((err) => {
+        setDrawing(false);
+        dispatch({ type: 'settle' });
+        // No picture is coming: Robes asks at once.
+        setHeldQuestion(null);
+        dispatch({ type: 'question', text: fb.closer });
+        toast.show({ message: errorMessage(err) });
+      });
+      return;
+    }
     const changed = askChanges(result);
     // Robes' words stand when nothing changed (it asks back, or says why not). A change is seen
     // on the rack and the model, and Robes only asks its question.
-    if (!changed || !shown) dispatch({ type: 'robes', text: result.reply || copy.prompt.doneNone });
+    // An answer that names a change none of which landed says so plainly: its own "Done. The
+    // scarf is on the look now." stood over a look with no scarf (testing, 18 Nov).
+    const claimed = !changed && ['swap', 'back', 'styled'].includes(result.intent);
+    if (!changed || !shown)
+      dispatch({
+        type: 'robes',
+        text: claimed ? copy.prompt.didNotLand : result.reply || copy.prompt.doneNone,
+      });
     else dispatch({ type: 'settle' });
     if (result.noticed) dispatch({ type: 'filed', text: copy.prompt.noticed });
     const slots = result.swaps.length + result.back.length + result.styled.length;
@@ -67,11 +125,11 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       drawAfter.current = false;
       if (changed) draw.current();
     }
-    // Robes asks once per returned look (look prompt PRD F3, F19): about the change on a saved
-    // look, "How about now?" on a draft. After the draw's own lines, so it stays open.
-    // Held until the picture wears the change (16 Nov: "How does the pink coat feel?" stood over
-    // the old picture while it was still being dressed).
-    if (changed) setHeldQuestion(result.followUp || fb.again);
+    // Robes asks once per returned look: its own question about the change it made when it
+    // wrote one ("Does the chartreuse coat feel more exciting?", Annie 18 Nov), else the one
+    // about what she asked (docked prompt PRD Q2–Q4). Held until the picture wears the change
+    // (16 Nov: "How does the pink coat feel?" stood over the old picture while it was dressed).
+    if (changed) setHeldQuestion(result.followUp || lastAsk.current.question);
   });
   const wasReading = useRef(ask.reading);
   useEffect(() => {
@@ -86,7 +144,7 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     dispatch({ type: 'settle' });
     if (job.status === 'succeeded' || job.status === 'partial') {
       dispatch({ type: 'drawn' });
-      dispatch({ type: 'question', text: fb.again });
+      dispatch({ type: 'question', text: fb.restyle.ask });
     } else toast.show({ message: copy.swapFailed });
     // The look itself is read again: the lists' refresh alone never reaches the open look, so a
     // restyle used to leave the old rack standing.
@@ -178,9 +236,14 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
 
   return {
     state,
+    pieceToken: notThe,
+    // How many changes she has sent on this look, for the save's event.
+    changeCount: () => changes.current,
     stale,
     badge,
     busy,
+    // The model is being dressed again (a change's picture, a restyle), not Robes reading.
+    dressing: redressJob !== null || drawing,
     canRedress: look.setId !== null,
     placeholder: state.asking
       ? d.notRight
@@ -202,13 +265,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       const now = Date.now();
       if (lastSend.current.key === key && now - lastSend.current.at < 1500) return false;
       lastSend.current = { key, at: now };
-      // "A piece I don't like" with no piece named: Robes asks which, rather than guess (F15).
-      if (!text && reasons.includes('piece')) {
-        dispatch({ type: 'robes', text: fb.whichPiece });
-        return false;
-      }
       drawAfter.current = opts.draw === true && look.status === 'draft';
-      const labels = afresh ? [fb.restyle.label] : reasons.map((r) => fb.reasons[r].label);
+      const labels = afresh
+        ? [fb.restyle.label]
+        : reasons.map((r) => (r === 'piece' && notThe ? notThe : fb.reasons[r].label));
       const fromThumb = state.verdict === 'down';
       const report = (action: 'adjust' | 'restyle') => {
         if (!fromThumb) return;
@@ -219,16 +279,28 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
           action,
         });
       };
+      const sent = (kind: 'typed' | 'reason' | 'piece' | 'restyle') => {
+        changes.current += 1;
+        nativeAnalytics.track('look_prompt_sent', {
+          surface,
+          chars: text.length,
+          from_draft: false,
+          kind,
+          change_n: changes.current,
+        });
+      };
       dispatch({ type: 'her', text: feedbackBubble(labels, text) });
       // Restyle it all (F12): a new look from the same brief, her words as the note.
       if (afresh) {
         report('restyle');
+        sent('restyle');
         dispatch({ type: 'work', text: fb.restyle.work(brief.current) });
         restyle(text || null);
         return true;
       }
       if (state.asking) {
         dispatch({ type: 'answered' });
+        sent('typed');
         dispatch({ type: 'robes', text: d.thanks });
         dispatch({ type: 'work', text: d.dressingAgain });
         restyle(text);
@@ -236,15 +308,31 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       }
       if (editor.rack.rows.length === 0) return false;
       report('adjust');
-      nativeAnalytics.track('look_prompt_sent', { surface, chars: text.length, from_draft: false });
+      sent(
+        reasons.length === 0
+          ? 'typed'
+          : reasons.length === 1 && reasons[0] === 'piece'
+            ? 'piece'
+            : 'reason',
+      );
       const only = reasons.length === 1 ? reasons[0] : undefined;
       dispatch({
         type: 'work',
         text: only ? fb.reasons[only].work : fromThumb ? fb.adjusting : d.reading,
       });
+      lastAsk.current = {
+        question: askAfter(
+          followUp({
+            reasons,
+            piece: picked ? theName(nameNoBrand(picked.name, picked.brand)) : null,
+            text,
+          }),
+        ),
+        said: feedbackBubble(labels, text),
+      };
       ask.send({
         surface,
-        text,
+        text: notThe ? feedbackBubble([notThe], text) : text,
         ...(reasons.length ? { reasons } : {}),
         thread: threadHistory(state.thread),
         rack: askRack(editor.rack, look.anchor?.id ?? null),
@@ -260,11 +348,33 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     // still being drawn; a send waits for it.
     thumb: (verdict: 'up' | 'down') => {
       if (state.verdict !== 'ask') return;
-      nativeAnalytics.track('look_feedback', { surface, verdict });
+      // A thumbs up keeps the look, her brief and the change it answered as liked, in her style
+      // memory (docked prompt PRD Q10); it files no observation and says nothing.
+      if (verdict === 'up') {
+        const body = [brief.current, lastAsk.current.said]
+          .filter(Boolean)
+          .join(' · ')
+          .slice(0, 240);
+        void api
+          .call('me.memory.record', {
+            input: {
+              kind: 'verdict',
+              verdict: 1,
+              surface,
+              subject: look.name.slice(0, 120),
+              lookId: look.id,
+              ...(body ? { body } : {}),
+            },
+          })
+          .catch(() => undefined);
+      }
+      nativeAnalytics.track('look_feedback', { surface, verdict, change_n: changes.current });
       dispatch({ type: verdict });
     },
     reason: (reason: AskReason) => dispatch({ type: 'reason', reason }),
     restyleAll: () => dispatch({ type: 'restyle' }),
+    // The piece she taps after Which piece? (Q6), by its rack key.
+    piece: (key: string) => dispatch({ type: 'piece', key }),
     // Robes made this look from her brief just now (the draft's first send): her words head the
     // thread and Robes asks its one question (F1, F3).
     // With no words (a draft Robes made, opened again) only the question is asked. `dressing`:
@@ -300,21 +410,6 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     },
     updateModel: () => {
       if (!busy) updateModel();
-    },
-    // The AdjustSheet (D21): her words restyle the picture alone, never the pieces. The picture
-    // is drawn again at once with them, and they stay with the look for every later redraw.
-    picture: (words: string) => {
-      const note = words.trim();
-      if (!note || busy) return;
-      dispatch({ type: 'her', text: note });
-      dispatch({ type: 'work', text: d.dressing });
-      sawPending.current = false;
-      setDrawing(true);
-      editor.redraw(note).catch((err) => {
-        setDrawing(false);
-        dispatch({ type: 'settle' });
-        toast.show({ message: errorMessage(err) });
-      });
     },
     drawForSave: () => {
       if (stale) updateModel(true);

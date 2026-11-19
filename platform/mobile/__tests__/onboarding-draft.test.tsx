@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import Onboarding from '../src/app/onboarding/index';
 import { ME, mockFetch, renderWithApi } from './support/api';
 
-// Audit F7: onboarding keeps her answers on the phone as she goes, and offers a way out.
+// Audit F7: onboarding keeps her answers on the phone as she goes.
 const mockStore = new Map<string, string>();
 jest.mock('expo-secure-store', () => ({
   getItem: (k: string) => mockStore.get(k) ?? null,
@@ -12,10 +12,7 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(async (k: string) => void mockStore.delete(k)),
 }));
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
-const mockSignOut = jest.fn(async () => ({}));
-jest.mock('../src/lib/auth-client', () => ({
-  authClient: { getCookie: () => null, signOut: () => mockSignOut() },
-}));
+jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
 
 const key = `robes.onboarding.${ME.id}`;
 beforeEach(() => {
@@ -26,7 +23,7 @@ beforeEach(() => {
 test('closing the app mid-way brings her back to the step she was on, answers kept', async () => {
   mockStore.set(
     key,
-    JSON.stringify({ step: 3, identity: 'man', styles: ['Utility'], brands: [], colours: {} }),
+    JSON.stringify({ step: 'styles', identity: 'man', styles: ['Utility'], brands: [] }),
   );
   mockFetch({ 'GET /me': { ...ME, onboarded: false } });
   await renderWithApi(<Onboarding />);
@@ -43,10 +40,12 @@ test('closing the app mid-way brings her back to the step she was on, answers ke
   await waitFor(() => expect(JSON.parse(mockStore.get(key) ?? '{}').styles).toContain('Heritage'));
 });
 
-test('every step offers a way out: sign out', async () => {
+test('the questions offer no sign out (Annie, 17 Nov)', async () => {
   mockFetch({ 'GET /me': { ...ME, onboarded: false } });
   await renderWithApi(<Onboarding />);
   await fireEvent.press(screen.getByTestId('splash'));
-  await fireEvent.press(screen.getByRole('button', { name: you.signOut }));
-  await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
+  expect(
+    screen.getByText(`${copy.name.title} ${copy.name.titleEm}`, { exact: false }),
+  ).toBeTruthy();
+  expect(screen.queryByRole('button', { name: you.signOut })).toBeNull();
 });

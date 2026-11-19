@@ -4,6 +4,7 @@ import { Image, Skeleton, Text } from '@robes/ui-native';
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { renditionUri } from '@/lib/images';
+import { PERSON_CROP } from './LookTile';
 import { useRequestFrame } from './look-states';
 import { Scanning, scanningLine } from './ScanLine';
 
@@ -23,7 +24,12 @@ export function LookPicture({ look }: { look: Look }) {
   return (
     <View className="overflow-hidden rounded-crisp">
       {uri ? (
-        <Image source={uri} alt={copy.prompt.label(look.name)} blurhash={look.image?.blurhash} />
+        <Image
+          source={uri}
+          alt={copy.prompt.label(look.name)}
+          blurhash={look.image?.blurhash}
+          contentPosition={PERSON_CROP}
+        />
       ) : (
         <Skeleton width="100%" aspectRatio={4 / 5} />
       )}

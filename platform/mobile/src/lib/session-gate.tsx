@@ -43,7 +43,7 @@ export function SessionGate(): ReactElement {
             nativeAnalytics.stop();
             queryClient.clear();
             router.replace(
-              next && next !== '/' && !next.startsWith('/sign-in')
+              next && next !== '/' && !next.startsWith('/sign-in') && !next.startsWith('/sign-up')
                 ? { pathname: '/sign-in', params: { next } }
                 : '/sign-in',
             );

@@ -3,12 +3,14 @@ import type { UpdatePieceInput } from '@robes/contracts';
 import { wardrobe as copy, lookbook, ui } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
+import { shadowNative } from '@robes/tokens';
 import {
   Button,
   EmptyState,
   ErrorText,
+  Glass,
   Image,
-  Sheet,
+  MIN_TOUCH,
   Skeleton,
   Tabs,
   Text,
@@ -17,11 +19,11 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Modal, Pressable, ScrollView, View } from 'react-native';
 import { DetentSheet } from '@/components/DetentSheet';
+import { CaptureCamera } from '@/features/capture/CaptureCamera';
 import { SavedTile } from '@/features/looks/LookTiles';
 import { SuggestedRail } from '@/features/looks/SuggestedRail';
-import { SettingsRow } from '@/features/you/Settings';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { DeletePieceDialog } from './DeletePieceDialog';
@@ -74,7 +76,8 @@ export function PieceDetail({ id }: { id: string }) {
           : false,
     },
   );
-  const [choosing, setChoosing] = useState(false);
+  const [camera, setCamera] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const reread = useReread();
   const remove = useDeletePiece();
   const star = useStarPiece();
@@ -141,7 +144,7 @@ export function PieceDetail({ id }: { id: string }) {
           <ChangePhoto
             hasPhoto={piece.image !== null}
             busy={photo.busy}
-            onPress={() => setChoosing(true)}
+            onPress={() => setCamera(true)}
           />
         </View>
         <View className="gap-5 px-5">
@@ -226,36 +229,40 @@ export function PieceDetail({ id }: { id: string }) {
         onSave={save}
         saving={update.isPending}
       />
-      <Sheet
-        open={choosing}
-        onClose={() => setChoosing(false)}
-        title={piece.image ? copy.piece.changePhoto : copy.piece.addPhoto}
-        closeButton
+      {/* The piece camera (Annie, 19 Nov): the Add pieces camera, one photograph, her photos
+          bottom-left; Use photo puts it on the piece. */}
+      <Modal
+        visible={camera}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setCamera(false)}
       >
-        <View className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
-          <SettingsRow
-            first
-            label={copy.add.doors.photograph}
-            onPress={() => {
-              setChoosing(false);
-              void photo.take('camera');
+        {camera ? (
+          <CaptureCamera
+            copy={copy.piece.camera}
+            review="pills"
+            busy={photo.busy}
+            error={photoFailed ? copy.piece.camera.failed : null}
+            onUse={(picked) =>
+              void photo.use(picked).then((ok) => {
+                setPhotoFailed(!ok);
+                if (ok) setCamera(false);
+              })
+            }
+            onClose={() => {
+              setPhotoFailed(false);
+              setCamera(false);
             }}
           />
-          <SettingsRow
-            label={copy.add.doors.cameraRoll}
-            onPress={() => {
-              setChoosing(false);
-              void photo.take('library');
-            }}
-          />
-        </View>
-      </Sheet>
+        ) : null}
+      </Modal>
     </View>
   );
 }
 
-// The pill at the photograph's bottom-right (legacy rb-pc-rephoto): ↻ Change photo, or the camera
-// when there is none yet. Web twin: ChangePhoto in app/src/app/(app)/piece/[id]/piece-detail.tsx.
+// The disc at the photograph's bottom-right, the twin's redraw disc (Model.tsx, R15): ↻, or the
+// camera when there is no photo yet; it opens the piece camera. Web twin: ChangePhoto in
+// app/src/app/(app)/piece/[id]/piece-detail.tsx.
 function ChangePhoto({
   hasPhoto,
   busy,
@@ -274,11 +281,12 @@ function ChangePhoto({
       accessibilityState={{ disabled: busy, busy }}
       disabled={busy}
       onPress={onPress}
-      style={{ minHeight: 44 }}
-      className={`absolute right-3.5 bottom-3.5 flex-row items-center gap-2 rounded-pill border border-hairline bg-bg pr-4 pl-3.5 ${busy ? 'opacity-50' : ''}`}
+      className={`absolute items-center justify-center rounded-pill ${busy ? 'opacity-50' : ''}`}
+      style={[{ right: 14, bottom: 14, width: MIN_TOUCH, height: MIN_TOUCH }, shadowNative.float]}
+      testID="piece-photo"
     >
-      <Icon name={hasPhoto ? 'swap' : 'camera'} size={16} color={ink} />
-      <Text size="small">{label}</Text>
+      <Glass tone="veil" className="absolute inset-0 rounded-pill" />
+      <Icon name={hasPhoto ? 'refresh' : 'camera'} size={18} color={ink} />
     </Pressable>
   );
 }

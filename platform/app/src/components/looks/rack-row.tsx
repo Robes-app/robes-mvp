@@ -79,9 +79,12 @@ export function RackRowCard({
   onRemove,
   wishHref,
   editing = false,
+  wasImage,
 }: {
   row: RackRow;
   image?: PieceImageData | null;
+  // The photograph of the piece a change swapped out, for the Swapped pill (docked prompt T3).
+  wasImage?: PieceImageData | null;
   // A wish on the rack opens its own page at rest (Annie, 15 Nov).
   wishHref?: string;
   // The Rack's pencil is down (Robes MVP 2b): the card rocks, × on its corner, swap and chevron.
@@ -98,14 +101,9 @@ export function RackRowCard({
   const name = nameNoBrand(row.name, brand);
   const sources = image ? imageSources(image.renditions) : null;
   const proposal = row.proposal;
+  // A swapped piece shows the Swapped pill instead (docked prompt PRD T3).
   const markText =
-    mark?.kind === 'was'
-      ? copy.rack.swappedIn(theName(mark.name))
-      : mark?.kind === 'back'
-        ? copy.rack.backIn
-        : mark?.kind === 'added'
-          ? copy.rack.added
-          : null;
+    mark?.kind === 'back' ? copy.rack.backIn : mark?.kind === 'added' ? copy.rack.added : null;
   const resting = !onSwap && !onRemove;
   const actions = editing ? (
     <div className="flex items-center gap-2">
@@ -166,13 +164,14 @@ export function RackRowCard({
           )
         }
         {...(row.role ? { role: copy.rack.roles[row.role] } : {})}
-        maker={brand || proposal?.retailerHint?.trim() || ''}
+        maker={shopMaker(row, brand)}
         dashed={!!proposal}
         meta={editing ? null : rackMeta(row, wears)}
         action={actions}
         lines={
-          markText || styled ? (
+          markText || styled || mark?.kind === 'was' ? (
             <>
+              {mark?.kind === 'was' ? <SwappedPill name={mark.name} image={wasImage} /> : null}
               {markText ? (
                 <span className="truncate font-sans text-[11px] text-ink-muted">{markText}</span>
               ) : null}
@@ -196,6 +195,40 @@ export function RackRowCard({
   );
 }
 
+// A Shop piece (one Robes proposes new, not a wish or a found piece) reads "{brand} · Shop" in
+// every context (docked prompt PRD W6); anything else its brand, or a find's retailer.
+// Native twin: RackRow.tsx shopMaker.
+function shopMaker(row: RackRow, brand: string): string {
+  const p = row.proposal;
+  const maker = brand || p?.retailerHint?.trim() || '';
+  return p && !p.wishlisted && !p.capture && maker ? copy.rack.shop(maker) : maker;
+}
+
+// The Swapped pill under a piece a change swapped in (docked prompt PRD T3): a faded round
+// thumbnail of the piece it replaced, an arrow, then "Swapped"; the full line is its label.
+// Native twin: RackRow.tsx SwappedPill.
+function SwappedPill({ name, image }: { name: string; image: PieceImageData | null | undefined }) {
+  const sources = image ? imageSources(image.renditions) : null;
+  return (
+    <span
+      role="img"
+      aria-label={copy.rack.swappedFor(theName(name))}
+      data-testid="swapped-pill"
+      className="inline-flex w-fit items-center gap-1 rounded-pill bg-surface-sunk py-0.5 pr-2 pl-0.5 font-sans text-[11px] text-ink"
+    >
+      <span className="size-4 shrink-0 overflow-hidden rounded-full opacity-50">
+        {sources ? (
+          <Image src={sources.src} srcSet={sources.srcSet} sizes="16px" alt="" aspect="1:1" />
+        ) : (
+          <NoPhoto className="size-4" size={10} />
+        )}
+      </span>
+      <Icon name="forward" size={9} />
+      {copy.rack.swapped}
+    </span>
+  );
+}
+
 // The rack row's meta (PRD §6.1, Annie 9 Nov): a wish carries a heart and its price, a piece to
 // find a bag and its price, a piece she owns its wears.
 function rackMeta(row: RackRow, wears: number | undefined): RowMeta | null {
@@ -204,7 +237,7 @@ function rackMeta(row: RackRow, wears: number | undefined): RowMeta | null {
     const price = proposal.pricePoint?.trim() || '';
     const said = proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours;
     return {
-      icon: proposal.wishlisted ? 'heart' : 'bag',
+      icon: proposal.wishlisted ? 'heart' : 'shop',
       ...(price ? { text: price } : {}),
       label: [said, price].filter(Boolean).join(' · '),
     };

@@ -83,6 +83,7 @@ import {
   RegisterPushTokenInput,
   ReportClientErrorInput,
   RequestDeletionInput,
+  SaveOnboardingInput,
   StyleOverrides,
   StyleProfile,
   UpdateLocationInput,
@@ -210,6 +211,14 @@ export const routes = {
     auth: 'user',
     input: EmptyInput,
     output: Features,
+  },
+  // The eight-step flow as she goes (onboarding PRD): where she is, and on Brands her answers.
+  'me.onboarding.save': {
+    method: 'PATCH',
+    path: '/me/onboarding',
+    auth: 'user',
+    input: SaveOnboardingInput,
+    output: Ok,
   },
   'me.onboarding.complete': {
     method: 'POST',

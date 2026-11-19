@@ -58,7 +58,10 @@ export function useSelfieSend(): {
       const started = await api.call('me.style.analyse', {
         input: { kind: 'colour', assetId },
       });
-      router.replace({ pathname: '/you/model', params: { [READ_PARAM]: started.jobId } });
+      router.replace({
+        pathname: '/you/model',
+        params: { [READ_PARAM]: started.jobId },
+      });
     } catch {
       setError(copy.failed);
     } finally {

@@ -40,8 +40,11 @@ const MAP: Rule[] = [
     [path, '/you'],
   ]),
   // Sign-in is passwordless now, so a reset link lands on sign-in too.
-  ['/signup', '/auth/sign-in'],
-  ['/signup.html', '/auth/sign-in'],
+  // Legacy signup.html was both screens; its `mode=signin` was sign-in, the rest sign up.
+  ...['/signup', '/signup.html'].flatMap((path): Rule[] => [
+    [path, '/auth/sign-in', [{ type: 'query', key: 'mode', value: 'signin' }]],
+    [path, '/auth/sign-up'],
+  ]),
   ['/reset', '/auth/sign-in'],
   ['/terms', '/legal/terms'],
   ['/privacy', '/legal/privacy'],

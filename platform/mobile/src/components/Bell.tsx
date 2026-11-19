@@ -2,12 +2,13 @@ import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { NotificationItem, NotificationKind, Notifications } from '@robes/contracts';
 import { bell as copy } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
-import { fonts, MIN_TOUCH, maxFontSizeMultiplier, Sheet, Text, useColor } from '@robes/ui-native';
+import { fonts, MIN_TOUCH, maxFontSizeMultiplier, Text, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text as RNText, View } from 'react-native';
+import { DetentSheet } from './DetentSheet';
 import { SwipeRow } from './SwipeRow';
 
 const BELL = 36;
@@ -117,11 +118,12 @@ function NotificationsSheet({
     else router.push({ pathname: '/', params: { day: item.date ?? '' } });
   };
   return (
-    <Sheet
+    <DetentSheet
       open={open}
       onClose={onClose}
       title={copy.title}
       done={{ label: copy.clear, onPress: dismissAll, disabled: items.length === 0 }}
+      scroll
       testID="bell-sheet"
     >
       {items.length === 0 ? (
@@ -178,6 +180,6 @@ function NotificationsSheet({
           ))}
         </View>
       )}
-    </Sheet>
+    </DetentSheet>
   );
 }

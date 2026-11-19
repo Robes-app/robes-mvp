@@ -1,5 +1,5 @@
 import { keyPiece, lookbook, looks, ui } from '@robes/copy';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { DraftLook } from '../src/features/looks/DraftLook';
 import { IdeaScreen, JobIdeaScreen } from '../src/features/looks/IdeaScreens';
 import { LookScreen } from '../src/features/looks/LookScreen';
@@ -243,9 +243,12 @@ test('a card opens its sheet piece by piece, her own pieces marked', async () =>
       },
     ];
   }
-  mockFetch({
+  const calls = mockFetch({
     [`GET /looks/ideas/${IDEA_ID}`]: withPieces,
     [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`POST /looks/ideas/${IDEA_ID}/looks`]: look({ name: 'Look 1' }),
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /looks/ideas': { items: [] },
   });
   await renderWithApi(<IdeaScreen id={IDEA_ID} />);
   expect(await screen.findByText(keyPiece.eyebrowYours)).toBeTruthy();
@@ -254,6 +257,14 @@ test('a card opens its sheet piece by piece, her own pieces marked', async () =>
   expect(await screen.findByText(keyPiece.inWardrobe)).toBeTruthy();
   expect(screen.getByText('Shoes · COS €89')).toBeTruthy();
   expect(screen.getByText('Black loafers')).toBeTruthy();
+  // The sheet holds its own Save at its foot, for the way it shows.
+  const sheet = within(screen.getByTestId('way-sheet'));
+  await fireEvent.press(sheet.getByRole('button', { name: looks.saveWay }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/looks') && c.method === 'POST')?.body).toEqual({
+      wayIdx: 0,
+    }),
+  );
 });
 
 test('the image stack (D19, D20): Robes’ picture can be hidden; the strip’s ✓ keeps it, no Update look', async () => {

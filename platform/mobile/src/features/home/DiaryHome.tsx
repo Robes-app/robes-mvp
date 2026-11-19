@@ -2,6 +2,7 @@ import { queryKeys, useApi } from '@robes/api-client/react';
 import type { DiaryDay, Today } from '@robes/contracts';
 import { home as homeCopy } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
+import { pictureLanding } from '@robes/core/looks';
 import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/native';
 import { ErrorText, Eyebrow, PrimaryScope, useColor } from '@robes/ui-native';
@@ -15,10 +16,16 @@ import { usePullRefresh } from '@/lib/pull-refresh';
 import { DayCard } from './DayCard';
 import { DiaryStrip } from './DiaryStrip';
 
-// The draft Robes is making for a day (plan 2026-11-03): read every 2 s. Home shows no tray of
-// jobs (design 1b).
+// The draft Robes is making for a day (plan 2026-11-03), or a look's picture still landing (her
+// photograph's renditions come after the upload): read every 2 s. Home shows no tray of jobs
+// (design 1b).
 const isRunning = (t: Today | undefined) =>
-  t?.diary?.days.some((d) => d.draft?.jobId || d.draft?.look?.framePending) ?? false;
+  t?.diary?.days.some(
+    (d) =>
+      d.draft?.jobId ||
+      pictureLanding(d.draft?.look ?? undefined) ||
+      d.entries.some((e) => pictureLanding(e.look)),
+  ) ?? false;
 
 // Today's cache with one look taken off its day (optimistic; the server read follows).
 export function withoutDiaryEntry(id: string) {

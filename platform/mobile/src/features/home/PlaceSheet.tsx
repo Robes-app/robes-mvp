@@ -4,9 +4,10 @@ import { diary } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
 import { shortRange, weatherIcon } from '@robes/core/weather';
 import { Icon } from '@robes/icons/native';
-import { fonts, IconButton, maxFontSizeMultiplier, Sheet, Text, useColor } from '@robes/ui-native';
+import { fonts, IconButton, maxFontSizeMultiplier, Text, useColor } from '@robes/ui-native';
 import { useEffect, useState } from 'react';
 import { Pressable, Text as RNText, TextInput, View } from 'react-native';
+import { DetentSheet } from '@/components/DetentSheet';
 
 const copy = diary.place;
 
@@ -43,6 +44,7 @@ function Caps({ children }: { children: string }) {
 
 // The place sheet (design 3k, plan §1.8): a search for a city, "For today only", then Home and
 // recent — or the cities found as she types, each with the day's range. Return picks the first.
+// On iOS's own sheet (Annie, 17 Nov), its search the head: no title row above it.
 // The web twin is app/src/components/home/place-popover.tsx (a popover under the chips).
 export function PlaceSheet({
   open,
@@ -105,7 +107,7 @@ export function PlaceSheet({
   };
   const none = searching && asked === q.trim() && found.data && hits?.length === 0;
   return (
-    <Sheet open={open} onClose={onClose} testID="place-sheet">
+    <DetentSheet open={open} onClose={onClose} scroll testID="place-sheet">
       <View className="gap-2 pb-2">
         <View className="h-[44px] flex-row items-center gap-2 rounded-pill border border-rule-mid bg-surface-raised pr-1 pl-3.5">
           <Icon name="pin" size={13} color={muted} />
@@ -182,6 +184,6 @@ export function PlaceSheet({
           </Text>
         ) : null}
       </View>
-    </Sheet>
+    </DetentSheet>
   );
 }

@@ -35,20 +35,15 @@ body {
   color: var(--color-ink-faint);
 }
 
-/* The sign-in ground: cream warming to blush (legacy signup.html). Dark mode keeps the plain ground. */
+/* The sign-in ground (design "Sign in and sign up", 18 Nov): cream-200 into the page's cream,
+   warming to rose at the foot. Dark mode keeps the plain ground. Native twin: WarmGround.tsx. */
 .warm-ground {
-  background:
-    radial-gradient(
-      60% 50% at 18% 30%,
-      color-mix(in srgb, var(--color-mauve) 55%, transparent),
-      transparent 70%
-    ),
-    radial-gradient(
-      55% 45% at 82% 68%,
-      color-mix(in srgb, var(--color-blush) 50%, transparent),
-      transparent 70%
-    ),
-    linear-gradient(135deg, var(--color-cream300), var(--color-cream200) 50%, var(--color-blush));
+  background: linear-gradient(
+    165deg,
+    var(--color-cream200) 0%,
+    var(--bg) 48%,
+    var(--rose-mid) 130%
+  );
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .warm-ground {
