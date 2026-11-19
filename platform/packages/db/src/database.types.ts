@@ -604,6 +604,8 @@ export interface Users {
 }
 
 export interface UserUiState {
+  bellCards: Generated<Json>;
+  bellSeenAt: Timestamp | null;
   dismissed: Generated<Json>;
   lastVisitAt: Timestamp | null;
   seenFeatures: Generated<string[]>;

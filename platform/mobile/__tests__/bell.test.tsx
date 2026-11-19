@@ -1,4 +1,4 @@
-import type { NotificationItem } from '@robes/contracts';
+import type { BellCard, NotificationItem } from '@robes/contracts';
 import { bell, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Bell } from '../src/components/Bell';
@@ -29,15 +29,29 @@ const ITEMS: NotificationItem[] = [
   },
 ];
 
-// The server forgets a dismissed item; the list it answers with never carries it again.
-function routes() {
+const asCards = (items: readonly NotificationItem[], seen = false): BellCard[] =>
+  items.map((i) => ({ ...i, seen, section: null }));
+
+// The server forgets a dismissed card and what she has seen; the list it answers never carries
+// a dismissed one again.
+function routes(cards: BellCard[] = asCards(ITEMS)) {
   const dismissed = new Set<string>();
+  let seen = false;
   return mockFetch({
-    'GET /me/notifications': () => ({ items: ITEMS.filter((i) => !dismissed.has(i.key)) }),
+    'GET /me/notifications': () => {
+      const left = cards.filter((c) => !dismissed.has(c.key));
+      return {
+        items: ITEMS.filter((i) => !dismissed.has(i.key)),
+        cards: left.map((c) => ({ ...c, seen: seen || c.seen })),
+      };
+    },
     'POST /me/notifications/dismiss': (init: RequestInit) => {
-      const body = JSON.parse(String(init.body)) as { key?: string; all?: true };
-      if (body.all) for (const i of ITEMS) dismissed.add(i.key);
-      else if (body.key) dismissed.add(body.key);
+      const body = JSON.parse(String(init.body)) as { key?: string };
+      if (body.key) dismissed.add(body.key);
+      return { ok: true };
+    },
+    'POST /me/notifications/seen': () => {
+      seen = true;
       return { ok: true };
     },
   });
@@ -94,27 +108,26 @@ test('two items render with where each leads; a tap routes, the swipe’s Dismis
   expect(screen.getByText(bell.logWear('Wednesday'))).toBeTruthy();
 });
 
-test('the sheet (Felix NotificationsSheet): the drawer header, a glyph by kind, × closes and ✓ clears all', async () => {
-  const calls = mockFetch({
-    'GET /me/notifications': {
-      items: [
-        ...ITEMS,
-        {
-          key: 'overnight:22222222-2222-4222-8222-222222222222',
-          kind: 'overnight',
-          text: bell.overnight('today'),
-          line: null,
-          date: '2026-10-01',
-          lookId: '22222222-2222-4222-8222-222222222222',
-        },
-      ],
-    },
-  });
+test('the sheet (Felix NotificationsSheet): the drawer header, a glyph by kind, no ✓; opening sees them all', async () => {
+  const overnight: NotificationItem = {
+    key: 'overnight:22222222-2222-4222-8222-222222222222',
+    kind: 'overnight',
+    text: bell.overnight('today'),
+    line: null,
+    date: '2026-10-01',
+    lookId: '22222222-2222-4222-8222-222222222222',
+  };
+  // The overnight look stood when she last looked; the other two are new.
+  const calls = routes([...asCards(ITEMS), ...asCards([overnight], true)]);
   await renderWithApi(<Bell />);
-  await fireEvent.press(await screen.findByTestId('bell'));
-  // The header is the drawer's: × · the tracked title · the ink done disc; no question.
+  const button = await screen.findByTestId('bell');
+  // The count is the cards she has not seen.
+  await waitFor(() => expect(button.props.accessibilityLabel).toBe('Notifications, 2 new'));
+  await fireEvent.press(button);
+  // The header is the drawer's: × and the tracked title; no Clear all (design 19 Nov).
   expect(await screen.findByRole('header', { name: bell.title })).toBeTruthy();
   expect(screen.getByRole('button', { name: ui.close })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Clear all' })).toBeNull();
   // receipt, the diary's calendar, and the overnight look's `looks`.
   for (const icon of ['receipt', 'calendar', 'looks'])
     expect(screen.getByTestId(`bell-icon-${icon}`)).toBeTruthy();
@@ -123,24 +136,59 @@ test('the sheet (Felix NotificationsSheet): the drawer header, a glyph by kind, 
   expect(screen.getByText(bell.dest.overnight)).toBeTruthy();
   for (const item of ITEMS) expect(item.text).not.toContain('!');
 
-  // × closes and marks nothing read: no dismissal is sent and the dot stays.
+  // Opening sees them all: the dot goes; × closes and dismisses nothing.
+  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/notifications/seen'))).toBe(true));
   await fireEvent.press(screen.getByRole('button', { name: ui.close }));
   await waitFor(() => expect(screen.queryByText(bell.receipts(2))).toBeNull());
-  expect(calls.some((c) => c.method === 'POST')).toBe(false);
-  expect(screen.getByTestId('bell-dot', { includeHiddenElements: true })).toBeTruthy();
-  // The ✓ clears every card in one write and closes (PRD rev 3 §10 12).
-  await fireEvent.press(screen.getByTestId('bell'));
-  await fireEvent.press(await screen.findByRole('button', { name: bell.clear }));
-  await waitFor(() => expect(screen.queryByText(bell.receipts(2))).toBeNull());
-  await waitFor(() =>
-    expect(calls.find((c) => c.path.endsWith('/notifications/dismiss'))?.body).toEqual({
-      all: true,
-    }),
+  expect(calls.some((c) => c.path.endsWith('/notifications/dismiss'))).toBe(false);
+  expect(screen.queryByTestId('bell-dot', { includeHiddenElements: true })).toBeNull();
+  expect(screen.getByTestId('bell').props.accessibilityLabel).toBe(bell.title);
+});
+
+test('the onboarding cards lead to the twin, the first missing Style DNA answer and Observations', async () => {
+  const base = { line: null, date: null, lookId: null, seen: false } as const;
+  routes([
+    { ...base, key: 'twin:1', kind: 'twin', text: bell.twin, section: null },
+    { ...base, key: 'dna:1', kind: 'dna', text: bell.dna(2), section: 'age' },
+    {
+      ...base,
+      key: 'observations:x',
+      kind: 'observations',
+      text: bell.observations,
+      section: null,
+    },
+  ]);
+  await renderWithApi(<Bell />);
+  const open = async () => fireEvent.press(await screen.findByTestId('bell'));
+  await open();
+  for (const icon of ['user', 'dna', 'eye'])
+    expect(await screen.findByTestId(`bell-icon-${icon}`)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('link', { name: `${bell.twin} · ${bell.dest.twin}` }));
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/model');
+  await open();
+  await fireEvent.press(
+    await screen.findByRole('link', { name: `${bell.dna(2)} · ${bell.dest.dna}` }),
   );
+  expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/you/style', params: { open: 'age' } });
+  await open();
+  await fireEvent.press(
+    await screen.findByRole('link', { name: `${bell.observations} · ${bell.dest.observations}` }),
+  );
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/observations');
+});
+
+test('the last card dismissed leaves the sheet all caught up', async () => {
+  routes(asCards(ITEMS.slice(0, 1)));
+  await renderWithApi(<Bell />);
+  await fireEvent.press(await screen.findByTestId('bell'));
+  const row = await screen.findByTestId('bell-item-receipts:2');
+  await act(() => row.props.onAccessibilityAction({ nativeEvent: { actionName: 'remove' } }));
+  expect(await screen.findByText(bell.empty)).toBeTruthy();
+  expect(screen.queryByText('Nothing new.')).toBeNull();
 });
 
 test('with nothing waiting there is no bell (PRD rev 3 §2.2)', async () => {
-  mockFetch({ 'GET /me/notifications': { items: [] } });
+  mockFetch({ 'GET /me/notifications': { items: [], cards: [] } });
   await renderWithApi(<Bell />);
   await waitFor(() => expect(screen.queryByTestId('bell')).toBeNull());
   expect(screen.queryByTestId('bell-dot', { includeHiddenElements: true })).toBeNull();

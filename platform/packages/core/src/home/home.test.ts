@@ -159,10 +159,10 @@ describe('bell nudges', () => {
         hasLooks: true,
       }),
     ).toEqual(['2026-11-01', '2026-10-30', '2026-10-29']);
-    // A whole unlogged week names its five newest days, no more (Annie, 16 Nov).
+    // A whole unlogged week names its three newest days, no more (design 19 Nov).
     expect(
       bellNudgeDays({ today: '2026-11-02', since: '2026-01-01', wornDays: [], hasLooks: true }),
-    ).toEqual(['2026-11-01', '2026-10-31', '2026-10-30', '2026-10-29', '2026-10-28']);
+    ).toEqual(['2026-11-01', '2026-10-31', '2026-10-30']);
     // A logged day frees its place for an older one, inside the week.
     expect(
       bellNudgeDays({
@@ -171,8 +171,8 @@ describe('bell nudges', () => {
         wornDays: ['2026-11-01', '2026-10-30'],
         hasLooks: true,
       }),
-    ).toEqual(['2026-10-31', '2026-10-29', '2026-10-28', '2026-10-27', '2026-10-26']);
-    // A dismissed day holds no place either: the next older day takes it.
+    ).toEqual(['2026-10-31', '2026-10-29', '2026-10-28']);
+    // A dismissed day keeps its place empty: older days drop off rather than queue up.
     expect(
       bellNudgeDays({
         today: '2026-11-02',
@@ -181,12 +181,61 @@ describe('bell nudges', () => {
         dismissed: ['2026-11-01'],
         hasLooks: true,
       }),
-    ).toEqual(['2026-10-31', '2026-10-30', '2026-10-29', '2026-10-28', '2026-10-27']);
+    ).toEqual(['2026-10-31', '2026-10-30']);
     expect(
       bellNudgeDays({ today: '2026-11-02', since: '2026-01-01', wornDays: [], hasLooks: false }),
     ).toEqual([]);
     expect(
       bellNudgeDays({ today: '2026-11-02', since: '2026-11-02', wornDays: [], hasLooks: true }),
     ).toEqual([]);
+  });
+});
+
+describe('style DNA sections', () => {
+  it('counts the five answers and names the first one missing, in order', async () => {
+    const { styleDnaProgress } = await import('./index');
+    const none = { gender: null, age: null, investment: null, types: [], brands: [] };
+    expect(styleDnaProgress(none)).toEqual({ answered: 0, next: 'gender' });
+    expect(
+      styleDnaProgress({ ...none, gender: 'woman', types: ['classic'], brands: ['Toteme'] }),
+    ).toEqual({ answered: 3, next: 'age' });
+    expect(
+      styleDnaProgress({
+        gender: 'woman',
+        age: '35_44',
+        investment: 'mid',
+        types: ['classic'],
+        brands: ['Toteme'],
+      }),
+    ).toEqual({ answered: 5, next: null });
+    // Blank entries are no answer.
+    expect(styleDnaProgress({ ...none, brands: ['  '] }).answered).toBe(0);
+  });
+});
+
+describe('onboarding card rounds', () => {
+  it('shows round one, then round two a week after the first put-away, then never', async () => {
+    const { onboardingRound } = await import('./index');
+    const now = new Date('2026-11-19T12:00:00Z');
+    expect(onboardingRound(null, now)).toEqual({ round: 1, since: null });
+    expect(onboardingRound({ n: 1, at: '2026-11-15T12:00:00Z' }, now)).toBeNull();
+    expect(onboardingRound({ n: 1, at: '2026-11-12T12:00:00Z' }, now)).toEqual({
+      round: 2,
+      since: '2026-11-19T12:00:00.000Z',
+    });
+    expect(onboardingRound({ n: 2, at: '2026-10-01T12:00:00Z' }, now)).toBeNull();
+  });
+});
+
+describe('bell unseen', () => {
+  it('lights a card that appeared after she last opened the bell', async () => {
+    const { bellUnseen } = await import('./index');
+    const seenAt = '2026-11-19T09:00:00Z';
+    expect(bellUnseen({ since: '2026-11-19T10:00:00Z' }, seenAt)).toBe(true);
+    expect(bellUnseen({ since: '2026-11-18T10:00:00Z' }, seenAt)).toBe(false);
+    expect(bellUnseen({ since: '2026-11-18T10:00:00Z' }, null)).toBe(true);
+    // A diary day appears the day after it, in her timezone: unseen unless she opened it since.
+    expect(bellUnseen({ day: '2026-11-18' }, seenAt, '2026-11-19')).toBe(false);
+    expect(bellUnseen({ day: '2026-11-19' }, seenAt, '2026-11-19')).toBe(true);
   });
 });

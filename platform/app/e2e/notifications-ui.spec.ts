@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, seriousViolations, signIn } from './helpers';
 
-// Felix NotificationsSheet (plan 2026-11-06, PR 8; PRD rev 3 §4.8): the bell's sheet has the drawer
-// header, each item a card with its glyph, the task, where it leads and a ›, a × beside it that
-// dismisses it, a ✓ that clears them all, and the bell itself stands only while something waits.
+// Felix NotificationsSheet (plan 2026-11-06, PR 8; PRD rev 3 §4.8; design "Onboarding
+// notifications", 19 Nov): the bell's sheet has the drawer header, each item a card with its glyph,
+// the task, where it leads and a ›, a × beside it that dismisses it (no Clear all), the dot for
+// the cards she hasn't seen, and the bell itself stands only while something waits.
 // What waits is stubbed at the route so the sheet's behaviour is pinned without seeding receipts
 // and past days; overnight.spec.ts covers the real list.
 test.beforeEach(({ context }) => isolateClientIp(context));
@@ -26,24 +27,35 @@ const ITEMS = [
     lookId: null,
   },
 ];
+const cardsOf = (items: typeof ITEMS, seen: boolean) =>
+  items.map((i) => ({ ...i, seen, section: null }));
 
-test('the bell’s sheet: cards with where each leads, × dismisses, Close keeps, ✓ clears and the bell goes', async ({
+test('the bell’s sheet: cards with where each leads, opening sees them, × dismisses, the last leaves it caught up', async ({
   page,
 }) => {
   const dismissed = new Set<string>();
   const posted: unknown[] = [];
-  await page.route(/\/api\/v1\/me\/notifications(\?.*)?$/, (route) =>
-    route.fulfill({
+  let seen = false;
+  await page.route(/\/api\/v1\/me\/notifications(\?.*)?$/, (route) => {
+    const left = ITEMS.filter((i) => !dismissed.has(i.key));
+    return route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ items: ITEMS.filter((i) => !dismissed.has(i.key)) }),
-    }),
-  );
+      body: JSON.stringify({ items: left, cards: cardsOf(left, seen) }),
+    });
+  });
+  await page.route('**/api/v1/me/notifications/seen', (route) => {
+    seen = true;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true }),
+    });
+  });
   await page.route('**/api/v1/me/notifications/dismiss', (route) => {
-    const body = route.request().postDataJSON() as { key?: string; all?: true };
+    const body = route.request().postDataJSON() as { key?: string };
     posted.push(body);
-    if (body.all) for (const i of ITEMS) dismissed.add(i.key);
-    else if (body.key) dismissed.add(body.key);
+    if (body.key) dismissed.add(body.key);
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -61,9 +73,9 @@ test('the bell’s sheet: cards with where each leads, × dismisses, Close keeps
   await bell.click();
   const sheet = page.getByRole('dialog', { name: 'Notifications' });
   await expect(sheet).toBeVisible();
-  // The drawer header: × · the tracked title · the ink ✓ disc.
+  // The drawer header: × and the tracked title; no Clear all.
   await expect(sheet.getByRole('button', { name: 'Close' })).toBeVisible();
-  await expect(sheet.getByRole('button', { name: 'Clear all' })).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'Clear all' })).toHaveCount(0);
   const cards = sheet.getByTestId('bell-items').getByRole('link');
   await expect(cards).toHaveCount(2);
   await expect(cards.nth(0)).toContainText('2 receipts to review');
@@ -76,11 +88,12 @@ test('the bell’s sheet: cards with where each leads, × dismisses, Close keeps
   await expect(sheet).not.toContainText('!');
   expect(await seriousViolations(page)).toEqual([]);
 
-  // Close keeps everything: the dot stays and nothing is dismissed.
+  // Opening saw them: Close dismisses nothing, and the dot is gone while the bell stays.
   await sheet.getByRole('button', { name: 'Close' }).click();
   await expect(sheet).toBeHidden();
   expect(posted).toEqual([]);
-  await expect(bell).toHaveAttribute('data-alert', 'true');
+  await expect(bell).not.toHaveAttribute('data-alert', 'true');
+  await expect(bell).toHaveAccessibleName('Notifications');
 
   // × dismisses one card at once; the other stays.
   await bell.click();
@@ -89,10 +102,11 @@ test('the bell’s sheet: cards with where each leads, × dismisses, Close keeps
   await expect(sheet.getByText('Log Wednesday’s wear')).toBeVisible();
   await expect.poll(() => posted).toEqual([{ key: 'receipts:2' }]);
 
-  // The ✓ clears what is left in one write and closes; with nothing waiting the bell is gone.
-  await sheet.getByRole('button', { name: 'Clear all' }).click();
-  await expect(sheet).toBeHidden();
-  await expect.poll(() => posted).toEqual([{ key: 'receipts:2' }, { all: true }]);
+  // The last card dismissed leaves the sheet all caught up; closed, with nothing waiting, the bell
+  // is gone.
+  await sheet.getByRole('button', { name: 'Dismiss: Log Wednesday’s wear' }).click();
+  await expect(sheet.getByTestId('bell-empty')).toHaveText('All caught up.');
+  await sheet.getByRole('button', { name: 'Close' }).click();
   await expect(bell).toHaveCount(0);
 });
 
@@ -101,7 +115,7 @@ test('a card leads where it says and closes the sheet', async ({ page }) => {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ items: [ITEMS[0]] }),
+      body: JSON.stringify({ items: ITEMS.slice(0, 1), cards: cardsOf(ITEMS.slice(0, 1), false) }),
     }),
   );
   await signIn(page);

@@ -4,6 +4,7 @@ import { useApi } from '@robes/api-client/react';
 import type { BriefLine, BriefListName, StyleDna } from '@robes/contracts';
 import { twin, ui, you } from '@robes/copy';
 import { GENDER_IDENTITIES, type Presence } from '@robes/core/avatar';
+import type { StyleDnaSection } from '@robes/core/home';
 import {
   AGE_BANDS,
   ageBandLabel,
@@ -47,10 +48,12 @@ const MATCHES_N = 24;
 // You › Style DNA (Style DNA redesign, 12 Nov): You, her taste, and the lines she dresses by. Icons
 // are not asked for (MVP); her rules and hard nos are one row. Native twin:
 // mobile/src/features/you/StyleDna.tsx.
-export function DnaView() {
+// `open` is the answer the bell's Style DNA card lands on (design 19 Nov). Native twin:
+// mobile/src/features/you/StyleDna.tsx.
+export function DnaView({ open = null }: { open?: StyleDnaSection | null }) {
   const query = useApi('me.dna.get');
   const model = useModel();
-  const [sheet, setSheet] = useState<SheetKind | null>(null);
+  const [sheet, setSheet] = useState<SheetKind | null>(open);
   const colours = usePalette().palette;
   if (query.isError) {
     return <ErrorText>{errorCopy(query.error)}</ErrorText>;
@@ -106,7 +109,13 @@ export function DnaView() {
         {row(copy.loves, copy.linesCount(loves), !loves, 'loves')}
         {row(copy.styleRules, copy.linesCount(rules), !rules, 'styleRules')}
       </SettingsGroup>
-      <DnaSheet dna={dna} presence={presence} kind={sheet} onClose={() => setSheet(null)} />
+      <DnaSheet
+        dna={dna}
+        presence={presence}
+        // Gender is asked only once a model stands (its row waits for one).
+        kind={sheet === 'gender' && !presence ? null : sheet}
+        onClose={() => setSheet(null)}
+      />
     </div>
   );
 }
