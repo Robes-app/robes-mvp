@@ -1,6 +1,6 @@
 import { gunzipSync } from 'node:zlib';
 import { expect, type Page, type Request, test } from '@playwright/test';
-import { isolateClientIp, photographedPiece, signIn } from './helpers';
+import { answerUsageAsk, isolateClientIp, photographedPiece, signIn } from './helpers';
 
 // The EU ingest host and its assets host (remote config); both must stay silent before consent.
 const POSTHOG = /^https:\/\/eu(-assets)?\.i\.posthog\.com\//;
@@ -76,7 +76,37 @@ async function saveALook(page: Page, label: string): Promise<void> {
   await expect(page.getByText(/is in your diary for/).first()).toBeVisible();
 }
 
-// No page asks (the banner is gone, Annie 9 Nov): she answers in You › Privacy.
+// Asked once on arriving home (Annie, 19 Nov): one Allow turns on all three switches; until she
+// answers, nothing is sent.
+test('the one-time ask: nothing is sent while it waits, and Allow turns on all three', async ({
+  page,
+}) => {
+  const hits = await watchPostHog(page);
+  await signIn(page, undefined, undefined, 'leave');
+  const ask = page.getByRole('alertdialog', { name: 'Share how you use Robes?' });
+  await expect(ask).toBeVisible();
+  // Escape is not an answer.
+  await page.keyboard.press('Escape');
+  await expect(ask).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  expect(hits, 'PostHog was contacted before consent').toEqual([]);
+  await answerUsageAsk(page, 'Allow');
+  expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
+    analytics: true,
+    recordings: true,
+    look_sharing: true,
+  });
+  await expect.poll(() => hits.length).toBeGreaterThan(0);
+  // Asked once: a reload finds no question, and each answer is its own switch.
+  await page.goto('/you/privacy');
+  await expect(page.getByRole('switch', { name: /Usage counts/ })).toBeVisible();
+  await expect(ask).toHaveCount(0);
+  for (const name of [/Usage counts/, /Screen recordings/, /Share my looks/]) {
+    await expect(page.getByRole('switch', { name })).toBeChecked();
+  }
+});
+
+// Not now (signIn's answer) leaves every switch off; she can turn each on in You › Your data.
 test('nothing reaches PostHog until she turns usage counts on, and it stops when she turns them off', async ({
   page,
 }) => {
@@ -90,7 +120,9 @@ test('nothing reaches PostHog until she turns usage counts on, and it stops when
   await page.waitForLoadState('networkidle');
   expect(hits, 'PostHog was contacted before consent').toEqual([]);
   expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
-    analytics: null,
+    analytics: false,
+    recordings: false,
+    look_sharing: false,
   });
 
   await page.goto('/you/privacy');
@@ -102,7 +134,7 @@ test('nothing reaches PostHog until she turns usage counts on, and it stops when
   expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
     analytics: true,
     replay: null,
-    recordings: null,
+    recordings: false,
   });
 
   await usage.uncheck();
@@ -138,7 +170,7 @@ test.describe('product events', () => {
   }) => {
     const { hits, events } = await watchEvents(page);
     await signIn(page);
-    // Not yet answered: the whole flow sends nothing.
+    // Not now: the whole flow sends nothing.
     await saveALook(page, 'Navy blazer');
     await page.waitForLoadState('networkidle');
     expect(hits, 'PostHog was contacted before consent').toEqual([]);

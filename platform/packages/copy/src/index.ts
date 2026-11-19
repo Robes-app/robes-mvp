@@ -303,7 +303,7 @@ export const consent = {
   privacyTitle: 'Privacy.',
   analyticsLabel: 'Usage counts',
   analyticsHint: 'Which screens you open and what you tap, so Robes can get better.',
-  // Asked once on the phone, after sign-in, while she has given no answer. One yes turns on all
+  // Asked once on the phone and the web, after sign-in, while she has given no answer. One yes turns on all
   // three below, each still its own switch in You › Your data (Annie, 19 Nov); the body names each,
   // her sizes included, so the yes is an informed one.
   askTitle: 'Share how you use Robes?',

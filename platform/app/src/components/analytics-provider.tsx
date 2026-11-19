@@ -27,8 +27,8 @@ export function useAnalytics(): AnalyticsContextValue {
   return useContext(AnalyticsContext);
 }
 
-// SEC-84: PostHog loads only once she turns usage counts on in You › Privacy, and is torn down
-// when she turns them off. Nothing asks for it on a page.
+// SEC-84: PostHog loads only once she says yes to usage counts (the one-time ask, UsageAsk, or
+// You › Your data), and is torn down when she turns them off.
 export function AnalyticsProvider({
   config,
   userId,
