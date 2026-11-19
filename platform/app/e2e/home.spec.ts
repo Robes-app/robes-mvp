@@ -1,6 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 import { Today } from '@robes/contracts';
 import {
+  answerUsageAsk,
   declineConsent,
   explainError,
   isolateClientIp,
@@ -189,6 +190,7 @@ test('onboarding: four answers saved on Brands, a saved look, the rest skipped, 
   }
 
   await expect(page).toHaveURL(/\/$/);
+  await answerUsageAsk(page, 'Not now');
   await expect(page.getByRole('heading', { level: 1, name: /, Annie\.$/ })).toBeVisible();
   const dna = await (await page.request.get('/api/v1/me/dna')).json();
   expect(dna).toMatchObject({

@@ -107,7 +107,7 @@ const answerAll = (yes: boolean) => ({ analytics: yes, recordings: yes, look_sha
 
 // Signed-in shell: nothing is counted until she says yes (SEC-84). She is asked once, while she
 // has given no answer (null); after that the switches in You › Your data are the way to change it.
-// The web never asks on a page: its switch in You › Privacy starts off.
+// Web twin: app/src/components/usage-ask.tsx.
 export function AnalyticsSetup(): ReactElement {
   const me = useApi('me.get');
   const { consents, give } = useConsents();

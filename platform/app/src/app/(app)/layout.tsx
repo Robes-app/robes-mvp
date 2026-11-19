@@ -1,4 +1,5 @@
 import { AppShell } from '@/components/shell/app-shell';
+import { UsageAsk } from '@/components/usage-ask';
 import { clientFeatures } from '@/server/flags';
 import { displayName, requireOnboardedProfile } from '@/server/session';
 
@@ -16,6 +17,7 @@ export default async function SignedInLayout({
     <AppShell name={displayName(profile)} features={await clientFeatures()}>
       {children}
       {drawer}
+      <UsageAsk />
     </AppShell>
   );
 }

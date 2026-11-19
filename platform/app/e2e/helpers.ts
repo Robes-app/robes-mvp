@@ -17,9 +17,25 @@ export function uniqueEmail(tag = 'e2e'): string {
 
 export const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
 
+// The one-time "Share how you use Robes?" that opens on arriving home; one answer sets all three
+// switches (Annie, 19 Nov). Answered before anything else, since it covers the page.
+export async function answerUsageAsk(page: Page, answer: 'Allow' | 'Not now'): Promise<void> {
+  const ask = page.getByRole('alertdialog', { name: 'Share how you use Robes?' });
+  await expect(ask).toBeVisible();
+  await ask.getByRole('button', { name: answer }).click();
+  await expect(ask).toBeHidden();
+}
+
+export type UsageAnswer = 'Allow' | 'Not now' | 'leave';
+
 // Walks onboarding from the name (onboarding PRD, 17 Nov): name → identity → styles and brands
-// left empty → each capture step skipped; lands home.
-export async function completeOnboarding(page: Page, firstName = 'Niall'): Promise<void> {
+// left empty → each capture step skipped; lands home and answers the usage ask (Not now unless
+// told otherwise; 'leave' leaves it open).
+export async function completeOnboarding(
+  page: Page,
+  firstName = 'Niall',
+  usage: UsageAnswer = 'Not now',
+): Promise<void> {
   await expect(page).toHaveURL(/\/onboarding$/);
   await page.getByLabel('First name').fill(firstName);
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -38,6 +54,8 @@ export async function completeOnboarding(page: Page, firstName = 'Niall'): Promi
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
     await page.getByRole('button', { name: 'Skip' }).click();
   }
+  if (usage === 'leave') return;
+  await answerUsageAsk(page, usage);
   await expect(page.getByRole('heading', { name: new RegExp(`, ${firstName}\\.$`) })).toBeVisible();
 }
 
@@ -46,6 +64,7 @@ export async function signIn(
   page: Page,
   email = uniqueEmail(),
   firstName = 'Niall',
+  usage: UsageAnswer = 'Not now',
 ): Promise<string> {
   await page.goto('/auth/sign-in');
   await page.getByLabel('Email').fill(email);
@@ -54,7 +73,7 @@ export async function signIn(
 
   await page.getByLabel('Code').fill(await latestCodeFor(email));
   await page.getByRole('button', { name: 'Continue' }).click();
-  await completeOnboarding(page, firstName);
+  await completeOnboarding(page, firstName, usage);
   return email;
 }
 
@@ -112,8 +131,8 @@ export async function seriousViolations(page: Page): Promise<string[]> {
     .map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
 }
 
-// Answers analytics consent so its ask never covers the page (consent.spec tests the ask itself).
-// The ask waits for her first filed piece, so the answer goes straight to the API.
+// Answers analytics consent through the API (signIn has already said Not now to the ask; this
+// keeps the answer explicit where a spec depends on it).
 export async function declineConsent(page: Page): Promise<void> {
   const res = await page.request.post('/api/v1/me/consents', {
     data: { source: 'web', consents: { analytics: false } },
