@@ -1,7 +1,7 @@
 import { AppShell } from '@/components/shell/app-shell';
 import { UsageAsk } from '@/components/usage-ask';
 import { clientFeatures } from '@/server/flags';
-import { displayName, requireOnboardedProfile } from '@/server/session';
+import { currentConsents, displayName, requireOnboardedProfile } from '@/server/session';
 
 // `drawer` is the parallel slot the draft look opens in over the current screen (D14): see
 // app/(app)/@drawer.
@@ -13,11 +13,12 @@ export default async function SignedInLayout({
   drawer: React.ReactNode;
 }) {
   const profile = await requireOnboardedProfile();
+  const session = await currentConsents();
   return (
     <AppShell name={displayName(profile)} features={await clientFeatures()}>
       {children}
       {drawer}
-      <UsageAsk />
+      {session ? <UsageAsk current={session.consents} /> : null}
     </AppShell>
   );
 }
