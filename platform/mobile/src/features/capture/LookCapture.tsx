@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { isDraftsFull, useInvalidateLooks } from '@/features/looks/look-states';
 import { type PickedPhoto, uploadPhoto } from '@/features/wardrobe/add-pieces';
 import { nativeAnalytics } from '@/lib/analytics';
+import { rememberLocalPhoto } from '@/lib/local-photos';
 import { CaptureCamera } from './CaptureCamera';
 
 const copy = lookbook.draftLook.capture.camera;
@@ -50,6 +51,7 @@ export function LookCapture({ day }: { day: string | null }) {
     let assetId: string | null = null;
     try {
       assetId = await uploadPhoto(api, photo, 'look_photo');
+      rememberLocalPhoto(assetId, photo.uri);
       await make(assetId);
     } catch (err) {
       if (assetId && isDraftsFull(err)) {

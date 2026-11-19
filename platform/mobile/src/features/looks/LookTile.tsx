@@ -14,6 +14,7 @@ import {
 import type { ReactNode } from 'react';
 import { Text as RNText, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
+import { localPhoto } from '@/lib/local-photos';
 
 // The look's picture: Robes' frame or her render, else her first piece.
 export function lookHero(look: Look) {
@@ -35,7 +36,8 @@ export function LookPhoto({
   aspect?: Aspect;
 }) {
   const image = lookHero(look);
-  const uri = renditionUri(image, width ?? 180);
+  // Her photograph, just taken, shows from the phone until its renditions are made.
+  const uri = renditionUri(image, width ?? 180) ?? (image ? localPhoto(image.assetId) : null);
   return uri ? (
     <Image
       source={uri}

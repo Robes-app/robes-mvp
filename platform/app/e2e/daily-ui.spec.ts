@@ -62,7 +62,7 @@ test('home city saves in You › Account', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
   await page.goto('/you/account');
-  await page.getByLabel('Home city').fill('Dublin');
+  await page.getByLabel('Default location').fill('Dublin');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('status')).toHaveText('Saved.');
   expect((await (await page.request.get('/api/v1/me')).json()).homeCity).toBe('Dublin');

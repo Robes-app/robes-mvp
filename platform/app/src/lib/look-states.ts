@@ -18,6 +18,7 @@ import type {
 } from '@robes/contracts';
 import { lookbook as copy, wardrobe } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
+import { pictureLanding } from '@robes/core/looks';
 import { useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -41,8 +42,10 @@ export function useLooksByStatus(status: LookStatus, opts: { anchorPieceId?: str
       },
     },
     {
+      // A frame lands after its job, her photograph's renditions after its upload (twin: mobile
+      // look-states.ts).
       refetchInterval: (q) =>
-        q.state.data?.items.some((l) => l.framePending) ? FRAME_REFRESH_MS : false,
+        q.state.data?.items.some((l) => pictureLanding(l)) ? FRAME_REFRESH_MS : false,
     },
   );
 }

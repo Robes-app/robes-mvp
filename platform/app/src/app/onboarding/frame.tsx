@@ -1,7 +1,7 @@
 import { FIRST_RUN_FLOW } from '@robes/contracts';
 import { firstRun as copy } from '@robes/copy';
 import { Heading } from '@robes/ui';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 
 const STEPS = FIRST_RUN_FLOW.length;
 
@@ -27,6 +27,12 @@ export function Frame({
   // The body takes the height left under the title (a capture card, design Q6).
   fill?: boolean;
 }) {
+  // Every step shares the page, so without this a step opens where the last was scrolled to,
+  // its title out of view (twin: FirstRunFrame's keyed ScrollView).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `step` is the trigger, not an input.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
       <header className="grid min-h-11 grid-cols-[64px_1fr_64px] items-center px-3.5 pt-1">
