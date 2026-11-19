@@ -113,6 +113,8 @@ const copy = lookbook.draftLook;
 const d = lookbook.draft;
 // Picks made together dress the model once: the wait after the last before it is drawn.
 const DRESS_SETTLE_MS = 800;
+// Longest wait for the picker to say it has gone before her first picks make the draft anyway.
+const PICKS_FALLBACK_MS = 1200;
 // The pencil beside the grid | list toggle, on its 32pt line.
 const RACK_DISC = 32;
 // How long "Look updated" stands (Capture PRD 3.5).
@@ -763,6 +765,30 @@ function NewDraft({
         ? { proposals: wishes.flatMap((w) => (wishRow(w).proposal ? [wishRow(w).proposal] : [])) }
         : {}),
     } as CreateLookInput);
+  // Her first picks wait for the picker to have gone before they make the draft: the draft takes
+  // this screen's place, and taking a sheet off the screen while iOS is still dismissing it (the
+  // dock's coming back the same moment) closed the whole draft, and she was back on Home (19 Nov).
+  const [picked, setPicked] = useState<{ pieces: Piece[]; wishes: Wish[] } | null>(null);
+  const heldPicks = useRef<{ pieces: Piece[]; wishes: Wish[] } | null>(null);
+  const holdPicks = (pieces: Piece[], wishes: Wish[]) => {
+    heldPicks.current = { pieces, wishes };
+    setPicked(heldPicks.current);
+  };
+  const makeFromPicks = () => {
+    const picks = heldPicks.current;
+    if (!picks) return;
+    heldPicks.current = null;
+    setPicked(null);
+    start(picks.pieces, picks.wishes);
+  };
+  const makeRef = useRef(makeFromPicks);
+  makeRef.current = makeFromPicks;
+  // Should the sheet never say it has gone, her picks still make the draft.
+  useEffect(() => {
+    if (!picked) return;
+    const t = setTimeout(() => makeRef.current(), PICKS_FALLBACK_MS);
+    return () => clearTimeout(t);
+  }, [picked]);
   const snap = useSnap((piece) => start([piece]));
   // "Start a look with it" from a piece: the draft opens with that piece on the rack.
   const started = useRef(false);
@@ -904,7 +930,8 @@ function NewDraft({
   };
   // iOS's own sheet steps aside for what this screen presents (useDockYield).
   const dockYield = useDockYield(
-    emptyWardrobe || picker !== null || adding || full !== null,
+    // Picks waiting, or the draft being made from them: the dock stays away until it opens.
+    emptyWardrobe || picker !== null || picked !== null || busy || adding || full !== null,
     () => {
       setTyping(false);
       setFolded(true);
@@ -1013,7 +1040,8 @@ function NewDraft({
         mode={dockYield.gate(picker !== null) ? picker : null}
         onRack={[]}
         onClose={() => setPicker(null)}
-        onPick={start}
+        onPick={holdPicks}
+        onGone={makeFromPicks}
         onSnap={() => void snap.snap()}
         onAddPieces={() => setAdding(true)}
       />
