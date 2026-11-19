@@ -1,8 +1,8 @@
 import { LOCATION_REFRESH_MS } from '@robes/core/location';
 import { act, waitFor } from '@testing-library/react-native';
 import * as Location from 'expo-location';
-import { ASKED_KEY, LocationSetup, SENT_AT_KEY, syncDeviceLocation } from '../src/lib/location';
-import { mockFetch, renderWithApi } from './support/api';
+import { LocationSetup, sentAtKey, syncDeviceLocation } from '../src/lib/location';
+import { ME, mockFetch, renderWithApi } from './support/api';
 
 const mockStore = new Map<string, string>();
 jest.mock('expo-secure-store', () => ({
@@ -19,6 +19,8 @@ const current = Location.getCurrentPositionAsync as jest.Mock;
 const lastKnown = Location.getLastKnownPositionAsync as jest.Mock;
 const here = { coords: { latitude: 53.3498, longitude: -6.2603 } };
 const now = 1_800_000_000_000;
+const USER = 'user-1';
+const SENT_AT_KEY = sentAtKey(USER);
 
 beforeEach(() => {
   mockStore.clear();
@@ -31,49 +33,62 @@ beforeEach(() => {
 test('asks once on her first launch and sends where she is', async () => {
   request.mockResolvedValue({ status: 'granted' });
   const calls = mockFetch({ 'POST /me/location': { ok: true } });
-  expect(await syncDeviceLocation(api, now)).toBe('sent');
+  expect(await syncDeviceLocation(api, USER, now)).toBe('sent');
   expect(request).toHaveBeenCalledTimes(1);
   expect(current).toHaveBeenCalledWith({ accuracy: Location.Accuracy.Low });
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ lat: 53.3498, lon: -6.2603 });
-  expect(mockStore.get(ASKED_KEY)).toBe('1');
   expect(mockStore.get(SENT_AT_KEY)).toBe(String(now));
 });
 
 test('a no is never asked again', async () => {
   request.mockResolvedValue({ status: 'denied' });
   const calls = mockFetch({});
-  expect(await syncDeviceLocation(api, now)).toBe('denied');
+  expect(await syncDeviceLocation(api, USER, now)).toBe('denied');
   perms.mockResolvedValue({ status: 'denied' });
-  expect(await syncDeviceLocation(api, now + 10 * LOCATION_REFRESH_MS)).toBe('skipped');
+  expect(await syncDeviceLocation(api, USER, now + 10 * LOCATION_REFRESH_MS)).toBe('denied');
   expect(request).toHaveBeenCalledTimes(1);
   expect(calls).toEqual([]);
 });
 
 test('declined in Settings before: no prompt, never asked', async () => {
   perms.mockResolvedValue({ status: 'denied' });
-  expect(await syncDeviceLocation(api, now)).toBe('denied');
+  expect(await syncDeviceLocation(api, USER, now)).toBe('denied');
   expect(request).not.toHaveBeenCalled();
-  expect(mockStore.get(ASKED_KEY)).toBe('1');
+});
+
+// The keychain outlives a reinstall; the phone's own answer does not (19 Nov: never asked).
+test('asked whenever the phone has not asked yet, whatever an earlier install kept', async () => {
+  mockStore.set('robes.geo.asked', '1');
+  request.mockResolvedValue({ status: 'granted' });
+  mockFetch({ 'POST /me/location': { ok: true } });
+  expect(await syncDeviceLocation(api, USER, now)).toBe('sent');
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+// A new account on the same phone gets its city at once, not after the last one's few hours.
+test("one account's last send never holds back another's", async () => {
+  mockStore.set(sentAtKey('someone-else'), String(now - 60_000));
+  perms.mockResolvedValue({ status: 'granted' });
+  mockFetch({ 'POST /me/location': { ok: true } });
+  expect(await syncDeviceLocation(api, USER, now)).toBe('sent');
 });
 
 test('later launches read quietly, at most every few hours, from a recent fix first', async () => {
-  mockStore.set(ASKED_KEY, '1');
   mockStore.set(SENT_AT_KEY, String(now - 60_000));
   perms.mockResolvedValue({ status: 'granted' });
   const calls = mockFetch({ 'POST /me/location': { ok: true } });
-  expect(await syncDeviceLocation(api, now)).toBe('skipped');
+  expect(await syncDeviceLocation(api, USER, now)).toBe('skipped');
   lastKnown.mockResolvedValue(here);
-  expect(await syncDeviceLocation(api, now + LOCATION_REFRESH_MS)).toBe('sent');
+  expect(await syncDeviceLocation(api, USER, now + LOCATION_REFRESH_MS)).toBe('sent');
   expect(current).not.toHaveBeenCalled();
   expect(request).not.toHaveBeenCalled();
   expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1);
 });
 
 test('no fix or a failed send tries again next launch', async () => {
-  mockStore.set(ASKED_KEY, '1');
   perms.mockResolvedValue({ status: 'granted' });
   current.mockRejectedValue(new Error('location services off'));
-  expect(await syncDeviceLocation(api, now)).toBe('failed');
+  expect(await syncDeviceLocation(api, USER, now)).toBe('failed');
   expect(mockStore.has(SENT_AT_KEY)).toBe(false);
 });
 
@@ -89,6 +104,7 @@ test('waits for her answer to the usage question before asking where she is', as
     recordings: null,
   };
   mockFetch({
+    'GET /me': ME,
     'GET /me/consents': () => ({ ...consents }),
     'POST /me/location': { ok: true },
   });

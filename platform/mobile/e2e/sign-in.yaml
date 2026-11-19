@@ -56,9 +56,9 @@ appId: host.exp.Exponent
     visible: 'Capture what you’re wearing now.'
     timeout: 15000
 - tapOn: 'Skip'
-# Usage counts are asked once, on arrival, and the question sits over Home until answered.
+# Usage counts, recordings and Share my looks are asked once, on arrival, and the question sits over Home until answered.
 - extendedWaitUntil:
-    visible: 'Allow usage counts?'
+    visible: 'Share how you use Robes\?'
     timeout: 15000
 - tapOn: 'Not now'
 - extendedWaitUntil:
