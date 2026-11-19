@@ -101,8 +101,12 @@ export function createNativeAnalytics(
 
 export const nativeAnalytics = createNativeAnalytics(POSTHOG);
 
+// One question answers all three switches (Annie, 19 Nov): usage counts, screen recordings and
+// Share my looks. Each stays its own switch in You › Your data.
+const answerAll = (yes: boolean) => ({ analytics: yes, recordings: yes, look_sharing: yes });
+
 // Signed-in shell: nothing is counted until she says yes (SEC-84). She is asked once, while she
-// has given no answer (null); after that the switch in You › Privacy is the way to change it.
+// has given no answer (null); after that the switches in You › Your data are the way to change it.
 // The web never asks on a page: its switch in You › Privacy starts off.
 export function AnalyticsSetup(): ReactElement {
   const me = useApi('me.get');
@@ -125,8 +129,8 @@ export function AnalyticsSetup(): ReactElement {
       title={copy.askTitle}
       message={copy.askBody}
       actions={[
-        { label: copy.askYes, variant: 'primary', onPress: () => give({ analytics: true }) },
-        { label: copy.askNo, variant: 'outline', onPress: () => give({ analytics: false }) },
+        { label: copy.askYes, variant: 'primary', onPress: () => give(answerAll(true)) },
+        { label: copy.askNo, variant: 'outline', onPress: () => give(answerAll(false)) },
       ]}
       // A question that must be answered: a tap outside leaves it open.
       onDismiss={() => {}}

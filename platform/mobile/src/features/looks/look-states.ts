@@ -16,6 +16,7 @@ import type {
   LookStatus,
 } from '@robes/contracts';
 import { lookbook as copy, errors, ui } from '@robes/copy';
+import { pictureLanding } from '@robes/core/looks';
 import { haptic, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -27,14 +28,15 @@ import { isTerminal, JOB_REFRESH_MS } from './ideas';
 // The API's largest page of looks; the Lookbook reads every page (TestFlight, 16 Nov).
 const LIMIT = 60;
 
-export function useLooksByStatus(status: LookStatus, opts: { refetch?: boolean } = {}) {
+export function useLooksByStatus(status: LookStatus) {
   return useApiAll(
     'looks.list',
     { input: { limit: LIMIT, status } },
     {
-      // A suggestion's frame lands after its job; keep looking while one is coming.
+      // A suggestion's frame lands after its job, her photograph's renditions after its upload:
+      // keep looking while a picture is coming (a saved look's tile stayed blank, 19 Nov).
       refetchInterval: (q) =>
-        opts.refetch && q.state.data?.items.some((l) => l.framePending) ? JOB_REFRESH_MS : false,
+        q.state.data?.items.some((l) => pictureLanding(l)) ? JOB_REFRESH_MS : false,
     },
   );
 }

@@ -29,9 +29,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CaptureCamera } from '@/features/capture/CaptureCamera';
 import { type PickedPhoto, uploadPhoto } from '@/features/wardrobe/add-pieces';
 import { renditionUri } from '@/lib/images';
+import { localPhoto, rememberLocalPhoto } from '@/lib/local-photos';
 import { LookPicture } from './LookPicture';
 import { PERSON_CROP } from './LookTile';
-import { localPhoto, rememberLocalPhoto, type StageUpdate } from './look-images';
+import type { StageUpdate } from './look-images';
 
 const copy = lookbook.savedLook.manager;
 

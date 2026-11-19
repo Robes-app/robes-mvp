@@ -33,11 +33,22 @@ export function useNameDay() {
   });
 }
 
-export function usePinLook() {
+// Every read that shows a look on a day: Home's week, the Diary, the day page and the look. A
+// change to a day refreshes them all, or Home kept its old week (19 Nov: a look scheduled for
+// Saturday was in the Diary and not on Home).
+export function useRefreshDays() {
   const queryClient = useQueryClient();
-  return useApiMutation('plan.pin', {
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') }),
-  });
+  return () =>
+    Promise.all(
+      (['plan.get', 'plan.day', 'today.get', 'looks.get', 'looks.list'] as const).map((key) =>
+        queryClient.invalidateQueries({ queryKey: queryKeys.route(key) }),
+      ),
+    );
+}
+
+export function usePinLook() {
+  const refresh = useRefreshDays();
+  return useApiMutation('plan.pin', { onSuccess: refresh });
 }
 
 // Takes every look off a day (the Diary list's swipe): a planned look is unpinned, a worn one has
@@ -45,13 +56,7 @@ export function usePinLook() {
 export function useClearDay() {
   const api = useApiClient();
   const toast = useToast();
-  const queryClient = useQueryClient();
-  const refresh = () =>
-    Promise.all(
-      (['plan.get', 'plan.day', 'today.get', 'looks.get', 'looks.list'] as const).map((key) =>
-        queryClient.invalidateQueries({ queryKey: queryKeys.route(key) }),
-      ),
-    );
+  const refresh = useRefreshDays();
   const fail = () => toast.show({ message: errors.internal });
   return (date: string, entries: readonly PlanEntry[]) => {
     void Promise.all(

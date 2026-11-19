@@ -1,4 +1,4 @@
-import { queryKeys, useApi, useApiAll, useApiClient } from '@robes/api-client/react';
+import { useApi, useApiAll, useApiClient } from '@robes/api-client/react';
 import type { PlanEntry } from '@robes/contracts';
 import { diary as copy, filters as filterCopy } from '@robes/copy';
 import { weekdayDayMonth, weekdayLong } from '@robes/core/calendar';
@@ -15,7 +15,6 @@ import {
   useColor,
   useToast,
 } from '@robes/ui-native';
-import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
@@ -30,6 +29,7 @@ import {
   drawerLine,
   type PickerMode,
 } from '@/features/home/diary';
+import { useRefreshDays } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
 import { LookTile } from '../looks/LookTile';
 
@@ -55,7 +55,7 @@ export function LookPicker({
   const api = useApiClient();
   const toast = useToast();
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const refreshDays = useRefreshDays();
   const ink = useColor('ink');
   const muted = useColor('ink-muted');
   const faint = useColor('ink-faint');
@@ -118,9 +118,7 @@ export function LookPicker({
       toast.show({ message: errorMessage(err) });
     } finally {
       setSaving(false);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
+      void refreshDays();
     }
   }
 

@@ -5,6 +5,7 @@ import type { DiaryDay, Today } from '@robes/contracts';
 import { home as homeCopy, today as todayCopy } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
 import { greetingName } from '@robes/core/home';
+import { pictureLanding } from '@robes/core/looks';
 import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/web';
 import { useQueryClient } from '@tanstack/react-query';
@@ -15,8 +16,15 @@ import { DiaryStrip } from './diary-strip';
 
 // The draft Robes is making for a day (plan 2026-11-03): read every 2 s. Home shows no tray of
 // jobs (design 1b).
+// A day's draft being made, or a look's picture still landing (her photograph's renditions come
+// after the upload). Twin: mobile DiaryHome.
 const isRunning = (t: Today | undefined) =>
-  t?.diary?.days.some((d) => d.draft?.jobId || d.draft?.look?.framePending) ?? false;
+  t?.diary?.days.some(
+    (d) =>
+      d.draft?.jobId ||
+      pictureLanding(d.draft?.look ?? undefined) ||
+      d.entries.some((e) => pictureLanding(e.look)),
+  ) ?? false;
 
 // Today's cache with one look taken off its day (optimistic; the server read follows).
 export function withoutDiaryEntry(id: string) {
