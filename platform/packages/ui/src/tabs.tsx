@@ -11,7 +11,7 @@ export interface TabsProps<T extends string> {
   // Names the rail for a reader ("Look").
   label?: string;
   // A 12px glyph before a tab's label (the Lookbook's bookmark and sparkle, the Wardrobe's
-  // hanger, heart and bag). Front Door PRD rev 3 §2.4.
+  // hanger, heart and shop bag). Front Door PRD rev 3 §2.4.
   icons?: Partial<Record<T, IconName>>;
   // A count after a tab's label, lighter ("INBOX 13").
   counts?: Partial<Record<T, number>>;

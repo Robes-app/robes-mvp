@@ -237,7 +237,7 @@ function rackMeta(row: RackRow, wears: number | undefined): RowMeta | null {
     const price = proposal.pricePoint?.trim() || '';
     const said = proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours;
     return {
-      icon: proposal.wishlisted ? 'heart' : 'bag',
+      icon: proposal.wishlisted ? 'heart' : 'shop',
       ...(price ? { text: price } : {}),
       label: [said, price].filter(Boolean).join(' · '),
     };
