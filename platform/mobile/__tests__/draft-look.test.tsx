@@ -1165,7 +1165,8 @@ test('add a photo to a look: camera, Retake or Another, Add to look, then the st
   expect(update().props.accessibilityState.disabled).toBe(true);
   expect(screen.queryByTestId('draft-done')).toBeNull();
   await fireEvent.press(screen.getByText(lookbook.savedLook.tabs.details));
-  expect(screen.getByTestId('details-photos')).toHaveTextContent(/1/);
+  // The strip is the way to her photos: Details carries no Photos row (Annie, 19 Nov).
+  expect(screen.queryByTestId('details-photos')).toBeNull();
 
   await fireEvent.press(screen.getByTestId('image-card-add'));
   expect(await screen.findByText(cam.hint)).toBeTruthy();
@@ -1183,12 +1184,10 @@ test('add a photo to a look: camera, Retake or Another, Add to look, then the st
   await fireEvent.press(await screen.findByRole('button', { name: cam.another }));
   await waitFor(() => expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledTimes(2));
 
-  // Add to look: the card joins the strip in focus and the count goes up; Update look and the
-  // tick stay off.
+  // Add to look: the card joins the strip in focus; Update look and the tick stay off.
   await fireEvent.press(screen.getByRole('button', { name: cam.use }));
   expect(await screen.findByTestId('image-card-added')).toBeTruthy();
   expect(screen.queryByTestId('capture-review')).toBeNull();
-  expect(screen.getByTestId('details-photos')).toHaveTextContent(/2/);
   expect(update().props.accessibilityState.disabled).toBe(true);
   // Nothing is written before the strip's ✓; the ✓ keeps the photograph and makes it the cover.
   expect(calls.some((c) => c.path.endsWith(`/looks/${LOOK_ID}/images`))).toBe(false);

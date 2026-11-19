@@ -174,8 +174,6 @@ export const lookbook = {
       inUse: 'This photo is on a look, so it stays.',
     },
     details: {
-      // The look's images, counted (Capture PRD 3.1): Robes' picture and her photographs.
-      photos: 'Photos',
       tags: 'Tags',
       seasons: 'Seasons',
       worn: 'Worn',

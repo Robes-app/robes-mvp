@@ -32,7 +32,6 @@ import {
   type Sources,
   type StageCard,
   sourceBalance,
-  stageCards,
   stageChanged,
   stageFront,
   stageInFront,
@@ -1644,14 +1643,6 @@ function DraftBody({
               {...(mode === 'edit' ? { onWorn: () => setSubview('worn') } : {})}
               // The Caption is the name (D16).
               onCaption={(name) => update.mutate({ params: { id: look.id }, input: { name } })}
-              {...(mode === 'edit'
-                ? {
-                    photos: {
-                      count: stageCards(lookStack(look), stack.stage).length,
-                      onOpen: () => setManaging(true),
-                    },
-                  }
-                : {})}
             />
             {mode === 'edit' ? (
               // Delete (D9), asked first. Felix keeps both reds off text: the link is ink-soft on a
