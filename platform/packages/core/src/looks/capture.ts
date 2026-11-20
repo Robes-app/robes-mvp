@@ -102,10 +102,15 @@ export function restoreRows(rows: readonly RackRow[], removed: readonly RemovedR
   return out;
 }
 
-// Matched or added: the row becomes her piece, in the same place. A piece already on the rack
-// is not hung twice; the found row just goes.
+// Matched or added: the row becomes her piece, or a wish from her wishlist as a piece to find
+// (TestFlight 20 Nov), in the same place. Neither is hung twice; the found row just goes.
 export function fileRow(rows: readonly RackRow[], key: string, piece: RackRow): RackRow[] {
-  if (rows.some((r) => r.pieceId === piece.pieceId)) return rows.filter((r) => r.key !== key);
+  const wishId = piece.proposal?.wishlistItemId ?? null;
+  const same = (r: RackRow) =>
+    piece.pieceId !== null
+      ? r.pieceId === piece.pieceId
+      : wishId !== null && r.proposal?.wishlistItemId === wishId;
+  if (rows.some(same)) return rows.filter((r) => r.key !== key);
   return rows.map((r) => (r.key === key ? piece : r));
 }
 

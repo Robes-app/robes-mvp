@@ -87,11 +87,10 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
   await expect(page.getByText('Not yours yet', { exact: false }).first()).toBeAttached();
   expect(await seriousViolations(page), 'a suggested look').toEqual([]);
   await page.getByRole('button', { name: 'Save to lookbook' }).click();
-  await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
-  // Save opens the diary every time; × closes it and writes nothing.
-  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
-  // The saved look (Felix 3e): Schedule look is its one ink button.
+  // The saved look (Felix 3e): Schedule look is its one ink button, and the diary waits for it
+  // (TestFlight 20 Nov).
   await expect(page.getByRole('button', { name: 'Schedule look' })).toBeVisible();
+  await expect(page.getByText('Put in the diary', { exact: true })).toHaveCount(0);
 
   // The piece page shows the rest of the set; Edit on one makes it a draft.
   await page.goto(`/piece/${piece.id}`);
@@ -179,13 +178,14 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   expect(await seriousViolations(page), 'a draft with its thread').toEqual([]);
 
   // The thread stands over the dimmed look until she folds it back to the bar; then the done disc
-  // saves, and the saved look opens with the diary up.
+  // saves, and the saved look opens with the diary closed until Schedule look (20 Nov).
   await page.getByTestId('prompt-minimise').click();
   await expect(page.getByTestId('prompt-scrim')).toHaveCount(0);
   await page.getByTestId('draft-done').click();
-  await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible({
+  await expect(page.getByRole('button', { name: 'Schedule look' })).toBeVisible({
     timeout: 30_000,
   });
+  await expect(page.getByText('Put in the diary', { exact: true })).toHaveCount(0);
   await page.goto('/looks');
   await expect(page.getByRole('list', { name: 'Saved' }).getByRole('link')).toHaveCount(1);
   // The Front Door's filter row stands on both tabs (PRD rev 3 §5.1); there is no sort.

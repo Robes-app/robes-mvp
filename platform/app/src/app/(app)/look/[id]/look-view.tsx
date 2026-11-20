@@ -1,12 +1,9 @@
 'use client';
 
 import { useApi } from '@robes/api-client/react';
-import type { Look } from '@robes/contracts';
 import { pictureLanding } from '@robes/core/looks';
 import { ErrorText, Skeleton } from '@robes/ui';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
-import { DiarySheet } from '@/components/looks/diary-sheet';
 import { DraftLook } from '@/components/looks/draft-look';
 import { WorkingLook } from '@/components/looks/look-page';
 import { usePushedView } from '@/components/shell/app-shell';
@@ -22,10 +19,8 @@ export function LookView({ id }: { id: string }) {
       refetchInterval: (q) => (pictureLanding(q.state.data) ? 3_000 : false),
     },
   );
-  // Save opens the diary every time; the sheet outlives the working page it was saved from.
-  const [justSaved, setJustSaved] = useState<Look | null>(null);
   const search = useSearchParams();
-  // `?schedule=1`: a draft just saved from its drawer opens with the diary up.
+  // `?schedule=1`: the look opens with the diary up.
   const schedule = search.get('schedule') === '1';
   const router = useRouter();
   // A look is a pushed view on a phone: the back pill alone, no masthead and no dock (redline).
@@ -47,7 +42,8 @@ export function LookView({ id }: { id: string }) {
           onClose={() => router.push(search.get('day') ? `/?day=${search.get('day')}` : '/looks')}
         />
       ) : query.data.status !== 'saved' ? (
-        <WorkingLook look={query.data} onSaved={setJustSaved} />
+        // Saved, it becomes the saved look here, diary closed until Schedule look (20 Nov).
+        <WorkingLook look={query.data} />
       ) : (
         // A saved look edits in place (Felix 3e, D17): the same DraftLook as Home's Edit look
         // drawer, on its own page.
@@ -58,7 +54,6 @@ export function LookView({ id }: { id: string }) {
           onClose={() => router.back()}
         />
       )}
-      <DiarySheet look={justSaved} onClose={() => setJustSaved(null)} />
     </>
   );
 }

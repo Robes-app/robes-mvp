@@ -1,4 +1,4 @@
-import { lookbook } from '@robes/copy';
+import { lookbook, wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LookCapture } from '../src/features/capture/LookCapture';
@@ -330,6 +330,105 @@ test('Match to piece opens the picker as Match to your wardrobe, the suggestion 
         ?.pieces,
     ).toEqual([{ pieceId: SHOES, role: null }]),
   );
+});
+
+const WISH = '88888888-8888-4888-8888-888888888888';
+const wishOf = (over: object = {}) => ({
+  id: WISH,
+  label: 'Black leather biker jacket',
+  category: 'Outerwear',
+  categoryL2: null,
+  categoryL3: null,
+  color: 'black',
+  brand: 'Totême',
+  note: null,
+  price: 1200,
+  currency: 'EUR',
+  size: null,
+  sourceUrl: null,
+  sourceLabel: null,
+  image: null,
+  createdAt: '2026-11-01T10:00:00.000Z',
+  updatedAt: '2026-11-01T10:00:00.000Z',
+  ...over,
+});
+const lastProposals = (calls: ReturnType<typeof mockFetch>) =>
+  (
+    calls.filter((c) => c.method === 'PATCH').at(-1)?.body as
+      | { proposals?: Array<{ name: string; wishlistItemId: string | null }> }
+      | undefined
+  )?.proposals;
+
+test('Match to your wardrobe takes a wish from WISHLIST: it stands in the row as a piece to find', async () => {
+  const calls = mockFetch({
+    ...draftRoutes(),
+    'GET /wishlist/items': { items: [wishOf()], nextCursor: null },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  const [matchTop] = screen.getAllByRole('button', { name: copy.row.match });
+  await fireEvent.press(matchTop as never);
+  // WISHLIST is open while matching (TestFlight 20 Nov).
+  const tab = await screen.findByRole('tab', { name: wardrobe.segments.wishlist });
+  expect(tab.props.accessibilityState?.disabled).not.toBe(true);
+  await fireEvent.press(tab);
+  await fireEvent.press(
+    await screen.findByRole('checkbox', {
+      name: lookbook.draftLook.picker.pickWish('Black leather biker jacket'),
+    }),
+  );
+  await fireEvent.press(screen.getByTestId('picker-confirm'));
+  await waitFor(() =>
+    expect(lastProposals(calls)?.[0]).toMatchObject({
+      name: 'Black leather biker jacket',
+      wishlistItemId: WISH,
+    }),
+  );
+  expect(lastProposals(calls)?.map((p) => p.name)).toEqual([
+    'Black leather biker jacket',
+    'Leggings',
+    'Running trainers',
+  ]);
+});
+
+test('the + on WISHLIST while matching saves the found piece as a new wish, on the rack', async () => {
+  const calls = mockFetch({
+    ...draftRoutes(),
+    [`POST /wardrobe/photo-reads/${JOB_ID}/wishes`]: wishOf({ label: 'Leggings' }),
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  const match = screen.getAllByRole('button', { name: copy.row.match });
+  await fireEvent.press(match[1] as never);
+  await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.segments.wishlist }));
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.draftLook.picker.addWish }),
+  );
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/wishes'))?.body).toEqual({ index: 1 }),
+  );
+  await waitFor(() => expect(lastProposals(calls)?.[1]?.wishlistItemId).toBe(WISH));
+});
+
+test('the + on OWNED while matching opens Add your pieces, not the found piece', async () => {
+  mockFetch({ ...draftRoutes(), 'GET /inbox': { items: [], count: 0 } });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  const [matchTop] = screen.getAllByRole('button', { name: copy.row.match });
+  await fireEvent.press(matchTop as never);
+  await fireEvent.press(await screen.findByTestId('picker-add-new'));
+  // A piece she owns and has not logged yet: Photo files it and it takes the found row.
+  expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
+  expect(screen.queryByTestId('capture-new-piece')).toBeNull();
 });
 
 test('a read that fails says so with Retry, and the photo is kept', async () => {
