@@ -416,6 +416,21 @@ test('the + on WISHLIST while matching saves the found piece as a new wish, on t
   await waitFor(() => expect(lastProposals(calls)?.[1]?.wishlistItemId).toBe(WISH));
 });
 
+test('the + on OWNED while matching opens Add your pieces, not the found piece', async () => {
+  mockFetch({ ...draftRoutes(), 'GET /inbox': { items: [], count: 0 } });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  const [matchTop] = screen.getAllByRole('button', { name: copy.row.match });
+  await fireEvent.press(matchTop as never);
+  await fireEvent.press(await screen.findByTestId('picker-add-new'));
+  // A piece she owns and has not logged yet: Photo files it and it takes the found row.
+  expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
+  expect(screen.queryByTestId('capture-new-piece')).toBeNull();
+});
+
 test('a read that fails says so with Retry, and the photo is kept', async () => {
   mockFetch({
     ...draftRoutes(),

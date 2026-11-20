@@ -34,8 +34,8 @@ type WishItem = Wish & { meta: string | null };
 // at the foot. A wish joins the rack as a piece to find. A swap picks one of her pieces or a wish and
 // confirms with "Swap it in"; a match (a piece found in her photograph, Capture PRD 1c.7) picks
 // the piece of hers it is, or a wish from her wishlist, under "Match to your wardrobe" and MATCH
-// PIECE; its + adds the found piece as a new one instead, or on WISHLIST saves it as a new wish
-// (TestFlight 20 Nov). Closing changes nothing. Native twin:
+// PIECE. Its + opens Add your pieces, and a piece she photographs there takes the found row; on
+// WISHLIST the + saves the found piece as a new wish (TestFlight 20 Nov). Closing changes nothing. Native twin:
 // mobile/src/features/looks/PiecePicker.tsx.
 export function PiecePicker({
   mode,
@@ -43,7 +43,7 @@ export function PiecePicker({
   onClose,
   onPick,
   onSnap,
-  onAddNew,
+  onAddPieces,
   onSaveWish,
 }: {
   mode: PickerMode | null;
@@ -53,8 +53,8 @@ export function PiecePicker({
   onPick: (pieces: Piece[], wishes: Wish[]) => void;
   // "Photograph one": the photograph files straight into her wardrobe and onto the look.
   onSnap?: (file: File) => void;
-  // A match's +: the found piece is new, so its review opens instead of the wardrobe's add flow.
-  onAddNew?: () => void;
+  // A match's +: Add your pieces over the look, its photograph taking the found row.
+  onAddPieces?: () => void;
   // A match's + on WISHLIST: the found piece is saved to her wishlist as a new wish.
   onSaveWish?: () => void;
 }) {
@@ -184,13 +184,13 @@ export function PiecePicker({
                   onClose();
                 }}
               />
-            ) : matching && onAddNew ? (
+            ) : matching && onAddPieces ? (
               <AddCircle
                 label={copy.addNew}
                 expanded={false}
                 onClick={() => {
-                  onAddNew();
                   onClose();
+                  onAddPieces();
                 }}
               />
             ) : (
@@ -219,7 +219,7 @@ export function PiecePicker({
             onQuery={setQuery}
             category={category}
             onCategory={setCategory}
-            {...(onSnap && !matching
+            {...(onSnap
               ? {
                   onSnap: (file: File) => {
                     onSnap(file);

@@ -35,8 +35,9 @@ type WishItem = Wish & { meta: string | null };
 // at the foot. A wish joins the rack as a piece to find. A swap picks one of her pieces or a wish and
 // confirms with "Swap it in"; a match (a piece found in her photograph, Capture PRD 1c.7) picks
 // the piece of hers it is, or a wish from her wishlist, under "Match to your wardrobe" and MATCH
-// PIECE; its + adds the found piece as a new one instead, or on WISHLIST saves it as a new wish
-// (TestFlight 20 Nov). Closing changes nothing. Web twin:
+// PIECE. Its + opens Add your pieces as elsewhere, and a piece she photographs there takes the
+// found row; on WISHLIST the + saves the found piece as a new wish (TestFlight 20 Nov). Closing
+// changes nothing. Web twin:
 // app/src/components/looks/piece-picker.tsx.
 export function PiecePicker({
   mode,
@@ -44,7 +45,6 @@ export function PiecePicker({
   onClose,
   onPick,
   onSnap,
-  onAddNew,
   onSaveWish,
   onAddPieces,
   onGone,
@@ -56,8 +56,6 @@ export function PiecePicker({
   onPick: (pieces: Piece[], wishes: Wish[]) => void;
   // "Photograph one": the camera, and the photograph files straight in and onto the look.
   onSnap?: () => void;
-  // A match's +: the found piece is new, so its review opens instead of the wardrobe's add flow.
-  onAddNew?: () => void;
   // A match's + on WISHLIST: the found piece is saved to her wishlist as a new wish.
   onSaveWish?: () => void;
   // Every other +: the Add pieces sheet over the look, once the picker has gone. Without it the
@@ -199,12 +197,9 @@ export function PiecePicker({
                 onClose();
                 // Saving a wish presents nothing, and the Wardrobe's add flow is a route.
                 if (savingWish) onSaveWish?.();
-                else if (!matching && !onAddPieces) router.push(addPiecesHref('wardrobe'));
-                else {
-                  const next = matching ? onAddNew : onAddPieces;
-                  if (Platform.OS === 'ios') afterClose.current = next ?? null;
-                  else next?.();
-                }
+                else if (!onAddPieces) router.push(addPiecesHref('wardrobe'));
+                else if (Platform.OS === 'ios') afterClose.current = onAddPieces;
+                else onAddPieces();
               }}
               testID="picker-add-new"
             />
@@ -233,7 +228,7 @@ export function PiecePicker({
             onQuery={setQuery}
             category={category}
             onCategory={setCategory}
-            {...(onSnap && !matching
+            {...(onSnap
               ? {
                   onSnap: () => {
                     onClose();
