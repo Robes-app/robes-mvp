@@ -72,6 +72,8 @@ async function saveALook(page: Page, label: string): Promise<void> {
   await page.getByTestId(/^deck-card-/).click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
   await page.getByRole('button', { name: 'Save to lookbook' }).click();
+  // Saved, the diary waits for Schedule look (TestFlight 20 Nov).
+  await page.getByRole('button', { name: 'Schedule look' }).click();
   await page.getByRole('button', { name: 'Put it in the diary' }).click();
   await expect(page.getByText(/is in your diary for/).first()).toBeVisible();
 }

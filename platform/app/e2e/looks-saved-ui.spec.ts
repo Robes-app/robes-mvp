@@ -24,7 +24,7 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // New look's draft (the desktop bar's Create is retired, Annie 15 Nov).
   await page.goto('/looks/draft/new');
   // The draft drawer (D14) opens over the screen; the first pieces make the draft, the done disc
-  // saves it, and the saved look opens with the diary up.
+  // saves it, and the saved look opens with the diary closed.
   await expect(page).toHaveURL(/\/looks\/draft\/new$/);
   await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   const picker = page.getByTestId('piece-picker');
