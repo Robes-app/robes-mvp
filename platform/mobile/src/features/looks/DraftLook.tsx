@@ -1226,10 +1226,14 @@ function DraftBody({
     balance: src.balance,
     ...(askContext ? { context: askContext } : {}),
   };
-  // A photograph filed from the picker lands where the picker was opened.
+  // A photograph filed from the picker lands where the picker was opened: a match's takes the
+  // found row (TestFlight 20 Nov). `addingFor` carries the picker through Add your pieces.
   const snapFor = useRef<PickerMode>({ add: true });
+  const addingFor = useRef<PickerMode>({ add: true });
   const snap = useSnap((piece) => {
-    if ('swap' in snapFor.current) editor.swap(snapFor.current.swap.key, { piece });
+    const at = snapFor.current;
+    if ('swap' in at) editor.swap(at.swap.key, { piece });
+    else if ('match' in at) capture.match(at.match.key, piece, 'add');
     else editor.add(piece);
   });
   const busy = adjust.busy || save.isPending || editor.saving || stack.committing;
@@ -1736,7 +1740,11 @@ function DraftBody({
                   layout={rackLayout}
                   editing={editingPieces}
                   hasWardrobe={hasWardrobe}
-                  onAdd={() => (hasWardrobe ? setPicker({ add: true }) : setAdding(true))}
+                  onAdd={() => {
+                    addingFor.current = { add: true };
+                    if (hasWardrobe) setPicker({ add: true });
+                    else setAdding(true);
+                  }}
                   onOpen={openPiece}
                   onSwap={(row) =>
                     setPicker({ swap: { key: row.key, name: row.name, category: row.category } })
@@ -1786,6 +1794,7 @@ function DraftBody({
         }}
         onAdd={() => {
           backToPrompt.current = false;
+          addingFor.current = { add: true };
           setAdding(true);
         }}
       />
@@ -1804,18 +1813,32 @@ function DraftBody({
           }
           if ('match' in picker) {
             const [piece] = pieces;
+            const [wish] = wishes;
             if (piece) capture.match(picker.match.key, piece, 'match');
+            else if (wish) capture.matchWish(picker.match.key, wish);
             return;
           }
           for (const piece of pieces) editor.add(piece);
           for (const wish of wishes) editor.addWish(wish);
         }}
         onSnap={() => {
-          if (picker && !('match' in picker)) snapFor.current = picker;
+          snapFor.current = picker ?? { add: true };
           void snap.snap();
         }}
-        {...(picker && 'match' in picker ? { onAddNew: () => setNewPiece(picker.match.key) } : {})}
-        onAddPieces={() => setAdding(true)}
+        {...(picker && 'match' in picker
+          ? {
+              onSaveWish: () => {
+                const key = picker.match.key;
+                void capture.saveWish(key).then((ok) => {
+                  if (!ok) toast.show({ message: lookbook.draftLook.picker.wishFailed });
+                });
+              },
+            }
+          : {})}
+        onAddPieces={() => {
+          addingFor.current = picker ?? { add: true };
+          setAdding(true);
+        }}
       />
       <NewPieceSheet
         row={
@@ -1832,7 +1855,8 @@ function DraftBody({
         open={dockYield.gate(adding)}
         onClose={() => setAdding(false)}
         onPhoto={() => {
-          snapFor.current = { add: true };
+          snapFor.current = addingFor.current;
+          addingFor.current = { add: true };
           void snap.snap();
         }}
         draft

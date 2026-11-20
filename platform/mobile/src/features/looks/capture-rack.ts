@@ -1,5 +1,12 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
-import { type Look, type Piece, pieceRow, type ReadPiece } from '@robes/contracts';
+import {
+  type Look,
+  type Piece,
+  pieceRow,
+  type ReadPiece,
+  type Wish,
+  wishRow,
+} from '@robes/contracts';
 import {
   type CaptureStage,
   captureRows,
@@ -41,6 +48,10 @@ export interface CaptureRack {
   find: () => void;
   skip: () => void;
   match: (key: string, piece: Piece, how: 'match' | 'suggested' | 'add') => void;
+  // A wish takes a found row as a piece to find: one from her wishlist, or the found piece saved
+  // to it as a new wish, its crop for its picture (TestFlight 20 Nov). Resolves false on failure.
+  matchWish: (key: string, wish: Wish) => void;
+  saveWish: (key: string) => Promise<boolean>;
   remove: (key: string) => void;
   undo: () => void;
 }
@@ -160,6 +171,28 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       if (how === 'add') {
         void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
         void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.summary') });
+      }
+    },
+    matchWish: (key, wish) => {
+      nativeAnalytics.track('look_piece_filed', { how: 'wish' });
+      setTouched(true);
+      editor.setRows(fileRow(rows, key, wishRow(wish, key)));
+    },
+    saveWish: async (key) => {
+      const capture = rows.find((r) => r.key === key)?.proposal?.capture;
+      if (!capture) return false;
+      try {
+        const wish = await api.call('photoReads.wish', {
+          params: { id: capture.readId },
+          input: { index: capture.index },
+        });
+        nativeAnalytics.track('look_piece_filed', { how: 'new_wish' });
+        setTouched(true);
+        editor.setRows(fileRow(current.current, key, wishRow(wish, key)));
+        void queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') });
+        return true;
+      } catch {
+        return false;
       }
     },
     remove: (key) => {
