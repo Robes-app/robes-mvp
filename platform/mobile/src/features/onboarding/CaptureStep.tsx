@@ -34,6 +34,15 @@ const cameraCopy = (mode: CaptureMode): ShotCameraCopy => {
   };
 };
 
+// Who reads the photo she is about to choose, above the step's one action (App Store 5.1.2(i)).
+export function PhotosNote() {
+  return (
+    <Text size="caption" tone="muted" className="text-center">
+      {copy.photosNote}
+    </Text>
+  );
+}
+
 // A quiet text link under the step's one action (R-S2): Skip, Add more.
 export function QuietLink({
   label,
@@ -181,6 +190,7 @@ export function CaptureStep({
       footer={
         <>
           {error ? <ErrorText>{error}</ErrorText> : null}
+          <PhotosNote />
           <Button
             variant="primary"
             onPress={() => setView('camera')}

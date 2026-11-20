@@ -164,6 +164,9 @@ export const firstRun = {
   },
   // The eight-step flow's capture steps (onboarding PRD and design, 17 Nov), each skippable.
   skip: 'Skip',
+  // Under each photo step, before she chooses one: who reads it (App Store 5.1.2(i); Niall,
+  // 20 Nov — a draft line for Annie). The twin's close-up has its own consent screen.
+  photosNote: 'Your photos are read by Google Gemini.',
   addMore: 'Add more',
   removePhoto: 'Remove this photo',
   // 05 Saved looks: each photo saves as its own look.

@@ -188,7 +188,7 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
         });
         nativeAnalytics.track('look_piece_filed', { how: 'new_wish' });
         setTouched(true);
-        editor.setRows(fileRow(current.current, key, wishRow(wish, key)));
+        setRows.current(fileRow(current.current, key, wishRow(wish, key)));
         void queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') });
         return true;
       } catch {
