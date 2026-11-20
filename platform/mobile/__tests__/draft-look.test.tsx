@@ -483,7 +483,7 @@ test('a saved look opened with `schedule` has the diary up', async () => {
 // Annie, 12 Nov: a look built from pieces and saved left her on its page with Back and Schedule
 // look dead. The diary rose while the page was still coming in under the sheet going out, and iOS
 // left a see-through layer over the app. Now the sheet goes at once, and the diary waits.
-test('a draft saved from its sheet leaves it at once for its page, with the diary asked for', async () => {
+test('a draft saved from its sheet leaves it at once for its page, the diary closed', async () => {
   const calls = mockFetch({
     ...BASE,
     'GET /wardrobe/items': { items: [piece()], nextCursor: null },
@@ -502,9 +502,7 @@ test('a draft saved from its sheet leaves it at once for its page, with the diar
     expect(screen.getByTestId('draft-done').props.accessibilityState.disabled).toBe(false),
   );
   await fireEvent.press(screen.getByTestId('draft-done'));
-  await waitFor(() =>
-    expect(mockRouter.replace).toHaveBeenCalledWith(`/look/${LOOK_ID}?schedule=1`),
-  );
+  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith(`/look/${LOOK_ID}`));
   expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/save'))).toBe(true);
   // The sheet's slide down is switched off before the replace that removes it.
   expect(mockNavigation.setOptions).toHaveBeenCalledWith({ animation: 'none' });

@@ -365,7 +365,7 @@ export function DraftLook({
   images?: 'add';
   // New Look › From pieces (Front Door PRD rev 3 §5.5): a new draft with the piece picker up.
   pick?: boolean;
-  // A saved look opened with the diary up (a draft just saved, `?schedule=1`).
+  // A saved look opened with the diary up (`?schedule=1`).
   schedule?: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
@@ -1172,13 +1172,12 @@ function DraftBody({
     (saved) => {
       // Saved for a day: it is on that day and in the Lookbook, and she goes back to the screen
       // the day was on — the Diary's day (still beneath this sheet, read again on focus) or
-      // Home's day, which shows it as the day's card. Else the saved look opens with the diary
-      // up, so it can be scheduled in the same breath — the sheet gone first, so the diary can
-      // rise over the page (useLeaveSheetFor).
+      // Home's day, which shows it as the day's card. Else the saved look opens on its page with
+      // the diary closed: it rises only from Schedule look (TestFlight 20 Nov).
       if (forDay && dayOrigin() === 'diary') onClose();
       else if (forDay) router.replace({ pathname: '/', params: { day: forDay, saved: saved.id } });
-      else if (presentation === 'sheet') leaveSheetFor(`/look/${saved.id}?schedule=1`);
-      else router.replace(`/look/${saved.id}?schedule=1`);
+      else if (presentation === 'sheet') leaveSheetFor(`/look/${saved.id}`);
+      else router.replace(`/look/${saved.id}`);
     },
     'draft',
     () => adjust.changeCount(),
