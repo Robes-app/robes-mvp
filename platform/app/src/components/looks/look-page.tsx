@@ -185,13 +185,13 @@ export function Rack({
 }
 
 // Suggested (F8) and draft (F9 / 4d): one page, one bar.
-export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => void }) {
+export function WorkingLook({ look }: { look: Look }) {
   const router = useRouter();
   const adjustRef = useRef<Adjust | null>(null);
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
   const adjust = useAdjust(look, editor, look.status === 'suggested' ? 'suggested' : 'draft');
   adjustRef.current = adjust;
-  const save = useSaveLook(onSaved, look.status === 'suggested' ? 'suggested' : 'draft');
+  const save = useSaveLook(undefined, look.status === 'suggested' ? 'suggested' : 'draft');
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [name, setName] = useState(look.nameProvisional ? '' : look.name);
   const suggested = look.status === 'suggested';
