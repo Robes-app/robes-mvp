@@ -10,6 +10,7 @@ import {
   type Piece,
   ReadPiece,
   type StartJobOutput,
+  type Wish,
 } from '@robes/contracts';
 import type { ReadPieceRow, UserId } from '@robes/db';
 import { z } from 'zod';
@@ -230,6 +231,35 @@ export async function filePiece(
   if (!row) throw new ApiError('not_found');
   if (input.edits?.wearFor) await repos.wardrobe.setWearTags(userId, row.id, input.edits.wearFor);
   const [out] = await toPieces(userId, [row]);
+  if (!out) throw new ApiError('not_found');
+  return out;
+}
+
+// Save to your wishlist on The Rack (TestFlight 20 Nov): one piece of a read becomes a wish with
+// its crop as its picture. As with Add piece, the read's other pieces and their crops stay;
+// saving it again returns the wish already made.
+export async function wishPiece(
+  userId: UserId,
+  jobId: string,
+  input: FilePieceInput,
+): Promise<Wish> {
+  const read = await loadRead(userId, jobId);
+  const piece = read.readPieces.find((p) => p.index === input.index);
+  if (!piece) throw new ApiError('not_found');
+  const source = { kind: 'look_photo' as const, of: read.readPieces.length };
+  const {
+    sourceIndex: _i,
+    itemDna: _d,
+    seasonBand: _s,
+    notes,
+    imageAssetId,
+    ...row
+  } = toRow(piece, source, input.edits);
+  const [made] = await repos.wishlist.createFromRead(userId, [
+    { ...row, note: notes, imageAssetId: imageAssetId as string },
+  ]);
+  if (!made) throw new ApiError('not_found');
+  const [out] = await toWishes(userId, [made]);
   if (!out) throw new ApiError('not_found');
   return out;
 }

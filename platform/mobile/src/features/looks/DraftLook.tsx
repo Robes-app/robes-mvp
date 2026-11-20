@@ -1805,7 +1805,9 @@ function DraftBody({
           }
           if ('match' in picker) {
             const [piece] = pieces;
+            const [wish] = wishes;
             if (piece) capture.match(picker.match.key, piece, 'match');
+            else if (wish) capture.matchWish(picker.match.key, wish);
             return;
           }
           for (const piece of pieces) editor.add(piece);
@@ -1815,7 +1817,17 @@ function DraftBody({
           if (picker && !('match' in picker)) snapFor.current = picker;
           void snap.snap();
         }}
-        {...(picker && 'match' in picker ? { onAddNew: () => setNewPiece(picker.match.key) } : {})}
+        {...(picker && 'match' in picker
+          ? {
+              onAddNew: () => setNewPiece(picker.match.key),
+              onSaveWish: () => {
+                const key = picker.match.key;
+                void capture.saveWish(key).then((ok) => {
+                  if (!ok) toast.show({ message: lookbook.draftLook.picker.wishFailed });
+                });
+              },
+            }
+          : {})}
         onAddPieces={() => setAdding(true)}
       />
       <NewPieceSheet

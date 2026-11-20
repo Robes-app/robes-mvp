@@ -92,6 +92,36 @@ describe('the rack', () => {
     expect(twice.map((r) => r.key)).toEqual([HERS, shoes.key]);
   });
 
+  it('a wish takes a found row as a piece to find, and is never hung twice', () => {
+    const wish = (key: string): RackRow => ({
+      key,
+      pieceId: null,
+      name: 'Black leather biker jacket',
+      category: 'Outerwear',
+      categoryL2: null,
+      brand: 'Totême',
+      role: null,
+      proposal: {
+        key,
+        name: 'Black leather biker jacket',
+        category: 'Outerwear',
+        color: '',
+        brand: 'Totême',
+        retailerHint: '',
+        pricePoint: '€1200',
+        role: null,
+        wishlisted: true,
+        wishlistItemId: 'wish-1',
+        capture: null,
+      },
+    });
+    const once = fileRow(rows, top.key, wish(top.key));
+    expect(once.map((r) => r.proposal?.wishlistItemId ?? null)).toEqual(['wish-1', null, null]);
+    expect(isCaptureRow(once[0] as RackRow)).toBe(false);
+    const twice = fileRow(once, bottom.key, wish(bottom.key));
+    expect(twice.map((r) => r.key)).toEqual([top.key, shoes.key]);
+  });
+
   it('removes a row and Undo restores every removed row where it stood', () => {
     const a = removeRow(rows, [], top.key);
     const b = removeRow(a.rows, a.removed, shoes.key);

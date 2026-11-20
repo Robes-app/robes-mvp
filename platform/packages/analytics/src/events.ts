@@ -66,7 +66,9 @@ export const EVENTS = {
   look_captured: z.object({ day: z.boolean() }).strict(),
   // The Rack of a look from her photograph: she asked for its pieces, and what she did with one.
   look_pieces_asked: none,
-  look_piece_filed: z.object({ how: z.enum(['match', 'suggested', 'add', 'remove']) }).strict(),
+  look_piece_filed: z
+    .object({ how: z.enum(['match', 'suggested', 'add', 'remove', 'wish', 'new_wish']) })
+    .strict(),
   // Add pieces: the camera hands its shots to Review.
   camera_filed: z.object({ n: count }).strict(),
   // Review: a photo's (or a link's) answered pieces are filed.

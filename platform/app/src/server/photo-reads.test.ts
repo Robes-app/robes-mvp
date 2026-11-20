@@ -36,9 +36,8 @@ vi.mock('./looks-entity', () => ({
   withOwnedPieces: (write: () => Promise<unknown>) => write(),
 }));
 
-const { fileRead, filePiece, findLookPieces, lookFromRead, startPhotoRead } = await import(
-  './photo-reads'
-);
+const { fileRead, filePiece, findLookPieces, lookFromRead, startPhotoRead, wishPiece } =
+  await import('./photo-reads');
 
 const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const JOB = '22222222-2222-4222-8222-222222222222';
@@ -380,6 +379,22 @@ describe('photo reads', () => {
     expect(repos.wardrobe.setWearTags).toHaveBeenCalledWith(USER, 'piece-1', ['Active']);
     // The other pieces' crops stay: they are still on the rack to match, add or leave.
     expect(repos.assets.discardCrops).not.toHaveBeenCalled();
+  });
+
+  it('saves one piece of a read as a wish with its crop and leaves the others alone', async () => {
+    repos.wishlist.createFromRead.mockResolvedValueOnce([{ id: 'wish-1', label: 'Wide trousers' }]);
+    const wish = await wishPiece(USER, JOB, { index: 1 });
+    expect(wish).toMatchObject({ id: 'wish-1' });
+    expect(repos.wishlist.createFromRead).toHaveBeenCalledWith(USER, [
+      expect.objectContaining({ imageAssetId: crop(1) }),
+    ]);
+    const [[, [made]]] = repos.wishlist.createFromRead.mock.calls as [[unknown, [object]]];
+    expect(made).not.toHaveProperty('sourceIndex');
+    expect(made).not.toHaveProperty('itemDna');
+    // The other pieces' crops stay: they are still on the rack to match, add or leave.
+    expect(repos.assets.discardCrops).not.toHaveBeenCalled();
+    expect(repos.wardrobe.createFromRead).not.toHaveBeenCalled();
+    await expect(wishPiece(USER, JOB, { index: 5 })).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('refuses a piece the read never found, and a read that is not hers', async () => {
