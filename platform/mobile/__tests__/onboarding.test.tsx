@@ -107,6 +107,8 @@ test('seven steps: answers saved on Brands without onboarding her, each capture 
   });
   expect(calls.some((c) => c.path.endsWith('/me/onboarding/complete'))).toBe(false);
   expect(screen.getByLabelText(copy.progress(5, 7))).toBeTruthy();
+  // Each photo step names who reads her photos before she chooses one (App Store 5.1.2(i)).
+  expect(screen.getByText(copy.photosNote)).toBeTruthy();
 
   // Each capture step skips on to the next.
   await fireEvent.press(skip());
@@ -116,6 +118,7 @@ test('seven steps: answers saved on Brands without onboarding her, each capture 
   await waitFor(() => expect(title(copy.outfit.title, copy.outfit.titleEm)).toBeTruthy());
   const today = localDate();
   expect(screen.getByLabelText(copy.progress(7, 7))).toBeTruthy();
+  expect(screen.getByText(copy.photosNote)).toBeTruthy();
   expect(
     screen.getByText(copy.outfit.today(`${weekdayShort(today)} ${dayMonth(today)}`)),
   ).toBeTruthy();
