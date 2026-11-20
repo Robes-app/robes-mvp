@@ -24,7 +24,7 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // New look's draft (the desktop bar's Create is retired, Annie 15 Nov).
   await page.goto('/looks/draft/new');
   // The draft drawer (D14) opens over the screen; the first pieces make the draft, the done disc
-  // saves it, and the saved look opens with the diary up.
+  // saves it, and the saved look opens with the diary closed.
   await expect(page).toHaveURL(/\/looks\/draft\/new$/);
   await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   const picker = page.getByTestId('piece-picker');
@@ -38,18 +38,15 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();
   await page.getByTestId('draft-done').click();
-  await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible({
-    timeout: 15_000,
-  });
   // Beta's save toast names the look.
   await expect(
     page.getByText(/^[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2} saved to your Lookbook ✓$/),
-  ).toBeVisible();
-  // Save opens the diary every time; × closes it and writes nothing.
-  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
+  ).toBeVisible({ timeout: 15_000 });
 
-  // The saved look opened with the diary up and dropped the parameter from its address.
+  // The saved look opens on its page with the diary closed: it waits for Schedule look
+  // (TestFlight 20 Nov).
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
+  await expect(page.getByText('Put in the diary', { exact: true })).toHaveCount(0);
   await expect(page.getByTestId('draft-look')).toHaveCount(0);
   // Unnamed, a hand-built look saves as her today ("Wednesday 28 Oct"), the month from the table.
   const heading = page.getByRole('heading', { level: 1 });

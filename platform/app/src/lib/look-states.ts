@@ -61,6 +61,20 @@ export function useRefreshLooks() {
   };
 }
 
+// Every read that shows a look on a day: Home's week, the Diary and the day page. A look deleted
+// or restored comes off or back on them too (TestFlight 20 Nov: a deleted look stayed on Home and
+// opening it said "Robes couldn't find that"). Twin: mobile features/looks/look-states.ts.
+const DAY_READS = ['plan.get', 'plan.day', 'today.get'] as const;
+
+function useRefreshDayReads() {
+  const queryClient = useQueryClient();
+  return () => {
+    for (const key of DAY_READS) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.route(key) });
+    }
+  };
+}
+
 function withoutLook(old: unknown, id: string): unknown {
   const page = old as LookPage | undefined;
   return page?.items ? { ...page, items: page.items.filter((l) => l.id !== id) } : old;
@@ -72,13 +86,16 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
   const toast = useToast();
   const queryClient = useQueryClient();
   const refresh = useRefreshLooks();
+  const refreshDays = useRefreshDayReads();
   return (id: string) => {
     queryClient.setQueriesData({ queryKey: queryKeys.route('looks.list') }, (old) =>
       withoutLook(old, id),
     );
     void api
       .call('looks.delete', { params: { id } })
-      .then(() =>
+      .then(() => {
+        queryClient.removeQueries({ queryKey: queryKeys.call('looks.get', { params: { id } }) });
+        refreshDays();
         toast({
           message: label,
           action: {
@@ -88,16 +105,18 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
                 .call('looks.restore', { params: { id } })
                 .then((look) => {
                   refresh(look);
+                  refreshDays();
                   onUndo?.(id);
                 })
                 .catch((err) =>
                   toast({ message: isDraftsFull(err) ? copy.drafts.fullTitle : errorCopy(err) }),
                 ),
           },
-        }),
-      )
+        });
+      })
       .catch((err) => {
         refresh();
+        refreshDays();
         toast({ message: errorCopy(err) });
       });
   };

@@ -20,7 +20,6 @@ import { useWishOf } from '@/features/wardrobe/wishlist';
 import { errorMessage } from '@/lib/errors';
 import { AdjustDock } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
-import { DiarySheet } from './DiarySheet';
 import { DraftLook } from './DraftLook';
 import { JOB_REFRESH_MS } from './ideas';
 import { LookMix, LookPicture } from './LookPicture';
@@ -37,7 +36,7 @@ export function LookScreen({
   schedule = false,
 }: {
   id: string;
-  // `?schedule=1`: a draft just saved from its sheet opens with the diary up.
+  // `?schedule=1`: the look opens with the diary up.
   schedule?: boolean;
 }) {
   const router = useRouter();
@@ -49,8 +48,6 @@ export function LookScreen({
       refetchInterval: (q) => (pictureLanding(q.state.data) ? JOB_REFRESH_MS : false),
     },
   );
-  // Save opens the diary every time; the sheet outlives the working page it was saved from.
-  const [justSaved, setJustSaved] = useState<Look | null>(null);
   if (query.isPending) return <Skeleton width="100%" aspectRatio={4 / 5} />;
   if (query.isError || !query.data) {
     // Audit F5: an error is never a dead end.
@@ -81,9 +78,9 @@ export function LookScreen({
           onClose={() => (router.canGoBack() ? router.back() : router.replace('/'))}
         />
       ) : (
-        <WorkingLook look={look} onSaved={setJustSaved} />
+        // Saved, it becomes the saved look here, diary closed until Schedule look (20 Nov).
+        <WorkingLook look={look} />
       )}
-      <DiarySheet look={justSaved} onClose={() => setJustSaved(null)} />
     </>
   );
 }
@@ -101,13 +98,13 @@ function eyebrowOf(look: Look): string {
 }
 
 // Suggested (F8) and draft (F9 / 4d): the rack, the prompt box and one bar.
-function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => void }) {
+function WorkingLook({ look }: { look: Look }) {
   const router = useRouter();
   const adjustRef = useRef<Adjust | null>(null);
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
   const adjust = useAdjust(look, editor, look.status === 'suggested' ? 'suggested' : 'draft');
   adjustRef.current = adjust;
-  const save = useSaveLook(onSaved, look.status === 'suggested' ? 'suggested' : 'draft');
+  const save = useSaveLook(undefined, look.status === 'suggested' ? 'suggested' : 'draft');
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);

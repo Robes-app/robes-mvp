@@ -595,6 +595,15 @@ export const routes = {
     input: FilePieceInput,
     output: Piece,
   },
+  // Naturally idempotent: a piece of a read becomes one wish (its crop is the key).
+  'photoReads.wish': {
+    method: 'POST',
+    path: '/wardrobe/photo-reads/:id/wishes',
+    auth: 'user',
+    params: PhotoReadParams,
+    input: FilePieceInput,
+    output: Wish,
+  },
   'photoReads.look': {
     method: 'POST',
     path: '/wardrobe/photo-reads/:id/look',

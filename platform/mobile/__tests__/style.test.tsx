@@ -1,6 +1,6 @@
 import { firstRun, twin, you } from '@robes/copy';
 import { asSentence } from '@robes/core';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { Observations } from '../src/features/you/Observations';
 import { StyleDna } from '../src/features/you/StyleDna';
 import { mockFetch, renderWithApi } from './support/api';
@@ -13,6 +13,7 @@ import {
   piece,
   styleDna,
 } from './support/fixtures';
+import { mockNavigation } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
@@ -45,6 +46,20 @@ test('Style DNA: one row for her style rules, and no Icons', async () => {
   expect(screen.queryByRole('button', { name: /^Icons/ })).toBeNull();
   expect(screen.queryByRole('button', { name: /^Hard nos/ })).toBeNull();
   expect(screen.queryByRole('button', { name: /^Your rules/ })).toBeNull();
+});
+
+test('the answer the bell’s card opens waits for the screen to finish coming in', async () => {
+  mockFetch({ 'GET /me/dna': styleDna() });
+  let arrive: ((e: { data: { closing: boolean } }) => void) | null = null;
+  mockNavigation.addListener.mockImplementationOnce((type, listener) => {
+    if (type === 'transitionEnd') arrive = listener;
+    return () => {};
+  });
+  await renderWithApi(<StyleDna open="age" />);
+  await screen.findByRole('button', { name: `${twin.dnaPage.styleRules}, Not yet` });
+  expect(screen.queryByTestId('dna-sheet')).toBeNull();
+  await act(async () => arrive?.({ data: { closing: false } }));
+  expect(await screen.findByTestId('dna-sheet')).toBeTruthy();
 });
 
 test('Style type is onboarding’s photo cards: a heart keeps the type at once', async () => {

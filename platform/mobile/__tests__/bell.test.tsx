@@ -3,7 +3,7 @@ import { bell, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Bell } from '../src/components/Bell';
 import { mockFetch, renderWithApi } from './support/api';
-import { mockRouter } from './support/router';
+import { mockRouter, mockRouterModule } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
@@ -214,4 +214,19 @@ test('a card swipes to dismiss as a Wardrobe row does: screen readers get Dismis
       key: '2026-09-30',
     }),
   );
+});
+
+test('a card she has acted on is gone when she comes back to the screen', async () => {
+  let focus: (() => void) | null = null;
+  const spy = jest.spyOn(mockRouterModule, 'useFocusEffect').mockImplementation((effect) => {
+    focus = effect;
+  });
+  const cards = asCards(ITEMS);
+  routes(cards);
+  await renderWithApi(<Bell />);
+  expect(await screen.findByLabelText(bell.openNew(2))).toBeTruthy();
+  cards.pop();
+  await act(async () => focus?.());
+  expect(await screen.findByLabelText(bell.openNew(1))).toBeTruthy();
+  spy.mockRestore();
 });

@@ -11,7 +11,7 @@ import { FirstRunFrame } from '@/features/home/FirstRunFrame';
 import { useInvalidateLooks } from '@/features/looks/look-states';
 import { localDate } from '@/features/looks/saved-looks';
 import { type PickedPhoto, uploadPhoto } from '@/features/wardrobe/add-pieces';
-import { QuietLink } from './CaptureStep';
+import { PhotosNote, QuietLink } from './CaptureStep';
 
 // 08 Today's outfit (onboarding PRD R-8; design Q6): the intro, then Home's capture camera (the
 // mirror, "Whole outfit in frame?"). Use photo saves it as a look, its picture her photograph, on
@@ -87,6 +87,7 @@ export function OutfitStep({
       footer={
         <>
           {error ? <ErrorText>{error}</ErrorText> : null}
+          <PhotosNote />
           <Button variant="primary" loading={busy} onPress={capture} testID="onboarding-capture">
             {copy.outfit.capture}
           </Button>

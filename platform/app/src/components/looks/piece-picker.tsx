@@ -33,8 +33,9 @@ type WishItem = Wish & { meta: string | null };
 // category chips with counts, the 3-up grid with a tick on every piece — and the ink ADD PIECES
 // at the foot. A wish joins the rack as a piece to find. A swap picks one of her pieces or a wish and
 // confirms with "Swap it in"; a match (a piece found in her photograph, Capture PRD 1c.7) picks
-// the piece of hers it is, under "Match to your wardrobe" and MATCH PIECE, and its + adds the
-// found piece as a new one instead. Closing changes nothing. Native twin:
+// the piece of hers it is, or a wish from her wishlist, under "Match to your wardrobe" and MATCH
+// PIECE. Its + opens Add your pieces, and a piece she photographs there takes the found row; on
+// WISHLIST the + saves the found piece as a new wish (TestFlight 20 Nov). Closing changes nothing. Native twin:
 // mobile/src/features/looks/PiecePicker.tsx.
 export function PiecePicker({
   mode,
@@ -42,7 +43,8 @@ export function PiecePicker({
   onClose,
   onPick,
   onSnap,
-  onAddNew,
+  onAddPieces,
+  onSaveWish,
 }: {
   mode: PickerMode | null;
   // The pieces and wishes already on the rack, by id.
@@ -51,8 +53,10 @@ export function PiecePicker({
   onPick: (pieces: Piece[], wishes: Wish[]) => void;
   // "Photograph one": the photograph files straight into her wardrobe and onto the look.
   onSnap?: (file: File) => void;
-  // A match's +: the found piece is new, so its review opens instead of the wardrobe's add flow.
-  onAddNew?: () => void;
+  // A match's +: Add your pieces over the look, its photograph taking the found row.
+  onAddPieces?: () => void;
+  // A match's + on WISHLIST: the found piece is saved to her wishlist as a new wish.
+  onSaveWish?: () => void;
 }) {
   const open = mode !== null;
   const matching = mode && 'match' in mode ? mode.match : null;
@@ -126,9 +130,10 @@ export function PiecePicker({
     );
     onClose();
   };
-  // The wishlist is always in reach, for a swap as for an add (Annie, 16 Nov): a wish comes in as a
-  // piece to find. A match names the piece of hers it is, so it keeps to OWNED.
-  const off: Tab[] = matching ? [TABS[1], TABS[2]] : [TABS[2]];
+  // The wishlist is always in reach, for a swap, an add or a match (Annie, 16 and 20 Nov): a wish
+  // comes in as a piece to find.
+  const off: Tab[] = [TABS[2]];
+  const savingWish = matching !== null && tab === TABS[1] && onSaveWish !== undefined;
   return (
     <Subview
       open={open}
@@ -170,13 +175,22 @@ export function PiecePicker({
           }}
           disabled={off}
           trailing={
-            matching && onAddNew ? (
+            savingWish ? (
+              <AddCircle
+                label={copy.addWish}
+                expanded={false}
+                onClick={() => {
+                  onSaveWish?.();
+                  onClose();
+                }}
+              />
+            ) : matching && onAddPieces ? (
               <AddCircle
                 label={copy.addNew}
                 expanded={false}
                 onClick={() => {
-                  onAddNew();
                   onClose();
+                  onAddPieces();
                 }}
               />
             ) : (
@@ -205,7 +219,7 @@ export function PiecePicker({
             onQuery={setQuery}
             category={category}
             onCategory={setCategory}
-            {...(onSnap && !matching
+            {...(onSnap
               ? {
                   onSnap: (file: File) => {
                     onSnap(file);

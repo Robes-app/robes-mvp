@@ -148,14 +148,16 @@ test('a saved card on iOS: a tap opens the look; its long-press menu deletes wit
   );
 });
 
-test('a suggested look reads as Robes composed it; Save to lookbook opens the diary', async () => {
+test('a suggested look reads as Robes composed it; Save to lookbook, then Schedule look', async () => {
   let saved = false;
   const [y, m, d] = localDate().split('-').map(Number);
   const tomorrow = localDate(new Date(y ?? 0, (m ?? 1) - 1, (d ?? 1) + 1));
   const calls = mockFetch({
     'GET /me': ME,
     [`GET /looks/${LOOK_ID}`]: () =>
-      saved ? suggestion({ status: 'saved' }) : suggestion({ dateHint: tomorrow }),
+      saved
+        ? suggestion({ status: 'saved', dateHint: tomorrow })
+        : suggestion({ dateHint: tomorrow }),
     [`POST /looks/${LOOK_ID}/save`]: () => {
       saved = true;
       return suggestion({ status: 'saved', dateHint: tomorrow });
@@ -178,10 +180,13 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   expect(screen.getByLabelText(`${lookbook.rack.notYours} · €390`)).toBeTruthy();
   expect(screen.getByText(lookbook.composedByRobes)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.bar.saveToLookbook }));
-  // The diary opens every time as beta's month, the day her words named already picked.
-  expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
   // Beta's toast for a suggestion kept as it stands.
   expect(await screen.findByText(lookbook.saved)).toBeTruthy();
+  // The diary waits for Schedule look (TestFlight 20 Nov), then opens as beta's month, the day her
+  // words named already picked.
+  expect(screen.queryByText(lookbook.diary.eyebrow)).toBeNull();
+  await fireEvent.press(await screen.findByTestId('schedule-look'));
+  expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
   expect(calls.find((c) => c.path.endsWith('/save'))?.body).toEqual({});
   await fireEvent.press(screen.getByRole('button', { name: lookbook.diary.put }));
   await waitFor(() =>
@@ -203,7 +208,7 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   expect(track).toHaveBeenCalledWith('look_pinned', { offset_from_today: 1 });
 });
 
-test('closing the diary after Save is not yet: nothing is pinned', async () => {
+test('Save leaves the diary closed; closing it from Schedule look pins nothing', async () => {
   let saved = false;
   const calls = mockFetch({
     'GET /me': ME,
@@ -218,6 +223,8 @@ test('closing the diary after Save is not yet: nothing is pinned', async () => {
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.bar.saveToLookbook }));
+  // Saving keeps the diary closed: it rises only from Schedule look (TestFlight 20 Nov).
+  await fireEvent.press(await screen.findByTestId('schedule-look'));
   expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
   // Today is already picked, so the CTA is live — beta never opens this sheet inert.
   expect(screen.getByRole('button', { name: lookbook.diary.put })).not.toBeDisabled();

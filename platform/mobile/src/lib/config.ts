@@ -21,7 +21,7 @@ export const POSTHOG = posthogKey
 const scheme = Constants.expoConfig?.scheme;
 export const APP_SCHEME = (Array.isArray(scheme) ? scheme[0] : scheme) ?? 'robes';
 
-// Where "Update" goes when the server needs a newer app (426): the App Store page for the store
-// build, TestFlight for the staging and development builds.
-export const UPDATE_URL =
-  APP_SCHEME === 'robes' ? 'https://apps.apple.com/app/id6831989422' : 'itms-beta://';
+// Where "Update" goes when the server needs a newer app (426): TestFlight, where every build comes
+// from until the App Store release. The store page (apps.apple.com/app/id6831989422) answers 404
+// until then; the 1.0.0 store build points there.
+export const UPDATE_URL = 'itms-beta://';

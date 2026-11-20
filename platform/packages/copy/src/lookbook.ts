@@ -450,6 +450,9 @@ export const lookbook = {
       pickWish: (label: string): string => `Include ${label} from your wishlist`,
       // The ink + at the rail's end: a new piece, filed as she adds it.
       addNew: 'Add a new piece',
+      // The + on WISHLIST while matching a piece from her photograph: it becomes a new wish.
+      addWish: 'Save it to your wishlist',
+      wishFailed: 'That didn’t save to your wishlist. Try again.',
     },
     discard: {
       title: 'Discard this draft?',

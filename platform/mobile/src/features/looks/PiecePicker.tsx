@@ -34,8 +34,10 @@ type WishItem = Wish & { meta: string | null };
 // category chips with counts, the 3-up grid with a tick on every piece — and the ink ADD PIECES
 // at the foot. A wish joins the rack as a piece to find. A swap picks one of her pieces or a wish and
 // confirms with "Swap it in"; a match (a piece found in her photograph, Capture PRD 1c.7) picks
-// the piece of hers it is, under "Match to your wardrobe" and MATCH PIECE, and its + adds the
-// found piece as a new one instead. Closing changes nothing. Web twin:
+// the piece of hers it is, or a wish from her wishlist, under "Match to your wardrobe" and MATCH
+// PIECE. Its + opens Add your pieces as elsewhere, and a piece she photographs there takes the
+// found row; on WISHLIST the + saves the found piece as a new wish (TestFlight 20 Nov). Closing
+// changes nothing. Web twin:
 // app/src/components/looks/piece-picker.tsx.
 export function PiecePicker({
   mode,
@@ -43,7 +45,7 @@ export function PiecePicker({
   onClose,
   onPick,
   onSnap,
-  onAddNew,
+  onSaveWish,
   onAddPieces,
   onGone,
 }: {
@@ -54,8 +56,8 @@ export function PiecePicker({
   onPick: (pieces: Piece[], wishes: Wish[]) => void;
   // "Photograph one": the camera, and the photograph files straight in and onto the look.
   onSnap?: () => void;
-  // A match's +: the found piece is new, so its review opens instead of the wardrobe's add flow.
-  onAddNew?: () => void;
+  // A match's + on WISHLIST: the found piece is saved to her wishlist as a new wish.
+  onSaveWish?: () => void;
   // Every other +: the Add pieces sheet over the look, once the picker has gone. Without it the
   // + opens the sheet over the Wardrobe.
   onAddPieces?: () => void;
@@ -63,7 +65,9 @@ export function PiecePicker({
   onGone?: () => void;
 }) {
   const router = useRouter();
-  const addNext = useRef(false);
+  // What the + opens once the sheet has gone: iOS presents nothing over a sheet still leaving,
+  // and a screen opened in that moment never showed and left the app stuck (TestFlight 20 Nov).
+  const afterClose = useRef<(() => void) | null>(null);
   const open = mode !== null;
   const matching = mode && 'match' in mode ? mode.match : null;
   // One piece of hers, led by the row's category: a swap, or a match.
@@ -140,9 +144,10 @@ export function PiecePicker({
     setQuery('');
     setCategory(next);
   };
-  // The wishlist is always in reach, for a swap as for an add (Annie, 16 Nov): a wish comes in as a
-  // piece to find. A match names the piece of hers it is, so it keeps to OWNED.
-  const off: Tab[] = matching ? [TABS[1], TABS[2]] : [TABS[2]];
+  // The wishlist is always in reach, for a swap, an add or a match (Annie, 16 and 20 Nov): a wish
+  // comes in as a piece to find.
+  const off: Tab[] = [TABS[2]];
+  const savingWish = matching !== null && tab === TABS[1] && onSaveWish !== undefined;
   return (
     <DetentSheet
       open={open}
@@ -156,9 +161,9 @@ export function PiecePicker({
       onClose={onClose}
       onClosed={() => {
         onGone?.();
-        if (!addNext.current) return;
-        addNext.current = false;
-        onAddPieces?.();
+        const then = afterClose.current;
+        afterClose.current = null;
+        then?.();
       }}
       testID="piece-picker"
       footer={
@@ -186,13 +191,14 @@ export function PiecePicker({
           trailing={
             <IconButton
               icon="plus"
-              label={copy.addNew}
+              label={savingWish ? copy.addWish : copy.addNew}
               framed
               onPress={() => {
                 onClose();
-                if (matching && onAddNew) onAddNew();
+                // Saving a wish presents nothing, and the Wardrobe's add flow is a route.
+                if (savingWish) onSaveWish?.();
                 else if (!onAddPieces) router.push(addPiecesHref('wardrobe'));
-                else if (Platform.OS === 'ios') addNext.current = true;
+                else if (Platform.OS === 'ios') afterClose.current = onAddPieces;
                 else onAddPieces();
               }}
               testID="picker-add-new"
@@ -222,7 +228,7 @@ export function PiecePicker({
             onQuery={setQuery}
             category={category}
             onCategory={setCategory}
-            {...(onSnap && !matching
+            {...(onSnap
               ? {
                   onSnap: () => {
                     onClose();
