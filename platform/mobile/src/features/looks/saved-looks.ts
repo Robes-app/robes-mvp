@@ -8,6 +8,7 @@ import type { LookPage } from '@robes/contracts';
 import { looks as copy, errors, ui } from '@robes/copy';
 import { useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { DAY_READS } from './look-states';
 
 // Her local calendar date: a wear belongs to the day she wore it, not UTC's.
 export function localDate(now = new Date()): string {
@@ -37,10 +38,18 @@ function withoutLook(old: unknown, id: string): unknown {
 export function useRemoveLook() {
   const api = useApiClient();
   const toast = useToast();
+  const queryClient = useQueryClient();
   return useUndoableMutation('looks.delete', {
     optimistic: ({ params }) => [
       { queryKey: queryKeys.route('looks.list'), update: (old) => withoutLook(old, params.id) },
     ],
+    // Home's week and the Diary show the look on its days: it leaves them too, and comes back on
+    // Undo (TestFlight 20 Nov).
+    invalidate: () => (['looks.list', ...DAY_READS] as const).map((key) => queryKeys.route(key)),
+    onSuccess: (_data, { params }) =>
+      queryClient.removeQueries({
+        queryKey: queryKeys.call('looks.get', { params: { id: params.id } }),
+      }),
     onError: () => toast.show({ message: errors.internal }),
     undo: {
       onAvailable: (handle) =>
