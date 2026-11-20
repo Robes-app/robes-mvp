@@ -5,8 +5,8 @@ import { Icon } from '@robes/icons/native';
 import { fonts, MIN_TOUCH, maxFontSizeMultiplier, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, Text as RNText, View } from 'react-native';
 import { nativeAnalytics } from '@/lib/analytics';
 import { DetentSheet } from './DetentSheet';
@@ -47,6 +47,13 @@ export function Bell() {
   const cards = data?.cards ?? [];
   const unseen = unseenCount(data);
   const seen = useApiMutation('notifications.seen');
+  // A card she has just acted on (a twin made, an answer given) is read again as she comes back:
+  // the tab under that screen never unmounted, and nothing else re-reads the bell.
+  useFocusEffect(
+    useCallback(() => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.route('notifications.list') });
+    }, [queryClient]),
+  );
   if (cards.length === 0 && !open) return null;
   return (
     <>

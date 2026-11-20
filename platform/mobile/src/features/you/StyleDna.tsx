@@ -32,6 +32,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useArrived } from '@/lib/arrival';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { BrandsStep, StylesStep } from '../onboarding/Steps';
@@ -113,6 +114,8 @@ export function StyleDna({ open = null }: { open?: StyleDnaSection | null }) {
   const query = useApi('me.dna.get');
   const model = useModel();
   const [sheet, setSheet] = useState<SheetKind | null>(open);
+  // The bell's card asks for a sheet on mount, as its own sheet slides out: it waits (arrival.ts).
+  const arrived = useArrived();
   const colours = usePalette().palette;
   if (query.isPending) return <CardSkeleton className="mx-6" />;
   if (query.isError || !query.data) return <EmptyState title={errorMessage(query.error)} />;
@@ -170,7 +173,7 @@ export function StyleDna({ open = null }: { open?: StyleDnaSection | null }) {
         dna={dna}
         presence={presence}
         // Gender is asked only once a model stands (its row waits for one).
-        kind={sheet === 'gender' && !presence ? null : sheet}
+        kind={!arrived || (sheet === 'gender' && !presence) ? null : sheet}
         onClose={() => setSheet(null)}
       />
     </ScrollView>
