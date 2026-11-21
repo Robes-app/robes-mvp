@@ -1234,7 +1234,7 @@ function DraftBody({
     const at = snapFor.current;
     if ('swap' in at) editor.swap(at.swap.key, { piece });
     else if ('match' in at) capture.match(at.match.key, piece, 'add');
-    else editor.add(piece);
+    else editor.addAll([piece]);
   });
   const busy = adjust.busy || save.isPending || editor.saving || stack.committing;
   const words = prompt.trim();
@@ -1818,8 +1818,7 @@ function DraftBody({
             else if (wish) capture.matchWish(picker.match.key, wish);
             return;
           }
-          for (const piece of pieces) editor.add(piece);
-          for (const wish of wishes) editor.addWish(wish);
+          editor.addAll(pieces, wishes);
         }}
         onSnap={() => {
           snapFor.current = picker ?? { add: true };
