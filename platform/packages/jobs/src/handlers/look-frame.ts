@@ -40,6 +40,8 @@ export interface FrameRackPiece {
   brand: string;
   // Her piece's photo, when it is hers.
   imageAssetId: string | null;
+  // What defines it, as her photo read it (silhouette_fit); none for a proposal.
+  shape?: readonly string[];
 }
 
 type Ctx = { jobId: string; userId: UserId; signal: AbortSignal };
@@ -207,6 +209,7 @@ export async function drawSuggestedFrame(
       color: p.color,
       brand: p.brand,
       hasImage: Boolean(photo),
+      shape: p.shape ?? [],
     });
   }
   const feature = `${FEATURE}.image`;

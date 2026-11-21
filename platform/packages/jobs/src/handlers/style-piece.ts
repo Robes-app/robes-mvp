@@ -451,17 +451,19 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
 
   const rackOf = (
     pieces: StoredPiece[],
-    closet: { id: string; imageAssetId?: string | null }[],
+    closet: { id: string; imageAssetId?: string | null; shape?: readonly string[] | null }[],
   ): FrameRackPiece[] =>
-    pieces.map((p) => ({
-      name: p.name,
-      category: p.category,
-      color: p.color,
-      brand: p.brand,
-      imageAssetId: p.pieceId
-        ? (closet.find((c) => c.id === p.pieceId)?.imageAssetId ?? null)
-        : null,
-    }));
+    pieces.map((p) => {
+      const hers = p.pieceId ? closet.find((c) => c.id === p.pieceId) : undefined;
+      return {
+        name: p.name,
+        category: p.category,
+        color: p.color,
+        brand: p.brand,
+        imageAssetId: hers?.imageAssetId ?? null,
+        shape: hers?.shape ?? [],
+      };
+    });
 
   // One frame for a set's look; a failed frame never sinks the result (UX-08).
   async function frame(

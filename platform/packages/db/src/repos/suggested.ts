@@ -253,6 +253,8 @@ export function suggestedLooksRepo(db: Db) {
           'w.imageAssetId',
           'lp.role',
           'a.status as assetStatus',
+          // What defines it, as her photo read it (avatar v7, style-piece v11).
+          sql<unknown>`w.item_dna -> 'structural_dna' -> 'silhouette_fit'`.as('shape'),
         ])
         .where('lp.userId', '=', userId)
         .where('lp.lookId', '=', lookId)
