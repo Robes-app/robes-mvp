@@ -59,7 +59,9 @@ Needs AWS credentials for account 259887029472 with CDK deploy rights (the ones 
    export ROBES_STAGING_MEDIA_CERT_ARN=arn:aws:acm:us-east-1:259887029472:certificate/d5942a0f-f1c1-49f4-b98e-56f80c373a25
    # Comma-separated; each address gets an SNS subscription (and must confirm it by email).
    export ROBES_STAGING_ALERT_EMAIL=annie@byrobes.com,niall@codu.co
-   # ROBES_POSTHOG_KEY: leave unset; config falls back to the shared project key.
+   # The PostHog project token (phc_…, the same as NEXT_PUBLIC_POSTHOG_KEY). There is no fallback:
+   # unset, the workers send no AI traces or error reports.
+   export ROBES_POSTHOG_KEY=<the phc_… project token>
    ```
    To check against AWS rather than trust this file: CloudFront → the distribution aliased
    `media.staging.byrobes.com` (alias and ACM cert), and SNS → topic `robes-staging-alerts` →
@@ -101,7 +103,8 @@ This lets the **Run workflow** button deploy staging, and lets Part C make it au
    gh variable set MEDIA_DOMAIN --env staging -R $R -b media.staging.byrobes.com
    gh variable set MEDIA_CERT_ARN --env staging -R $R -b <the cert ARN from Part A step 3>
    gh variable set ALERT_EMAIL --env staging -R $R -b annie@byrobes.com,niall@codu.co
-   # POSTHOG_KEY, BUDGET_EMAIL, CLOUDFRONT_PUBLIC_KEY: not needed (config defaults / committed key)
+   gh variable set POSTHOG_KEY --env staging -R $R -b <the phc_… project token>   # no fallback: unset, no AI traces or worker errors
+   # BUDGET_EMAIL, CLOUDFRONT_PUBLIC_KEY: not needed (config defaults / committed key)
    ```
 3. No database secret: the workflow doesn't migrate (2026-11-03). Vercel's staging build is the
    one place staging migrates (`database-migrations.md`).
