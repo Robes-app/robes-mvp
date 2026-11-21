@@ -119,3 +119,11 @@ export function categoryFromWords(category: string, name: string): LegacyCategor
   if (legacy && legacy !== 'Other') return legacy;
   return HEADS.get(headOf(category)) ?? HEADS.get(headOf(name)) ?? legacy ?? 'Other';
 }
+
+// A piece's shape as its photo read filed it (item_dna.structural_dna.silhouette_fit): the
+// strings only, at most four.
+export function shapeOf(raw: unknown): string[] {
+  return Array.isArray(raw)
+    ? raw.filter((x): x is string => typeof x === 'string' && x.trim() !== '').slice(0, 4)
+    : [];
+}
