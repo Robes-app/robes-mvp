@@ -24,7 +24,7 @@ import {
   twinInputsOf,
   twinSpec,
 } from '@robes/core/avatar';
-import { categoryFromWords } from '@robes/core/taxonomy';
+import { categoryFromWords, shapeOf } from '@robes/core/taxonomy';
 import type { StoredFrame, SystemRepositories } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -268,6 +268,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         hasImage: Boolean(photo),
         // How it is worn rides the garment line: a tuck renders as a tuck (legacy 2026-10-01).
         styled: lookStyling[p.id] ?? null,
+        shape: shapeOf(p.shape),
       });
     }
     if (pieces.length === 0) {
@@ -345,6 +346,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         brand: p.brand ?? '',
         imageAssetId: p.assetStatus === 'ready' ? p.imageAssetId : null,
         styled: styling[p.id] ?? null,
+        shape: shapeOf(p.shape),
       })),
       ...proposals.map((p) => ({
         name: p.name,
