@@ -49,6 +49,8 @@ jobs:
           ROBES_PRODUCTION_BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
           ROBES_PRODUCTION_BUDGETS: ${{ vars.BUDGETS }}
           ROBES_PRODUCTION_GENERATE_RESERVED_CONCURRENCY: ${{ vars.GENERATE_RESERVED_CONCURRENCY }}
+          # Without it the workers send no AI traces or error reports (none had, 21 Nov 2026).
+          ROBES_POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
         working-directory: platform/infra
         # A script, not `pnpm exec`: exec puts a relative .bin on PATH and esbuild bundling breaks.
         # Stacks live inside the Production Stage, so select them by path; --all only sees top-level stacks.
