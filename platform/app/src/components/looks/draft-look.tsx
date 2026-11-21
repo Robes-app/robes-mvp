@@ -1123,7 +1123,7 @@ function DraftBody({
     const at = snapFor.current;
     if ('swap' in at) editor.swap(at.swap.key, { piece: filed });
     else if ('match' in at) capture.match(at.match.key, filed, 'add');
-    else editor.add(filed);
+    else editor.addAll([filed]);
   });
   const reading = photo.filing.phase === 'uploading' || photo.filing.phase === 'reading';
   const busy = adjust.busy || save.isPending || editor.saving || stack.committing;
@@ -1695,8 +1695,7 @@ function DraftBody({
             else if (wish) capture.matchWish(picker.match.key, wish);
             return;
           }
-          for (const piece of pieces) editor.add(piece);
-          for (const wish of wishes) editor.addWish(wish);
+          editor.addAll(pieces, wishes);
         }}
         onSnap={(file) => {
           snapFor.current = picker ?? { add: true };

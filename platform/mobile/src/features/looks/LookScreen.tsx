@@ -303,8 +303,7 @@ function WorkingLook({ look }: { look: Look }) {
             else editor.swap(swapping, into);
             return;
           }
-          for (const piece of pieces) editor.add(piece);
-          for (const wish of wishes) editor.addWish(wish);
+          editor.addAll(pieces, wishes);
         }}
         onAddPieces={() => setAddingPieces(true)}
       />

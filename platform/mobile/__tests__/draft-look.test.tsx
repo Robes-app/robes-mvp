@@ -270,6 +270,51 @@ test('a swap from the picker dresses the model at once', async () => {
   expect(screen.queryByText(lookbook.draft.modelAsked)).toBeNull();
 });
 
+// Testing 21 Nov: three pieces picked in one go, one on the look. Each pick rebuilt the rack the
+// picker opened on, so the last replaced the others; now they land together, in one write.
+test('several pieces picked together all land on the draft, in one write and one picture', async () => {
+  const BAG = 'abababab-abab-4bab-8bab-abababababab';
+  const draft = draftOf({
+    pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+    model: piece().image,
+    onModel: 'ready',
+  });
+  const calls = mockFetch({
+    ...BASE,
+    'GET /wardrobe/items': {
+      items: [
+        piece(),
+        piece({ id: SCARF, label: 'Silk scarf', category: 'Accessories' }),
+        piece({ id: BAG, label: 'Black tote', category: 'Bags' }),
+      ],
+      nextCursor: null,
+    },
+    [`GET /looks/${LOOK_ID}`]: draft,
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...draft,
+      updatedAt: new Date().toISOString(),
+      ...JSON.parse(String(init.body)),
+      pieces: draft.pieces,
+    }),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: MADE_JOB, status: 'queued' },
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  expect(await screen.findByTestId('draft-picture')).toBeTruthy();
+  await fireEvent.press(await screen.findByTestId('rack-add'));
+  await fireEvent.press(
+    await screen.findByRole('checkbox', { name: diary.flyout.pick('Silk scarf') }),
+  );
+  await fireEvent.press(screen.getByRole('checkbox', { name: diary.flyout.pick('Black tote') }));
+  expect(screen.getByText(copy.picker.cta(2))).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('picker-confirm'));
+  const patches = () => calls.filter((c) => c.method === 'PATCH');
+  await waitFor(() => expect(patches()).toHaveLength(1));
+  const body = patches()[0]?.body as { pieces: { pieceId: string }[] } | undefined;
+  expect(body?.pieces.map((p) => p.pieceId)).toEqual([piece().id, SCARF, BAG]);
+  const renders = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/render'));
+  await waitFor(() => expect(renders()).toHaveLength(1), { timeout: 3000 });
+});
+
 // Dressing is never retried on its own: a picture that failed says so and waits for her.
 test('a draft whose picture failed is not dressed again by itself', async () => {
   const calls = mockFetch({
