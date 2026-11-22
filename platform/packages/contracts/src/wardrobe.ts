@@ -1,5 +1,6 @@
 import { COLOUR_EXTRA_MAX, COLOUR_FAMILY_IDS, PATTERN_IDS, SHADE_IDS } from '@robes/core/colour';
 import { MATERIAL_IDS } from '@robes/core/material';
+import { DETAIL_MAX, detailOf } from '@robes/core/taxonomy';
 import { z } from 'zod';
 import { AssetRendition } from './media';
 
@@ -47,6 +48,9 @@ export const PieceImage = z.object({
   blurhash: z.string().nullable(),
   // Signed for the caller; empty until renditions exist.
   renditions: z.array(AssetRendition),
+  // The piece cut out of this photograph, on a see-through ground (WebP), where one was made;
+  // absent or null leaves the photograph as it is.
+  cutout: z.url().nullable().optional(),
 });
 export type PieceImage = z.infer<typeof PieceImage>;
 
@@ -69,6 +73,9 @@ export const Piece = z.object({
   notes: z.string().nullable(),
   // 'reading' while Robes reads the photo; 'failed' when no piece was found in it.
   status: z.enum(['reading', 'ready', 'failed']),
+  // Its one defining detail ("Strong padded shoulder"): Robes reads it from her photograph and
+  // she can put it in her own words; what a drawn look must keep. Defaulted across version skew.
+  detail: z.string().nullable().default(null),
   heroPosition: z.number().int().min(1).max(10).nullable(),
   seasonBand: SeasonBand,
   // The seasons it is for (D12); the band above is derived from them. Defaulted across skew.
@@ -205,6 +212,14 @@ export const UpdatePieceInput = z
     heroPosition: z.number().int().min(1).max(10).nullable(),
     // The star: on takes the Hero Rack's first free place (409 when all ten are taken).
     hero: z.boolean(),
+    // Her words for the piece's defining detail; null or '' clears it, and Robes never refills
+    // one she has answered. A short plain phrase, as it rides into the drawing prompts.
+    detail: z
+      .string()
+      .trim()
+      .max(DETAIL_MAX)
+      .refine((v) => v === '' || detailOf(v) !== null)
+      .nullable(),
   })
   .partial();
 export type UpdatePieceInput = z.infer<typeof UpdatePieceInput>;

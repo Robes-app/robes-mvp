@@ -12,6 +12,8 @@ import {
   ukSizeBounds,
 } from '@robes/core/sizes';
 import {
+  DETAIL_MAX,
+  detailOf,
   itemTypesOf,
   resolveTaxonomy,
   sheetCategories,
@@ -58,6 +60,8 @@ export type PieceField =
   | 'size'
   | 'price'
   | 'notes'
+  // Its one defining detail, in her words (owned pieces only).
+  | 'detail'
   // A wish's retailer (Front Door PRD rev 3 §7.3), where an owned piece has its brand.
   | 'shop';
 
@@ -74,6 +78,7 @@ const TITLES: Record<PieceField, string> = {
   size: copy.rows.size,
   price: copy.rows.price,
   notes: copy.rows.notes,
+  detail: copy.rows.detail,
   shop: copy.rows.shop,
 };
 
@@ -85,6 +90,7 @@ const TYPED: ReadonlySet<PieceField> = new Set([
   'size',
   'price',
   'notes',
+  'detail',
   'shop',
 ]);
 
@@ -96,6 +102,8 @@ export type FieldPiece = PieceValues & {
   seasons?: readonly Season[];
   // A wish's retailer (§7.3).
   sourceLabel?: string | null;
+  // An owned piece's defining detail.
+  detail?: string | null;
 };
 
 // What a drawer writes: a piece's fields, and a wish's Shop (the retailer) on a wish's page.
@@ -126,7 +134,9 @@ const textOf = (field: PieceField, p: FieldPiece): string =>
               : String(p.price)
             : field === 'notes'
               ? (p.notes ?? '')
-              : '';
+              : field === 'detail'
+                ? (p.detail ?? '')
+                : '';
 
 // Where the category drill opens: where the piece already sits.
 type Drill = { sheetL1: string | null; l2: string | null };
@@ -197,6 +207,11 @@ export function PieceFieldSheet({
       return orNull(text) === (piece.sourceLabel ?? null) ? null : { sourceLabel: orNull(text) };
     }
     if (field === 'notes') return orNull(text) === piece.notes ? null : { notes: orNull(text) };
+    if (field === 'detail') {
+      const detail = orNull(text);
+      if (detail !== null && detailOf(detail) === null) return null;
+      return detail === (piece.detail ?? null) ? null : { detail };
+    }
     if (field === 'size') {
       const size = stepper ? (uk === null ? null : formatUkSize(uk)) : orNull(text);
       return size === piece.size ? null : { size };
@@ -279,17 +294,30 @@ export function PieceFieldSheet({
               labelHidden
               autoFocus
               autoComplete="off"
-              maxLength={field === 'label' ? 120 : field === 'brand' ? 80 : 40}
+              maxLength={
+                field === 'label'
+                  ? 120
+                  : field === 'brand'
+                    ? 80
+                    : field === 'detail'
+                      ? DETAIL_MAX
+                      : 40
+              }
+              {...(field === 'detail' && text.trim() && detailOf(text) === null
+                ? { error: fields.detail.invalid }
+                : {})}
               placeholder={
-                field === 'brand'
-                  ? fields.brand.placeholder
-                  : field === 'label'
-                    ? (suggestPieceName({
-                        colourName: shade(piece.colourShade)?.name ?? null,
-                        categoryL2: piece.categoryL2,
-                        categoryL3: piece.categoryL3,
-                      }) ?? fields.name.placeholder)
-                    : undefined
+                field === 'detail'
+                  ? fields.detail.placeholder
+                  : field === 'brand'
+                    ? fields.brand.placeholder
+                    : field === 'label'
+                      ? (suggestPieceName({
+                          colourName: shade(piece.colourShade)?.name ?? null,
+                          categoryL2: piece.categoryL2,
+                          categoryL3: piece.categoryL3,
+                        }) ?? fields.name.placeholder)
+                      : undefined
               }
               value={text}
               onChange={(e) => setText(e.target.value)}

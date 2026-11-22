@@ -219,7 +219,16 @@ export function assetProcessingRepo(db: Db) {
     get(assetId: string) {
       return db
         .selectFrom('assets')
-        .select(['id', 'userId', 'kind', 'status', 'contentType', 'bucketKey', 'crop'])
+        .select([
+          'id',
+          'userId',
+          'kind',
+          'status',
+          'contentType',
+          'bucketKey',
+          'crop',
+          'sourceAssetId',
+        ])
         .where('id', '=', assetId)
         .executeTakeFirst();
     },
@@ -232,6 +241,8 @@ export function assetProcessingRepo(db: Db) {
         height: number;
         blurhash: string;
         renditions: Record<string, unknown>;
+        // The piece was cut out of its photograph: cutout.webp sits beside the renditions.
+        hasCutout?: boolean;
       },
     ): Promise<boolean> {
       // False once it is discarded (marked deleted, or gone) mid-render: the caller removes what
@@ -245,8 +256,21 @@ export function assetProcessingRepo(db: Db) {
           height: meta.height,
           blurhash: meta.blurhash,
           renditions: JSON.stringify(meta.renditions),
+          ...(meta.hasCutout ? { hasCutout: true } : {}),
           error: null,
         })
+        .where('id', '=', assetId)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) > 0;
+    },
+
+    // A cutout was stored beside an asset that is already rendered (a cut request, answered after
+    // the photo's own render). False once the asset is gone.
+    async markCutout(assetId: string): Promise<boolean> {
+      const res = await db
+        .updateTable('assets')
+        .set({ hasCutout: true })
         .where('id', '=', assetId)
         .where('deletedAt', 'is', null)
         .executeTakeFirst();

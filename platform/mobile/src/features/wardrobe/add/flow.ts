@@ -89,7 +89,8 @@ export function parseShots(raw: unknown): ReviewShot[] {
 
 // One photo → presigned upload → its read job (Robes counts what's in the frame).
 export async function startRead(api: ApiClient, photo: PickedPhoto): Promise<string> {
-  const assetId = await uploadPhoto(api, photo);
+  // Lifted on the phone as it uploads, so each piece the read finds can be cut out of the photo.
+  const assetId = await uploadPhoto(api, photo, 'wardrobe', { lift: true });
   const read = await api.call('photoReads.start', { input: { assetId } });
   return read.jobId;
 }

@@ -5,6 +5,9 @@ export const DAILY_BUDGET_MICROS: Record<string, number> = {
   'gemini-flash': 50_000_000,
   'gemini-image': 150_000_000,
   'gemini-image-lite': 100_000_000,
+  // Piece cutouts lifted on her phone cost nothing; the line exists so the family is named in the
+  // ledger from day one and a paid cutout route gets its own line beside it, not the default.
+  'cutout-on-device': 1_000_000,
 };
 
 export const DEFAULT_DAILY_BUDGET_MICROS = 10_000_000;

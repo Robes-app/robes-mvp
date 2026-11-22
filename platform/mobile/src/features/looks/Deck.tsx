@@ -21,7 +21,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Animated, PanResponder, Pressable, ScrollView, View } from 'react-native';
 import { dayLabel } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
-import { renditionUri } from '@/lib/images';
+import { pieceSource, renditionUri } from '@/lib/images';
 import { useTimedOut } from '@/lib/use-timed-out';
 import { isTerminal, JOB_REFRESH_MS } from './ideas';
 import { type SetLook, useInvalidateLooks, useLookSet, useRequestFrame } from './look-states';
@@ -72,12 +72,12 @@ function Dressing({ set, prompt }: { set?: LookSet; prompt?: string | null }) {
     const t = setInterval(() => setI((n) => n + 1), 2200);
     return () => clearInterval(t);
   }, []);
-  const uri = renditionUri(set?.anchor?.image, 300);
+  const { uri, fit } = pieceSource(set?.anchor?.image, 300);
   return (
     <View className="gap-3" accessibilityLiveRegion="polite" testID="deck-dressing">
       <View className="overflow-hidden rounded-soft">
         {uri ? (
-          <Image source={uri} alt="" />
+          <Image source={uri} alt="" {...fit} />
         ) : (
           <View
             className="items-center justify-center bg-surface-sunk p-8"

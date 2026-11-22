@@ -1,3 +1,4 @@
+import type { CutPlan } from '@robes/core/cutout';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
 
@@ -38,7 +39,13 @@ export function photoReadRepo(db: Db) {
     },
 
     // A pending wardrobe asset the rendition pipeline cuts out of its source photo.
-    async createCrop(userId: UserId, sourceAssetId: string, crop: CropBox): Promise<string> {
+    // `cut` asks it to cut the piece out as well, from what her phone lifted (@robes/core/cutout).
+    async createCrop(
+      userId: UserId,
+      sourceAssetId: string,
+      crop: CropBox,
+      cut?: CutPlan,
+    ): Promise<string> {
       const row = await db
         .insertInto('assets')
         .values({
@@ -47,7 +54,7 @@ export function photoReadRepo(db: Db) {
           contentType: 'image/jpeg',
           provider: 's3',
           sourceAssetId,
-          crop: JSON.stringify(crop),
+          crop: JSON.stringify(cut ? { ...crop, cut } : crop),
         })
         .returning('id')
         .executeTakeFirstOrThrow();

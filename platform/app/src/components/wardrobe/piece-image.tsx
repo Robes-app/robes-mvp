@@ -43,6 +43,23 @@ export function PieceImage({
   const onWhite = mat || contain;
   const frame = [onWhite ? 'bg-surface-raised!' : '', className ?? ''].filter(Boolean).join(' ');
   const fit = onWhite ? { className: 'object-contain!' } : {};
+  // The piece cut out of her photograph, wherever one was made (cutout brief, 21 Nov): the whole
+  // piece on white at every size, a small row thumb included. Without one, the photograph as
+  // before. Native twin: features/wardrobe/PieceCard.tsx Photo.
+  const cutout = piece.image?.cutout ?? null;
+  if (cutout) {
+    return (
+      <Image
+        src={cutout}
+        alt={wardrobe.photoAlt(piece.label)}
+        aspect={aspect}
+        priority={priority}
+        className="object-contain!"
+        frameClassName={`bg-surface-raised! ${className ?? ''}`.trim()}
+        data-cutout
+      />
+    );
+  }
   const sources = piece.image ? imageSources(piece.image.renditions) : null;
   const local = sources ? null : localPreview(piece.image?.assetId);
   if (local) {

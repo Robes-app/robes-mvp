@@ -2,11 +2,13 @@ import 'server-only';
 import { ApiError } from '@robes/api';
 import { type BatchPiecesOutput, Piece } from '@robes/contracts';
 import { wardrobe as copy } from '@robes/copy';
+import { detailOf } from '@robes/core/taxonomy';
 import type { UserId } from '@robes/db';
+import { mediaKeys } from '@robes/media';
 import { toImage } from './asset-urls';
 import { repos } from './db';
 import { createAndEnqueueJob } from './jobs';
-import { mediaDelivery } from './media';
+import { mediaDelivery, mediaStorage } from './media';
 
 type PieceRow = NonNullable<Awaited<ReturnType<typeof repos.wardrobe.get>>>;
 type AssetRow = Awaited<ReturnType<typeof repos.assets.getManyForUser>>[number];
@@ -37,6 +39,10 @@ async function toPiece(
     brand: row.brand,
     notes: row.notes,
     status: row.status,
+    detail: detailOf(
+      (row.itemDna as { structural_dna?: { defining_detail?: unknown } } | null)?.structural_dna
+        ?.defining_detail,
+    ),
     heroPosition: row.heroPosition,
     seasonBand: row.seasonBand,
     seasons: row.seasons,
@@ -88,6 +94,15 @@ export async function loadPiece(userId: UserId, id: string): Promise<Piece> {
 
 // Photos → reading pieces + one analyse job each. Re-sending the same photos returns the
 // pieces already made from them, so a retried batch never duplicates (natural idempotency).
+// Whether her phone sent a lift beside this photo (uploads/…/lift). Storage that cannot say reads
+// as none: the piece keeps its photograph as it is.
+export function liftedWith(userId: UserId, assetId: string): Promise<boolean> {
+  return mediaStorage
+    .head(mediaKeys.lift(userId, assetId))
+    .then((found) => found !== null)
+    .catch(() => false);
+}
+
 export async function createBatch(
   userId: UserId,
   assetIds: string[],
@@ -119,7 +134,11 @@ export async function createBatch(
         userId,
         {
           kind: 'wardrobe_analyse',
-          input: { pieceId: piece.id },
+          // Her phone sent what it lifted out of the photo: the read then asks for the piece to
+          // be cut out of it (as photo-reads does for several pieces).
+          input: (await liftedWith(userId, assetId))
+            ? { pieceId: piece.id, lifted: true }
+            : { pieceId: piece.id },
           quota: { metric: 'analyse.photo', cost: 1 },
         },
         traceparent,

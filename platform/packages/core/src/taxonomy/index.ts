@@ -127,3 +127,15 @@ export function shapeOf(raw: unknown): string[] {
     ? raw.filter((x): x is string => typeof x === 'string' && x.trim() !== '').slice(0, 4)
     : [];
 }
+
+// A piece's defining detail (item_dna.structural_dna.defining_detail): the one feature that makes
+// it itself, "Strong padded shoulder". A short plain phrase, whoever wrote it: Robes reads it from
+// her photograph and she can change it, and either way it rides into the drawing prompts, so it
+// is letters, digits and light punctuation only. Anything else reads as none.
+export const DETAIL_MAX = 60;
+const DETAIL_TEXT = /^[\p{L}\p{N}][\p{L}\p{N} ,&'’-]*$/u;
+export function detailOf(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const text = raw.replace(/\s+/g, ' ').trim().replace(/\.+$/, '');
+  return text && text.length <= DETAIL_MAX && DETAIL_TEXT.test(text) ? text : null;
+}

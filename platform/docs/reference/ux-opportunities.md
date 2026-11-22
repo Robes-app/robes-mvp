@@ -38,7 +38,7 @@ This document covers changes that would make the product drastically better to u
 
 - **Each piece is a separate event.** Photo → "Reading your piece…" → reveal → confirm → save. A batch is a *queue of the same modal*, one analysis at a time (`CL §3-step wardrobe add flow`). Multi-select is "one quiet line in the dropzone" that users may never find (`FTUE 3.3`).
 - **The web can't reach the camera properly.** iOS always puts its source sheet in front of the file input, a platform ceiling (`CL`, commit `c02f850`).
-- **There are no cutouts.** Flat-lay photos with their backgrounds feed every mosaic. Garment extraction from an outfit photo is "deliberately not built". Testers expected it ("the task's key recording", `FTUE` testing task 4; `LookEntity §3 Phase 3`).
+- **There are no cutouts.** (Out of date since 2026-11-21: pieces photographed flat or hung on an iPhone are cut out on the device, `docs/runbooks/piece-cutouts.md`; several pieces have been read from one photograph since 2026-10-15.) Flat-lay photos with their backgrounds feed every mosaic. Garment extraction from an outfit photo is "deliberately not built". Testers expected it ("the task's key recording", `FTUE` testing task 4; `LookEntity §3 Phase 3`).
 - **The text doors arrived late and needed a correction.** Forwarding a receipt and pasting a link only landed on 2026-09-22 (`aefda53`). The receipt read was wrong until a vision pass was added: "a pink tracksuit filed as 'Blue denim jeans'" (`d97b43c`). Migration 23 has not been run on production.
 
 ### 1.5 Onboarding keeps being re-cut

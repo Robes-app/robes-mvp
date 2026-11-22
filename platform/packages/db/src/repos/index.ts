@@ -22,7 +22,7 @@ import { notifierRepo } from './notifier';
 import { overnightRepo } from './overnight';
 import { passedPinsRepo } from './passed-pins';
 import { photoReadRepo } from './photo-reads';
-import { pieceAnalysisRepo } from './piece-analysis';
+import { detailRereadRepo, pieceAnalysisRepo } from './piece-analysis';
 import { planRepo } from './plan';
 import { profilesRepo } from './profiles';
 import { pushDeliveryRepo, pushTokensRepo } from './push-tokens';
@@ -107,6 +107,8 @@ export function createSystemRepositories(db: Db) {
     twinArchives: twinArchivesRepo(db),
     pushDelivery: pushDeliveryRepo(db),
     pieces: pieceAnalysisRepo(db),
+    // The one-off re-read of existing wardrobes for each piece's defining detail.
+    detailReread: detailRereadRepo(db),
     // wardrobe_pieces: her photo, her closet and the crops cut from it.
     photoReads: photoReadRepo(db),
     styleAnalysis: styleAnalysisRepo(db),

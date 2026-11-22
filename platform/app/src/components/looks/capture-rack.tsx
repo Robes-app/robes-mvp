@@ -20,7 +20,7 @@ import { CardRow } from '@/components/wardrobe/piece-card';
 import { type PieceField, PieceFieldSheet } from '@/components/wardrobe/piece-field-sheet';
 import { PieceRow, RecordRows, type RecordTab } from '@/components/wardrobe/piece-rows';
 import type { CaptureRack } from '@/lib/capture-rack';
-import { imageSources } from '@/lib/image';
+import { imageSources, pieceSources } from '@/lib/image';
 import { localPreview } from '@/lib/local-previews';
 import { DashedCard } from './rack-card';
 
@@ -114,7 +114,7 @@ export function CaptureRow({
   const read = capture.found(row);
   const photo = photoSrc(look);
   const hers = capture.suggested(row);
-  const hersImage = hers?.image ? imageSources(hers.image.renditions) : null;
+  const hersImage = pieceSources(hers?.image);
   const [, ...said] = captureEyebrow(row, '').split(' · ').filter(Boolean);
   return (
     <li data-testid={`capture-row-${row.key}`}>
@@ -162,15 +162,7 @@ export function CaptureRow({
           hers ? (
             <div className="flex items-center gap-2.5">
               <span className="h-[35px] w-7 shrink-0 overflow-hidden rounded-[2px] bg-surface-sunk">
-                {hersImage ? (
-                  <Image
-                    src={hersImage.src}
-                    srcSet={hersImage.srcSet}
-                    sizes="28px"
-                    alt=""
-                    aspect="4:5"
-                  />
-                ) : null}
+                {hersImage ? <Image sizes="28px" alt="" aspect="4:5" {...hersImage} /> : null}
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="font-sans text-[10.5px] text-ink-faint">{copy.row.looksLike}</span>

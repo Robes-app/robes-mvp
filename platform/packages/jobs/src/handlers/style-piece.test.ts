@@ -162,7 +162,7 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       expect.objectContaining({
         title: 'Camel coat',
-        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 11 }),
+        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 12 }),
       }),
     );
     const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];

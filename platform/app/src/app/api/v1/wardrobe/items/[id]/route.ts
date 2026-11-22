@@ -1,5 +1,6 @@
 import { ApiError } from '@robes/api';
 import { Deleted, EmptyInput, Piece, PieceParams, UpdatePieceInput } from '@robes/contracts';
+import { detailOf } from '@robes/core/taxonomy';
 import { HeroRackFull, verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
 import { route } from '@/server/route';
@@ -21,7 +22,7 @@ export const PATCH = route({
   rateLimit: { key: 'wardrobe.update', limit: 120, windowSeconds: 60 },
   handler: async ({ user, input, params }) => {
     const userId = verifiedUserId(user.id);
-    const { heroPosition, hero, wearFor, ...fields } = input;
+    const { heroPosition, hero, wearFor, detail, ...fields } = input;
     try {
       const updated = await repos.wardrobe.edit(userId, params.id, fields, {
         position: heroPosition,
@@ -30,6 +31,10 @@ export const PATCH = route({
       if (!updated) throw new ApiError('not_found');
       // What she wears it for lives in the tag namespace, not a column on the piece.
       if (wearFor) await repos.wardrobe.setWearTags(userId, params.id, wearFor);
+      // Her words for its defining detail live beside Robes' read of the piece, marked as hers.
+      if (detail !== undefined) {
+        await repos.wardrobe.setDetail(userId, params.id, detailOf(detail));
+      }
     } catch (err) {
       // The Hero Rack holds ten; nothing was written and the client says so (legacy __waHeroToggle).
       if (err instanceof HeroRackFull) throw new ApiError('conflict');

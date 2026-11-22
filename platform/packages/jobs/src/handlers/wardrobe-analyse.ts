@@ -9,9 +9,11 @@ import { waitForMaster } from '../wait';
 
 export interface WardrobeAnalyseDeps {
   ai: AiProvider;
-  storage: Pick<MediaStorage, 'getObject' | 'head'>;
+  storage: Pick<MediaStorage, 'getObject' | 'head' | 'copyObject'>;
   pieces: SystemRepositories['pieces'];
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
+  // Dev stand-in for the S3 event → RenditionFn on a cut request.
+  onGenerated?: (key: string) => Promise<void>;
   // How long to wait for the upload's renditions before giving up.
   assetWaitMs?: number;
   pollMs?: number;
@@ -19,7 +21,13 @@ export interface WardrobeAnalyseDeps {
 
 // `keep`: a read she asked for again on a piece already hers (Try again, audit F3); a read that
 // finds nothing leaves it "couldn't see a piece" rather than discarding it.
-const Input = z.object({ pieceId: z.uuid(), keep: z.boolean().optional() });
+// `lifted`: her phone sent what it lifted out of the photo with it (the API checks the file is
+// there; this worker cannot read uploads/).
+const Input = z.object({
+  pieceId: z.uuid(),
+  keep: z.boolean().optional(),
+  lifted: z.boolean().optional(),
+});
 
 // Reads a wardrobe photo and files the piece (legacy /api/wardrobe/analyse, now a job). A read
 // that finds no piece, or cannot run, discards the placeholder: nothing failed is ever filed.
@@ -32,7 +40,7 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
     async run(ctx) {
       const input = Input.safeParse(ctx.input);
       if (!input.success) throw new JobError('invalid_input');
-      const { pieceId, keep = false } = input.data;
+      const { pieceId, keep = false, lifted = false } = input.data;
       const giveUp = () =>
         keep
           ? deps.pieces.markFailed(ctx.userId, pieceId)
@@ -106,6 +114,17 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
       }
       const category = result.data.category;
       await deps.pieces.apply(ctx.userId, pieceId, { ...analysed, category });
+      // The photo is the piece's own picture here (no crop is made), so the piece is cut out of
+      // it after the fact: a copy of the master asks the renderer, which has what her phone
+      // lifted. A piece worn on a person keeps its photograph, and a request that cannot be
+      // made costs the read nothing (cutout brief; Annie, 22 Nov: Home and onboarding too).
+      if (lifted && !analysed.worn) {
+        const request = mediaKeys.cutRequest(ctx.userId, piece.imageAssetId);
+        await deps.storage
+          .copyObject(master(piece.imageAssetId), request)
+          .then(() => deps.onGenerated?.(request))
+          .catch(() => {});
+      }
       await ctx.writeStage('text', {
         pieceId,
         label: analysed.label,

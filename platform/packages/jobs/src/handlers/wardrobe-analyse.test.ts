@@ -19,6 +19,8 @@ function setup(
     assetWaitMs?: number;
     // Try again on a piece already hers (audit F3).
     keep?: boolean;
+    // Her phone sent what it lifted out of the photo.
+    lifted?: boolean;
   } = {},
 ) {
   const statuses = [...(opts.assetStatus ?? ['ready'])];
@@ -37,6 +39,7 @@ function setup(
   const ledger = { record: vi.fn(async () => {}) };
   const storage = {
     getObject: vi.fn(async () => new Uint8Array([1, 2, 3])),
+    copyObject: vi.fn(async (_from: string, _to: string) => {}),
     // The master lands before the renditions; by default it isn't there until `ready`.
     head: vi.fn(async () => {
       // The worker has no s3:ListBucket, so S3 answers a missing key with 403, not 404.
@@ -54,11 +57,13 @@ function setup(
         generateImage: vi.fn(),
       }
     : createFakeProvider({ 'wardrobe.analyse': () => ({ ...fakeOutput(), ...opts.output }) });
+  const onGenerated = vi.fn(async (_key: string) => {});
   const handler = createWardrobeAnalyseHandler({
     ai: ai as never,
     storage,
     pieces: pieces as never,
     ledger,
+    onGenerated,
     assetWaitMs: opts.assetWaitMs ?? 50,
     pollMs: 5,
   });
@@ -67,12 +72,16 @@ function setup(
     handler.run({
       jobId: '44444444-4444-4444-8444-444444444444',
       userId: USER,
-      input: { pieceId: PIECE, ...(opts.keep ? { keep: true } : {}) },
+      input: {
+        pieceId: PIECE,
+        ...(opts.keep ? { keep: true } : {}),
+        ...(opts.lifted ? { lifted: true } : {}),
+      },
       signal: new AbortController().signal,
       writeStage,
       isCancelled: async () => false,
     });
-  return { run, pieces, ledger, storage, writeStage };
+  return { run, pieces, ledger, storage, writeStage, onGenerated };
 }
 
 describe('wardrobe_analyse handler', () => {
@@ -108,7 +117,7 @@ describe('wardrobe_analyse handler', () => {
       PIECE,
       expect.objectContaining({
         material: 'polyamide',
-        itemDna: expect.objectContaining({ material_check: true, prompt_version: 5 }),
+        itemDna: expect.objectContaining({ material_check: true, prompt_version: 6 }),
       }),
     );
   });
@@ -218,5 +227,34 @@ describe('wardrobe_analyse handler', () => {
     const { run, pieces } = setup({ aiError: new AiError('cancelled') });
     await expect(run()).rejects.toBeInstanceOf(AiError);
     expect(pieces.discard).not.toHaveBeenCalled();
+  });
+
+  // Cutout brief (Annie, 22 Nov: Home's add and onboarding too). The photo is the piece's own
+  // picture here, so the read asks the renderer to cut the piece out of it.
+  it('asks for the piece to be cut out of its photo when her phone sent what it lifted', async () => {
+    const { run, storage, onGenerated } = setup({ lifted: true });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    const request = `uploads/${USER}/${ASSET}/cut`;
+    expect(storage.copyObject).toHaveBeenCalledWith(`media/${USER}/${ASSET}/master.jpg`, request);
+    expect(onGenerated).toHaveBeenCalledWith(request);
+  });
+
+  it('asks for none without a lift, for a piece worn on a person, or when no piece was found', async () => {
+    for (const opts of [
+      {},
+      { lifted: true, output: { worn: true } },
+      { lifted: true, output: { no_item_detected: true } },
+    ]) {
+      const { run, storage } = setup(opts);
+      await run();
+      expect(storage.copyObject).not.toHaveBeenCalled();
+    }
+  });
+
+  it('a cut request that cannot be made never fails the read', async () => {
+    const { run, storage, pieces } = setup({ lifted: true });
+    storage.copyObject.mockRejectedValueOnce(new Error('storage'));
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(pieces.apply).toHaveBeenCalled();
   });
 });

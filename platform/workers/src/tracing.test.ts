@@ -30,7 +30,11 @@ const call = {
 };
 
 function ledger() {
-  return { record: vi.fn(async () => {}), isExhausted: vi.fn(async () => false) };
+  return {
+    record: vi.fn(async () => {}),
+    featureCost: vi.fn(async () => ({ calls: 0, avgMicros: 0, maxMicros: 0 })),
+    isExhausted: vi.fn(async () => false),
+  };
 }
 
 describe('traced ledger', () => {

@@ -1,3 +1,5 @@
+import { detailOf } from '@robes/core';
+
 // How the image prompts describe a look's garments (testing 19–21 Nov, a tester's looks): which
 // layer goes over which, what to take from a photograph of her wearing a piece, and the shape
 // that makes a piece what it is. Shared by the frame (style-piece) and the redraw (avatar).
@@ -17,6 +19,9 @@ export interface Garment {
   category?: string | null;
   // What defines it, read from her photograph (silhouette_fit): "Strong shoulder", "Longline".
   shape?: readonly string[] | null;
+  // Its one defining detail (wardrobe-analyse v6, or her own words for it): the feature without
+  // which a drawing of it goes flat. Rides the garment line from style-piece v12 and avatar v8.
+  detail?: string | null;
 }
 
 const UNDER = new Set(['Tops', 'Dresses']);
@@ -77,6 +82,9 @@ export function dressGarments(prompt: string, pieces: readonly Garment[]): strin
     let line = (lines[i] as string).replace(FAITHFUL, FROM_PHOTO);
     const shape = shapeWords(p.shape);
     if (shape.length) line = `${line} Its shape: ${shape.join(', ')}.`;
+    const detail = detailOf(p.detail);
+    if (detail)
+      line = `${line} Its defining detail: ${detail}. That is the point of this piece: draw it unmistakably, never softened into a plain version.`;
     lines[i] = line;
   });
   const layers = layersLine(pieces);

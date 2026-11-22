@@ -1,6 +1,14 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
-import type { Asset, CreateUploadInput, CreateUploadOutput, MediaSession } from '@robes/contracts';
+import type {
+  Asset,
+  CreateLiftInput,
+  CreateLiftOutput,
+  CreateUploadInput,
+  CreateUploadOutput,
+  MediaSession,
+} from '@robes/contracts';
+import { LIFT_CONTENT_TYPE } from '@robes/core/cutout';
 import { QuotaExceeded, type Repositories, type UserId } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaDelivery, SessionCookie } from '@robes/media/delivery';
@@ -61,6 +69,24 @@ async function toAsset(deps: UploadDeps, userId: UserId, row: AssetRow): Promise
 
 export async function getAsset(deps: UploadDeps, userId: UserId, assetId: string): Promise<Asset> {
   return toAsset(deps, userId, await loadOwned(deps, userId, assetId));
+}
+
+// What her phone lifted out of a wardrobe photo of hers (cutout brief): one PNG of exactly the
+// size she named, beside the original, where the renderer finds it when the photo's pieces are
+// cut. It is derived from the photo and never shown; it goes when uploads/ expires.
+export async function createLiftUpload(
+  deps: UploadDeps,
+  userId: UserId,
+  assetId: string,
+  input: CreateLiftInput,
+): Promise<CreateLiftOutput> {
+  const row = await loadOwned(deps, userId, assetId);
+  if (row.kind !== 'wardrobe') throw new ApiError('not_found');
+  const upload = await deps.storage.presignPut(mediaKeys.lift(userId, row.id), {
+    contentType: LIFT_CONTENT_TYPE,
+    bytes: input.bytes,
+  });
+  return { upload: { ...upload, expiresAt: upload.expiresAt.toISOString() } };
 }
 
 // Client calls this after its PUT succeeds; idempotent once the asset has left `pending`.

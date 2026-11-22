@@ -104,7 +104,10 @@ Key layout (single private bucket):
 uploads/{userId}/{assetId}/original          user photo as uploaded (≤ 20 MB, presigned PUT, content-type + length enforced by policy)
 media/{userId}/{assetId}/master.jpg          2048px master (EXIF stripped, orientation applied, HEIC→JPEG)
 media/{userId}/{assetId}/{w}.{avif|webp}     renditions w ∈ {320, 640, 1080, 1600}
-media/{userId}/{assetId}/cutout.png|webp     background-removed (wardrobe pieces)
+media/{userId}/{assetId}/cutout.webp         the piece cut out of her photo, see-through (assets.has_cutout)
+media/{userId}/{assetId}/cutout.jpg          the same on white: what a drawn look is shown
+uploads/{userId}/{assetId}/lift              what her iPhone lifted out of the photo (PNG; presigned PUT, expires with uploads/)
+uploads/{userId}/{assetId}/cut               a cut request: the master copied here by the single-photo read, answered by RenditionFn
 generated/{userId}/{jobId}/{idx}.png         raw model output (lifecycle: delete after 7 d)
 shared/{shareToken}/...                      copies/links for public share snapshots (public-by-token, long cache)
 catalog/...                                  shared assets (avatar cells, brand)
@@ -117,7 +120,7 @@ Delivery:
 - Share snapshots (as built, M6): the snapshot stores asset ids + rendition manifests, and the public share endpoint signs each image with a 2-hour, hour-aligned URL (`MediaDelivery.shareUrl`). No copies under `shared/`, so the API user needs no media read or `shared/` write grants; revoking stops the link at once and outstanding image URLs lapse within 2 h. `shared/*` stays reserved for a future copy-on-share if unsigned, long-cached public images are ever needed.
 - Loader: `packages/media` builds URLs `https://media.<domain>/media/{userId}/{assetId}/{w}.avif` with `srcset`; both `next/image` custom loader and `expo-image` source builder use it.
 
-Cutouts: `render` job step calls BiRefNet on fal (then self-host on serverless GPU when volume justifies; Photoroom API as quality fallback) — cost-research §3.
+Cutouts (as built 2026-11-21, `docs/runbooks/piece-cutouts.md`; supersedes the BiRefNet-on-fal plan, whose licence question is open in `docs/piece-cutout-brief.md` §5 at the repo root): her iPhone lifts the photo's pieces on the device (Apple Vision foreground instance masks, iOS 17+, `mobile/modules/robes-lift`) and uploads the lift beside the photo; the read's boxes decide which lifted item is which piece (`@robes/core/cutout`), and RenditionFn cuts each piece as it renders the crop (`@robes/media` `cutout.ts`). A piece worn on a person, a photo from the web, or a cutout that fails a check keeps the rectangle. No vendor is called. A server route for worn pieces and the web joins as a new `CutoutRoute` with its own ledger family; the reserved `cutout` job kind is where a paid call would run.
 
 Lifecycle rules: `generated/` expire 7 d; `uploads/` expire 30 d; noncurrent versions 30 d; incomplete multipart 1 d; Intelligent-Tiering on `media/` after 30 d.
 

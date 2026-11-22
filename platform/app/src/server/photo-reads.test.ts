@@ -26,9 +26,14 @@ const repos = {
   },
 };
 const startJob = vi.fn(async () => ({ jobId: 'job', status: 'queued' }));
+// Whether her phone sent a lift beside the photo (liftedWith in ./wardrobe).
+const liftedWith = vi.fn(async (_userId: string, _assetId: string) => false);
 vi.mock('./db', () => ({ repos }));
 vi.mock('./jobs', () => ({ startJob }));
-vi.mock('./wardrobe', () => ({ toPieces: vi.fn(async (_u: unknown, rows: unknown[]) => rows) }));
+vi.mock('./wardrobe', () => ({
+  toPieces: vi.fn(async (_u: unknown, rows: unknown[]) => rows),
+  liftedWith,
+}));
 vi.mock('./wishlist', () => ({ toWishes: vi.fn(async (_u: unknown, rows: unknown[]) => rows) }));
 vi.mock('./looks-entity', () => ({
   suggestedName: vi.fn(async () => 'Suggested'),
@@ -107,6 +112,31 @@ describe('photo reads', () => {
       input: { assetId: PHOTO },
       quota: { metric: 'analyse.photo', cost: 1 },
     });
+  });
+
+  it('asks for cutouts only when her phone sent what it lifted with a wardrobe photo', async () => {
+    const req = new Request('http://x');
+    repos.assets.getForUser.mockResolvedValue({ kind: 'wardrobe', status: 'pending' });
+    liftedWith.mockResolvedValueOnce(true);
+    await startPhotoRead(USER, req, PHOTO);
+    expect(liftedWith).toHaveBeenLastCalledWith(USER, PHOTO);
+    expect(startJob).toHaveBeenLastCalledWith(
+      USER,
+      req,
+      expect.objectContaining({ input: { assetId: PHOTO, lifted: true } }),
+    );
+    await startPhotoRead(USER, req, PHOTO);
+    expect(startJob).toHaveBeenLastCalledWith(
+      USER,
+      req,
+      expect.objectContaining({ input: { assetId: PHOTO } }),
+    );
+    // A look's photograph is her, worn: never lifted, never asked.
+    liftedWith.mockClear();
+    repos.assets.getForUser.mockResolvedValue({ kind: 'look_photo', status: 'ready' });
+    await startPhotoRead(USER, req, PHOTO);
+    expect(liftedWith).not.toHaveBeenCalled();
+    repos.assets.getForUser.mockReset();
   });
 
   it('waits while the photo-reading model is out of capacity', async () => {

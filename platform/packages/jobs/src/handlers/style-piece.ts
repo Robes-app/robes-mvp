@@ -35,9 +35,9 @@ import {
   noteShort,
 } from '@robes/core/looks';
 import type { SuggestedSpec, SystemRepositories, UserId } from '@robes/db';
-import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
+import { pieceReference } from '../piece-photo';
 import { JobError, type JobHandler } from '../runtime';
 import type { DayForecastFor, DestinationWeatherFor } from '../weather';
 import { drawSuggestedFrame, type FrameRackPiece, modelReference } from './look-frame';
@@ -357,7 +357,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
   async function piecePhoto(userId: UserId, imageAssetId: string | null | undefined) {
     if (!imageAssetId) return null;
     try {
-      return await deps.storage.getObject(mediaKeys.master(userId, imageAssetId));
+      return await pieceReference(deps.storage, userId, imageAssetId);
     } catch {
       return null;
     }
@@ -451,7 +451,12 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
 
   const rackOf = (
     pieces: StoredPiece[],
-    closet: { id: string; imageAssetId?: string | null; shape?: readonly string[] | null }[],
+    closet: {
+      id: string;
+      imageAssetId?: string | null;
+      shape?: readonly string[] | null;
+      detail?: string | null;
+    }[],
   ): FrameRackPiece[] =>
     pieces.map((p) => {
       const hers = p.pieceId ? closet.find((c) => c.id === p.pieceId) : undefined;
@@ -462,6 +467,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         brand: p.brand,
         imageAssetId: hers?.imageAssetId ?? null,
         shape: hers?.shape ?? [],
+        detail: hers?.detail ?? null,
       };
     });
 

@@ -10,7 +10,7 @@ import { type FormEvent, useState } from 'react';
 import { anchorItem, anchorPending, itemsLanding, weatherLine } from '@/lib/daily';
 import { errorCopy } from '@/lib/error-copy';
 import { useFrameRender } from '@/lib/frame-render';
-import { imageSources } from '@/lib/image';
+import { imageSources, pieceSources } from '@/lib/image';
 
 const copy = today.daily;
 
@@ -54,7 +54,7 @@ function ItemRow({
   busy: boolean;
   onShow: () => void;
 }) {
-  const own = item.piece ? imageSources(item.piece.image?.renditions ?? []) : null;
+  const own = pieceSources(item.piece?.image);
   return (
     <li className="flex gap-4 border-b border-hairline py-4">
       {!item.piece && !isAnchor ? (
@@ -66,10 +66,10 @@ function ItemRow({
         <div className="w-20 shrink-0">
           {own ? (
             <Image
-              {...own}
               sizes="80px"
               alt={item.piece.label}
               blurhash={item.piece.image?.blurhash ?? null}
+              {...own}
             />
           ) : (
             <div aria-hidden className="aspect-[4/5] rounded-crisp bg-surface-sunk" />

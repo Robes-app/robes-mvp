@@ -27,6 +27,7 @@ export function piece(overrides: Partial<Piece> = {}): Piece {
     brand: null,
     notes: null,
     status: 'ready',
+    detail: null,
     heroPosition: null,
     seasonBand: 'autumn_winter',
     seasons: ['autumn', 'winter'],

@@ -14,7 +14,7 @@ import {
 import { useRef, useState } from 'react';
 import { FlatList, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { DetentSheet } from '@/components/DetentSheet';
-import { renditionUri } from '@/lib/images';
+import { pieceSource, renditionUri } from '@/lib/images';
 
 const GAP = 12;
 
@@ -196,7 +196,7 @@ export function IdeaView({
     { params: { id: idea.anchor.type === 'piece' ? idea.anchor.pieceId : '' } },
     { enabled: idea.anchor.type === 'piece' },
   );
-  const thumb = renditionUri(anchor.data?.image, 46);
+  const { uri: thumb, fit } = pieceSource(anchor.data?.image, 46);
   const go = (i: number) => {
     setCurrent(i);
     pager.current?.scrollToOffset({ offset: i * (card + GAP), animated: true });
@@ -211,7 +211,7 @@ export function IdeaView({
             style={{ width: 46 }}
             className="overflow-hidden rounded-tile border border-hairline"
           >
-            <Image source={thumb} alt="" blurhash={anchor.data?.image?.blurhash} />
+            <Image source={thumb} alt="" blurhash={anchor.data?.image?.blurhash} {...fit} />
           </View>
         ) : null}
         <View className="flex-1 gap-1.5">

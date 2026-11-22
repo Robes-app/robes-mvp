@@ -8,7 +8,7 @@ import { Icon, type IconName } from '@robes/icons/web';
 import { type Aspect, Image } from '@robes/ui';
 import Link from 'next/link';
 import { localToday } from '@/lib/dates';
-import { imageSources } from '@/lib/image';
+import { pieceSources } from '@/lib/image';
 import { LookTile } from './look-tile';
 import { Scanning, scanningLine } from './scan-line';
 
@@ -159,7 +159,7 @@ function SuggestedMark({ look }: { look: Look }) {
     );
   }
   const name = anchorName(anchor.label, anchor.brand);
-  const mark = anchor.image ? imageSources(anchor.image.renditions) : null;
+  const mark = pieceSources(anchor.image);
   return (
     <Link
       href={`/piece/${anchor.id}`}
@@ -168,7 +168,7 @@ function SuggestedMark({ look }: { look: Look }) {
       className={`${frame} ${focus}`}
     >
       {mark ? (
-        <Image src={mark.src} srcSet={mark.srcSet} sizes="36px" alt="" aspect="4:5" />
+        <Image sizes="36px" alt="" aspect="4:5" {...mark} />
       ) : (
         <span className="font-display text-lg text-ink">{name.charAt(0).toLocaleUpperCase()}</span>
       )}

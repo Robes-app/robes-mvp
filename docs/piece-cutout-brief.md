@@ -1,6 +1,6 @@
 # Piece cutouts: lifting each piece cleanly out of her photo (product and engineering brief)
 
-**Date**: 2026-11-21 · **Branch**: `beta` · **Status**: step 1 (research) done; step 2 (try-out) not started; nothing built
+**Date**: 2026-11-21 · **Branch**: `beta` · **Status**: step 1 (research) done; step 2 (try-out) not started; **the iPhone on-device route and the defining detail (step 4) are built on the platform, 2026-11-21** (`platform/docs/runbooks/piece-cutouts.md`, `platform/docs/STATUS.md`); the native path is untested on a device; worn pieces, web and any server vendor are not built
 **For**: Annie. Plain language first; file references are in brackets or in "Where in the code" at the end.
 **Sources**: the research report, [Garment cutout model options](../reports/Garment%20cutout%20model%20options.md) (this brief links to it and does not repeat it); the code notes, [current pipeline in the repo](../research_notes/Garment%20cutout%20model%20options/current_pipeline_in_repo.md); PR #242.
 

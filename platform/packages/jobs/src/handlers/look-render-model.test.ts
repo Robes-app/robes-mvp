@@ -97,7 +97,8 @@ describe('look_render on her model', () => {
     const { run, model, storage, generateImage } = setup();
     await expect(run()).resolves.toEqual({ status: 'succeeded' });
     expect(storage.getObject).toHaveBeenNthCalledWith(1, 'catalog/avatar/w-s3-h1-nt@v2.png');
-    expect(storage.getObject).toHaveBeenNthCalledWith(2, `media/${USER}/${ASSET}/master.jpg`);
+    // Her piece cut out of its photograph, where one is stored (else the rectangle: piece-photo).
+    expect(storage.getObject).toHaveBeenNthCalledWith(2, `media/${USER}/${ASSET}/cutout.jpg`);
     const req = generateImage.mock.calls[0]?.[0];
     expect(req?.references?.map((r) => r.mimeType)).toEqual(['image/png', 'image/jpeg']);
     expect(req?.prompt).toContain('- IMAGE 2: the Camel coat');

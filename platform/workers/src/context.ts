@@ -20,6 +20,7 @@ import {
   createSqsTransport,
   createTripWeather,
   createWeather,
+  type DetailRereadDeps,
   fetchLink,
   fetchPhoto,
   type JobLogger,
@@ -54,6 +55,8 @@ export interface WorkerContext {
   notify(): Promise<NotifyDeps>;
   // The overnight Today look (batchFn): selection, Batch API, and the interactive fallback.
   overnight(): Promise<OvernightDeps>;
+  // The one-off re-read of existing wardrobes for a defining detail (the `detail:reread` CLI).
+  detailReread(): DetailRereadDeps;
   // Everything inboundFn needs to turn a forwarded receipt into a held Inbox row.
   inbound(): Promise<ReceiptDeps>;
   // Asks the isolated fetcher for a product photo; unset where the fetch queue or bucket isn't.
@@ -186,7 +189,13 @@ async function createWorkerContext(): Promise<WorkerContext> {
     storage && ai
       ? {
           linkImport,
-          wardrobeAnalyse: { ai, storage, pieces: system.pieces, ledger },
+          wardrobeAnalyse: {
+            ai,
+            storage,
+            pieces: system.pieces,
+            ledger,
+            ...(onGenerated ? { onGenerated } : {}),
+          },
           // Crops land as uploads, so the S3 event renders them.
           wardrobePieces: {
             ai,
@@ -325,6 +334,10 @@ async function createWorkerContext(): Promise<WorkerContext> {
         renderAnchor: createAnchorRenderer({ repos: createRepositories(db), transport, logger }),
         logger,
       };
+    },
+    detailReread() {
+      if (!storage || !ai) throw new Error('the detail re-read needs the media bucket and AI');
+      return { ai, storage, pieces: system.detailReread, ledger, logger };
     },
     async inbound() {
       if (!storage || !ai) throw new Error('inbound needs MEDIA_BUCKET');

@@ -17,7 +17,7 @@ import { z } from 'zod';
 import { repos } from './db';
 import { startJob } from './jobs';
 import { suggestedName, toLook, withOwnedPieces } from './looks-entity';
-import { toPieces } from './wardrobe';
+import { liftedWith, toPieces } from './wardrobe';
 import { toWishes } from './wishlist';
 
 const READABLE_KINDS = new Set(['wardrobe', 'look_photo']);
@@ -45,9 +45,13 @@ export async function startPhotoRead(
   if (!asset || !READABLE_KINDS.has(asset.kind) || asset.status === 'failed') {
     throw new ApiError('not_found');
   }
+  // Her phone sent what it lifted out of the photo (cutout brief): the read then asks for each
+  // piece to be cut out. Checked here because the worker cannot read uploads/; an unreadable
+  // answer is no lift, and every piece keeps its rectangle.
+  const lifted = asset.kind === 'wardrobe' && (await liftedWith(userId, assetId));
   return startJob(userId, req, {
     kind: 'wardrobe_pieces',
-    input: { assetId },
+    input: lifted ? { assetId, lifted: true } : { assetId },
     quota: { metric: 'analyse.photo', cost: 1 },
   });
 }

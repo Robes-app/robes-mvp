@@ -8,13 +8,15 @@
     "maintenance": "tsx --env-file-if-exists=../app/.env.local src/cli/maintenance.ts",
     "notify": "tsx --env-file-if-exists=../app/.env.local src/cli/notify.ts",
     "batch:tick": "tsx --env-file-if-exists=../app/.env.local src/cli/batch-tick.ts",
-    "receipt:ingest": "tsx --env-file-if-exists=../app/.env.local src/cli/receipt-ingest.ts"
+    "receipt:ingest": "tsx --env-file-if-exists=../app/.env.local src/cli/receipt-ingest.ts",
+    "detail:reread": "tsx --env-file-if-exists=../app/.env.local src/cli/detail-reread.ts"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "3.1138.0",
     "@aws-sdk/client-sqs": "3.1138.0",
     "@robes/analytics": "workspace:*",
     "@robes/config": "workspace:*",
+    "@robes/core": "workspace:*",
     "@robes/db": "workspace:*",
     "@robes/jobs": "workspace:*",
     "@robes/logger": "workspace:*",

@@ -19,7 +19,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
-import { renditionUri } from '@/lib/images';
+import { cutoutUri, renditionUri } from '@/lib/images';
 import { DeletePieceDialog } from './DeletePieceDialog';
 import { type FieldInput, type PieceField, PieceFieldSheet } from './PieceFieldSheet';
 import { PieceHeader } from './PieceHeader';
@@ -121,7 +121,8 @@ export function WishDetail({ id }: { id: string }) {
     );
   }
   const wish = query.data;
-  const uri = renditionUri(wish.image, 400);
+  const cutout = cutoutUri(wish.image);
+  const uri = cutout ?? renditionUri(wish.image, 400);
   const values = wishValues(wish);
   return (
     <View className="flex-1" testID="wish-detail">
@@ -132,7 +133,7 @@ export function WishDetail({ id }: { id: string }) {
             <Image
               source={uri}
               alt={copy.photoAlt(wish.label)}
-              blurhash={wish.image?.blurhash}
+              blurhash={cutout ? null : wish.image?.blurhash}
               contentFit="contain"
             />
           ) : (

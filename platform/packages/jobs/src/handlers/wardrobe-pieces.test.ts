@@ -8,6 +8,7 @@ import { createWardrobePiecesHandler } from './wardrobe-pieces';
 const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const ASSET = '33333333-3333-4333-8333-333333333333';
 const SHOES = '55555555-5555-4555-8555-555555555555';
+const JOB = '44444444-4444-4444-8444-444444444444';
 
 function setup(
   opts: {
@@ -46,7 +47,7 @@ function setup(
           ]
         : [],
     ),
-    createCrop: vi.fn(async () => {
+    createCrop: vi.fn(async (..._args: unknown[]) => {
       crops += 1;
       return `7777777${crops}-7777-4777-8777-777777777777`;
     }),
@@ -56,7 +57,7 @@ function setup(
     getObject: vi.fn(async () => new Uint8Array([1, 2, 3])),
     copyObject: vi.fn(async () => {}),
     // The master lands before the renditions; by default it isn't there until `ready`.
-    head: vi.fn(async () => {
+    head: vi.fn(async (_key: string) => {
       // The worker has no s3:ListBucket, so S3 answers a missing key with 403, not 404.
       if (opts.master === 'forbidden')
         throw Object.assign(new Error('Forbidden'), { $metadata: { httpStatusCode: 403 } });
@@ -90,7 +91,7 @@ function setup(
   const writeStage = vi.fn(async (_stage: string, _out: Record<string, unknown>) => {});
   const run = (input: Record<string, unknown> = { assetId: ASSET }) =>
     handler.run({
-      jobId: '44444444-4444-4444-8444-444444444444',
+      jobId: JOB,
       userId: USER,
       input,
       signal: new AbortController().signal,
@@ -133,6 +134,30 @@ describe('wardrobe_pieces handler', () => {
     expect(out.readPieces[2]?.match).toEqual({ pieceId: SHOES, confidence: 0.8 });
     expect(out.readPieces[0]?.match).toBeNull();
     expect(out.readPieces[0]?.itemDna).toBeDefined();
+  });
+
+  it('asks for a cutout of every piece not worn, when her phone sent what it lifted', async () => {
+    const out = fakeOutput();
+    const [, leggings] = out.pieces;
+    if (!leggings) throw new Error('fixture');
+    leggings.worn = true;
+    const { run, reads } = setup({ output: out });
+    await expect(run({ assetId: ASSET, lifted: true })).resolves.toEqual({ status: 'succeeded' });
+    const tee = { x: 0.3, y: 0.15, w: 0.4, h: 0.25 };
+    const shoes = { x: 0.35, y: 0.85, w: 0.3, h: 0.12 };
+    const plan = { route: 'on-device', boxes: [tee, shoes], jobId: JOB };
+    expect(reads.createCrop.mock.calls).toEqual([
+      [USER, ASSET, tee, { ...plan, index: 0 }],
+      // Worn: its rectangle, and no part in the others' cutouts.
+      [USER, ASSET, { x: 0.35, y: 0.42, w: 0.3, h: 0.38 }],
+      [USER, ASSET, shoes, { ...plan, index: 1 }],
+    ]);
+  });
+
+  it('asks for none without a lift: the web, an older phone', async () => {
+    const { run, reads } = setup();
+    await run();
+    for (const call of reads.createCrop.mock.calls) expect(call).toHaveLength(3);
   });
 
   it('waits for the photo’s renditions, then fails cleanly on an unreadable one', async () => {

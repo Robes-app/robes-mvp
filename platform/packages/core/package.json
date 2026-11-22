@@ -23,6 +23,7 @@
     "./looks": "./src/looks/index.ts",
     "./filters": "./src/filters/index.ts",
     "./photo-pieces": "./src/photo-pieces/index.ts",
+    "./cutout": "./src/cutout/index.ts",
     "./add-flow": "./src/add-flow/index.ts",
     "./inbox": "./src/inbox/index.ts",
     "./home": "./src/home/index.ts",

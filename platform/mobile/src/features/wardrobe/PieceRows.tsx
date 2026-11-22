@@ -158,6 +158,8 @@ export type RecordValues = PieceValues & {
   colourCheck?: boolean;
   materialCheck?: boolean;
   brandCheck?: boolean;
+  // An owned piece's defining detail; absent where the record has none to show (a wish, Review).
+  detail?: string | null;
 };
 
 // The page's tabs (PRD rev 3 §7.3): which of the record's rows show.
@@ -301,6 +303,15 @@ export function RecordRows({
           onPress={open('category')}
         />
         {brandRow}
+        {/* Web twin: the Detail row in components/wardrobe/piece-rows.tsx. */}
+        {values.detail !== undefined && !wish ? (
+          <PieceRow
+            label={copy.rows.detail}
+            value={v(values.detail)}
+            onPress={open('detail')}
+            edit
+          />
+        ) : null}
         {sizeRow}
         {priceRow}
         {notesRow}

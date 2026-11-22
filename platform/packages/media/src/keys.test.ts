@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mediaKeys, parseOriginalKey } from './keys';
+import { mediaKeys, parseCutKey, parseOriginalKey } from './keys';
 import { renditionKeys } from './manifest';
 
 const USER = '11111111-1111-4111-8111-111111111111';
@@ -10,7 +10,9 @@ describe('media key layout (infrastructure.md §5)', () => {
     expect(mediaKeys.original(USER, ASSET)).toBe(`uploads/${USER}/${ASSET}/original`);
     expect(mediaKeys.master(USER, ASSET)).toBe(`media/${USER}/${ASSET}/master.jpg`);
     expect(mediaKeys.rendition(USER, ASSET, 640, 'avif')).toBe(`media/${USER}/${ASSET}/640.avif`);
-    expect(mediaKeys.cutout(USER, ASSET, 'png')).toBe(`media/${USER}/${ASSET}/cutout.png`);
+    expect(mediaKeys.lift(USER, ASSET)).toBe(`uploads/${USER}/${ASSET}/lift`);
+    expect(mediaKeys.cutout(USER, ASSET)).toBe(`media/${USER}/${ASSET}/cutout.webp`);
+    expect(mediaKeys.cutoutReference(USER, ASSET)).toBe(`media/${USER}/${ASSET}/cutout.jpg`);
     expect(mediaKeys.generated(USER, ASSET, 2)).toBe(`generated/${USER}/${ASSET}/2.png`);
     expect(mediaKeys.userMediaPrefix(USER)).toBe(`media/${USER}/`);
     expect(mediaKeys.assetMediaPrefix(USER, ASSET)).toBe(`media/${USER}/${ASSET}/`);
@@ -32,6 +34,16 @@ describe('media key layout (infrastructure.md §5)', () => {
     expect(parseOriginalKey(mediaKeys.master(USER, ASSET))).toBeNull();
     expect(parseOriginalKey(`generated/${USER}/${ASSET}/0.png`)).toBeNull();
     expect(parseOriginalKey(`uploads/${USER}/${ASSET}/original/x`)).toBeNull();
+    expect(parseOriginalKey(mediaKeys.lift(USER, ASSET))).toBeNull();
+    expect(parseOriginalKey(mediaKeys.cutRequest(USER, ASSET))).toBeNull();
+    // A cut request is its own kind of key.
+    expect(mediaKeys.cutRequest(USER, ASSET)).toBe(`uploads/${USER}/${ASSET}/cut`);
+    expect(parseCutKey(mediaKeys.cutRequest(USER, ASSET))).toEqual({
+      userId: USER,
+      assetId: ASSET,
+    });
+    expect(parseCutKey(mediaKeys.original(USER, ASSET))).toBeNull();
+    expect(parseCutKey(`uploads/${USER}/${ASSET}/cut/x`)).toBeNull();
   });
 
   it('derives rendition keys from a manifest', () => {

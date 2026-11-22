@@ -24,11 +24,12 @@ import {
   twinInputsOf,
   twinSpec,
 } from '@robes/core/avatar';
-import { categoryFromWords, shapeOf } from '@robes/core/taxonomy';
+import { categoryFromWords, detailOf, shapeOf } from '@robes/core/taxonomy';
 import type { StoredFrame, SystemRepositories } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
+import { pieceReference } from '../piece-photo';
 import { JobError, type JobHandler } from '../runtime';
 import { drawSuggestedFrame, type FrameRackPiece, frameAnchor, modelReference } from './look-frame';
 import { frameSetting, StoredSet } from './style-piece';
@@ -132,7 +133,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
     if (anchor.type === 'piece' && !fallback) {
       const piece = await deps.styling.anchorPiece(userId, anchor.pieceId);
       if (piece?.imageAssetId) {
-        photo = await deps.storage.getObject(mediaKeys.master(userId, piece.imageAssetId));
+        photo = await pieceReference(deps.storage, userId, piece.imageAssetId);
       }
     }
     const { styleIcons } = await deps.styling.context(userId);
@@ -257,7 +258,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         p.imageAssetId &&
         p.assetStatus === 'ready'
       ) {
-        photo = await deps.storage.getObject(mediaKeys.master(ctx.userId, p.imageAssetId));
+        photo = await pieceReference(deps.storage, ctx.userId, p.imageAssetId);
       }
       if (photo) references.push({ mimeType: 'image/jpeg', data: photo });
       pieces.push({
@@ -269,6 +270,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         // How it is worn rides the garment line: a tuck renders as a tuck (legacy 2026-10-01).
         styled: lookStyling[p.id] ?? null,
         shape: shapeOf(p.shape),
+        detail: detailOf(p.detail),
       });
     }
     if (pieces.length === 0) {
@@ -347,6 +349,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         imageAssetId: p.assetStatus === 'ready' ? p.imageAssetId : null,
         styled: styling[p.id] ?? null,
         shape: shapeOf(p.shape),
+        detail: detailOf(p.detail),
       })),
       ...proposals.map((p) => ({
         name: p.name,
@@ -412,9 +415,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       for (const p of rack) {
         let photo: Uint8Array | null = null;
         if (p.imageAssetId && references.length <= MAX_PIECE_REFERENCES) {
-          photo = await deps.storage
-            .getObject(mediaKeys.master(ctx.userId, p.imageAssetId))
-            .catch(() => null);
+          photo = await pieceReference(deps.storage, ctx.userId, p.imageAssetId).catch(() => null);
         }
         if (photo) references.push({ mimeType: 'image/jpeg', data: photo });
         pieces.push({ ...p, hasImage: Boolean(photo) });
@@ -469,9 +470,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           ? await deps.styling.anchorPiece(ctx.userId, set.data.anchor.pieceId)
           : undefined;
       const piecePhoto = anchor?.imageAssetId
-        ? await deps.storage
-            .getObject(mediaKeys.master(ctx.userId, anchor.imageAssetId))
-            .catch(() => null)
+        ? await pieceReference(deps.storage, ctx.userId, anchor.imageAssetId).catch(() => null)
         : null;
       const wearer: 'woman' | 'man' = set?.success
         ? set.data.wearer
