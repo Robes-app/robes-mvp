@@ -33,6 +33,13 @@ Renamed from `claude/beta-deployment-setup-wdvxb6` (2026-07-12); this is the bra
 - **All four result pages hide their siblings on render** (`_rbHideResultPages(except)`) — they're equal-z-index (40) fixed overlays, so DOM order (not open order) decides stacking; without the mutual hide a stale later-appended page paints over the one just opened.
 - **Rollback caveat**: weekly plans sync to `lookbook_items` as `type: 'weekly-plan'`. The `signup-flow` build can't render that type — after pointing Railway back, any weekly rows saved during the test show as "Key piece"-labelled cards that dead-end on tap (harmless; delete the rows or redeploy this branch to fix).
 
+### 2026-11-23 (second pass) — The tester's guide is byrobes.com/trial (Annie)
+The "Robes Trial Guide" handoff renames the beta a **private trial**; copy only, layout, anchors and behaviour unchanged. **Supersedes the route in the entry below.**
+- **Route**: `public/beta.html` → `public/trial.html` (served at `/trial`), images `images/beta/` → `images/trial/`. `/beta`, `/beta/` and `/beta.html` 301 to `/trial` in `server.js` (query string carried; the browser keeps the `#section`, so `/beta#try-4` lands on `/trial#try-4`). Canonical and `og:url` are `/trial`. Still `noindex`, still out of the sitemap.
+- **Copy**: "Private trial · Christmas 2026" (was "Private beta · Winter 2026"), "Join the trial on TestFlight", step 2 "Join the trial", the title and descriptions; feedback email subject "Robes private trial feedback"; This week: "The Christmas trial for our first users is live." The screen-recording tip and its Apple Support link are gone (and the `.desk-only` rule with them).
+- Kept from the first pass: the TestFlight build's icon, the full-resolution models, "iOS 16.4 or later".
+- Verified with Playwright at 390 and 1440 (the same checks as below), plus every `/beta` form redirecting and `/beta#try-4` landing on the card.
+
 ### 2026-11-23 — byrobes.com/beta: the tester's guide (Annie)
 One static page that takes an invited tester from a WhatsApp link to Robes installed on TestFlight, then six things to try and how to send feedback. Built from the "Robes Beta Guide" engineering handoff (Felix); the handoff is the source of truth for copy and layout.
 - **Files (`main` only)**: `public/beta.html` (served at `/beta` by `express.static`'s `extensions: ['html']`; no route added), images exported from the handoff's data URIs to `public/images/beta/`. Fonts are the self-hosted `public/fonts/` files, not Google Fonts. It doesn't use `site.css`: the page carries the Felix tokens inline, and its header and footer are its own, so it's not one of the "change all four together" pages.
