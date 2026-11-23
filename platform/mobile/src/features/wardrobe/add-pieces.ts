@@ -3,6 +3,7 @@ import type { UploadContentType, UploadKind } from '@robes/contracts';
 import { File, UploadType } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import type * as ImagePicker from 'expo-image-picker';
+import { discardLift, LIFT_PATIENCE_MS, type Lift, liftPhoto, within } from '@/lib/lift';
 
 export interface PickedPhoto {
   uri: string;
@@ -73,16 +74,21 @@ async function renderableFile(
 }
 
 // Photo → presigned PUT straight to storage (never through the API, SEC-20) → complete.
+// `lift`: a wardrobe photo about to be read for its pieces is also lifted on the phone (iPhone,
+// iOS 17+), and what was lifted goes up beside it so each piece can be cut out (cutout brief).
 export async function uploadPhoto(
   api: ApiClient,
   photo: PickedPhoto,
   kind: UploadKind = 'wardrobe',
+  opts: { lift?: boolean } = {},
 ): Promise<string> {
   // The presigned PUT signs the byte count, so it must be the file's own: the picker re-encodes
   // (PICKER_OPTIONS), and its `fileSize` can be the original's, which storage then refuses. Read
   // from the file and sent natively: fetch(file://).blob() reports 0 bytes in a release build, so
   // every TestFlight upload failed before it started (7 Nov).
   const { file, contentType } = await renderableFile(photo);
+  // Lifted from the very file that is uploaded, while it uploads.
+  const lifting = opts.lift && kind === 'wardrobe' ? liftPhoto(file.uri) : null;
   const { assetId, upload } = await api.call('uploads.create', {
     input: { kind, contentType, bytes: file.size },
   });
@@ -93,7 +99,38 @@ export async function uploadPhoto(
   });
   if (put.status < 200 || put.status >= 300) throw new Error(`upload failed: ${put.status}`);
   await api.call('uploads.complete', { params: { id: assetId } });
+  if (lifting) await uploadLift(api, assetId, lifting);
   return assetId;
+}
+
+// What the phone lifted, beside the photo it came from. It waits a moment for a lift still being
+// made and then goes without it; whatever fails here, the photo is in and is read as before.
+async function uploadLift(
+  api: ApiClient,
+  assetId: string,
+  lifting: Promise<Lift | null>,
+): Promise<void> {
+  const lift = await within(lifting, LIFT_PATIENCE_MS);
+  if (!lift) {
+    // Too slow this time: clear the file when it does land.
+    void lifting.then((late) => late && discardLift(late));
+    return;
+  }
+  try {
+    const { upload } = await api.call('uploads.lift', {
+      params: { id: assetId },
+      input: { bytes: lift.file.size },
+    });
+    await lift.file.upload(upload.url, {
+      httpMethod: upload.method,
+      headers: upload.headers,
+      uploadType: UploadType.BINARY_CONTENT,
+    });
+  } catch {
+    // No lift on the server: every piece keeps its rectangle.
+  } finally {
+    discardLift(lift);
+  }
 }
 
 // The ways a single photo is taken by a screen that picks its own (the first piece, a look photo).

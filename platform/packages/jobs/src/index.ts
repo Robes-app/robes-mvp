@@ -1,5 +1,12 @@
 export { createJobAi, createJobBatch } from './ai';
 export { type DeletionDeps, processAccountDeletions } from './deletion';
+export {
+  type DetailEstimate,
+  type DetailRereadDeps,
+  type DetailRereadResult,
+  estimateDetailReread,
+  runDetailReread,
+} from './detail-reread';
 export { type ExportDeps, processDataExports } from './export';
 export { createHandlers, type HandlerDeps } from './handlers';
 export { createFakeHandler } from './handlers/fake';

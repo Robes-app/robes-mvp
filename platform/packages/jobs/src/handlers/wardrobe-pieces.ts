@@ -25,7 +25,9 @@ export interface WardrobePiecesDeps {
   pollMs?: number;
 }
 
-const Input = z.object({ assetId: z.uuid() });
+// `lifted`: her phone sent what it lifted out of the photo with it (the API checks the file is
+// there; this worker cannot read uploads/).
+const Input = z.object({ assetId: z.uuid(), lifted: z.boolean().optional() });
 
 // What the job writes on its row: the read, each piece with the crop asset cut for it. The
 // filing routes read it back server-side (itemDna and printed values included).
@@ -42,7 +44,7 @@ export function createWardrobePiecesHandler(deps: WardrobePiecesDeps): JobHandle
     async run(ctx) {
       const input = Input.safeParse(ctx.input);
       if (!input.success) throw new JobError('invalid_input');
-      const { assetId } = input.data;
+      const { assetId, lifted } = input.data;
 
       const masterKey = mediaKeys.master(ctx.userId, assetId);
       const { row: source, readable } = await waitForMaster(
@@ -98,10 +100,24 @@ export function createWardrobePiecesHandler(deps: WardrobePiecesDeps): JobHandle
       });
 
       const pieces = toPieces(result.data, closet);
+      // Her phone lifted the photo's pieces before it sent it (cutout brief): every piece not
+      // worn on a person is cut out as its crop renders, the boxes deciding which lifted item
+      // is which. No lift (the web, an older phone) or a worn piece: the rectangle, as before.
+      const cuttable = lifted ? pieces.filter((p) => !p.worn) : [];
+      const boxes = cuttable.map((p) => p.box);
       // Each crop is its own upload of the master; RenditionFn cuts and renders it.
       const readPieces: StoredReadPiece[] = [];
       for (const piece of pieces) {
-        const cropAssetId = await deps.reads.createCrop(ctx.userId, assetId, piece.box);
+        const index = cuttable.indexOf(piece);
+        const cropAssetId =
+          index < 0
+            ? await deps.reads.createCrop(ctx.userId, assetId, piece.box)
+            : await deps.reads.createCrop(ctx.userId, assetId, piece.box, {
+                route: 'on-device',
+                index,
+                boxes,
+                jobId: ctx.jobId,
+              });
         const key = mediaKeys.original(ctx.userId, cropAssetId);
         await deps.storage.copyObject(masterKey, key);
         await deps.onGenerated?.(key);

@@ -1,3 +1,4 @@
+import { LIFT_MAX_BYTES } from '@robes/core/cutout';
 import { z } from 'zod';
 
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
@@ -43,6 +44,15 @@ export const CreateUploadOutput = z.object({ assetId: z.uuid(), upload: Presigne
 export type CreateUploadOutput = z.infer<typeof CreateUploadOutput>;
 
 export const AssetParams = z.object({ id: z.uuid() });
+
+// What her phone lifted out of a photograph it is uploading (cutout brief): one PNG beside the
+// photo, sent before the photo is read. Only its size is hers to say.
+export const CreateLiftInput = z.object({
+  bytes: z.number().int().positive().max(LIFT_MAX_BYTES),
+});
+export type CreateLiftInput = z.infer<typeof CreateLiftInput>;
+export const CreateLiftOutput = z.object({ upload: PresignedUpload });
+export type CreateLiftOutput = z.infer<typeof CreateLiftOutput>;
 
 export const AssetRendition = z.object({ width: z.number().int(), avif: z.url(), webp: z.url() });
 export type AssetRendition = z.infer<typeof AssetRendition>;

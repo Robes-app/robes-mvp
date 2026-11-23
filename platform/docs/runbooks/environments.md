@@ -99,10 +99,12 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
       pnpm cdk deploy 'Production/*' -c stage=production --output cdk.out.prod
     ```
     Lambda's account limit is 10 (hence no reserved concurrency), the account is an Organizations member (no budgets), and neither stage has a custom media domain yet (`MEDIA_PUBLIC_ORIGIN` is the CloudFront domain). The GitHub `staging`/`production` environments are not set up yet, so deploy staging from a laptop after merging worker or infra changes (always `cdk diff` first) until §5 step 5 is done. The website alone redeploys on a `beta` merge; the workers (photo reads, looks, images) do not — a merge that changes `packages/jobs`, `packages/ai` or `workers/` reaches staging only with a deploy.
-    **Production workers after a `main` sync (13 Nov 2026).** Merging to `main` deploys the website and API only; the workers (looks, photo reads, the hourly sweep) stay on their old code until this runs, with that account's credentials in the environment:
+    **Production workers after a `main` sync (13 Nov 2026).** Merging to `main` deploys the website and API only; the workers (looks, photo reads, the hourly sweep) stay on their old code until this runs, with that account's credentials and the PostHog project token in the environment:
     ```bash
+    export ROBES_POSTHOG_KEY=<the phc_… project token>   # refuses to run without it (21 Nov 2026)
     pnpm --filter @robes/infra deploy:prod-workers   # only the Prod-Workers stack: six functions' code
     ```
+    Until 21 Nov 2026 no production deploy set `ROBES_POSTHOG_KEY`, so production workers sent no AI traces (`$ai_generation`) and no error reports; there is no fallback key.
     Do **not** run the full `'Production/*'` deploy above from a laptop unless `ROBES_PRODUCTION_ALERT_EMAIL` and the media settings are set as they were when the stacks were made: without them the diff proposes deleting the alert email subscriptions and changing the CDN. Always `cdk diff` first, and read it.
 11. Confirm the SNS email subscription for alerts/budgets (`ROBES_<STAGE>_ALERT_EMAIL`). Optional: AWS Chatbot → Slack `#robes-alerts` subscribed to `robes-<env>-alerts`.
 

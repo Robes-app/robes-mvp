@@ -41,6 +41,15 @@ test('the Terms and Privacy notice are public, linked from sign-in', async ({ pa
   expect((await page.goto('/legal/nope'))?.status()).toBe(404);
 });
 
+test('signed out, the front door is sign up', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Create your account.' })).toBeVisible();
+  await expect(page.getByLabel('First name (optional)')).toBeVisible();
+  await page.getByRole('link', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(/\/auth\/sign-in$/);
+});
+
 test('a wrong code is rejected', async ({ page }) => {
   const email = uniqueEmail('e2e-bad');
   await page.goto('/auth/sign-in');

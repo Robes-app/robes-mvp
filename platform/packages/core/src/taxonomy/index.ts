@@ -119,3 +119,23 @@ export function categoryFromWords(category: string, name: string): LegacyCategor
   if (legacy && legacy !== 'Other') return legacy;
   return HEADS.get(headOf(category)) ?? HEADS.get(headOf(name)) ?? legacy ?? 'Other';
 }
+
+// A piece's shape as its photo read filed it (item_dna.structural_dna.silhouette_fit): the
+// strings only, at most four.
+export function shapeOf(raw: unknown): string[] {
+  return Array.isArray(raw)
+    ? raw.filter((x): x is string => typeof x === 'string' && x.trim() !== '').slice(0, 4)
+    : [];
+}
+
+// A piece's defining detail (item_dna.structural_dna.defining_detail): the one feature that makes
+// it itself, "Strong padded shoulder". A short plain phrase, whoever wrote it: Robes reads it from
+// her photograph and she can change it, and either way it rides into the drawing prompts, so it
+// is letters, digits and light punctuation only. Anything else reads as none.
+export const DETAIL_MAX = 60;
+const DETAIL_TEXT = /^[\p{L}\p{N}][\p{L}\p{N} ,&'’-]*$/u;
+export function detailOf(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const text = raw.replace(/\s+/g, ' ').trim().replace(/\.+$/, '');
+  return text && text.length <= DETAIL_MAX && DETAIL_TEXT.test(text) ? text : null;
+}

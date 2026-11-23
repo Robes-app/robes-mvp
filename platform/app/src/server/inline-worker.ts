@@ -26,7 +26,13 @@ const handlers = createHandlers({
     intake: system.inboxIntake,
     fetchLink: (url) => fetchLink(url, { allowPrivate: env.ALLOW_PRIVATE_FETCH !== undefined }),
   },
-  wardrobeAnalyse: { ai, storage: mediaStorage, pieces: system.pieces, ledger: system.ledger },
+  wardrobeAnalyse: {
+    ai,
+    storage: mediaStorage,
+    pieces: system.pieces,
+    ledger: system.ledger,
+    onGenerated: renderLocally,
+  },
   wardrobePieces: {
     ai,
     storage: mediaStorage,

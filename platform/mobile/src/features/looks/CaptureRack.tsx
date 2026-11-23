@@ -29,7 +29,7 @@ import { Animated, Pressable, Text as RNText, View } from 'react-native';
 import { CardRow } from '@/features/wardrobe/PieceCard';
 import { type PieceField, PieceFieldSheet } from '@/features/wardrobe/PieceFieldSheet';
 import { PieceRow, RecordRows, type RecordTab } from '@/features/wardrobe/PieceRows';
-import { renditionUri } from '@/lib/images';
+import { pieceSource, renditionUri } from '@/lib/images';
 import type { CaptureRack } from './capture-rack';
 import { DashedCard } from './RackCard';
 
@@ -115,7 +115,7 @@ export function CaptureRow({
   onAdd: () => void;
 }) {
   const hers = capture.suggested(row);
-  const hersUri = renditionUri(hers?.image, 28);
+  const { uri: hersUri, fit: hersFit } = pieceSource(hers?.image, 28);
   const [, ...said] = captureEyebrow(row, '').split(' · ').filter(Boolean);
   return (
     <CardRow
@@ -160,7 +160,9 @@ export function CaptureRow({
               className="overflow-hidden bg-surface-sunk"
               style={{ width: 28, height: 35, borderRadius: 2 }}
             >
-              {hersUri ? <Image source={hersUri} alt="" aspect="4:5" contentFit="cover" /> : null}
+              {hersUri ? (
+                <Image source={hersUri} alt="" aspect="4:5" contentFit="cover" {...hersFit} />
+              ) : null}
             </View>
             <View className="flex-1" style={{ gap: 2 }}>
               <RNText className="text-ink-faint" style={{ fontFamily: fonts.sans, fontSize: 10.5 }}>

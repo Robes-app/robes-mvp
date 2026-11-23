@@ -260,16 +260,23 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
       const edits = Object.fromEntries(Object.entries(rack.edits).filter(([k]) => keys.has(k)));
       change({ ...rack, rows, edits });
     },
-    add: (piece: Piece) => {
-      nativeAnalytics.track('look_piece_added', { surface: look.status, cat: piece.category });
-      change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] });
-    },
-    // A wish from the picker's WISHLIST tab (PRD rev 3 §4.6): a proposal row that is already hers
-    // to find, so the look carries a piece to find and Save files nothing twice.
-    addWish: (wish: Wish) => {
-      if (rack.rows.some((r) => r.proposal?.wishlistItemId === wish.id)) return;
-      nativeAnalytics.track('look_piece_added', { surface: look.status, cat: wish.category });
-      change({ ...rack, rows: [...rack.rows, wishRow(wish)] });
+    // Everything she picked at once lands as ONE change: one write, one picture. Added one by
+    // one, each add rebuilt the rack she opened the picker on and the last pick replaced the
+    // others (21 Nov: three pieces picked, one on the look). A wish from the WISHLIST tab (PRD
+    // rev 3 §4.6) is a proposal row already hers to find, so Save files nothing twice.
+    addAll: (pieces: readonly Piece[], wishes: readonly Wish[] = []) => {
+      const rows = [...rack.rows];
+      for (const piece of pieces) {
+        if (rows.some((r) => r.pieceId === piece.id)) continue;
+        nativeAnalytics.track('look_piece_added', { surface: look.status, cat: piece.category });
+        rows.push(pieceRow(piece, null));
+      }
+      for (const wish of wishes) {
+        if (rows.some((r) => r.proposal?.wishlistItemId === wish.id)) continue;
+        nativeAnalytics.track('look_piece_added', { surface: look.status, cat: wish.category });
+        rows.push(wishRow(wish));
+      }
+      if (rows.length !== rack.rows.length) change({ ...rack, rows });
     },
     remove: (key: string) => {
       nativeAnalytics.track('look_piece_removed', { surface: look.status });

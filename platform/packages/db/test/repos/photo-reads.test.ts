@@ -67,6 +67,36 @@ describe('photo reads', () => {
     await expect(photoReads.createCrop(bea, src.id, { x: 0, y: 0, w: 1, h: 1 })).rejects.toThrow();
   });
 
+  it('a crop can carry the plan to cut its piece out, and says once a cutout is stored', async () => {
+    const src = await photo(ann);
+    const box = { x: 0.1, y: 0.2, w: 0.3, h: 0.4 };
+    const plan = { route: 'on-device' as const, index: 0, boxes: [box] };
+    const crop = await photoReads.createCrop(ann, src.id, box, plan);
+    // The renderer finds the box as before, the plan beside it, and the photo it came from.
+    expect(await processing.get(crop)).toMatchObject({
+      crop: { ...box, cut: plan },
+      sourceAssetId: src.id,
+    });
+    const meta = {
+      bucketKey: `media/${ann}/${crop}/master.jpg`,
+      width: 300,
+      height: 400,
+      blurhash: 'L',
+      renditions: { v: 1, master: { width: 300, height: 400 }, widths: [300] },
+    };
+    await processing.markReady(crop, { ...meta, hasCutout: true });
+    expect((await repos.assets.getForUser(ann, crop))?.hasCutout).toBe(true);
+    // A crop rendered with no cutout says so, and nobody else can see either.
+    const plain = await photoReads.createCrop(ann, src.id, box);
+    await processing.markReady(plain, meta);
+    expect((await repos.assets.getForUser(ann, plain))?.hasCutout).toBe(false);
+    expect(await repos.assets.getForUser(bea, crop)).toBeUndefined();
+    // A photo that is one piece is marked after its own render (a cut request).
+    expect(await processing.markCutout(plain)).toBe(true);
+    expect((await repos.assets.getForUser(ann, plain))?.hasCutout).toBe(true);
+    expect(await processing.markCutout('00000000-0000-4000-8000-000000000000')).toBe(false);
+  });
+
   it('files each piece of a read once, however often the filing is retried', async () => {
     const src = await photo(ann);
     const crop0 = await photoReads.createCrop(ann, src.id, { x: 0, y: 0, w: 0.5, h: 0.5 });

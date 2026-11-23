@@ -35,9 +35,9 @@ import {
   noteShort,
 } from '@robes/core/looks';
 import type { SuggestedSpec, SystemRepositories, UserId } from '@robes/db';
-import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
+import { pieceReference } from '../piece-photo';
 import { JobError, type JobHandler } from '../runtime';
 import type { DayForecastFor, DestinationWeatherFor } from '../weather';
 import { drawSuggestedFrame, type FrameRackPiece, modelReference } from './look-frame';
@@ -357,7 +357,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
   async function piecePhoto(userId: UserId, imageAssetId: string | null | undefined) {
     if (!imageAssetId) return null;
     try {
-      return await deps.storage.getObject(mediaKeys.master(userId, imageAssetId));
+      return await pieceReference(deps.storage, userId, imageAssetId);
     } catch {
       return null;
     }
@@ -451,17 +451,25 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
 
   const rackOf = (
     pieces: StoredPiece[],
-    closet: { id: string; imageAssetId?: string | null }[],
+    closet: {
+      id: string;
+      imageAssetId?: string | null;
+      shape?: readonly string[] | null;
+      detail?: string | null;
+    }[],
   ): FrameRackPiece[] =>
-    pieces.map((p) => ({
-      name: p.name,
-      category: p.category,
-      color: p.color,
-      brand: p.brand,
-      imageAssetId: p.pieceId
-        ? (closet.find((c) => c.id === p.pieceId)?.imageAssetId ?? null)
-        : null,
-    }));
+    pieces.map((p) => {
+      const hers = p.pieceId ? closet.find((c) => c.id === p.pieceId) : undefined;
+      return {
+        name: p.name,
+        category: p.category,
+        color: p.color,
+        brand: p.brand,
+        imageAssetId: hers?.imageAssetId ?? null,
+        shape: hers?.shape ?? [],
+        detail: hers?.detail ?? null,
+      };
+    });
 
   // One frame for a set's look; a failed frame never sinks the result (UX-08).
   async function frame(

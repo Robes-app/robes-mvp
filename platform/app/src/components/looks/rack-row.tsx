@@ -7,7 +7,7 @@ import { Icon } from '@robes/icons/web';
 import { IconButton, Image } from '@robes/ui';
 import { CardRow, type RowMeta } from '@/components/wardrobe/piece-card';
 import { NoPhoto } from '@/components/wardrobe/piece-image';
-import { imageSources } from '@/lib/image';
+import { pieceSources } from '@/lib/image';
 
 export type RowMark = RowNote | { kind: 'added' };
 
@@ -99,7 +99,7 @@ export function RackRowCard({
 }) {
   const brand = row.brand?.trim() || '';
   const name = nameNoBrand(row.name, brand);
-  const sources = image ? imageSources(image.renditions) : null;
+  const sources = pieceSources(image);
   const proposal = row.proposal;
   // A swapped piece shows the Swapped pill instead (docked prompt PRD T3).
   const markText =
@@ -158,7 +158,7 @@ export function RackRowCard({
         }}
         thumb={
           sources ? (
-            <Image src={sources.src} srcSet={sources.srcSet} sizes="52px" alt="" aspect="4:5" />
+            <Image sizes="52px" alt="" aspect="4:5" {...sources} />
           ) : (
             <NoPhoto className="aspect-[4/5]" size={18} />
           )
@@ -208,7 +208,7 @@ function shopMaker(row: RackRow, brand: string): string {
 // thumbnail of the piece it replaced, an arrow, then "Swapped"; the full line is its label.
 // Native twin: RackRow.tsx SwappedPill.
 function SwappedPill({ name, image }: { name: string; image: PieceImageData | null | undefined }) {
-  const sources = image ? imageSources(image.renditions) : null;
+  const sources = pieceSources(image);
   return (
     <span
       role="img"
@@ -218,7 +218,7 @@ function SwappedPill({ name, image }: { name: string; image: PieceImageData | nu
     >
       <span className="size-4 shrink-0 overflow-hidden rounded-full opacity-50">
         {sources ? (
-          <Image src={sources.src} srcSet={sources.srcSet} sizes="16px" alt="" aspect="1:1" />
+          <Image sizes="16px" alt="" aspect="1:1" {...sources} />
         ) : (
           <NoPhoto className="size-4" size={10} />
         )}

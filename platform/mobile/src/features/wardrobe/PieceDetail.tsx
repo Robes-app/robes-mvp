@@ -25,7 +25,7 @@ import { CaptureCamera } from '@/features/capture/CaptureCamera';
 import { SavedTile } from '@/features/looks/LookTiles';
 import { SuggestedRail } from '@/features/looks/SuggestedRail';
 import { errorMessage } from '@/lib/errors';
-import { renditionUri } from '@/lib/images';
+import { cutoutUri, renditionUri } from '@/lib/images';
 import { DeletePieceDialog } from './DeletePieceDialog';
 import { NoPhoto, StarButton } from './PieceCard';
 import { type PieceField, PieceFieldSheet } from './PieceFieldSheet';
@@ -106,7 +106,9 @@ export function PieceDetail({ id }: { id: string }) {
     );
   }
 
-  const uri = renditionUri(piece.image, 400);
+  // The piece cut out of her photograph, where one was made; else the photograph (PieceCard Photo).
+  const cutout = cutoutUri(piece.image);
+  const uri = cutout ?? renditionUri(piece.image, 400);
   // The photo she just picked stands in until its renditions land.
   const shown = uri ?? photo.preview;
   const reading = piece.status === 'reading';
@@ -135,7 +137,7 @@ export function PieceDetail({ id }: { id: string }) {
             <Image
               source={shown}
               alt={copy.photoAlt(piece.label)}
-              blurhash={uri ? piece.image?.blurhash : null}
+              blurhash={uri && !cutout ? piece.image?.blurhash : null}
               contentFit="contain"
             />
           ) : (

@@ -11,6 +11,8 @@ export interface LookChecks {
   label_mismatch: number;
   owned: number;
   proposed: number;
+  // Tops on the look: 1, or 2 with a layer over it (v11; 21 Nov, two tops worn together).
+  tops: number;
 }
 
 const words = (s: string): Set<string> =>
@@ -44,5 +46,6 @@ export function lookChecks(
       .length,
     owned: owned.length,
     proposed: pieces.length - owned.length,
+    tops: pieces.filter((p) => p.category === 'Tops').length,
   };
 }

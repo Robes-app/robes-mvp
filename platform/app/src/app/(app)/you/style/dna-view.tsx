@@ -23,7 +23,7 @@ import { type KeyboardEvent, useState } from 'react';
 import { BrandsStep, StylesStep } from '@/app/onboarding/steps';
 import { SettingsGroup, SettingsRow } from '@/components/settings/settings-chrome';
 import { errorCopy } from '@/lib/error-copy';
-import { imageSources } from '@/lib/image';
+import { pieceSources } from '@/lib/image';
 import { useDnaMutations } from '@/lib/use-dna';
 import { useModel, useModelPick } from '../model/twin-parts';
 import { ColoursBody, PrintsBody, paletteSummary, usePalette } from './palette-sheets';
@@ -279,7 +279,7 @@ function PiecesBody({ dna }: { dna: StyleDna }) {
       {dna.pieces.length ? (
         <ul className="flex flex-col gap-3">
           {dna.pieces.map((p) => {
-            const sources = p.image ? imageSources(p.image.renditions) : null;
+            const sources = pieceSources(p.image);
             return (
               <li key={p.id}>
                 <Link
@@ -289,12 +289,11 @@ function PiecesBody({ dna }: { dna: StyleDna }) {
                   <span className="w-13 shrink-0">
                     {sources ? (
                       <Image
-                        src={sources.src}
-                        srcSet={sources.srcSet}
                         sizes="52px"
                         alt=""
                         aspect="4:5"
                         blurhash={p.image?.blurhash ?? null}
+                        {...sources}
                       />
                     ) : (
                       <span aria-hidden className="block aspect-[4/5] bg-surface-sunk" />

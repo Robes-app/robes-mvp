@@ -15,7 +15,7 @@ import { Link } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { SwipeRow } from '@/components/SwipeRow';
-import { renditionUri } from '@/lib/images';
+import { cutoutUri, renditionUri } from '@/lib/images';
 
 export interface CardPiece {
   id: string;
@@ -118,6 +118,21 @@ export function Photo({
   aspect?: '4:5' | '3:4';
   fit?: 'cover' | 'contain';
 }) {
+  // The piece cut out of her photograph, wherever one was made: whole, on white, at every size.
+  // Web twin: PieceImage in components/wardrobe/piece-image.tsx.
+  const cutout = cutoutUri(piece.image);
+  if (cutout) {
+    return (
+      <Image
+        source={cutout}
+        alt=""
+        aspect={aspect}
+        contentFit="contain"
+        recyclingKey={piece.id}
+        testID="piece-cutout"
+      />
+    );
+  }
   const uri = renditionUri(piece.image, width);
   // No picture at all is the hanger; a picture still being made is the skeleton.
   if (!uri && !piece.image) return <NoPhoto aspect={aspect} size={width < 80 ? 18 : 28} />;

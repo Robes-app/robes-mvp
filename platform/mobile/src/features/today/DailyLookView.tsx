@@ -15,7 +15,7 @@ import {
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
-import { renditionUri } from '@/lib/images';
+import { pieceSource, renditionUri } from '@/lib/images';
 import { useRenderDailyItem } from '../looks/frame-render';
 import { useDailyLook, useJobDaily, useSaveDaily, weatherLine } from './daily';
 
@@ -62,7 +62,7 @@ function ItemRow({
   onShow: () => void;
   showing: boolean;
 }) {
-  const uri = item.piece ? renditionUri(item.piece.image, 80) : null;
+  const { uri, fit } = pieceSource(item.piece?.image, 80);
   const shop = [item.brand, item.pricePoint].filter(Boolean).join(' · ');
   return (
     <View className="flex-row gap-3 border-b border-hairline py-3">
@@ -77,6 +77,7 @@ function ItemRow({
             source={uri}
             alt={item.piece?.label ?? ''}
             blurhash={item.piece?.image?.blurhash}
+            {...fit}
           />
         </View>
       ) : null}

@@ -169,6 +169,7 @@ export function AuthForm({
             label={copy.firstNameLabel}
             name="firstName"
             autoComplete="given-name"
+            placeholder={copy.firstNamePlaceholder}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />

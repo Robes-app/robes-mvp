@@ -44,6 +44,7 @@ export const auth = {
   // Sign in and sign up (design "Sign in and sign up", 18 Nov): two screens, one email code.
   signUpTitle: 'Create your account.',
   firstNameLabel: 'First name (optional)',
+  firstNamePlaceholder: 'Isabel',
   toSignUp: { lead: 'New to Robes?', link: 'Create an account' },
   toSignIn: { lead: 'Already have an account?', link: 'Sign in' },
   // The code screen's two ways out, as sentences with a link each.
@@ -210,7 +211,6 @@ export const marketing = {
   titleLead: 'Your wardrobe,',
   titleEm: 'styled.',
   subtitle: 'One piece. Three ways to wear it.',
-  signIn: 'Sign in',
   metaTitle: 'Robes — Your Personal Stylist & Wardrobe Intelligence App',
   metaDescription:
     'Robes is your personal stylist. Edit what you own, rotate underused pieces, and discover key wardrobe pieces to complete a look.',
@@ -218,23 +218,11 @@ export const marketing = {
   ogDescription:
     'A web-first wardrobe intelligence platform. Style the wardrobe you already own and curate personalized looks from a single prompt.',
   waitlist: {
-    title: 'Join the waitlist.',
-    body: 'Robes is opening slowly. Leave your email and we’ll let you in.',
-    emailLabel: 'Email',
-    nameLabel: 'First name (optional)',
-    submit: 'Join',
-    submitting: 'Joining…',
-    // The same answer whether or not the address was already listed (no enumeration).
-    done: 'Check your email to confirm your place.',
-    failed: 'Robes couldn’t add you just now. Try again in a moment.',
-    emailMissing: 'Please enter your email to join',
-    emailInvalid: 'Please enter a valid email address',
-    hint: 'Join today and style a key piece three ways — a small taste of Robes while you wait.',
     confirmEyebrow: 'Waitlist',
     confirmTitle: 'Confirm your place?',
     confirm: 'Confirm',
     confirmed: 'You’re on the list. We’ll email you when it’s your turn.',
-    invalid: 'This link doesn’t work any more. Join again from the home page.',
+    invalid: 'This link doesn’t work any more.',
     email: {
       subject: 'Confirm your place on the Robes waitlist',
       body: 'Tap below to confirm it’s you. If you didn’t ask to join, ignore this email.',

@@ -200,6 +200,45 @@ MinIO); the unit, DB and native suites and `next build` pass.
   camera refused → Settings (the OS-camera fallback is gone, per the audit). Size conversions are
   womenswear only.
 
+## Piece cutouts and the defining detail — 2026-11-21 (`docs/piece-cutout-brief.md`, repo root)
+
+- **Cutouts, iPhone first.** Her iPhone lifts a wardrobe photo's pieces on the device (Vision
+  foreground instance masks, iOS 17+; `mobile/modules/robes-lift`, `mobile/src/lib/lift.ts`) while
+  the photo uploads, and sends the lift beside it (`POST /uploads/:id/lift`). The read's boxes
+  decide which lifted item is which piece: clip to the box, split an item covering two boxes,
+  keep the rectangle when a check fails (`@robes/core/cutout` `assignLift`, `CUTOUT_RULES`).
+  RenditionFn cuts each piece as it renders its crop (`@robes/media` `cutout.ts`, `processUpload`):
+  `cutout.webp` (see-through) and `cutout.jpg` (on white) beside the rectangle, `assets.has_cutout`.
+  Storage scaffold kept: `has_cutout` + `mediaKeys.cutout`. `wardrobe_items.cutout_asset_id` is no
+  longer read (column still there; dropping it is a later migration).
+- **One photo of one piece** (Home's add, onboarding; Annie, 22 Nov): the single read
+  (`wardrobe_analyse`) makes no crop, so once it says the piece is not worn (`worn`, now asked by
+  `wardrobe-analyse` v6 and inherited by `wardrobe-pieces` v4) it leaves a cut request
+  (`mediaKeys.cutRequest`, a copy of the master) that RenditionFn answers (`processCut`,
+  `assets.markCutout`). `createBatch` and `startPhotoRead` share `liftedWith`.
+- **Use.** `PieceImage.cutout` (signed) shows on web `PieceImage` and native `Photo`, the piece
+  page and the wish page, contained on white, and on every hand-drawn piece thumbnail through
+  `pieceSources` (web `lib/image.ts`) and `pieceSource` (native `lib/images.ts`). Drawn looks read `pieceReference`
+  (`packages/jobs/src/piece-photo.ts`): the cutout on white where one exists, else the rectangle.
+- **Ledger.** Every cutout tried is a `wardrobe.cutout` row (`cutoutCall`), family
+  `cutout-on-device` with its own `DAILY_BUDGET_MICROS` line, cost 0; `partial` rows carry why the
+  rectangle was kept.
+- **Prompts.** `wardrobe-analyse` v6 (the defining detail, `item_dna.structural_dna.defining_detail`,
+  and `detail_read`), `wardrobe-pieces` v4 (v6's rules, and `worn` per piece: a worn piece is never
+  cut out), `style-piece` v12 and `avatar` v8 (the detail in the look prompt and on each garment
+  line, `garments.ts`), `wardrobe-detail` v1 (the re-read's one question).
+- **Her detail.** `Piece.detail`; `PATCH /wardrobe/items/:id { detail }` → `wardrobe.setDetail`
+  marks `item_dna.detail_hers`, and `pieces.apply` and the re-read never write over it. The
+  Detail row is on the PIECE tab, web and native (`RecordRows`, `PieceFieldSheet`).
+- **Re-read.** `pnpm --filter @robes/workers detail:reread` prices the run from the ledger and,
+  with `--run`, asks each older photo for its detail up to a ceiling (`runDetailReread`,
+  `detailReread.addDetail`). Not run; waits for the owner's go-ahead.
+- **Not verified.** The Swift module has never been compiled or run: it needs a build and an
+  iPhone (steps in `docs/runbooks/piece-cutouts.md`). The new web e2e tests in
+  `photo-pieces.spec.ts` were written without a local S3 to run them against. No eval set exists
+  (`packages/ai/evals` is missing); the new prompt versions shipped on their unit tests, by the
+  owner's decision, with an eval set as a follow-up.
+
 ## Flakes to watch
 
 - `wardrobe-ui` wishlist Undo under heavy parallel load (seen once, not reproduced).

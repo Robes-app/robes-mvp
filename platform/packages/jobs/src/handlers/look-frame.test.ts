@@ -40,6 +40,8 @@ function setup(
           brand: null,
           imageAssetId: PHOTO,
           assetStatus: 'ready',
+          shape: ['Relaxed', 'Point collar'],
+          detail: 'Oversized mother-of-pearl buttons',
         },
       ],
       siblings: [],
@@ -244,6 +246,13 @@ describe('look_render: Robes’ frame of a look', () => {
     expect(req?.prompt).toContain('IMAGE 1 is an existing photograph of this look');
     expect(req?.prompt).toContain('- IMAGE 2: the Silk shirt (ivory Tops)');
     expect(req?.prompt).toContain('Worn: tucked at the front.');
+    // Its shape as her photo read it, and only that garment taken from her photograph (21 Nov).
+    expect(req?.prompt).toContain('Worn: tucked at the front. Its shape: Relaxed, Point collar.');
+    // …and the one detail that makes it itself, read with the piece or put in her words (v8).
+    expect(req?.prompt).toContain(
+      'Its shape: Relaxed, Point collar. Its defining detail: Oversized mother-of-pearl buttons.',
+    );
+    expect(req?.prompt).toContain('take ONLY this garment from that photograph');
     expect(req?.prompt).toContain('- the Black mules (Shoes by Toteme).');
     // A re-dressed frame keeps the model its first drawing stood on.
     expect(suggested.setFrame).toHaveBeenCalledWith(
@@ -272,7 +281,7 @@ describe('look_render: Robes’ frame of a look', () => {
     await expect(run()).resolves.toEqual({ status: 'succeeded' });
     const prompt = generateImage.mock.calls[0]?.[0]?.prompt;
     expect(prompt).toContain(
-      '- the Oversized wool-blend coat (Outerwear by COS). Worn: worn open over the shirt.\nLAYERS: the Oversized wool-blend coat is the outer layer, worn over the Silk shirt',
+      '- the Oversized wool-blend coat (Outerwear by COS). Worn: worn open over the shirt.\nLAYERS, from the skin out: the Silk shirt, then the Oversized wool-blend coat as the outer layer',
     );
     expect(ledger.record).toHaveBeenCalledWith(
       expect.objectContaining({ feature: 'avatar.frame', status: 'ok', prompt }),

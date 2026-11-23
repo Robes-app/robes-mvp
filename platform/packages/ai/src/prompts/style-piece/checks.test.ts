@@ -58,6 +58,7 @@ describe('lookChecks', () => {
       label_mismatch: 0,
       owned: 3,
       proposed: 0,
+      tops: 1,
     });
   });
 

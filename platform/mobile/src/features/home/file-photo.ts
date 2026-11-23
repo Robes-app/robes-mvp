@@ -89,7 +89,8 @@ export function usePhotoFiling(): {
       const preview = photo.uri;
       setFiling({ phase: 'uploading', preview });
       try {
-        const assetId = await uploadPhoto(api, photo);
+        // Lifted on the phone as it uploads, so the piece can be cut out of its photo.
+        const assetId = await uploadPhoto(api, photo, 'wardrobe', { lift: true });
         const batch = await api.call('wardrobe.batch', { input: { assetIds: [assetId] } });
         const piece = batch.pieces[0];
         const made = batch.jobs[0];

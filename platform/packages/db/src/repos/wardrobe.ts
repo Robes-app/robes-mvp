@@ -29,7 +29,6 @@ export const PIECE_COLUMNS = [
   'brand',
   'notes',
   'imageAssetId',
-  'cutoutAssetId',
   'itemDna',
   'status',
   'heroPosition',
@@ -174,6 +173,15 @@ function checksAnswered(fields: PieceFields) {
     ...(fields.brand === undefined ? [] : ['brand_check']),
   ];
   return keys.length === 0 ? {} : { itemDna: sql<string>`item_dna - ${sql.val(keys)}::text[]` };
+}
+
+// item_dna with her answer for the defining detail in place of whatever was there.
+export function herDetail(detail: string | null) {
+  const hers =
+    detail === null
+      ? sql`'{}'::jsonb`
+      : sql`jsonb_build_object('defining_detail', ${detail}::text)`;
+  return sql<string>`item_dna || jsonb_build_object('detail_hers', true, 'structural_dna', (coalesce(item_dna -> 'structural_dna', '{}'::jsonb) - 'defining_detail') || ${hers})`;
 }
 
 const WEAR_TAG_MAX = 6;
@@ -393,6 +401,20 @@ export function wardrobeRepo(db: Db) {
         .where('deletedAt', 'is', null)
         .returning(PIECE_COLUMNS)
         .executeTakeFirst();
+    },
+
+    // Her words for the piece's defining detail (null clears it). It lives beside Robes' read of
+    // the piece (item_dna.structural_dna.defining_detail) and `detail_hers` marks it answered, so
+    // no read or re-read ever writes over it. False when the piece is not hers to change.
+    async setDetail(userId: UserId, id: string, detail: string | null): Promise<boolean> {
+      const res = await db
+        .updateTable('wardrobeItems')
+        .set({ itemDna: herDetail(detail) })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      return res.numUpdatedRows > 0n;
     },
 
     // Try again on a piece Robes couldn't read (audit F3): back to reading, its photo read anew.

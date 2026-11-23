@@ -19,6 +19,7 @@ import {
 import type { SystemRepositories, UserId } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
+import { pieceReference } from '../piece-photo';
 
 // Drawing Robes' frame of a suggested look (legacy /api/style's image loop, 2026-10-13): her
 // model's cell first when she has one, the key piece's photo, then each of her pieces' photographs
@@ -40,6 +41,10 @@ export interface FrameRackPiece {
   brand: string;
   // Her piece's photo, when it is hers.
   imageAssetId: string | null;
+  // What defines it, as her photo read it (silhouette_fit); none for a proposal.
+  shape?: readonly string[];
+  // Its one defining detail (wardrobe-analyse v6, or her words for it); none for a proposal.
+  detail?: string | null;
 }
 
 type Ctx = { jobId: string; userId: UserId; signal: AbortSignal };
@@ -195,7 +200,7 @@ export async function drawSuggestedFrame(
       if (!seen.has(p.imageAssetId)) {
         seen.set(
           p.imageAssetId,
-          await read(deps.storage, mediaKeys.master(ctx.userId, p.imageAssetId)),
+          await pieceReference(deps.storage, ctx.userId, p.imageAssetId).catch(() => null),
         );
       }
       photo = seen.get(p.imageAssetId) ?? null;
@@ -207,6 +212,8 @@ export async function drawSuggestedFrame(
       color: p.color,
       brand: p.brand,
       hasImage: Boolean(photo),
+      shape: p.shape ?? [],
+      detail: p.detail ?? null,
     });
   }
   const feature = `${FEATURE}.image`;

@@ -94,7 +94,8 @@ describe('look_render handler', () => {
       data: ideaData({ type: 'piece', pieceId: PIECE, label: 'Camel coat' }),
     });
     await run({ target: 'idea', ideaId: IDEA, idx: 2 });
-    expect(storage.getObject).toHaveBeenCalledWith(`media/${USER}/${ASSET}/master.jpg`);
+    // Her piece cut out of its photograph, where one is stored (else the rectangle: piece-photo).
+    expect(storage.getObject).toHaveBeenCalledWith(`media/${USER}/${ASSET}/cutout.jpg`);
     expect(generateImage.mock.calls[0]?.[0].references).toHaveLength(1);
   });
 

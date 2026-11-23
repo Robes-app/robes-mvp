@@ -176,8 +176,7 @@ export function Rack({
             else editor.swap(swapping, into);
             return;
           }
-          for (const piece of pieces) editor.add(piece);
-          for (const wish of wishes) editor.addWish(wish);
+          editor.addAll(pieces, wishes);
         }}
       />
     </section>
