@@ -18,7 +18,8 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="flex min-w-0 flex-col gap-2">
+    // Named by its title alone, so a screen reader (and a test) finds it as that region.
+    <section aria-label={title} className="flex min-w-0 flex-col gap-2">
       <h2 className="type-eyebrow flex flex-wrap items-baseline gap-x-3 text-accent-warm">
         <span>{title}</span>
         {count === undefined ? null : <span className="text-ink-muted tabular-nums">{count}</span>}
