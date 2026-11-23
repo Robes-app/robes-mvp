@@ -15,6 +15,7 @@ import {
 } from '@robes/contracts';
 import { JOB_KINDS } from '@robes/core/jobs';
 import { type AdminActor, NotAdmin } from '@robes/db';
+import { eventMeta } from './admin-meta';
 import { signedRenditions } from './asset-urls';
 import { repos } from './db';
 import { invalidateFlag } from './flags';
@@ -63,6 +64,13 @@ export async function userDetail(actor: AdminActor, userId: string): Promise<Adm
     createdAt: iso(d.user.createdAt),
     onboardedAt: iso(d.user.onboardedAt),
     role: d.role,
+    lastActiveAt: iso(d.lastActiveAt ? new Date(d.lastActiveAt) : null),
+    homeCity: d.user.homeCity,
+    instagram: d.user.instagramHandle,
+    budget: d.user.budget,
+    annualSpend: d.user.annualSpend,
+    styleIcons: d.user.styleIcons,
+    style: d.style,
     consents: d.consents.map((c) => ({ kind: c.kind, granted: c.granted, at: iso(c.createdAt) })),
     usageToday: d.usage,
     jobs: d.jobs.map((j) => ({
@@ -265,7 +273,12 @@ export async function userRecords(actor: AdminActor, userId: string): Promise<Ad
       hasPrompt: c.hasPrompt,
       createdAt: iso(c.createdAt),
     })),
-    events: r.events.map((e) => ({ ...e, createdAt: iso(e.createdAt) })),
+    events: r.events.map((e) => ({
+      id: e.id,
+      eventType: e.eventType,
+      meta: eventMeta(e.metadata),
+      createdAt: iso(e.createdAt),
+    })),
   });
 }
 

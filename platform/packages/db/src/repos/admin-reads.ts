@@ -142,11 +142,16 @@ export function adminReadsRepo(db: Db) {
           'profiles.timezone',
           'profiles.locale',
           'profiles.onboardedAt',
+          'profiles.homeCity',
+          'profiles.instagramHandle',
+          'profiles.budget',
+          'profiles.annualSpend',
+          'profiles.styleIcons',
         ])
         .where('users.id', '=', userId)
         .executeTakeFirst();
       if (!user) return undefined;
-      const [consents, usage, jobs, deletion, role] = await Promise.all([
+      const [consents, usage, jobs, deletion, role, style, lastActive] = await Promise.all([
         db
           .selectFrom('consents')
           .distinctOn('kind')
@@ -185,9 +190,28 @@ export function adminReadsRepo(db: Db) {
           .where('userId', '=', userId)
           .executeTakeFirst(),
         db.selectFrom('adminUsers').select('role').where('userId', '=', userId).executeTakeFirst(),
+        db
+          .selectFrom('styleProfiles')
+          .select(['season', 'undertone', 'contrast', 'bodyType'])
+          .where('userId', '=', userId)
+          .executeTakeFirst(),
+        db
+          .selectFrom('sessions')
+          .select((s) => s.fn.max('updatedAt').as('at'))
+          .where('userId', '=', userId)
+          .executeTakeFirst(),
       ]);
       await audit(actor, 'admin.user.read', { userId, table: 'users', id: userId });
-      return { user, consents, usage, jobs, deletion: deletion ?? null, role: role?.role ?? null };
+      return {
+        user,
+        consents,
+        usage,
+        jobs,
+        deletion: deletion ?? null,
+        role: role?.role ?? null,
+        style: style ?? null,
+        lastActiveAt: lastActive?.at ?? null,
+      };
     },
 
     // What she filed, made, kept, said and was sent (bounded, newest first); undefined for no user.

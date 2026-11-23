@@ -1,16 +1,31 @@
 import { AdminUserParams } from '@robes/contracts';
 import { admin as copy } from '@robes/copy';
-import { material } from '@robes/core/material';
-import { Heading, Text } from '@robes/ui';
+import { Icon } from '@robes/icons/web';
+import { Heading } from '@robes/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { DataTable, money, Thumb, when } from '@/components/admin/table';
-import { PageHeader } from '@/components/page-header';
+import { generationRows, seconds } from '@/components/admin/generations';
+import { day, money, when } from '@/components/admin/table';
+import {
+  Chip,
+  Empty,
+  Facts,
+  Muted,
+  Panel,
+  Section,
+  Tile,
+  TileGrid,
+  Timeline,
+} from '@/components/admin/user-parts';
 import { userDetail, userRecords } from '@/server/admin';
 import { requireAdmin } from '@/server/session';
 
 type Props = { params: Promise<{ id: string }> };
 
+const dot = (...parts: (string | null | undefined | false)[]) => parts.filter(Boolean).join(' · ');
+
+// One person, laid out as beta's admin was: who she is and what she did down the left, what she
+// owns and made on the right, and the generations behind it all across the foot.
 export default async function AdminUser({ params }: Props) {
   const actor = await requireAdmin();
   const parsed = AdminUserParams.safeParse(await params);
@@ -25,219 +40,331 @@ export default async function AdminUser({ params }: Props) {
   } catch {
     notFound();
   }
+  const p = copy.user.page;
+  const f = p.fields;
   const rc = copy.user.records;
-  const c = rc.columns;
-  const link = (href: string, label: string) => (
-    <Link key={href} href={href} className="underline underline-offset-4">
-      {label}
-    </Link>
-  );
   const rating = (n: number | null) =>
     n === null ? rc.ratings.none : n > 0 ? rc.ratings.up : rc.ratings.down;
-  const f = copy.user.fields;
-  const j = copy.user.jobColumns;
-  const profile: [string, string][] = [
-    [f.email, u.email],
-    [f.firstName, u.firstName ?? copy.empty],
-    [f.lastName, u.lastName ?? copy.empty],
-    [f.timezone, u.timezone],
-    [f.locale, u.locale],
-    [f.joined, when(u.createdAt, copy.empty)],
-    [f.onboarded, when(u.onboardedAt, copy.empty)],
-    [copy.user.role, u.role ?? copy.user.none],
+  const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.name;
+  const s = u.style;
+  const facts: [string, string][] = [
+    [f.name, name || copy.empty],
+    [f.season, s?.season ?? copy.empty],
+    [f.undertone, dot(s?.undertone, s?.contrast && p.contrast(s.contrast)) || copy.empty],
+    [f.body, s?.bodyType ?? copy.empty],
+    [f.icons, u.styleIcons.join(', ') || copy.empty],
+    [f.budget, dot(u.budget, u.annualSpend) || copy.empty],
+    [f.instagram, u.instagram ? `@${u.instagram.replace(/^@/, '')}` : copy.empty],
+    [f.home, u.homeCity ?? copy.empty],
+    [f.timezone, dot(u.timezone, u.locale)],
+    [f.consents, dot(...u.consents.filter((c) => c.granted).map((c) => c.kind)) || copy.empty],
+    [f.usage, dot(...u.usageToday.map((x) => `${x.metric} ${x.count}`)) || copy.empty],
+    ...(u.role ? ([[f.role, u.role]] as [string, string][]) : []),
   ];
+  const gens = generationRows(u.jobs, r.calls);
+  const g = p.genColumns;
+
   return (
     <>
-      <Link href="/admin/users" className="font-sans text-sm text-ink underline underline-offset-4">
+      <Link
+        href="/admin/users"
+        className="inline-flex min-h-11 items-center gap-1 self-start font-sans text-sm text-ink underline-offset-4 hover:underline"
+      >
+        <Icon name="back" size={14} />
         {copy.user.back}
       </Link>
-      <PageHeader eyebrow={copy.eyebrow} title={u.firstName || u.name || u.email} />
-      <section className="flex flex-col gap-2">
-        <Heading level={2} size="lg">
-          {copy.user.profile}
+      <header className="-mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <Heading level={1} size="lg">
+          {u.firstName || u.name || u.email}
         </Heading>
-        <dl className="grid grid-cols-[12rem_1fr] gap-x-4 gap-y-1 font-sans text-sm text-ink">
-          {profile.map(([k, v]) => (
-            <div key={k} className="contents">
-              <dt className="text-ink-muted">{k}</dt>
-              <dd>{v}</dd>
+        <span className="font-sans text-sm text-ink-muted">{u.email}</span>
+        <span className="grow" />
+        <span className="font-sans text-sm text-ink-muted">
+          {dot(
+            p.joined(day(u.createdAt, copy.empty)),
+            u.onboardedAt ? p.onboarded : p.notOnboarded,
+            u.lastActiveAt ? p.lastActive(day(u.lastActiveAt, copy.empty)) : p.neverActive,
+          )}
+        </span>
+        {u.deletion ? (
+          <span className="w-full font-sans text-sm text-danger">
+            {p.deletion(u.deletion.status, when(u.deletion.requestedAt, copy.empty))}
+          </span>
+        ) : null}
+      </header>
+
+      <div className="grid gap-8 lg:grid-cols-[21rem_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <Section title={p.profile}>
+            <Facts rows={facts} />
+          </Section>
+          <Section title={p.feedback} count={r.feedback.length}>
+            <Timeline
+              empty={p.empty.feedback}
+              items={r.feedback.map((x) => ({
+                key: x.id,
+                at: x.createdAt,
+                body: (
+                  <>
+                    <Chip>{rating(x.rating)}</Chip>
+                    {x.track || x.subjectType ? <Chip>{x.track ?? x.subjectType}</Chip> : null}
+                    {x.note ? <span>{x.note}</span> : null}
+                  </>
+                ),
+              }))}
+            />
+          </Section>
+          <Section title={p.memory} count={r.memory.length}>
+            <Timeline
+              empty={p.empty.memory}
+              items={r.memory.map((m) => ({
+                key: m.id,
+                at: m.createdAt,
+                body: (
+                  <>
+                    <Chip>{m.kind}</Chip>
+                    {m.verdict === null ? null : <Chip>{rating(m.verdict)}</Chip>}
+                    {m.text ? <span>{m.text}</span> : null}
+                    {m.surface ? <Muted>{m.surface}</Muted> : null}
+                  </>
+                ),
+              }))}
+            />
+          </Section>
+          <Section title={p.brief} count={r.brief.length}>
+            <Timeline
+              empty={p.empty.brief}
+              items={r.brief.map((b) => ({
+                key: b.id,
+                at: b.createdAt,
+                body: (
+                  <>
+                    <Chip>{dot(b.list, b.state)}</Chip>
+                    <span>{b.text}</span>
+                    {b.because ? <Muted>{b.because}</Muted> : null}
+                  </>
+                ),
+              }))}
+            />
+          </Section>
+          <Section title={p.activity} count={r.events.length}>
+            <Timeline
+              empty={p.empty.activity}
+              items={r.events.map((e) => ({
+                key: e.id,
+                at: e.createdAt,
+                body: (
+                  <>
+                    <Chip>{e.eventType}</Chip>
+                    {e.meta.length ? (
+                      <Muted>{dot(...e.meta.map(([k, v]) => `${k}: ${v}`))}</Muted>
+                    ) : null}
+                  </>
+                ),
+              }))}
+            />
+          </Section>
+          <Section title={p.emails} count={r.notifications.length}>
+            <Timeline
+              empty={p.empty.emails}
+              items={r.notifications.map((n) => ({
+                key: n.id,
+                at: n.sentAt,
+                body: (
+                  <>
+                    <Chip tone={n.status === 'failed' ? 'danger' : undefined}>{n.kind}</Chip>
+                    <Muted>{dot(n.channel, n.status)}</Muted>
+                  </>
+                ),
+              }))}
+            />
+          </Section>
+          <Section title={p.receipts} count={r.inbox.length}>
+            <Timeline
+              empty={p.empty.receipts}
+              items={r.inbox.map((i) => ({
+                key: i.id,
+                at: i.receivedAt,
+                body: (
+                  <>
+                    <Chip>{i.status}</Chip>
+                    <span className="font-medium">{i.retailer ?? copy.empty}</span>
+                    <Muted>
+                      {dot(p.pieces(i.items), i.filed ? p.filed(i.filed, i.filedTo) : null)}
+                    </Muted>
+                  </>
+                ),
+              }))}
+            />
+          </Section>
+          <Link
+            href={`/admin/audit?userId=${u.id}`}
+            className="inline-flex min-h-11 items-center self-start font-sans text-sm text-ink underline underline-offset-4"
+          >
+            {copy.user.auditTrail}
+          </Link>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-6">
+          <Section
+            title={p.wardrobe}
+            count={r.pieceCount}
+            note={r.pieces.length < r.pieceCount ? p.newest(r.pieces.length) : undefined}
+          >
+            {r.pieces.length ? (
+              <TileGrid>
+                {r.pieces.map((x) => (
+                  <Tile
+                    key={x.id}
+                    src={x.image}
+                    title={x.label}
+                    meta={dot(x.category, x.brand, x.wears ? p.worn(x.wears) : null)}
+                    starred={x.hero}
+                  />
+                ))}
+              </TileGrid>
+            ) : (
+              <Panel>
+                <Empty>{p.empty.wardrobe}</Empty>
+              </Panel>
+            )}
+          </Section>
+          {r.wishlist.length ? (
+            <Section title={p.wishlist} count={r.wishlist.length}>
+              <TileGrid>
+                {r.wishlist.map((w) => (
+                  <Tile
+                    key={w.id}
+                    src={w.image}
+                    title={w.label}
+                    meta={dot(w.brand, w.price, w.bought ? rc.bought : null)}
+                  />
+                ))}
+              </TileGrid>
+            </Section>
+          ) : null}
+          <Section title={p.looks} count={r.looks.length}>
+            {r.looks.length ? (
+              <TileGrid>
+                {r.looks.map((l) => (
+                  <Tile
+                    key={l.id}
+                    src={l.image}
+                    title={l.name}
+                    meta={dot(
+                      l.status,
+                      p.pieces(l.pieces),
+                      l.proposals ? p.toFind(l.proposals) : null,
+                      l.wears ? p.worn(l.wears) : null,
+                      day(l.createdAt, copy.empty),
+                    )}
+                  />
+                ))}
+              </TileGrid>
+            ) : (
+              <Panel>
+                <Empty>{p.empty.looks}</Empty>
+              </Panel>
+            )}
+          </Section>
+          <Section title={p.lookbook} count={r.artifacts.length}>
+            <Timeline
+              empty={p.empty.lookbook}
+              items={r.artifacts.map((a) => ({
+                key: a.id,
+                at: a.createdAt,
+                body: (
+                  <>
+                    <Chip>{a.type}</Chip>
+                    <Link
+                      href={`/admin/artifacts/${a.id}`}
+                      prefetch={false}
+                      className="underline underline-offset-4"
+                    >
+                      {a.title || a.type}
+                    </Link>
+                    {a.saved ? null : <Muted>{p.unsaved}</Muted>}
+                  </>
+                ),
+              }))}
+            />
+          </Section>
+        </div>
+      </div>
+
+      <Section title={p.generations} count={gens.length} note={p.generationsNote}>
+        <Panel>
+          {gens.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left font-sans text-sm text-ink">
+                <thead>
+                  <tr className="border-b-[0.5px] border-hairline">
+                    {[g.when, g.job, g.calls, g.cost].map((h) => (
+                      <th key={h} scope="col" className="type-eyebrow px-4 py-2.5 text-ink-muted">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {gens.map((row) => (
+                    <tr
+                      key={row.key}
+                      className="border-b-[0.5px] border-hairline align-top last:border-b-0"
+                    >
+                      <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">
+                        {when(row.at, copy.empty)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {row.job ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span>{row.job.kind}</span>
+                            {row.job.status === 'succeeded' ? null : (
+                              <Chip tone={row.job.status === 'failed' ? 'danger' : undefined}>
+                                {row.job.status}
+                              </Chip>
+                            )}
+                            {row.job.error ? (
+                              <span className="text-danger">{row.job.error}</span>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <Muted>{p.noJob}</Muted>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex flex-wrap gap-1.5">
+                          {row.calls.map((c) => (
+                            <Link
+                              key={c.id}
+                              href={`/admin/generations/${c.id}`}
+                              prefetch={false}
+                              className={`relative inline-flex min-h-7 items-center gap-1 rounded-pill border-[0.5px] px-2.5 text-[11px] after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] hover:border-border-control ${
+                                c.status === 'ok'
+                                  ? 'border-rule-mid text-ink'
+                                  : 'border-danger text-danger'
+                              }`}
+                            >
+                              {c.feature}
+                              {c.status === 'ok' ? <Icon name="check" size={11} /> : ` ${c.status}`}
+                              {seconds(c.latencyMs) ? ` · ${seconds(c.latencyMs)}` : null}
+                            </Link>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">
+                        {money(row.costMicros)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-        </dl>
-      </section>
-      <DataTable
-        caption={copy.user.consents}
-        columns={[j.kind, j.status, j.started]}
-        rows={u.consents.map((c) => [c.kind, String(c.granted), when(c.at, copy.empty)])}
-        empty={copy.user.none}
-      />
-      <DataTable
-        caption={copy.user.usage}
-        columns={[j.kind, copy.users.columns.jobs]}
-        rows={u.usageToday.map((x) => [x.metric, x.count])}
-        empty={copy.user.none}
-      />
-      <DataTable
-        caption={copy.user.jobs}
-        columns={[j.kind, j.status, j.error, j.started, j.duration]}
-        rows={u.jobs.map((x) => [
-          x.kind,
-          x.status,
-          x.error ?? copy.empty,
-          when(x.createdAt, copy.empty),
-          x.durationMs === null ? copy.empty : `${x.durationMs} ms`,
-        ])}
-        empty={copy.user.none}
-      />
-      <DataTable
-        caption={rc.pieces(r.pieces.length, r.pieceCount)}
-        columns={[
-          c.photo,
-          c.name,
-          c.category,
-          c.brand,
-          c.colour,
-          c.material,
-          c.via,
-          c.wears,
-          c.when,
-        ]}
-        rows={r.pieces.map((p) => [
-          <Thumb key="t" src={p.image} empty={rc.noPhoto} />,
-          p.hero ? `${p.label} · ${rc.hero}` : p.label,
-          p.category,
-          p.brand ?? copy.empty,
-          p.colourShade ?? copy.empty,
-          material(p.material)?.name ?? copy.empty,
-          p.acquiredVia,
-          p.wears,
-          when(p.createdAt, copy.empty),
-        ])}
-        empty={rc.none}
-      />
-      <DataTable
-        caption={rc.looks}
-        columns={[c.photo, c.name, c.status, c.source, c.pieces, c.toFind, c.wears, c.when]}
-        rows={r.looks.map((l) => [
-          <Thumb key="t" src={l.image} empty={rc.noPhoto} />,
-          l.name,
-          l.status,
-          l.source,
-          l.pieces,
-          l.proposals,
-          rc.worn(l.wears, l.lastWornOn),
-          when(l.createdAt, copy.empty),
-        ])}
-        empty={rc.none}
-      />
-      <DataTable
-        caption={rc.artifacts}
-        columns={[c.type, c.title, c.status, c.when]}
-        rows={r.artifacts.map((a) => [
-          a.type,
-          link(`/admin/artifacts/${a.id}`, a.title || a.type),
-          a.saved ? rc.saved : rc.unsaved,
-          when(a.createdAt, copy.empty),
-        ])}
-        empty={rc.none}
-      />
-      <DataTable
-        caption={rc.wishlist}
-        columns={[c.photo, c.name, c.brand, c.source, c.price, c.status, c.when]}
-        rows={r.wishlist.map((w) => [
-          <Thumb key="t" src={w.image} empty={rc.noPhoto} />,
-          w.label,
-          w.brand ?? copy.empty,
-          w.sourceType,
-          w.price ?? copy.empty,
-          w.bought ? rc.bought : copy.empty,
-          when(w.createdAt, copy.empty),
-        ])}
-        empty={rc.none}
-      />
-      <DataTable
-        caption={rc.feedback}
-        columns={[c.rating, c.note, c.about, c.when]}
-        rows={r.feedback.map((f) => [
-          rating(f.rating),
-          f.note ?? copy.empty,
-          [f.subjectType, f.track].filter(Boolean).join(' · '),
-          when(f.createdAt, copy.empty),
-        ])}
-        empty={rc.none}
-      />
-      <DataTable
-        caption={rc.memory}
-        columns={[c.kind, c.surface, c.text, c.rating, c.when]}
-        rows={r.memory.map((m) => [
-          m.kind,
-          m.surface ?? copy.empty,
-          m.text ?? copy.empty,
-          m.verdict === null ? copy.empty : rating(m.verdict),
-          when(m.createdAt, copy.empty),
-        ])}
-        empty={rc.none}
-      />
-      <DataTable
-        caption={rc.brief}
-        columns={[c.list, c.status, c.text, c.because, c.source]}
-        rows={r.brief.map((b) => [b.list, b.state, b.text, b.because ?? copy.empty, b.source])}
-        empty={rc.none}
-      />
-      <DataTable
-        caption={rc.calls}
-        columns={[c.feature, c.model, c.status, c.latency, c.cost, c.when, rc.prompt]}
-        rows={r.calls.map((x) => [
-          x.feature,
-          x.model,
-          x.status,
-          x.latencyMs === null ? copy.empty : `${x.latencyMs} ms`,
-          money(x.costMicros),
-          when(x.createdAt, copy.empty),
-          link(`/admin/generations/${x.id}`, x.hasPrompt ? rc.open : rc.cleared),
-        ])}
-        empty={rc.none}
-      />
-      <DataTable
-        caption={rc.notifications}
-        columns={[c.kind, c.channel, c.status, c.when]}
-        rows={r.notifications.map((n) => [n.kind, n.channel, n.status, when(n.sentAt, copy.empty)])}
-        empty={rc.none}
-      />
-      <DataTable
-        caption={rc.inbox}
-        columns={[c.retailer, c.status, c.items, c.filed, c.when]}
-        rows={r.inbox.map((i) => [
-          i.retailer ?? copy.empty,
-          i.status,
-          i.items,
-          i.filedTo ? `${i.filed} · ${i.filedTo}` : i.filed,
-          when(i.receivedAt, copy.empty),
-        ])}
-        empty={rc.none}
-      />
-      <DataTable
-        caption={rc.events}
-        columns={[c.event, c.when]}
-        rows={r.events.map((e) => [e.eventType, when(e.createdAt, copy.empty)])}
-        empty={rc.none}
-      />
-      <section className="flex flex-col gap-2">
-        <Heading level={2} size="lg">
-          {copy.user.deletion}
-        </Heading>
-        <Text>
-          {u.deletion
-            ? `${u.deletion.status} · ${when(u.deletion.requestedAt, copy.empty)}`
-            : copy.user.noDeletion}
-        </Text>
-      </section>
-      <Link
-        href={`/admin/audit?userId=${u.id}`}
-        className="font-sans text-sm text-ink underline underline-offset-4"
-      >
-        {copy.user.auditTrail}
-      </Link>
+          ) : (
+            <Empty>{p.empty.generations}</Empty>
+          )}
+        </Panel>
+      </Section>
     </>
   );
 }

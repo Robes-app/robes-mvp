@@ -1,3 +1,4 @@
+import { dayMonth } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -95,25 +96,31 @@ export function DataTable({
   );
 }
 
-const dateTime = new Intl.DateTimeFormat('en-GB', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'UTC',
-});
+// Months from the calendar table, never Intl (newer ICU prints "Sept"). Times read in UTC.
+const utc = (iso: string) => new Date(iso).toISOString();
 
+// "15 Oct 2026, 07:13 UTC".
 export function when(iso: string | null, empty: string): string {
-  return iso ? `${dateTime.format(new Date(iso))} UTC` : empty;
+  if (!iso) return empty;
+  const t = utc(iso);
+  return `${dayMonth(t.slice(0, 10))} ${t.slice(0, 4)}, ${t.slice(11, 16)} UTC`;
+}
+
+// "15 Oct 2026".
+export function day(iso: string | null, empty: string): string {
+  if (!iso) return empty;
+  const t = utc(iso);
+  return `${dayMonth(t.slice(0, 10))} ${t.slice(0, 4)}`;
+}
+
+// "15 Oct 07:13", for a timeline row where the year is plain from the page.
+export function stamp(iso: string): string {
+  const t = utc(iso);
+  return `${dayMonth(t.slice(0, 10))} ${t.slice(11, 16)}`;
 }
 
 export function money(micros: number): string {
   return `$${(micros / 1_000_000).toFixed(micros < 10_000_000 ? 4 : 2)}`;
-}
-
-// A small photo cell for admin tables; the URL is already signed for this read.
-export function Thumb({ src, empty }: { src: string | null; empty: string }) {
-  if (!src) return <span className="text-ink-muted">{empty}</span>;
-  // biome-ignore lint/performance/noImgElement: a short-lived signed URL the image optimiser can't fetch
-  return <img src={src} alt="" className="block h-14 w-11 rounded-crisp object-cover" />;
 }
 
 // Pretty-printed stored JSON, for the output and call viewers.

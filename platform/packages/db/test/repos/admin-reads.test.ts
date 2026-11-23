@@ -159,8 +159,55 @@ describe('admin reads (SEC-11)', () => {
   });
 
   it('shows one user’s detail and nobody else’s, audited against that user', async () => {
+    await db
+      .insertInto('styleProfiles')
+      .values([
+        {
+          userId: target,
+          season: 'Soft Autumn',
+          undertone: 'Neutral-Warm',
+          contrast: 'Medium',
+          bodyType: 'Hourglass',
+        },
+        { userId: other, season: 'Not hers' },
+      ])
+      .execute();
+    await db
+      .updateTable('profiles')
+      .set({ styleIcons: ['Carolyn Bessette-Kennedy'], budget: '€500–1,500', homeCity: 'Suffolk' })
+      .where('id', '=', target)
+      .execute();
+    await db
+      .insertInto('sessions')
+      .values([
+        {
+          userId: target,
+          token: `t-${target}`,
+          expiresAt: new Date(Date.now() + 86_400_000),
+          updatedAt: new Date('2026-11-20T09:00:00Z'),
+        },
+        {
+          userId: other,
+          token: `t-${other}`,
+          expiresAt: new Date(Date.now() + 86_400_000),
+          updatedAt: new Date('2026-11-22T09:00:00Z'),
+        },
+      ])
+      .execute();
     const detail = await adminReads.userDetail(as(admin), target);
     expect(detail?.user.firstName).toBe('Tia');
+    expect(detail?.style).toEqual({
+      season: 'Soft Autumn',
+      undertone: 'Neutral-Warm',
+      contrast: 'Medium',
+      bodyType: 'Hourglass',
+    });
+    expect(detail?.user).toMatchObject({
+      styleIcons: ['Carolyn Bessette-Kennedy'],
+      budget: '€500–1,500',
+      homeCity: 'Suffolk',
+    });
+    expect(new Date(detail?.lastActiveAt as Date).toISOString()).toBe('2026-11-20T09:00:00.000Z');
     expect(detail?.consents).toEqual([
       expect.objectContaining({ kind: 'analytics', granted: true }),
     ]);
@@ -170,6 +217,7 @@ describe('admin reads (SEC-11)', () => {
     expect(detail?.deletion).toBeNull();
     const audits = await auditsBy(admin);
     expect(audits.at(-1)).toMatchObject({ action: 'admin.user.read', subjectUserId: target });
+    expect((await adminReads.userDetail(as(admin), plain))?.style).toBeNull();
     expect(
       await adminReads.userDetail(as(admin), '00000000-0000-4000-8000-000000000000'),
     ).toBeUndefined();
@@ -202,6 +250,13 @@ describe('admin reads (SEC-11)', () => {
       .insertInto('styleMemory')
       .values({ userId: target, kind: 'verdict', verdict: 1, subject: 'Office armour' })
       .execute();
+    await db
+      .insertInto('events')
+      .values([
+        { userId: target, eventType: 'home_render', metadata: JSON.stringify({ stage: 4 }) },
+        { userId: other, eventType: 'not_hers', metadata: '{}' },
+      ])
+      .execute();
 
     const photo = await db
       .insertInto('assets')
@@ -230,6 +285,9 @@ describe('admin reads (SEC-11)', () => {
     expect(r?.feedback[0]).toMatchObject({ rating: 0, note: 'Too formal' });
     expect(r?.memory[0]).toMatchObject({ kind: 'verdict', subject: 'Office armour' });
     expect(r?.calls[0]).toMatchObject({ feature: 'looks.style_piece', hasPrompt: false });
+    expect(r?.events).toEqual([
+      expect.objectContaining({ eventType: 'home_render', metadata: { stage: 4 } }),
+    ]);
     expect(JSON.stringify(r)).not.toContain('Not hers');
     expect((await auditsBy(admin)).at(-1)).toMatchObject({
       action: 'admin.user.records',

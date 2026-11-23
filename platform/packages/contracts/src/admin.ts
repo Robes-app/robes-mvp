@@ -62,6 +62,21 @@ export const AdminUserDetail = z.object({
   createdAt: at,
   onboardedAt: at.nullable(),
   role: z.enum(['admin', 'support', 'analyst']).nullable(),
+  lastActiveAt: at.nullable(),
+  homeCity: z.string().nullable(),
+  instagram: z.string().nullable(),
+  budget: z.string().nullable(),
+  annualSpend: z.string().nullable(),
+  styleIcons: z.array(z.string()),
+  // Her Style DNA as read (display names, e.g. "Soft Autumn"); null before her analysis.
+  style: z
+    .object({
+      season: z.string().nullable(),
+      undertone: z.string().nullable(),
+      contrast: z.string().nullable(),
+      bodyType: z.string().nullable(),
+    })
+    .nullable(),
   consents: z.array(z.object({ kind: z.string(), granted: z.boolean(), at })),
   usageToday: z.array(z.object({ metric: z.string(), count })),
   jobs: z.array(
@@ -316,7 +331,15 @@ export const AdminUserRecords = z.object({
       createdAt: at,
     }),
   ),
-  events: z.array(z.object({ id, eventType: z.string(), createdAt: at })),
+  // An event's metadata flattened to label/value pairs for the activity feed.
+  events: z.array(
+    z.object({
+      id,
+      eventType: z.string(),
+      meta: z.array(z.tuple([z.string(), z.string()])),
+      createdAt: at,
+    }),
+  ),
 });
 export type AdminUserRecords = z.infer<typeof AdminUserRecords>;
 
