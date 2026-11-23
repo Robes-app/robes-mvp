@@ -81,6 +81,7 @@ export interface Assets {
   blurhash: string | null;
   bucketKey: string | null;
   bytes: number | null;
+  catalogBase: string | null;
   contentType: string | null;
   createdAt: Generated<Timestamp>;
   crop: Json | null;
@@ -351,6 +352,8 @@ export interface Looks {
   renderStatus: string | null;
   robesHidden: Generated<boolean>;
   seasons: Generated<string[]>;
+  seedId: string | null;
+  seedLookId: string | null;
   setId: string | null;
   setIndex: number | null;
   source: Generated<string>;
@@ -603,6 +606,14 @@ export interface Users {
   updatedAt: Generated<Timestamp>;
 }
 
+export interface UserSeeds {
+  createdAt: Generated<Timestamp>;
+  seededAt: Generated<Timestamp>;
+  seedId: string;
+  updatedAt: Generated<Timestamp>;
+  userId: string;
+}
+
 export interface UserUiState {
   bellCards: Generated<Json>;
   bellSeenAt: Timestamp | null;
@@ -804,6 +815,7 @@ export interface DB {
   twinArchives: TwinArchives;
   usageCounters: UsageCounters;
   users: Users;
+  userSeeds: UserSeeds;
   userUiState: UserUiState;
   verifications: Verifications;
   waitlist: Waitlist;

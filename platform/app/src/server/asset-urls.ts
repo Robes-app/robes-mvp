@@ -1,17 +1,19 @@
 import type { AssetRendition, PieceImage } from '@robes/contracts';
-import { mediaKeys, RenditionManifest, renditionKeys } from '@robes/media';
+import { catalogRenditionKeys, mediaKeys, RenditionManifest, renditionKeys } from '@robes/media';
 import type { MediaDelivery } from '@robes/media/delivery';
 
 // Signs every rendition of a ready asset for its owner; one place for assets and pieces alike.
 export async function signedRenditions(
   delivery: Pick<MediaDelivery, 'url'>,
   userId: string,
-  asset: { id: string; status: string; renditions: unknown },
+  asset: { id: string; status: string; renditions: unknown; catalogBase?: string | null },
 ): Promise<{ master: string | null; renditions: AssetRendition[] }> {
   if (asset.status !== 'ready') return { master: null, renditions: [] };
   const manifest = RenditionManifest.safeParse(asset.renditions);
   if (!manifest.success) return { master: null, renditions: [] };
-  const keys = renditionKeys(userId, asset.id, manifest.data);
+  const keys = asset.catalogBase
+    ? catalogRenditionKeys(asset.catalogBase, manifest.data)
+    : renditionKeys(userId, asset.id, manifest.data);
   const [master, renditions] = await Promise.all([
     delivery.url(keys.master),
     Promise.all(
@@ -38,6 +40,7 @@ export async function toImage(
     blurhash: string | null;
     // The piece was cut out of this photograph (cutout brief): its cutout sits beside it.
     hasCutout?: boolean;
+    catalogBase?: string | null;
   },
 ): Promise<PieceImage> {
   return {

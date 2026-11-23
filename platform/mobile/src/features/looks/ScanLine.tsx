@@ -55,10 +55,9 @@ export function ScanLine() {
   );
 }
 
-// What a frame still being drawn says: a swap re-writes the look, else Robes is drawing it. Null
+// What a frame still being drawn says: a redraw re-writes the look, else Robes is drawing it. Null
 // once the frame has landed. One rule for the tile and the look's own picture.
-export function scanningLine(look: Look, swapping = false): string | null {
-  if (swapping) return copy.suggestedTile.restyling;
+export function scanningLine(look: Look): string | null {
   if (look.framePending) return copy.suggestedTile.restyling;
   return !look.image && look.setId ? copy.suggestedTile.framing : null;
 }

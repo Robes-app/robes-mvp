@@ -27,6 +27,7 @@ import { planRepo } from './plan';
 import { profilesRepo } from './profiles';
 import { pushDeliveryRepo, pushTokensRepo } from './push-tokens';
 import { rateLimitRepo } from './rate-limits';
+import { seedsRepo } from './seeds';
 import { publicSharesRepo, sharesRepo } from './shares';
 import { styleBriefRepo, styleDnaRepo, styleMemoryRepo } from './style-dna';
 import { styleAnalysisRepo, styleProfileRepo } from './style-profile';
@@ -72,6 +73,8 @@ export function createRepositories(db: Db) {
     waitlist: waitlistRepo(db),
     // Token-addressed public reads (the token is the capability, SEC-13); no user id.
     publicShares: publicSharesRepo(db),
+    // Seeded drops of looks in her account: which she has had, landing one, retiring one.
+    seeds: seedsRepo(db),
     shares: sharesRepo(db),
     pushTokens: pushTokensRepo(db),
     styleProfile: styleProfileRepo(db),
@@ -164,6 +167,7 @@ export {
   type ProfilePatch,
 } from './profiles';
 export type { PushPlatform } from './push-tokens';
+export type { SeedLanding } from './seeds';
 export { mintShareToken, type ShareSubject } from './shares';
 export {
   type BriefList,

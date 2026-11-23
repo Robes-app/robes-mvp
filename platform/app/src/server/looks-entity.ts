@@ -57,7 +57,7 @@ function proposalsOf(raw: unknown): Proposal[] {
     return shaped.success ? [shaped.data] : [];
   });
 }
-const ROBES_SOURCES = new Set(['generated', 'today', 'travel']);
+const ROBES_SOURCES = new Set(['generated', 'today', 'travel', 'seed']);
 
 type LookRow = NonNullable<Awaited<ReturnType<typeof repos.looks.get>>>;
 
@@ -231,6 +231,7 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
         : null,
       setId: row.setId,
       setIndex: row.setIndex,
+      seedId: row.seedId,
       dateHint: row.dateHint,
       timesWorn: Number(wears.get(row.id)?.timesWorn ?? 0),
       lastWornOn: wears.get(row.id)?.lastWornOn ?? null,

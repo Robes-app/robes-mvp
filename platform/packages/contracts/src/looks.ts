@@ -144,6 +144,12 @@ export const Proposal = z.object({
   wishlistItemId: z.uuid().nullable().default(null),
   // Set on a piece found in her photograph (Capture PRD 1c): the row is hers to match or add.
   capture: CaptureRead.nullable().default(null),
+  // The shop's own page for the piece (a seeded look's pieces, 23 Nov): Save files it to the wish.
+  url: z
+    .url({ protocol: /^https$/ })
+    .max(2048)
+    .nullable()
+    .optional(),
 });
 export type Proposal = z.infer<typeof Proposal>;
 
@@ -256,6 +262,8 @@ export const Look = z.object({
   anchor: LookAnchor.nullable(),
   setId: z.uuid().nullable(),
   setIndex: z.number().int().nullable(),
+  // The seeded drop the look came from ('xmas-2026'), else null (plan "Seeded Christmas looks").
+  seedId: z.string().nullable().optional(),
   // The day her words named: offered on Save, never filed by itself.
   dateHint: wornOn.nullable(),
   timesWorn: z.number().int().min(0),

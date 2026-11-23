@@ -2,6 +2,7 @@ import type { Look } from '@robes/contracts';
 import { lookbook as copy, filters as filterCopy, ui } from '@robes/copy';
 import { lookFacets } from '@robes/core/filters';
 import { showLookbookSearch } from '@robes/core/looks';
+import { waitingSeed } from '@robes/core/seeds';
 import {
   CardSkeleton,
   EmptyState,
@@ -12,7 +13,7 @@ import {
   Tabs,
 } from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { TabScreen, TabSticky } from '@/components/TabScreen';
 import { FilterRow } from '@/features/filters/FilterRow';
@@ -23,7 +24,7 @@ import { errorMessage } from '@/lib/errors';
 import { usePullRefresh } from '@/lib/pull-refresh';
 import { DiarySheet } from './DiarySheet';
 import { DraftTile, SavedLookCard, SuggestedTile } from './LookTiles';
-import { useLetGo, useLooksByStatus, useRestyle, useSaveLook } from './look-states';
+import { useLetGo, useLooksByStatus, useSaveLook } from './look-states';
 import { NewLookSheet } from './NewLookSheet';
 
 type Tab = 'saved' | 'suggested';
@@ -47,7 +48,6 @@ export function LooksView() {
   const saved = useLooksByStatus('saved');
   const drafts = useLooksByStatus('draft');
   const suggested = useLooksByStatus('suggested');
-  const restyle = useRestyle();
   const letGo = useLetGo();
   const save = useSaveLook(undefined, 'suggested');
   const [newLook, setNewLook] = useState(false);
@@ -62,6 +62,16 @@ export function LooksView() {
   const filters = useLookFilters(all);
   const items = filters.filtered;
   const draftItems = drafts.data?.items ?? [];
+  // A seeded drop waiting in Suggested (the Christmas trial): the Lookbook opens there once, on
+  // arrival; a tap on Saved then stays on Saved. Web twin: lookbook.tsx.
+  const seed = waitingSeed(suggested.data?.items ?? []);
+  const drop = seed ? copy.seedDrops[seed] : undefined;
+  const landed = useRef(false);
+  useEffect(() => {
+    if (landed.current || !suggested.data) return;
+    landed.current = true;
+    if (seed && !params.tab) setTab('suggested');
+  }, [suggested.data, seed, params.tab]);
   const open = (look: Look) =>
     router.push(look.status === 'draft' ? `/looks/draft/${look.id}` : `/look/${look.id}`);
 
@@ -114,6 +124,18 @@ export function LooksView() {
           onChange={filters.setQuery}
           testID="lookbook-search"
         />
+      ) : null}
+      {tab === 'suggested' && drop ? (
+        <View className="gap-[6px]" testID="seed-header">
+          <Eyebrow>{drop.title}</Eyebrow>
+          <Text
+            className="text-ink text-2xl"
+            style={{ fontFamily: fonts.display }}
+            maxFontSizeMultiplier={maxFontSizeMultiplier.body}
+          >
+            {drop.line}
+          </Text>
+        </View>
       ) : null}
       {tab === 'saved' && draftItems.length ? (
         <View className="gap-[10px]">
@@ -179,8 +201,6 @@ export function LooksView() {
                       aspect="3:4"
                       onPress={() => open(item)}
                       onRemove={() => letGo(item.id)}
-                      onSwap={() => restyle.restyle(item.id)}
-                      swapping={restyle.busyId === item.id}
                       onSave={() => save.mutate({ params: { id: item.id }, input: {} })}
                       saving={save.isPending && save.variables?.params.id === item.id}
                     />

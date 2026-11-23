@@ -3,15 +3,16 @@
 import { lookbook as copy, filters as filterCopy, nav } from '@robes/copy';
 import { lookFacets } from '@robes/core/filters';
 import { showLookbookSearch } from '@robes/core/looks';
+import { waitingSeed } from '@robes/core/seeds';
 import { Icon } from '@robes/icons/web';
 import { Button, CardSkeleton, EmptyState, ErrorText, Eyebrow, IconButton, Tabs } from '@robes/ui';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FilterRow } from '@/components/filters/filter-row';
 import { FilterSheet } from '@/components/filters/filter-sheet';
 import { useLookFilters } from '@/components/filters/use-look-filters';
 import { errorCopy } from '@/lib/error-copy';
-import { useLetGo, useLooksByStatus, useRestyle, useSaveLook } from '@/lib/look-states';
+import { useLetGo, useLooksByStatus, useSaveLook } from '@/lib/look-states';
 import { DraftTile, SavedTile, SuggestedTile } from './look-tiles';
 import { NewLookSheet } from './new-look-sheet';
 
@@ -32,7 +33,6 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   const saved = useLooksByStatus('saved');
   const drafts = useLooksByStatus('draft');
   const suggested = useLooksByStatus('suggested');
-  const restyle = useRestyle();
   const letGo = useLetGo();
   const save = useSaveLook(undefined, 'suggested');
   const [newLook, setNewLook] = useState(false);
@@ -44,6 +44,16 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   const filters = useLookFilters(all);
   const items = filters.filtered;
   const draftItems = drafts.data?.items ?? [];
+  // A seeded drop waiting in Suggested (the Christmas trial): the Lookbook opens there once, on
+  // arrival; a tap on Saved then stays on Saved.
+  const seed = waitingSeed(suggested.data?.items ?? []);
+  const drop = seed ? copy.seedDrops[seed] : undefined;
+  const landed = useRef(false);
+  useEffect(() => {
+    if (landed.current || !suggested.data) return;
+    landed.current = true;
+    if (tab === 'saved' && seed) router.replace('/looks?tab=suggested');
+  }, [suggested.data, seed, tab, router]);
   return (
     <div className="flex flex-col gap-5">
       {/* The dock names the place; the page title is read to assistive tech (as Diary, Wardrobe). */}
@@ -98,6 +108,12 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
             className="min-w-0 flex-1 bg-transparent font-sans text-ink text-xs placeholder:text-ink-faint focus:outline-none"
           />
         </label>
+      ) : null}
+      {tab === 'suggested' && drop ? (
+        <header className="flex flex-col gap-1.5" data-testid="seed-header">
+          <Eyebrow>{drop.title}</Eyebrow>
+          <p className="font-display font-light text-2xl text-ink">{drop.line}</p>
+        </header>
       ) : null}
       {tab === 'saved' && draftItems.length ? (
         <section aria-labelledby="in-progress" className="flex flex-col gap-2.5">
@@ -169,8 +185,6 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
                   look={look}
                   aspect="3:4"
                   onRemove={() => letGo(look.id)}
-                  onSwap={() => restyle.restyle(look.id)}
-                  swapping={restyle.busyId === look.id}
                   onSave={() => save.mutate({ params: { id: look.id }, input: {} })}
                   saving={save.isPending && save.variables?.params.id === look.id}
                 />

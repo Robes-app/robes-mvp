@@ -36,6 +36,8 @@ const LOOK_COLUMNS = [
   'recordImage',
   'robesHidden',
   'pictureNote',
+  'seedId',
+  'seedLookId',
   'createdAt',
   'updatedAt',
 ] as const;
@@ -128,6 +130,7 @@ async function fileProposals(
       brand: str('brand'),
       color: str('color'),
       sourceLabel: str('retailerHint'),
+      sourceUrl: str('url'),
       price: price?.price ?? null,
       currency: price?.currency ?? null,
     });

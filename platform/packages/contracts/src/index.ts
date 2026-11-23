@@ -13,6 +13,7 @@ export * from './photo-reads';
 export * from './plan';
 export * from './rack';
 export * from './routes';
+export * from './seeds';
 export * from './shares';
 export * from './today';
 export * from './travel';

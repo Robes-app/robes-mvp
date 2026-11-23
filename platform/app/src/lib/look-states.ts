@@ -168,26 +168,6 @@ export function useJobDone(jobId: string | null, onDone: (job: JobSnapshot) => v
   return job;
 }
 
-// ↻ on a suggestion: re-written in place while the tile says so.
-export function useRestyle() {
-  const toast = useToast();
-  const refresh = useRefreshLooks();
-  const [busy, setBusy] = useState<{ lookId: string; jobId: string } | null>(null);
-  const start = useApiMutation('looks.restyle', {
-    onSuccess: ({ jobId }, { params }) => setBusy({ lookId: params.id, jobId }),
-    onError: () => toast({ message: copy.swapFailed }),
-  });
-  useJobDone(busy?.jobId ?? null, (job) => {
-    setBusy(null);
-    refresh();
-    if (job.status === 'failed' || job.status === 'cancelled') toast({ message: copy.swapFailed });
-  });
-  return {
-    restyle: (id: string) => start.mutate({ params: { id } }),
-    busyId: busy?.lookId ?? (start.isPending ? (start.variables?.params.id ?? null) : null),
-  };
-}
-
 // A saved look's pieces changed: her model wears the new rack (beta re-dressed it live). The
 // render is keyed by model and rack, so an unchanged rack costs nothing; a model not drawn yet
 // (conflict) waits for the next open.

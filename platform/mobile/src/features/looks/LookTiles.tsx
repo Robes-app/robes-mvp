@@ -231,29 +231,26 @@ function SuggestedMark({ look }: { look: Look }) {
 }
 
 // Suggested: Robes' frame, why it was suggested under the name, where it came from in the corner,
-// the bookmark that saves it on the photograph (PRD §5.3), ✕ and ↻ always shown.
+// the bookmark that saves it on the photograph (PRD §5.3), ✕ always shown. No ↻: a suggestion is
+// kept or let go, never restyled from its tile (Annie, Christmas trial, 23 Nov).
 export function SuggestedTile({
   look,
   onPress,
   onRemove,
-  onSwap,
   onSave,
   saving = false,
-  swapping,
   showMark = true,
   aspect,
 }: {
   look: Look;
   onPress: () => void;
   onRemove: () => void;
-  onSwap: () => void;
   onSave?: () => void;
   saving?: boolean;
-  swapping: boolean;
   showMark?: boolean;
   aspect?: Aspect;
 }) {
-  const busy = scanningLine(look, swapping);
+  const busy = scanningLine(look);
   return (
     <LookTile
       look={look}
@@ -283,22 +280,12 @@ export function SuggestedTile({
         </>
       }
       corner={
-        <View className="flex-row gap-[6px]">
-          {/* Beta's order: ↻ then ✕, the way out at the edge (twin: look-tiles.tsx). */}
-          <OnPhoto
-            icon="swap"
-            label={copy.suggestedTile.swap(look.name)}
-            size={32}
-            onPress={onSwap}
-            disabled={swapping}
-          />
-          <OnPhoto
-            icon="close"
-            label={copy.suggestedTile.remove(look.name)}
-            size={32}
-            onPress={onRemove}
-          />
-        </View>
+        <OnPhoto
+          icon="close"
+          label={copy.suggestedTile.remove(look.name)}
+          size={32}
+          onPress={onRemove}
+        />
       }
     />
   );
