@@ -199,6 +199,9 @@ test('⌘K goes anywhere and offers Create; the bar has no Create button', async
 });
 
 test('P0 routes have no serious accessibility violations', async ({ page }) => {
+  // 22 axe sweeps in one test: on a CI runner they reached the default 30s on the last page
+  // (sync PR #249, 23 Nov). slow() triples the budget; every route is still checked.
+  test.slow();
   for (const path of ['/', '/auth/sign-in']) {
     await page.goto(path);
     expect(await seriousViolations(page), path).toEqual([]);
