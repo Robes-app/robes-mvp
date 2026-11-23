@@ -125,6 +125,7 @@ function piece(n: number): Piece {
     brand: null,
     notes: null,
     status: 'ready',
+    detail: null,
     heroPosition: null,
     seasonBand: 'year_round',
     seasons: [],

@@ -10,7 +10,7 @@ import { Pressable, Text as RNText, View } from 'react-native';
 import { useDressingLine } from '@/features/looks/DraftLook';
 import { lookHero, PERSON_CROP } from '@/features/looks/LookTile';
 import { ScanLine } from '@/features/looks/ScanLine';
-import { renditionUri } from '@/lib/images';
+import { pieceSource, renditionUri } from '@/lib/images';
 
 const d = lookbook.draft;
 
@@ -119,14 +119,14 @@ export function DraftTile({
           </Text>
           <View className="flex-row gap-1.5">
             {thumbs.map((p) => {
-              const thumb = renditionUri(p.piece.image, 34);
+              const { uri: thumb, fit } = pieceSource(p.piece.image, 34);
               return (
                 <View
                   key={p.piece.id}
                   className="overflow-hidden rounded-crisp border border-rule-mid bg-surface-raised"
                   style={{ width: 34, height: 42 }}
                 >
-                  {thumb ? <Image source={thumb} alt="" aspect="4:5" /> : null}
+                  {thumb ? <Image source={thumb} alt="" aspect="4:5" {...fit} /> : null}
                 </View>
               );
             })}

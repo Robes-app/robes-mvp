@@ -28,9 +28,16 @@ function harness(status = 'pending') {
   const objects = new Map<string, Uint8Array>();
   const rows = new Map<
     string,
-    { userId: string | null; status: string; error?: string; crop?: unknown }
+    {
+      userId: string | null;
+      status: string;
+      error?: string;
+      crop?: unknown;
+      sourceAssetId?: string | null;
+    }
   >();
   const ready = new Map<string, Parameters<AssetStore['markReady']>[1]>();
+  const cutouts = new Set<string>();
   let puts = 0;
   const assets: AssetStore = {
     get: async (id) => rows.get(id),
@@ -42,6 +49,11 @@ function harness(status = 'pending') {
     },
     markFailed: async (id, error) => {
       rows.set(id, { userId: USER, status: 'failed', error });
+    },
+    markCutout: async (id) => {
+      if (!rows.has(id)) return false;
+      cutouts.add(id);
+      return true;
     },
   };
   const storage = {
@@ -59,14 +71,14 @@ function harness(status = 'pending') {
       return keys.length;
     },
   };
-  async function upload(bytes: Uint8Array, owner = USER, crop?: unknown) {
+  async function upload(bytes: Uint8Array, owner = USER, crop?: unknown, sourceAssetId?: string) {
     const assetId = crypto.randomUUID();
-    rows.set(assetId, { userId: owner, status, crop });
+    rows.set(assetId, { userId: owner, status, crop, sourceAssetId });
     const key = mediaKeys.original(USER, assetId);
     objects.set(key, bytes);
     return { assetId, key };
   }
-  return { deps: { storage, assets }, objects, rows, ready, upload, puts: () => puts };
+  return { deps: { storage, assets }, objects, rows, ready, cutouts, upload, puts: () => puts };
 }
 
 describe('detectImageFormat', () => {
@@ -141,6 +153,154 @@ describe('processUpload', () => {
     const { assetId, key } = await h.upload(photo, USER, { x: 0.5, y: 0.5, w: 0.2, h: 0.25 });
     expect(await processUpload(h.deps, key)).toMatchObject({ status: 'ready', assetId });
     expect(h.ready.get(assetId)).toMatchObject({ width: 360, height: 328 });
+  });
+
+  describe('a piece cut out of its photograph', () => {
+    const SOURCE = '33333333-3333-4333-8333-333333333333';
+    const box = { x: 0.25, y: 0.25, w: 0.5, h: 0.5 };
+    const plan = { ...box, cut: { route: 'on-device', index: 0, boxes: [box] } };
+    // The lift for a 1000×800 photo: one item in the middle of the box, a strap at its corner.
+    const item = (width: number, height: number, left: number, top: number) => ({
+      input: {
+        create: { width, height, channels: 3 as const, background: { r: 16, g: 255, b: 0 } },
+      },
+      left,
+      top,
+    });
+    const lift = () =>
+      sharp({ create: { width: 500, height: 400, channels: 3, background: '#000000' } })
+        .composite([item(200, 140, 150, 140), item(30, 20, 150, 120)])
+        .png()
+        .toBuffer();
+
+    it('stores the cutout beside the rectangle and says so', async () => {
+      const h = harness();
+      h.objects.set(mediaKeys.lift(USER, SOURCE), await lift());
+      const events: unknown[] = [];
+      const photo = await solid(1000, 800).jpeg().toBuffer();
+      const { assetId, key } = await h.upload(photo, USER, plan, SOURCE);
+      const deps = { ...h.deps, onCutout: async (e: unknown) => void events.push(e) };
+      expect(await processUpload(deps, key)).toMatchObject({ status: 'ready', assetId });
+      // The rectangle, as ever…
+      expect(h.objects.has(mediaKeys.master(USER, assetId))).toBe(true);
+      expect(h.ready.get(assetId)).toMatchObject({ hasCutout: true });
+      // …and the piece alone, see-through, with its twin on white for the drawing step.
+      const cutout = await sharp(h.objects.get(mediaKeys.cutout(USER, assetId))).metadata();
+      expect([cutout.format, cutout.hasAlpha, cutout.width, cutout.height]).toEqual([
+        'webp',
+        true,
+        400,
+        320,
+      ]);
+      const reference = await sharp(
+        h.objects.get(mediaKeys.cutoutReference(USER, assetId)),
+      ).metadata();
+      expect([reference.format, reference.hasAlpha]).toEqual(['jpeg', false]);
+      expect(events).toEqual([
+        {
+          userId: USER,
+          assetId,
+          outcome: {
+            route: 'on-device',
+            status: 'ok',
+            shared: false,
+            latencyMs: expect.any(Number),
+          },
+        },
+      ]);
+    });
+
+    it('keeps the rectangle alone when the lift is missing, bad or misses the box', async () => {
+      for (const [bytes, reason] of [
+        [null, 'no_lift'],
+        [new TextEncoder().encode('not a png'), 'bad_lift'],
+        [
+          await sharp({ create: { width: 500, height: 400, channels: 3, background: '#000000' } })
+            .png()
+            .toBuffer(),
+          'miss',
+        ],
+      ] as const) {
+        const h = harness();
+        if (bytes) h.objects.set(mediaKeys.lift(USER, SOURCE), bytes);
+        const events: Array<{ outcome: unknown }> = [];
+        const photo = await solid(1000, 800).jpeg().toBuffer();
+        const { assetId, key } = await h.upload(photo, USER, plan, SOURCE);
+        const deps = {
+          ...h.deps,
+          onCutout: async (e: { outcome: unknown }) => void events.push(e),
+        };
+        expect(await processUpload(deps, key)).toMatchObject({ status: 'ready', assetId });
+        expect(h.ready.get(assetId)?.hasCutout).toBeUndefined();
+        expect(h.objects.has(mediaKeys.cutout(USER, assetId))).toBe(false);
+        expect(h.objects.has(mediaKeys.master(USER, assetId))).toBe(true);
+        expect(events[0]?.outcome).toMatchObject({ status: 'fallback', reason });
+      }
+    });
+
+    it('answers a cut request: a photo that is one piece, cut out of itself', async () => {
+      const h = harness('ready');
+      const { assetId } = await h.upload(await solid(1000, 800).jpeg().toBuffer());
+      const request = mediaKeys.cutRequest(USER, assetId);
+      h.objects.set(request, await solid(1000, 800).jpeg().toBuffer());
+      h.objects.set(mediaKeys.lift(USER, assetId), await lift());
+      const events: Array<{ outcome: unknown }> = [];
+      const deps = { ...h.deps, onCutout: async (e: { outcome: unknown }) => void events.push(e) };
+      expect(await processUpload(deps, request)).toEqual({ status: 'cut', assetId, cutout: true });
+      expect(h.cutouts.has(assetId)).toBe(true);
+      const cutout = await sharp(h.objects.get(mediaKeys.cutout(USER, assetId))).metadata();
+      expect([cutout.format, cutout.hasAlpha]).toEqual(['webp', true]);
+      expect(h.objects.has(mediaKeys.cutoutReference(USER, assetId))).toBe(true);
+      expect(events[0]?.outcome).toMatchObject({ route: 'on-device', status: 'ok' });
+      // The photograph itself is untouched: nothing re-rendered, no status changed.
+      expect(h.rows.get(assetId)?.status).toBe('ready');
+      expect(h.ready.has(assetId)).toBe(false);
+    });
+
+    it('a cut request with no lift, or for a photo that is not hers, stores nothing', async () => {
+      const h = harness('ready');
+      const { assetId } = await h.upload(await solid(1000, 800).jpeg().toBuffer());
+      const request = mediaKeys.cutRequest(USER, assetId);
+      h.objects.set(request, await solid(1000, 800).jpeg().toBuffer());
+      expect(await processUpload(h.deps, request)).toEqual({
+        status: 'cut',
+        assetId,
+        cutout: false,
+      });
+      expect(h.cutouts.size).toBe(0);
+      const other = await h.upload(await solid(100, 80).jpeg().toBuffer(), 'someone-else');
+      const theirs = mediaKeys.cutRequest(USER, other.assetId);
+      h.objects.set(theirs, await solid(100, 80).jpeg().toBuffer());
+      expect(await processUpload(h.deps, theirs)).toEqual({
+        status: 'skipped',
+        reason: 'owner_mismatch',
+      });
+    });
+
+    it('a ledger that fails never fails the render, and a crop with no plan tries nothing', async () => {
+      const h = harness();
+      h.objects.set(mediaKeys.lift(USER, SOURCE), await lift());
+      const photo = await solid(1000, 800).jpeg().toBuffer();
+      const first = await h.upload(photo, USER, plan, SOURCE);
+      const failing = {
+        ...h.deps,
+        onCutout: async () => {
+          throw new Error('ledger down');
+        },
+      };
+      expect(await processUpload(failing, first.key)).toMatchObject({ status: 'ready' });
+      let asked = 0;
+      const plain = await h.upload(photo, USER, box, SOURCE);
+      const counting = {
+        ...h.deps,
+        onCutout: async () => {
+          asked += 1;
+        },
+      };
+      expect(await processUpload(counting, plain.key)).toMatchObject({ status: 'ready' });
+      expect(asked).toBe(0);
+      expect(h.objects.has(mediaKeys.cutout(USER, plain.assetId))).toBe(false);
+    });
   });
 
   it('applies EXIF orientation', async () => {

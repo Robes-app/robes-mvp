@@ -1,5 +1,5 @@
 import type { AssetRendition, PieceImage } from '@robes/contracts';
-import { RenditionManifest, renditionKeys } from '@robes/media';
+import { mediaKeys, RenditionManifest, renditionKeys } from '@robes/media';
 import type { MediaDelivery } from '@robes/media/delivery';
 
 // Signs every rendition of a ready asset for its owner; one place for assets and pieces alike.
@@ -36,6 +36,8 @@ export async function toImage(
     width: number | null;
     height: number | null;
     blurhash: string | null;
+    // The piece was cut out of this photograph (cutout brief): its cutout sits beside it.
+    hasCutout?: boolean;
   },
 ): Promise<PieceImage> {
   return {
@@ -45,5 +47,9 @@ export async function toImage(
     height: asset.height,
     blurhash: asset.blurhash,
     renditions: (await signedRenditions(delivery, userId, asset)).renditions,
+    cutout:
+      asset.hasCutout && asset.status === 'ready'
+        ? await delivery.url(mediaKeys.cutout(userId, asset.id))
+        : null,
   };
 }

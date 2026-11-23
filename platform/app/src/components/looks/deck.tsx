@@ -22,7 +22,7 @@ import { useRouter } from 'next/navigation';
 import { type PointerEvent, useEffect, useReducer, useRef, useState } from 'react';
 import { formatDay } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
-import { imageSources } from '@/lib/image';
+import { pieceSources } from '@/lib/image';
 import { useLookSet, useRefreshLooks, useRequestFrame } from '@/lib/look-states';
 import { useJob } from '@/lib/use-job';
 import { LookImage } from './look-image';
@@ -75,7 +75,7 @@ function Dressing({ set }: { set?: LookSet }) {
     const t = setInterval(() => setI((n) => n + 1), 2200);
     return () => clearInterval(t);
   }, []);
-  const photo = set?.anchor?.image ? imageSources(set.anchor.image.renditions) : null;
+  const photo = pieceSources(set?.anchor?.image);
   return (
     <div
       className="mx-auto flex w-full max-w-sm flex-col gap-3"
@@ -84,7 +84,7 @@ function Dressing({ set }: { set?: LookSet }) {
     >
       <div className="relative overflow-hidden rounded-soft">
         {photo ? (
-          <Image src={photo.src} srcSet={photo.srcSet} sizes="384px" alt="" aspect="4:5" />
+          <Image sizes="384px" alt="" aspect="4:5" {...photo} />
         ) : (
           <div className="flex aspect-[4/5] flex-col items-center justify-center gap-2 bg-surface-sunk p-8 text-center">
             <span className="font-display text-5xl text-ink-muted" aria-hidden>

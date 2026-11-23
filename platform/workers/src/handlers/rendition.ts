@@ -1,3 +1,4 @@
+import { cutoutCall } from '@robes/core/cutout';
 import { processUpload } from '@robes/media/process';
 import { createMediaBucket, createMediaStorage, type MediaStorage } from '@robes/media/storage';
 import { workerContext } from '../context';
@@ -32,7 +33,16 @@ async function handleRendition(event: S3Event, deps?: { storage: MediaStorage })
   const store = deps?.storage ?? mediaStorage();
   for (const record of event.Records) {
     const key = decodeS3Key(record.s3.object.key);
-    const result = await processUpload({ storage: store, assets: ctx.system.assets }, key);
+    const result = await processUpload(
+      {
+        storage: store,
+        assets: ctx.system.assets,
+        // Every cutout tried is in the cost ledger, on-device ones at nothing (cutout brief).
+        onCutout: ({ userId, outcome }) =>
+          ctx.system.ledger.record({ ...cutoutCall(outcome), userId, jobId: outcome.jobId }),
+      },
+      key,
+    );
     ctx.logger.info({ ...result }, 'rendition');
   }
 }

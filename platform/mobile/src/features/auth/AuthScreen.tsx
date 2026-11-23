@@ -156,6 +156,7 @@ export function AuthScreen({ mode }: { mode: 'sign-in' | 'sign-up' }) {
                 {mode === 'sign-up' ? (
                   <Field
                     label={copy.firstNameLabel}
+                    placeholder={copy.firstNamePlaceholder}
                     autoComplete="given-name"
                     textContentType="givenName"
                     autoCapitalize="words"

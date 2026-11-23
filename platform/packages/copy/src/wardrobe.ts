@@ -103,6 +103,9 @@ export const wardrobe = {
       size: 'Size',
       price: 'Price',
       notes: 'Notes',
+      // The one feature that makes the piece itself ("Strong padded shoulder"): Robes reads it
+      // from her photograph, she can put it her way, and drawn looks keep it.
+      detail: 'Detail',
       // A wish's retailer, where an owned piece reads Brand (Front Door PRD rev 3 §7.3).
       shop: 'Shop',
       // The Wearing tab's record rows (§7.3): "8 times · last 27 Oct", "3".
@@ -170,6 +173,7 @@ export const wardrobe = {
     name: { placeholder: 'What is it?' },
     brand: { placeholder: 'Who made it' },
     notes: { placeholder: 'How it fits, how you wear it' },
+    detail: { placeholder: 'Strong padded shoulder', invalid: 'Letters and numbers only.' },
     // The category drill's back chevron.
     back: (to: string): string => `Back to ${to}`,
     price: {

@@ -974,6 +974,9 @@ importers:
       '@robes/config':
         specifier: workspace:*
         version: link:../packages/config
+      '@robes/core':
+        specifier: workspace:*
+        version: link:../packages/core
       '@robes/db':
         specifier: workspace:*
         version: link:../packages/db

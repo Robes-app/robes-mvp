@@ -21,6 +21,36 @@ jest.mock('expo-image-manipulator', () => ({
   SaveFormat: { JPEG: 'jpeg' },
 }));
 
+// What the phone lifted out of the photo (the native module, absent under jest): null unless a
+// test says otherwise, as on Android, the Simulator and iOS 16.
+const mockLift = jest.fn(async (_uri: string): Promise<unknown> => null);
+const mockDiscard = jest.fn();
+jest.mock('../src/lib/lift', () => ({
+  LIFT_PATIENCE_MS: 50,
+  liftPhoto: (uri: string) => mockLift(uri),
+  discardLift: (lift: unknown) => mockDiscard(lift),
+  within: jest.requireActual('../src/lib/lift').within,
+}));
+const LIFT_URL = 'http://minio.test/robes/uploads/x/lift?sig=2';
+const liftFile = () => ({
+  size: 4096,
+  upload: async (url: string, opts: { httpMethod: string; headers?: Record<string, string> }) => {
+    const res = await fetch(url, { method: opts.httpMethod, headers: opts.headers });
+    return { status: res.status };
+  },
+});
+const LIFT_ROUTE = {
+  [`POST /uploads/${ASSET_ID}/lift`]: {
+    upload: {
+      method: 'PUT',
+      url: LIFT_URL,
+      headers: { 'content-type': 'image/png' },
+      expiresAt: '2026-09-24T11:00:00.000Z',
+    },
+  },
+  'PUT /robes/uploads/x/lift': {},
+};
+
 const PUT_URL = 'http://minio.test/robes/uploads/x/original?sig=1';
 const UPLOAD = {
   'POST /uploads': {
@@ -64,6 +94,61 @@ test('a photo goes presigned PUT → complete, then its read starts', async () =
   expect(calls[0]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/jpeg', bytes: 2048 });
   expect(calls[1]?.headers).toEqual({ 'content-type': 'image/jpeg' });
   expect(calls[3]?.body).toEqual({ assetId: ASSET_ID });
+});
+
+// Cutout brief (21 Nov): on an iPhone the photo is lifted as it uploads, and what was lifted goes
+// up beside it before the read starts, so the server can cut each piece out.
+test('what the phone lifted goes up beside the photo, before its read starts', async () => {
+  mockLift.mockResolvedValueOnce({ file: liftFile(), items: 2, ms: 300 });
+  const calls = mockFetch({
+    ...UPLOAD,
+    ...LIFT_ROUTE,
+    'POST /wardrobe/photo-reads': { jobId: JOB_ID, status: 'queued' },
+  });
+  await expect(startRead(api, { uri: 'file:///tmp/a.jpg' })).resolves.toBe(JOB_ID);
+  expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
+    'POST /api/v1/uploads',
+    'PUT /robes/uploads/x/original',
+    `POST /api/v1/uploads/${ASSET_ID}/complete`,
+    `POST /api/v1/uploads/${ASSET_ID}/lift`,
+    'PUT /robes/uploads/x/lift',
+    'POST /api/v1/wardrobe/photo-reads',
+  ]);
+  expect(calls[3]?.body).toEqual({ bytes: 4096 });
+  expect(calls[4]?.headers).toEqual({ 'content-type': 'image/png' });
+  // The file is the phone's to clear once it is up.
+  expect(mockDiscard).toHaveBeenCalledTimes(1);
+});
+
+test('a lift that fails to upload, or takes too long, never holds the read back', async () => {
+  mockDiscard.mockClear();
+  mockLift.mockResolvedValueOnce({ file: liftFile(), items: 1, ms: 300 });
+  const refused = mockFetch({
+    ...UPLOAD,
+    [`POST /uploads/${ASSET_ID}/lift`]: () => {
+      throw new Error('refused');
+    },
+    'POST /wardrobe/photo-reads': { jobId: JOB_ID, status: 'queued' },
+  });
+  await expect(startRead(api, { uri: 'file:///tmp/a.jpg' })).resolves.toBe(JOB_ID);
+  expect(refused.at(-1)?.path).toBe('/api/v1/wardrobe/photo-reads');
+  expect(mockDiscard).toHaveBeenCalledTimes(1);
+
+  mockLift.mockReturnValueOnce(new Promise(() => {}));
+  const slow = mockFetch({
+    ...UPLOAD,
+    'POST /wardrobe/photo-reads': { jobId: JOB_ID, status: 'queued' },
+  });
+  await expect(startRead(api, { uri: 'file:///tmp/a.jpg' })).resolves.toBe(JOB_ID);
+  expect(slow.some((c) => c.path.endsWith('/lift'))).toBe(false);
+});
+
+test('only a wardrobe photo on its way to a read is lifted', async () => {
+  mockLift.mockClear();
+  mockFetch(UPLOAD);
+  await uploadPhoto(api, { uri: 'file:///tmp/a.jpg' });
+  await uploadPhoto(api, { uri: 'file:///tmp/a.jpg' }, 'look_photo', { lift: true });
+  expect(mockLift).not.toHaveBeenCalled();
 });
 
 // The presigned PUT signs the byte count: the bytes sent are declared, never the picker's

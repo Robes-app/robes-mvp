@@ -24,7 +24,7 @@ import {
 } from 'react-native';
 import { useAllPieces } from '@/features/wardrobe/pieces';
 import { errorMessage } from '@/lib/errors';
-import { renditionUri } from '@/lib/images';
+import { pieceSource } from '@/lib/images';
 
 function PieceChoice({
   piece,
@@ -35,7 +35,7 @@ function PieceChoice({
   selected: boolean;
   onPress: () => void;
 }) {
-  const uri = renditionUri(piece.image, 96);
+  const { uri, fit } = pieceSource(piece.image, 96);
   return (
     <Pressable
       accessibilityRole="radio"
@@ -49,7 +49,7 @@ function PieceChoice({
           : 'gap-1 rounded-soft border border-hairline p-1'
       }
     >
-      {uri ? <Image source={uri} alt="" blurhash={piece.image?.blurhash} /> : null}
+      {uri ? <Image source={uri} alt="" blurhash={piece.image?.blurhash} {...fit} /> : null}
       <Text size="caption" numberOfLines={2}>
         {piece.label}
       </Text>

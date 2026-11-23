@@ -7,7 +7,7 @@ import { Icon } from '@robes/icons/native';
 import { type Aspect, fonts, Image, MIN_TOUCH, useColor } from '@robes/ui-native';
 import { Link, useRouter } from 'expo-router';
 import { Platform, Pressable, Text, View } from 'react-native';
-import { renditionUri } from '@/lib/images';
+import { pieceSource } from '@/lib/images';
 import { LookTile } from './LookTile';
 import { Scanning, scanningLine } from './ScanLine';
 import { localDate } from './saved-looks';
@@ -208,7 +208,7 @@ function SuggestedMark({ look }: { look: Look }) {
     );
   }
   const name = anchorName(anchor.label, anchor.brand);
-  const uri = renditionUri(anchor.image, 36);
+  const { uri, fit } = pieceSource(anchor.image, 36);
   return (
     <Pressable
       accessibilityRole="button"
@@ -220,7 +220,7 @@ function SuggestedMark({ look }: { look: Look }) {
       testID={`suggested-${look.id}-mark`}
     >
       {uri ? (
-        <Image source={uri} alt="" aspect="4:5" />
+        <Image source={uri} alt="" aspect="4:5" {...fit} />
       ) : (
         <Text className="text-ink" style={{ fontFamily: fonts.display, fontSize: 18 }}>
           {name.charAt(0).toLocaleUpperCase()}

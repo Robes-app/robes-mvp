@@ -6,6 +6,7 @@ import { createCloudFrontDelivery, type SessionCookie } from '@robes/media/deliv
 import { describe, expect, it, vi } from 'vitest';
 import {
   completeUpload,
+  createLiftUpload,
   createUpload,
   discardUpload,
   getAsset,
@@ -153,6 +154,34 @@ describe('getAsset', () => {
         { width: 640, avif: signed(640, 'avif'), webp: signed(640, 'webp') },
       ],
     });
+  });
+});
+
+describe('createLiftUpload (what her phone lifted, beside her photo)', () => {
+  it('signs a PUT for the one PNG beside her wardrobe photo, at the size she named', async () => {
+    const deps = fakes();
+    const out = await createLiftUpload(deps, ALICE, ASSET, { bytes: 4096 });
+    expect(deps.storage.presignPut).toHaveBeenCalledWith(mediaKeys.lift(ALICE, ASSET), {
+      contentType: 'image/png',
+      bytes: 4096,
+    });
+    expect(out.upload.url).toContain(`uploads/${ALICE}/${ASSET}/lift`);
+    // It rides the upload already charged: no quota, no new asset.
+    expect(deps.assets.createPending).not.toHaveBeenCalled();
+  });
+
+  it("is not_found for anyone else's upload, and for any photo that is not a wardrobe one", async () => {
+    const deps = fakes();
+    expect((await apiError(createLiftUpload(deps, BOB, ASSET, { bytes: 1 }))).code).toBe(
+      'not_found',
+    );
+    for (const kind of ['headshot', 'full_length', 'look_photo', 'wishlist']) {
+      const other = fakes(row({ kind }));
+      expect((await apiError(createLiftUpload(other, ALICE, ASSET, { bytes: 1 }))).code).toBe(
+        'not_found',
+      );
+      expect(other.storage.presignPut).not.toHaveBeenCalled();
+    }
   });
 });
 

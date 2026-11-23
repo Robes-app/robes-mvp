@@ -74,6 +74,30 @@ export function ledgerRepo(db: Db) {
       });
     },
 
+    // What a feature's calls have cost so far, over the last `days` (successful calls only): the
+    // figure a one-off run is priced from before anyone commits to it.
+    async featureCost(
+      feature: string,
+      days: number,
+    ): Promise<{ calls: number; avgMicros: number; maxMicros: number }> {
+      const row = await db
+        .selectFrom('generationCalls')
+        .select(({ fn }) => [
+          fn.countAll<string>().as('calls'),
+          fn.avg<string>('costMicros').as('avg'),
+          fn.max('costMicros').as('max'),
+        ])
+        .where('feature', '=', feature)
+        .where('status', '=', 'ok')
+        .where('createdAt', '>', sql<Date>`now() - make_interval(days => ${days})`)
+        .executeTakeFirst();
+      return {
+        calls: Number(row?.calls ?? 0),
+        avgMicros: Math.round(Number(row?.avg ?? 0)),
+        maxMicros: Number(row?.max ?? 0),
+      };
+    },
+
     // True when any of the families has spent its daily limit (SEC-03).
     async isExhausted(families: readonly string[]): Promise<boolean> {
       if (families.length === 0) return false;

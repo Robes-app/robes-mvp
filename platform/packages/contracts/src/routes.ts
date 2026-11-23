@@ -90,7 +90,15 @@ import {
   UpdateMeInput,
   UpdateModelInput,
 } from './me';
-import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession } from './media';
+import {
+  Asset,
+  AssetParams,
+  CreateLiftInput,
+  CreateLiftOutput,
+  CreateUploadInput,
+  CreateUploadOutput,
+  MediaSession,
+} from './media';
 import { DismissNotificationInput, Notifications } from './notifications';
 import { JoinWaitlistInput, Ok, OneClickUnsubInput, UnsubParams } from './notify';
 import {
@@ -1321,6 +1329,17 @@ export const routes = {
     params: AssetParams,
     input: EmptyInput,
     output: Asset,
+  },
+  // What her phone lifted out of a wardrobe photo it just uploaded (cutout brief): a presigned PUT
+  // for the one PNG beside it, sent before the photo is read. 404 for anyone else's upload or
+  // another kind. Only the iPhone app calls it; without one a piece keeps its rectangle.
+  'uploads.lift': {
+    method: 'POST',
+    path: '/uploads/:id/lift',
+    auth: 'user',
+    params: AssetParams,
+    input: CreateLiftInput,
+    output: CreateLiftOutput,
   },
   // D20: a look photo picked in image mode and discarded before Update look. 409 while anything
   // holds it (reason `upload_in_use`); 404 for anyone else's, another kind or one already gone.

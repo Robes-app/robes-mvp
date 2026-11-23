@@ -1,5 +1,6 @@
 import { presenceOf } from '@robes/core/avatar';
 import { ageBandLabel, iconTag, investmentLabel } from '@robes/core/style-dna';
+import { detailOf, shapeOf } from '@robes/core/taxonomy';
 import { sql } from 'kysely';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
@@ -62,6 +63,10 @@ export function stylingRepo(db: Db) {
           'w.heroPosition',
           'w.seasonBand',
           's.timesWorn',
+          // What defines it, as her photo read it (style-piece v11's shapes).
+          sql<unknown>`w.item_dna -> 'structural_dna' -> 'silhouette_fit'`.as('shape'),
+          // Its one defining detail (wardrobe-analyse v6, or her own words for it).
+          sql<unknown>`w.item_dna -> 'structural_dna' -> 'defining_detail'`.as('detail'),
         ])
         .where('w.userId', '=', userId)
         .where('w.deletedAt', 'is', null)
@@ -153,6 +158,8 @@ export function stylingRepo(db: Db) {
           timesWorn: c.timesWorn ?? 0,
           hero: c.heroPosition !== null,
           seasonBand: c.seasonBand,
+          shape: shapeOf(c.shape),
+          detail: detailOf(c.detail),
         })),
         wishes: wishes.map((w) => ({
           id: w.id,

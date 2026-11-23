@@ -29,7 +29,9 @@ export function useUploadSitting(kind: UploadKind) {
       setShots((all) => [...all, { key, uri: photo.uri }]);
       queue.current = queue.current.then(async () => {
         try {
-          const assetId = await uploadPhoto(api, photo, kind);
+          // A piece's photo is lifted on the phone as it uploads, so the piece can be cut out of
+          // it (uploadPhoto lifts wardrobe photos only).
+          const assetId = await uploadPhoto(api, photo, kind, { lift: true });
           if (removed.current.has(key)) {
             void api.call('uploads.discard', { params: { id: assetId } }).catch(() => {});
             return;

@@ -53,3 +53,31 @@ test('while Robes reads, no swatch shows ahead of the words', async () => {
   expect(screen.queryByTestId('shade-swatch-navy')).toBeNull();
   expect(screen.queryByTestId('print-swatch-stripes')).toBeNull();
 });
+
+// Cutout brief §8: a piece's one defining detail is a row on its PIECE tab, hers to change.
+// Web twin: the Detail row in app/src/components/wardrobe/piece-rows.tsx.
+test('an owned piece shows its defining detail, and Add when there is none', async () => {
+  const { rerender } = await render(
+    <RecordRows
+      values={{ ...base, detail: 'Strong padded shoulder' }}
+      onField={() => {}}
+      only="piece"
+    />,
+  );
+  expect(
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.detail}: Strong padded shoulder` }),
+  ).toBeTruthy();
+  await rerender(<RecordRows values={{ ...base, detail: null }} onField={() => {}} only="piece" />);
+  expect(
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.detail}: ${wardrobe.piece.add}` }),
+  ).toBeTruthy();
+});
+
+test('a record with no detail to show (Review, a wish) has no Detail row', async () => {
+  const { rerender } = await render(<RecordRows values={base} onField={() => {}} only="piece" />);
+  expect(screen.queryByText(wardrobe.piece.rows.detail)).toBeNull();
+  await rerender(
+    <RecordRows values={{ ...base, detail: 'Bold lapel' }} onField={() => {}} only="piece" wish />,
+  );
+  expect(screen.queryByText(wardrobe.piece.rows.detail)).toBeNull();
+});

@@ -33,6 +33,10 @@ export function modelRenderRepo(db: Db) {
           'w.brand',
           'w.imageAssetId',
           'a.status as assetStatus',
+          // What defines it, as her photo read it (avatar v7, style-piece v11).
+          sql<unknown>`w.item_dna -> 'structural_dna' -> 'silhouette_fit'`.as('shape'),
+          // Its one defining detail (wardrobe-analyse v6, or her own words for it).
+          sql<unknown>`w.item_dna -> 'structural_dna' -> 'defining_detail'`.as('detail'),
         ])
         .where('lp.userId', '=', userId)
         .where('lp.lookId', '=', lookId)

@@ -1,18 +1,17 @@
 import { marketing } from '@robes/copy';
-import { buttonClasses, Heading, Text, Wordmark } from '@robes/ui';
 import type { Metadata } from 'next';
-import { headers } from 'next/headers';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { DiaryHome } from '@/components/home/diary-home';
-import { WaitlistForm } from '@/components/marketing/waitlist-form';
 import { AppShell } from '@/components/shell/app-shell';
 import { UsageAsk } from '@/components/usage-ask';
+import { socialProviders } from '@/server/auth';
 import { env } from '@/server/env';
 import { clientFeatures } from '@/server/flags';
 import { currentConsents, currentProfile, displayName } from '@/server/session';
 import { loadToday } from '@/server/today';
+import { AuthForm } from './auth/auth-form';
+import { AuthShell } from './auth/auth-shell';
 
 export function generateMetadata(): Metadata {
   return {
@@ -40,7 +39,8 @@ const JSON_LD = JSON.stringify({
   description: marketing.metaDescription,
 }).replace(/</g, '\\u003c');
 
-// Signed out: the marketing page. Signed in: Today, inside the app shell.
+// Signed out: sign up (design "Sign in and sign up", 18 Nov), the same screen as /auth/sign-up.
+// Signed in: Today, inside the app shell.
 export default async function Home({
   searchParams,
 }: {
@@ -50,26 +50,10 @@ export default async function Home({
 
   if (!profile) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-4 px-6">
+      <AuthShell>
         <script type="application/ld+json">{JSON_LD}</script>
-        <Wordmark />
-        <Heading level={1} size="2xl">
-          {marketing.titleLead} <em>{marketing.titleEm}</em>
-        </Heading>
-        <Text tone="muted">{marketing.subtitle}</Text>
-        <Link
-          href="/auth/sign-in"
-          className={`${buttonClasses({ variant: 'outline' })} mt-4 self-start`}
-        >
-          {marketing.signIn}
-        </Link>
-        <div className="mt-12">
-          <WaitlistForm
-            siteKey={env.turnstile?.siteKey ?? null}
-            nonce={(await headers()).get('x-nonce')}
-          />
-        </div>
-      </main>
+        <AuthForm mode="sign-up" next="/" google={socialProviders.google} />
+      </AuthShell>
     );
   }
 

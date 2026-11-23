@@ -34,7 +34,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useArrived } from '@/lib/arrival';
 import { errorMessage } from '@/lib/errors';
-import { renditionUri } from '@/lib/images';
+import { pieceSource } from '@/lib/images';
 import { BrandsStep, StylesStep } from '../onboarding/Steps';
 import { useDnaMutations } from './dna';
 import { ColoursBody, PrintsBody, paletteSummary, usePalette } from './Palette';
@@ -313,7 +313,7 @@ function PiecesBody({ dna, onClose }: { dna: Dna; onClose: () => void }) {
     <View className="gap-3">
       {dna.pieces.length ? (
         dna.pieces.map((p) => {
-          const uri = renditionUri(p.image, 52);
+          const { uri, fit } = pieceSource(p.image, 52);
           return (
             <Pressable
               key={p.id}
@@ -336,6 +336,7 @@ function PiecesBody({ dna, onClose }: { dna: Dna; onClose: () => void }) {
                     blurhash={p.image?.blurhash}
                     recyclingKey={p.id}
                     testID={`loved-photo-${p.id}`}
+                    {...fit}
                   />
                 ) : (
                   <View className="bg-surface-sunk" style={{ aspectRatio: 4 / 5 }} />

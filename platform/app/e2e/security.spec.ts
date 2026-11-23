@@ -16,7 +16,7 @@ test('pages render without CSP violations', async ({ page }) => {
     if (/Content Security Policy|Refused to/i.test(msg.text())) violations.push(msg.text());
   });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Your wardrobe, styled.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Create your account.' })).toBeVisible();
   await page.waitForLoadState('networkidle');
   expect(violations).toEqual([]);
 });

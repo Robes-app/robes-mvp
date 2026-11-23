@@ -93,16 +93,18 @@ export function toPieces(out: Output, closet: readonly ClosetEntry[]): PhotoPiec
   return foldPieces(out, closet, (raw) => toPiece({ ...raw, no_item_detected: false }), VERSION);
 }
 
-// The fold every version shares; `read` is that version's single-piece reader.
-export function foldPieces<R extends ReadPiece>(
+// The fold every version shares; `read` is that version's single-piece reader. Anything a later
+// version's reader adds beside the single read's fields (v4: `worn`) rides through to its pieces.
+export function foldPieces<R extends ReadPiece, A extends AnalysedPiece = AnalysedPiece>(
   out: { no_item_detected: boolean; pieces: R[] },
   closet: readonly ClosetEntry[],
-  read: (raw: R) => AnalysedPiece,
+  read: (raw: R) => A,
   version: number,
-): PhotoPiece[] {
+): Array<PhotoPiece & Omit<A, keyof AnalysedPiece>> {
+  type Folded = PhotoPiece & Omit<A, keyof AnalysedPiece>;
   if (out.no_item_detected) return [];
   const seen = new Set<string>();
-  const pieces: Omit<PhotoPiece, 'index'>[] = [];
+  const pieces: Omit<Folded, 'index'>[] = [];
   for (const raw of out.pieces) {
     const analysed = read(raw);
     if (!analysed.label) continue;
@@ -117,11 +119,11 @@ export function foldPieces<R extends ReadPiece>(
       itemDna: { ...analysed.itemDna, prompt_version: `${FEATURE}@${version}` },
       box: normaliseBox(raw.box),
       match: owned ? { pieceId: owned.id, confidence: clamp01(raw.match_confidence) } : null,
-    });
+    } as unknown as Omit<Folded, 'index'>);
   }
   return collapsePairs(pieces)
     .slice(0, PHOTO_PIECES_MAX)
-    .map((p, index) => ({ ...p, index }));
+    .map((p, index) => ({ ...p, index }) as Folded);
 }
 
 const FAKE_PIECES: Omit<ReadPiece, 'wardrobe_index' | 'match_confidence'>[] = [
