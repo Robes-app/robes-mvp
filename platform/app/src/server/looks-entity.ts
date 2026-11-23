@@ -69,7 +69,10 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
   const renderIds = rows.flatMap((r) => {
     const ids = [r.frameAssetId, r.renderAssetId, r.photoAssetId];
     // The crops of pieces found in her photograph and not filed yet (Capture PRD 1c.6).
-    for (const p of proposalsOf(r.proposals)) if (p.capture) ids.push(p.capture.cropAssetId);
+    for (const p of proposalsOf(r.proposals)) {
+      if (p.capture) ids.push(p.capture.cropAssetId);
+      if (p.stillAssetId) ids.push(p.stillAssetId);
+    }
     return ids.filter((id): id is string => id !== null);
   });
   for (const r of imageRows) renderIds.push(r.assetId);
@@ -218,6 +221,12 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
         (row.stoodOn ?? (frameRender ? null : stoodOnOf(row.renderKey))) === 'robes',
       pieces: lookPieces,
       proposals,
+      proposalImages: Object.fromEntries(
+        proposals.flatMap((p) => {
+          const still = p.stillAssetId ? usable(p.stillAssetId) : null;
+          return still ? [[p.key, still] as const] : [];
+        }),
+      ),
       captureImages: Object.fromEntries(
         proposals.flatMap((p) => {
           const crop = p.capture ? usable(p.capture.cropAssetId) : null;

@@ -22,9 +22,18 @@ const look = (lookId: string, name: string): SeedLanding => ({
     renditions: manifest,
   },
   frameKey: 'k-seed',
+  stills: {
+    [`p-${lookId.replace('-', '')}`]: {
+      catalogBase: `catalog/seeds/xmas-2026/${lookId}-1`,
+      width: 800,
+      height: 800,
+      blurhash: null,
+      renditions: { v: 1, master: { width: 800, height: 800 }, widths: [320, 640] },
+    },
+  },
   proposals: [
     {
-      key: `p-${lookId}`,
+      key: `p-${lookId.replace('-', '')}`,
       name: 'Merlot Sequin Midi Skirt',
       category: 'Bottoms',
       brand: 'Freemans',
@@ -96,6 +105,13 @@ describe('seeded drops', () => {
     ]);
     expect(wishes.items[0]?.price).toBe('43.00');
     expect(wishes.items[0]?.currency).toBe('GBP');
+    // The wish's picture is the piece's still: her own asset row on the shared catalog file.
+    const still = await db
+      .selectFrom('assets')
+      .select('catalogBase')
+      .where('id', '=', wishes.items[0]?.imageAssetId ?? '')
+      .executeTakeFirstOrThrow();
+    expect(still.catalogBase).toBe('catalog/seeds/xmas-2026/xmas-01-1');
   });
 
   it('retires an ended drop’s unsaved looks and keeps the ones she saved', async () => {

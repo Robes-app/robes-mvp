@@ -131,6 +131,7 @@ async function fileProposals(
       color: str('color'),
       sourceLabel: str('retailerHint'),
       sourceUrl: str('url'),
+      imageAssetId: str('stillAssetId'),
       price: price?.price ?? null,
       currency: price?.currency ?? null,
     });

@@ -150,6 +150,9 @@ export const Proposal = z.object({
     .max(2048)
     .nullable()
     .optional(),
+  // Her asset row for the piece's still (a seeded look's pieces): shown on the rack, and the
+  // wish's picture once Save files it.
+  stillAssetId: z.uuid().nullable().optional(),
 });
 export type Proposal = z.infer<typeof Proposal>;
 
@@ -257,6 +260,8 @@ export const Look = z.object({
   // The crop of each piece found in her photograph and not filed yet, by its row's key (Capture
   // PRD 1c.6). Defaulted across version skew.
   captureImages: z.record(z.string(), PieceImage).default({}),
+  // Each proposal's still, by its key (a seeded look's pieces).
+  proposalImages: z.record(z.string(), PieceImage).optional(),
   styling: z.record(z.string(), z.string()),
   edits: z.record(z.string(), RowEdit),
   anchor: LookAnchor.nullable(),

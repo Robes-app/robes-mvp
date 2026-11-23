@@ -35,6 +35,7 @@ const DROP = SeedDrop.parse({
           brand: 'Freemans',
           prices: { GBP: 43 },
           url: 'https://www.freemans.com/skirt',
+          image: { width: 800, height: 800, blurhash: null, widths: [320, 640] },
         },
       ],
     },
@@ -61,6 +62,8 @@ describe('landingsOf', () => {
       url: 'https://www.freemans.com/skirt',
     });
     expect(Proposal.parse(landingsOf(DROP, 'EUR')[0]?.proposals[0]).pricePoint).toBe('');
+    // The piece's still is its own catalog picture, keyed by the proposal it belongs to.
+    expect(look?.stills[proposal.key]?.catalogBase).toBe('catalog/seeds/xmas-2026/xmas-01-1');
   });
 });
 

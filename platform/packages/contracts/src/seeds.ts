@@ -31,6 +31,8 @@ export const SeedPiece = z.object({
     .max(2048)
     .nullable(),
   role: LookRole.nullable().default(null),
+  // The piece's still, rendered into catalog/seeds/<drop>/<look>-<n> as the look's picture is.
+  image: SeedImage.nullable().default(null),
 });
 export type SeedPiece = z.infer<typeof SeedPiece>;
 

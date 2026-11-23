@@ -1,6 +1,7 @@
 import type { Season } from '@robes/core/taxonomy';
-import { sql } from 'kysely';
+import { sql, type Transaction } from 'kysely';
 import type { Db } from '../client';
+import type { DB } from '../database.types';
 import type { UserId } from '../ids';
 
 // One seeded look as the server lands it in her account (plan "Seeded Christmas looks", 23 Nov):
@@ -10,19 +11,44 @@ export interface SeedLanding {
   name: string;
   tags: readonly string[];
   seasons: readonly Season[];
-  image: {
-    catalogBase: string;
-    width: number;
-    height: number;
-    blurhash: string | null;
-    renditions: { v: 1; master: { width: number; height: number }; widths: number[] };
-  } | null;
+  image: SeedPicture | null;
   frameKey: string | null;
   proposals: readonly Record<string, unknown>[];
+  // Each piece's still, by its proposal's key: her asset row is made and the proposal names it.
+  stills: Readonly<Record<string, SeedPicture>>;
+}
+
+// A picture in the shared catalog (catalog/seeds/…), as her asset row records it.
+export interface SeedPicture {
+  catalogBase: string;
+  width: number;
+  height: number;
+  blurhash: string | null;
+  renditions: { v: 1; master: { width: number; height: number }; widths: number[] };
 }
 
 // Seeded drops in her account: which she has had, landing a live one once, and taking an ended
 // one's unsaved looks away. Every query is scoped by her id.
+// Her asset row for a shared catalog picture: ready at once, the files are already there.
+async function catalogAsset(trx: Transaction<DB>, userId: UserId, pic: SeedPicture) {
+  const row = await trx
+    .insertInto('assets')
+    .values({
+      userId,
+      kind: 'generated',
+      status: 'ready',
+      contentType: 'image/jpeg',
+      width: pic.width,
+      height: pic.height,
+      blurhash: pic.blurhash,
+      renditions: JSON.stringify(pic.renditions),
+      catalogBase: pic.catalogBase,
+    })
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  return row.id;
+}
+
 export function seedsRepo(db: Db) {
   return {
     async had(userId: UserId): Promise<Set<string>> {
@@ -46,23 +72,14 @@ export function seedsRepo(db: Db) {
           .executeTakeFirst();
         if (!first) return false;
         for (const [i, look] of looks.entries()) {
-          const asset = look.image
-            ? await trx
-                .insertInto('assets')
-                .values({
-                  userId,
-                  kind: 'generated',
-                  status: 'ready',
-                  contentType: 'image/jpeg',
-                  width: look.image.width,
-                  height: look.image.height,
-                  blurhash: look.image.blurhash,
-                  renditions: JSON.stringify(look.image.renditions),
-                  catalogBase: look.image.catalogBase,
-                })
-                .returning('id')
-                .executeTakeFirstOrThrow()
-            : null;
+          const frame = look.image ? await catalogAsset(trx, userId, look.image) : null;
+          const proposals: Record<string, unknown>[] = [];
+          for (const p of look.proposals) {
+            const still = typeof p.key === 'string' ? look.stills[p.key] : undefined;
+            proposals.push(
+              still ? { ...p, stillAssetId: await catalogAsset(trx, userId, still) } : p,
+            );
+          }
           const row = await trx
             .insertInto('looks')
             .values({
@@ -74,9 +91,9 @@ export function seedsRepo(db: Db) {
               seedId,
               seedLookId: look.lookId,
               seasons: [...look.seasons],
-              proposals: look.proposals.length ? JSON.stringify(look.proposals) : null,
-              frameAssetId: asset?.id ?? null,
-              frameKey: asset ? look.frameKey : null,
+              proposals: proposals.length ? JSON.stringify(proposals) : null,
+              frameAssetId: frame,
+              frameKey: frame ? look.frameKey : null,
               // The drop's order is the Lookbook's: newest first, so the first look a second newer.
               createdAt: sql`now() - make_interval(secs => ${i})`,
             })

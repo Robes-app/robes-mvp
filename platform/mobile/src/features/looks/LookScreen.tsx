@@ -190,7 +190,9 @@ function WorkingLook({ look }: { look: Look }) {
               image={
                 row.pieceId
                   ? piecesById.get(row.pieceId)?.image
-                  : (wishOf(row.proposal?.wishlistItemId)?.image ?? null)
+                  : (wishOf(row.proposal?.wishlistItemId)?.image ??
+                    look.proposalImages?.[row.key] ??
+                    null)
               }
               mark={editor.mark(row.key)}
               styled={editor.rack.styling[row.key]}

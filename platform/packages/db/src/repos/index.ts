@@ -167,7 +167,7 @@ export {
   type ProfilePatch,
 } from './profiles';
 export type { PushPlatform } from './push-tokens';
-export type { SeedLanding } from './seeds';
+export type { SeedLanding, SeedPicture } from './seeds';
 export { mintShareToken, type ShareSubject } from './shares';
 export {
   type BriefList,

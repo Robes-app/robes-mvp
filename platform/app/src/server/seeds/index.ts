@@ -1,8 +1,8 @@
 import 'server-only';
-import type { SeedDrop } from '@robes/contracts';
+import type { SeedDrop, SeedImage } from '@robes/contracts';
 import { frameKey, newProposalKey } from '@robes/core/looks';
 import { seedPricePoint, seedStates } from '@robes/core/seeds';
-import type { SeedLanding, UserId } from '@robes/db';
+import type { SeedLanding, SeedPicture, UserId } from '@robes/db';
 import { repos } from '../db';
 import { todayIn } from '../plan';
 import { XMAS_2026 } from './xmas-2026';
@@ -11,6 +11,21 @@ import { XMAS_2026 } from './xmas-2026';
 export const DROPS: readonly SeedDrop[] = [XMAS_2026];
 
 // A drop's looks as her account holds them: each piece a proposal priced in her currency.
+// A rendered picture in the shared catalog, as her asset row records it.
+function pictureOf(base: string, image: SeedImage): SeedPicture {
+  return {
+    catalogBase: base,
+    width: image.width,
+    height: image.height,
+    blurhash: image.blurhash,
+    renditions: {
+      v: 1,
+      master: { width: image.width, height: image.height },
+      widths: image.widths,
+    },
+  };
+}
+
 export function landingsOf(drop: SeedDrop, currency: string): SeedLanding[] {
   return drop.looks.map((look) => {
     const proposals = look.pieces.map((p) => ({
@@ -27,24 +42,19 @@ export function landingsOf(drop: SeedDrop, currency: string): SeedLanding[] {
       capture: null,
       url: p.url,
     }));
+    const base = `catalog/seeds/${drop.seedId}/${look.lookId}`;
+    const stills: Record<string, SeedPicture> = {};
+    look.pieces.forEach((p, i) => {
+      const key = proposals[i]?.key;
+      if (p.image && key) stills[key] = pictureOf(`${base}-${i + 1}`, p.image);
+    });
     return {
       lookId: look.lookId,
       name: look.name,
       tags: look.tags,
       seasons: look.seasons,
-      image: look.image
-        ? {
-            catalogBase: `catalog/seeds/${drop.seedId}/${look.lookId}`,
-            width: look.image.width,
-            height: look.image.height,
-            blurhash: look.image.blurhash,
-            renditions: {
-              v: 1,
-              master: { width: look.image.width, height: look.image.height },
-              widths: look.image.widths,
-            },
-          }
-        : null,
+      image: look.image ? pictureOf(base, look.image) : null,
+      stills,
       // The picture was made for exactly these pieces: a change she makes later marks it stale.
       frameKey: frameKey([], proposals, {}),
       proposals,
