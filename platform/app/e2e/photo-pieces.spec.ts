@@ -355,8 +355,10 @@ test('her defining detail is a row on the piece page, hers to change and to clea
 
   await page.goto(`/piece/${id}`);
   await page.getByRole('button', { name: /^Detail/ }).click();
-  await page.getByLabel('Detail').fill('Strong padded shoulder');
-  await page.getByRole('button', { name: 'Save' }).click();
+  // The drawer and its field are both named Detail: look inside the drawer, as the other rows do.
+  const drawer = page.getByRole('dialog', { name: 'Detail' });
+  await drawer.getByLabel('Detail').fill('Strong padded shoulder');
+  await drawer.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('button', { name: /^Detail/ })).toContainText(
     'Strong padded shoulder',
   );

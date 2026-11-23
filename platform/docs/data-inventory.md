@@ -66,7 +66,7 @@ Open items: retention for `feedback`, `waitlist`, `notifications` and `audit_log
 | Google (Gemini API) | Prompts, style context and the photos sent to a job | Google Cloud | Use paid-tier keys, whose prompts Google doesn't use to improve its products. Budgets and quotas are set per project |
 | PostHog | Product analytics, error tracking and session replay (her words shown; photos, email and sign-in code hidden) | EU cloud | Analytics: after consent; replay: after `recordings` consent, on web and native. Enable *Discard client IP data* in project settings |
 | Upstash | Rate-limit counters | EU (`eu-west-1`) | No payloads, only keys and counts |
-| Cloudflare Turnstile | The waitlist form's bot check: the visitor's IP and browser signals | Global | Waitlist only; no account data |
+| Cloudflare Turnstile | The waitlist's bot check: the visitor's IP and browser signals. No page loads it since the app's front door became sign up (23 Nov); the waitlist API still verifies a token sent to it | Global | Waitlist only; no account data |
 | Apple, Google (sign-in) | OAuth identity for users who choose them | — | Identity providers, not storage |
 | Expo, Apple APNs, Google FCM | Push tokens and notification payloads | — | Native only |
 | OpenStreetMap Foundation (Nominatim) | Device coordinates rounded to 2 decimals (~1 km), sent from our server to name her town; no user id, email or other field | OSMF servers (region to confirm) | Only after she allows location; identifying User-Agent per the Nominatim usage policy; dev/e2e use a stand-in (`REVERSE_GEOCODE_URL`, refused when deployed) |
