@@ -363,6 +363,13 @@ app.get('/look/:id', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'look.html'));
 });
 
+// The tester's guide is /trial (trial.html); /beta links already sent on WhatsApp land there.
+// The browser keeps a #section across the redirect; the query string is carried here.
+app.get(['/beta', '/beta.html'], (req, res) => {
+  const q = req.originalUrl.indexOf('?');
+  res.redirect(301, '/trial' + (q === -1 ? '' : req.originalUrl.slice(q)));
+});
+
 app.listen(port, () => {
   console.log(`Robes running at http://localhost:${port}`);
 });
