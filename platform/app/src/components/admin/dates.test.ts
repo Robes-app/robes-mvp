@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { day, stamp, when } from './table';
+import { day, stamp, when } from './dates';
 
 describe('admin dates', () => {
   it('prints months from the calendar table, never "Sept"', () => {

@@ -1,7 +1,7 @@
 import { admin as copy } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
 import type { ReactNode } from 'react';
-import { stamp } from './table';
+import { stamp } from './dates';
 
 // The admin user page's parts, after beta's: white panels on the cream page, short timelines
 // that fold past a few rows, and photo tiles in a grid.
