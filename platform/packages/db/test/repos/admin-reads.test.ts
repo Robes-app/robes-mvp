@@ -106,6 +106,58 @@ describe('admin reads (SEC-11)', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it('sorts by any column and pages through every user once, in order', async () => {
+    const ours = [admin, support, plain, target, other] as string[];
+    const all = async (
+      sort: 'name' | 'pieces' | 'jobs' | 'lastActive' | 'joined',
+      dir?: 'asc' | 'desc',
+    ) => {
+      const seen = [];
+      let cursor: string | undefined;
+      do {
+        const page = await adminReads.listUsers(as(admin), { sort, dir, limit: 2, cursor });
+        seen.push(...page.items);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      expect(new Set(seen.map((u) => u.id)).size).toBe(seen.length);
+      return seen.filter((u) => ours.includes(u.id));
+    };
+    // Words A→Z by default, and Z→A when flipped.
+    const byName = ['Ada Admin', 'Oli Other', 'Pat Plain', 'Sam Support', 'Tia Target'];
+    expect((await all('name')).map((u) => u.name)).toEqual(byName);
+    expect((await all('name', 'desc')).map((u) => u.name)).toEqual([...byName].reverse());
+    // Numbers largest first: Tia has the one piece; Tia and Oli the jobs.
+    expect((await all('pieces'))[0]?.id).toBe(target);
+    expect((await all('pieces', 'asc')).at(-1)?.id).toBe(target);
+    expect(new Set((await all('jobs')).slice(0, 2).map((u) => u.id))).toEqual(
+      new Set([target, other]),
+    );
+    // Never active sorts as oldest, every one of them reached once.
+    expect(await all('lastActive')).toHaveLength(ours.length);
+    expect((await all('joined', 'asc')).map((u) => u.id)).toEqual(ours);
+    expect((await auditsBy(admin)).at(-1)?.detail).toMatchObject({ sort: 'joined', dir: 'asc' });
+  });
+
+  it('starts from the top on a cursor from another sort or a forged one', async () => {
+    const first = await adminReads.listUsers(as(admin), { sort: 'name', limit: 2 });
+    const top = await adminReads.listUsers(as(admin), { sort: 'pieces', limit: 2 });
+    const mixed = await adminReads.listUsers(as(admin), {
+      sort: 'pieces',
+      limit: 2,
+      cursor: first.nextCursor ?? undefined,
+    });
+    expect(mixed.items.map((u) => u.id)).toEqual(top.items.map((u) => u.id));
+    const forged = Buffer.from(JSON.stringify(['pieces', '1; drop table', target])).toString(
+      'base64url',
+    );
+    const again = await adminReads.listUsers(as(admin), {
+      sort: 'pieces',
+      limit: 2,
+      cursor: forged,
+    });
+    expect(again.items.map((u) => u.id)).toEqual(top.items.map((u) => u.id));
+  });
+
   it('shows one user’s detail and nobody else’s, audited against that user', async () => {
     const detail = await adminReads.userDetail(as(admin), target);
     expect(detail?.user.firstName).toBe('Tia');

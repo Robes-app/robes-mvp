@@ -9,10 +9,28 @@ const count = z.coerce.number().int().min(0);
 
 export const AdminUserParams = z.object({ id });
 
+// The users table sorts by any column. Words sort A→Z first, numbers and dates largest first.
+export const ADMIN_USER_SORTS = [
+  'email',
+  'name',
+  'joined',
+  'pieces',
+  'looks',
+  'jobs',
+  'lastActive',
+] as const;
+export type AdminUserSort = (typeof ADMIN_USER_SORTS)[number];
+export type SortDir = 'asc' | 'desc';
+export const adminUserSortDefaultDir = (sort: AdminUserSort): SortDir =>
+  sort === 'email' || sort === 'name' ? 'asc' : 'desc';
+
 export const ListAdminUsersInput = z.object({
   email: z.string().trim().max(254).optional(),
+  sort: z.enum(ADMIN_USER_SORTS).default('joined'),
+  dir: z.enum(['asc', 'desc']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
-  cursor: z.string().max(200).optional(),
+  // Carries the sort value of the last row, which can be a full email address.
+  cursor: z.string().max(2048).optional(),
 });
 
 export const AdminUserRow = z.object({
