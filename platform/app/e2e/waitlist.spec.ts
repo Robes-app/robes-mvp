@@ -7,12 +7,12 @@ test.beforeEach(async ({ context }) => isolateClientIp(context));
 test('joining the waitlist is double opt-in and never reveals an existing address', async ({
   page,
 }) => {
+  // The app's front door is sign up now (18 Nov design); the waitlist is joined through its API.
   const email = uniqueEmail('e2e-wl');
-  await page.goto('/?utm_source=instagram');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('First name (optional)').fill('Niall');
-  await page.getByRole('button', { name: 'Join' }).click();
-  await expect(page.getByRole('status')).toHaveText('Check your email to confirm your place.');
+  const join = await page.request.post('/api/v1/public/waitlist', {
+    data: { email, name: 'Niall', utm: { utm_source: 'instagram' } },
+  });
+  expect(join.status()).toBe(202);
 
   const mail = await latestMessageTo(email);
   expect(mail?.Subject).toBe('Confirm your place on the Robes waitlist');
@@ -37,24 +37,6 @@ test('joining the waitlist is double opt-in and never reveals an existing addres
 test('a forged confirmation link does nothing', async ({ page }) => {
   await page.goto('/waitlist/confirm?t=00000000-0000-4000-8000-000000000000.forged');
   await expect(page.getByText('This link doesn’t work any more.', { exact: false })).toBeVisible();
-});
-
-test('the waitlist asks for an email before it sends anything', async ({ page }) => {
-  let posted = false;
-  page.on('request', (r) => {
-    if (r.url().includes('/api/v1/public/waitlist')) posted = true;
-  });
-  await page.goto('/');
-  await expect(
-    page.getByText('Join today and style a key piece three ways', { exact: false }),
-  ).toBeVisible();
-  await page.getByRole('button', { name: 'Join' }).click();
-  await expect(page.getByText('Please enter your email to join', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Email')).toBeFocused();
-  await page.getByLabel('Email').fill('not-an-email');
-  await page.getByRole('button', { name: 'Join' }).click();
-  await expect(page.getByText('Please enter a valid email address', { exact: true })).toBeVisible();
-  expect(posted).toBe(false);
 });
 
 test('the landing page carries its search and sharing metadata', async ({ page }) => {
