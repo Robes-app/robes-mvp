@@ -15,7 +15,7 @@ const LIMITS = {
   notifications: 40,
   inbox: 20,
   calls: 60,
-  events: 60,
+  events: 100,
 } as const;
 
 // Her photo for a row, as { id, status, renditions } (the app signs it).
@@ -231,7 +231,7 @@ export async function collectRecords(db: Db, userId: string) {
       .execute(),
     db
       .selectFrom('events')
-      .select(['id', 'eventType', 'createdAt'])
+      .select(['id', 'eventType', 'metadata', 'createdAt'])
       .where('userId', '=', userId)
       .orderBy('createdAt', 'desc')
       .limit(LIMITS.events)

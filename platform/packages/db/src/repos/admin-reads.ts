@@ -5,6 +5,7 @@ import { NotAdmin } from '../errors';
 import type { UserId } from '../ids';
 import { collectMetrics } from './admin-metrics';
 import { collectRecords } from './admin-records';
+import { decodeUserCursor, encodeUserCursor, USER_SORTS, type UserSort } from './admin-user-sort';
 import { afterCursor, toPage } from './paging';
 
 // Who is reading, from where: every admin read of user data leaves an audit row (SEC-11).
@@ -54,55 +55,76 @@ export function adminReadsRepo(db: Db) {
   return {
     async listUsers(
       actor: AdminActor,
-      q: { email?: string | undefined; limit: number; cursor?: string | undefined },
+      q: {
+        email?: string | undefined;
+        sort?: UserSort | undefined;
+        dir?: 'asc' | 'desc' | undefined;
+        limit: number;
+        cursor?: string | undefined;
+      },
     ) {
       await authorise(actor);
-      let query = db
-        .selectFrom('users')
-        .select((eb) => [
-          'users.id',
-          'users.email',
-          'users.name',
-          'users.createdAt',
-          eb
-            .selectFrom('wardrobeItems')
-            .select((s) => s.fn.countAll<string>().as('n'))
-            .whereRef('wardrobeItems.userId', '=', 'users.id')
-            .where('wardrobeItems.deletedAt', 'is', null)
-            .as('pieces'),
-          eb
-            .selectFrom('looks')
-            .select((s) => s.fn.countAll<string>().as('n'))
-            .whereRef('looks.userId', '=', 'users.id')
-            .where('looks.deletedAt', 'is', null)
-            .as('looks'),
-          eb
-            .selectFrom('generationJobs')
-            .select((s) => s.fn.countAll<string>().as('n'))
-            .whereRef('generationJobs.userId', '=', 'users.id')
-            .as('jobs'),
-          eb
-            .selectFrom('sessions')
-            .select((s) => s.fn.max('sessions.updatedAt').as('at'))
-            .whereRef('sessions.userId', '=', 'users.id')
-            .as('lastActiveAt'),
-        ])
-        .orderBy(sql`date_trunc('milliseconds', users.created_at)`, 'desc')
-        .orderBy('users.id', 'desc')
-        .limit(q.limit + 1);
+      const sort = q.sort ?? 'joined';
+      const dir = q.dir ?? USER_SORTS[sort].dir;
+      const key = USER_SORTS[sort];
+      let users = db.selectFrom('users').select((eb) => [
+        'users.id',
+        'users.email',
+        'users.name',
+        'users.createdAt',
+        eb
+          .selectFrom('wardrobeItems')
+          .select((s) => s.fn.countAll<string>().as('n'))
+          .whereRef('wardrobeItems.userId', '=', 'users.id')
+          .where('wardrobeItems.deletedAt', 'is', null)
+          .as('pieces'),
+        eb
+          .selectFrom('looks')
+          .select((s) => s.fn.countAll<string>().as('n'))
+          .whereRef('looks.userId', '=', 'users.id')
+          .where('looks.deletedAt', 'is', null)
+          .as('looks'),
+        eb
+          .selectFrom('generationJobs')
+          .select((s) => s.fn.countAll<string>().as('n'))
+          .whereRef('generationJobs.userId', '=', 'users.id')
+          .as('jobs'),
+        eb
+          .selectFrom('sessions')
+          .select((s) => s.fn.max('sessions.updatedAt').as('at'))
+          .whereRef('sessions.userId', '=', 'users.id')
+          .as('lastActiveAt'),
+      ]);
       // Prefix match only; % and _ in her input are literals, not wildcards.
       if (q.email) {
         const prefix = q.email.toLowerCase().replace(/[\\%_]/g, (c) => `\\${c}`);
-        query = query.where(sql<boolean>`lower(users.email::text) like ${`${prefix}%`}`);
+        users = users.where(sql<boolean>`lower(users.email::text) like ${`${prefix}%`}`);
       }
-      const after = afterCursor(q.cursor, 'users');
-      if (after) query = query.where(after);
-      const page = toPage(await query.execute(), q.limit);
+      // The counts are subqueries, so sort and page over the rows they make.
+      let query = db
+        .selectFrom(users.as('u'))
+        .selectAll('u')
+        .select(sql<string>`${key.cursorText}`.as('sortKey'))
+        .orderBy(key.expr, dir)
+        .orderBy('u.id', dir)
+        .limit(q.limit + 1);
+      const after = decodeUserCursor(q.cursor, sort);
+      if (after) {
+        const cmp = sql.raw(dir === 'asc' ? '>' : '<');
+        const value = sql`${after.value}::${sql.raw(key.type)}`;
+        query = query.where(sql<boolean>`(${key.expr}, u.id) ${cmp} (${value}, ${after.id}::uuid)`);
+      }
+      const rows = await query.execute();
+      const items = rows.slice(0, q.limit).map(({ sortKey: _, ...row }) => row);
+      const last = rows.length > q.limit ? rows[q.limit - 1] : undefined;
       await audit(actor, 'admin.users.list', {
         table: 'users',
-        detail: { email: q.email ?? null },
+        detail: { email: q.email ?? null, sort, dir },
       });
-      return page;
+      return {
+        items,
+        nextCursor: last ? encodeUserCursor(sort, last.sortKey, last.id) : null,
+      };
     },
 
     async userDetail(actor: AdminActor, userId: string) {
@@ -120,11 +142,16 @@ export function adminReadsRepo(db: Db) {
           'profiles.timezone',
           'profiles.locale',
           'profiles.onboardedAt',
+          'profiles.homeCity',
+          'profiles.instagramHandle',
+          'profiles.budget',
+          'profiles.annualSpend',
+          'profiles.styleIcons',
         ])
         .where('users.id', '=', userId)
         .executeTakeFirst();
       if (!user) return undefined;
-      const [consents, usage, jobs, deletion, role] = await Promise.all([
+      const [consents, usage, jobs, deletion, role, style, lastActive] = await Promise.all([
         db
           .selectFrom('consents')
           .distinctOn('kind')
@@ -163,9 +190,28 @@ export function adminReadsRepo(db: Db) {
           .where('userId', '=', userId)
           .executeTakeFirst(),
         db.selectFrom('adminUsers').select('role').where('userId', '=', userId).executeTakeFirst(),
+        db
+          .selectFrom('styleProfiles')
+          .select(['season', 'undertone', 'contrast', 'bodyType'])
+          .where('userId', '=', userId)
+          .executeTakeFirst(),
+        db
+          .selectFrom('sessions')
+          .select((s) => s.fn.max('updatedAt').as('at'))
+          .where('userId', '=', userId)
+          .executeTakeFirst(),
       ]);
       await audit(actor, 'admin.user.read', { userId, table: 'users', id: userId });
-      return { user, consents, usage, jobs, deletion: deletion ?? null, role: role?.role ?? null };
+      return {
+        user,
+        consents,
+        usage,
+        jobs,
+        deletion: deletion ?? null,
+        role: role?.role ?? null,
+        style: style ?? null,
+        lastActiveAt: lastActive?.at ?? null,
+      };
     },
 
     // What she filed, made, kept, said and was sent (bounded, newest first); undefined for no user.
