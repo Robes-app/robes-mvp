@@ -169,27 +169,6 @@ export function useJobResult(
   return data;
 }
 
-// ↻ on a suggestion: the look re-writes in place; the tile shows it changing meanwhile.
-export function useRestyle() {
-  const toast = useToast();
-  const refresh = useInvalidateLooks();
-  const [busy, setBusy] = useState<{ lookId: string; jobId: string } | null>(null);
-  const start = useApiMutation('looks.restyle', {
-    onSuccess: ({ jobId }, { params }) => setBusy({ lookId: params.id, jobId }),
-    onError: () => toast.show({ message: copy.swapFailed }),
-  });
-  useJobResult(busy?.jobId ?? null, (job) => {
-    setBusy(null);
-    refresh();
-    if (job.status === 'failed' || job.status === 'cancelled')
-      toast.show({ message: copy.swapFailed });
-  });
-  return {
-    restyle: (id: string) => start.mutate({ params: { id } }),
-    busyId: busy?.lookId ?? (start.isPending ? (start.variables?.params.id ?? null) : null),
-  };
-}
-
 // Robes' frame for the rack as it stands; the look refreshes until it lands.
 // A saved look's pieces changed: her model wears the new rack (beta re-dressed it live). Twin of web lib/look-states.ts. The
 // render is keyed by model and rack, so an unchanged rack costs nothing; a model not drawn yet

@@ -47,7 +47,6 @@ export const lookbook = {
     quote: '“',
     yourPiece: (piece: string): string => `Your ${piece}`,
     remove: (name: string): string => `Remove ${name}`,
-    swap: (name: string): string => `Swap ${name} for another look`,
     // The bookmark on a suggestion's photograph (Front Door PRD rev 3 §5.3) saves it to Saved.
     save: (name: string): string => `Save ${name}`,
     saved: (name: string): string => `${name} is saved`,
@@ -70,6 +69,11 @@ export const lookbook = {
     body: 'Describe a look, start from a photo or build one from your pieces. Looks you save from Suggested land here too.',
   },
   noMatch: 'No looks match',
+  // A seeded drop's header over Suggested while its looks wait (plan "Seeded Christmas looks"),
+  // keyed by the drop's id in app/src/server/seeds.
+  seedDrops: {
+    'xmas-2026': { title: 'Christmas private trial', line: 'Ten looks for the party season.' },
+  } as Record<string, { title: string; line: string } | undefined>,
   suggestedEmpty: {
     title: 'Nothing suggested yet.',
     body: 'Tell Robes where you’re going, or pick a piece, and it dresses you.',

@@ -14,6 +14,22 @@ export interface RenditionKeys {
   renditions: Array<{ width: number; avif: string; webp: string }>;
 }
 
+// A shared seed picture's files live once under its catalog base (catalog/seeds/<drop>/<look>),
+// never under any one user's prefix; her asset row only points at them.
+const CATALOG_BASE = /^catalog\/seeds\/[a-z0-9-]{1,40}\/[a-z0-9-]{1,60}$/;
+
+export function catalogRenditionKeys(base: string, manifest: RenditionManifest): RenditionKeys {
+  if (!CATALOG_BASE.test(base)) throw new Error('invalid catalog base');
+  return {
+    master: `${base}/master.jpg`,
+    renditions: manifest.widths.map((width) => ({
+      width,
+      avif: `${base}/${width}.avif`,
+      webp: `${base}/${width}.webp`,
+    })),
+  };
+}
+
 export function renditionKeys(
   userId: string,
   assetId: string,

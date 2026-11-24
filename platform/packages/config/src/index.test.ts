@@ -174,6 +174,9 @@ describe('parseEnv(appServerEnv)', () => {
       parseEnv(appServerEnv, { ...base, APP_ENV: 'production', ALLOW_PRIVATE_FETCH: '1' }),
     ).toThrow(/ALLOW_PRIVATE_FETCH/);
     expect(() =>
+      parseEnv(appServerEnv, { ...base, APP_ENV: 'production', SEEDS_OFF: '1' }),
+    ).toThrow(/SEEDS_OFF/);
+    expect(() =>
       parseEnv(appServerEnv, { ...base, APP_ENV: 'production', BETTER_AUTH_URL: 'http://x.com' }),
     ).toThrow(/https/);
   });

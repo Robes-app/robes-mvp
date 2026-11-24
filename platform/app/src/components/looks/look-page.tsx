@@ -128,7 +128,9 @@ export function Rack({
               image={
                 row.pieceId
                   ? piecesById.get(row.pieceId)?.image
-                  : (wishOf(row.proposal?.wishlistItemId)?.image ?? null)
+                  : (wishOf(row.proposal?.wishlistItemId)?.image ??
+                    look.proposalImages?.[row.key] ??
+                    null)
               }
               {...(!row.pieceId && wishOf(row.proposal?.wishlistItemId)
                 ? { wishHref: `/wardrobe/wishlist/${row.proposal?.wishlistItemId}` }

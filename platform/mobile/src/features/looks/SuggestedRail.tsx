@@ -4,13 +4,12 @@ import { Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { FlatList, View } from 'react-native';
 import { SuggestedTile } from './LookTiles';
-import { useLetGo, useRestyle } from './look-states';
+import { useLetGo } from './look-states';
 
 // The piece page's "Robes suggested" rail (legacy F11): the looks styled around this piece,
-// with ✕ and ↻ and no corner mark (the piece is the page). Nothing renders when there are none.
+// with ✕ and no corner mark (the piece is the page). Nothing renders when there are none.
 export function SuggestedRail({ pieceId }: { pieceId: string }) {
   const router = useRouter();
-  const restyle = useRestyle();
   const letGo = useLetGo();
   const { data } = useApi('looks.list', {
     input: { limit: 12, status: 'suggested', anchorPieceId: pieceId },
@@ -34,8 +33,6 @@ export function SuggestedRail({ pieceId }: { pieceId: string }) {
               showMark={false}
               onPress={() => router.push(`/look/${item.id}`)}
               onRemove={() => letGo(item.id)}
-              onSwap={() => restyle.restyle(item.id)}
-              swapping={restyle.busyId === item.id}
             />
           </View>
         )}

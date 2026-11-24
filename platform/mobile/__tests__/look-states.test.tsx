@@ -127,6 +127,28 @@ test('the Lookbook: Saved leads with drafts in progress; Suggested tiles go with
   await waitFor(() => expect(calls.some((c) => c.path.endsWith('/restore'))).toBe(true));
 });
 
+test('a seeded drop waiting: the Lookbook opens on Suggested under its header, with no ↻', async () => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /looks': byStatus({
+      saved: [look()],
+      suggested: [
+        suggestion({ name: 'Red sequins', source: 'seed', seedId: 'xmas-2026', setId: null }),
+      ],
+    }),
+  });
+  await renderWithApi(<LooksView />);
+  expect(await screen.findByText('Red sequins')).toBeTruthy();
+  const drop = lookbook.seedDrops['xmas-2026'];
+  expect(screen.getByText(drop?.title ?? '')).toBeTruthy();
+  expect(screen.getByText(drop?.line ?? '')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /for another look/ })).toBeNull();
+  // A tap on Saved stays on Saved.
+  await fireEvent.press(screen.getByRole('tab', { name: lookbook.tabs.saved }));
+  expect(await screen.findByText('Weekend navy')).toBeTruthy();
+  expect(screen.queryByText(drop?.line ?? '')).toBeNull();
+});
+
 test('a saved card on iOS: a tap opens the look; its long-press menu deletes with Undo, no ✕ at rest', async () => {
   const calls = mockFetch({
     'GET /me': ME,

@@ -235,4 +235,53 @@ describe('looks and planning schema', () => {
         LOOK,
       ]);
     }));
+
+  it('marks a seeded look with its drop and its place in it, both or neither', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await q(
+        "update app.looks set source = 'seed', seed_id = 'xmas-2026', seed_look_id = 'xmas-01' where id = $1",
+        [LOOK],
+      );
+      await expectPgError(q, '23514', 'update app.looks set seed_look_id = null where id = $1', [
+        LOOK,
+      ]);
+      await expectPgError(q, '23514', "update app.looks set seed_id = 'Xmas 2026' where id = $1", [
+        LOOK,
+      ]);
+    }));
+
+  it('records a drop once per account, and each account’s alone', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await q("insert into app.user_seeds (user_id, seed_id) values ($1, 'xmas-2026')", [USER_A]);
+      await q("insert into app.user_seeds (user_id, seed_id) values ($1, 'xmas-2026')", [USER_B]);
+      await expectPgError(
+        q,
+        '23505',
+        "insert into app.user_seeds (user_id, seed_id) values ($1, 'xmas-2026')",
+        [USER_A],
+      );
+      await expectPgError(
+        q,
+        '23514',
+        "insert into app.user_seeds (user_id, seed_id) values ($1, '')",
+        [USER_A],
+      );
+    }));
+
+  it('lets a shared seed picture live only under catalog/seeds', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await q(
+        "insert into app.assets (id, user_id, kind, status, catalog_base) values ($1, $2, 'generated', 'ready', 'catalog/seeds/xmas-2026/xmas-01')",
+        [ASSET_A, USER_A],
+      );
+      await expectPgError(
+        q,
+        '23514',
+        "insert into app.assets (id, user_id, kind, status, catalog_base) values ($1, $2, 'generated', 'ready', $3)",
+        [ASSET_B, USER_A, `media/${USER_B}/x`],
+      );
+    }));
 });

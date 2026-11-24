@@ -1089,7 +1089,9 @@ function DraftBody({
   const wishOf = useWishOf();
   const wishFor = (row: RackRow) => wishOf(row.proposal?.wishlistItemId);
   const imageOf = (row: RackRow) =>
-    row.pieceId ? pieceOf(row.pieceId)?.image : (wishFor(row)?.image ?? null);
+    row.pieceId
+      ? pieceOf(row.pieceId)?.image
+      : (wishFor(row)?.image ?? look.proposalImages?.[row.key] ?? null);
   // Robes' look opens on the tiles and hers on the list; either opens on the list once more than
   // two in five of its pieces have no photograph to tile (Annie, 18 Nov). Read on every render, so
   // wishes that load after the look still count. Native twin: DraftLook.tsx.
