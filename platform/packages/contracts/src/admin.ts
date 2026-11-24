@@ -9,10 +9,28 @@ const count = z.coerce.number().int().min(0);
 
 export const AdminUserParams = z.object({ id });
 
+// The users table sorts by any column. Words sort A→Z first, numbers and dates largest first.
+export const ADMIN_USER_SORTS = [
+  'email',
+  'name',
+  'joined',
+  'pieces',
+  'looks',
+  'jobs',
+  'lastActive',
+] as const;
+export type AdminUserSort = (typeof ADMIN_USER_SORTS)[number];
+export type SortDir = 'asc' | 'desc';
+export const adminUserSortDefaultDir = (sort: AdminUserSort): SortDir =>
+  sort === 'email' || sort === 'name' ? 'asc' : 'desc';
+
 export const ListAdminUsersInput = z.object({
   email: z.string().trim().max(254).optional(),
+  sort: z.enum(ADMIN_USER_SORTS).default('joined'),
+  dir: z.enum(['asc', 'desc']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
-  cursor: z.string().max(200).optional(),
+  // Carries the sort value of the last row, which can be a full email address.
+  cursor: z.string().max(2048).optional(),
 });
 
 export const AdminUserRow = z.object({
@@ -44,6 +62,21 @@ export const AdminUserDetail = z.object({
   createdAt: at,
   onboardedAt: at.nullable(),
   role: z.enum(['admin', 'support', 'analyst']).nullable(),
+  lastActiveAt: at.nullable(),
+  homeCity: z.string().nullable(),
+  instagram: z.string().nullable(),
+  budget: z.string().nullable(),
+  annualSpend: z.string().nullable(),
+  styleIcons: z.array(z.string()),
+  // Her Style DNA as read (display names, e.g. "Soft Autumn"); null before her analysis.
+  style: z
+    .object({
+      season: z.string().nullable(),
+      undertone: z.string().nullable(),
+      contrast: z.string().nullable(),
+      bodyType: z.string().nullable(),
+    })
+    .nullable(),
   consents: z.array(z.object({ kind: z.string(), granted: z.boolean(), at })),
   usageToday: z.array(z.object({ metric: z.string(), count })),
   jobs: z.array(
@@ -298,7 +331,15 @@ export const AdminUserRecords = z.object({
       createdAt: at,
     }),
   ),
-  events: z.array(z.object({ id, eventType: z.string(), createdAt: at })),
+  // An event's metadata flattened to label/value pairs for the activity feed.
+  events: z.array(
+    z.object({
+      id,
+      eventType: z.string(),
+      meta: z.array(z.tuple([z.string(), z.string()])),
+      createdAt: at,
+    }),
+  ),
 });
 export type AdminUserRecords = z.infer<typeof AdminUserRecords>;
 

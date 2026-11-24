@@ -69,9 +69,10 @@ test('an admin reads users, and every read is audited', async ({ page, browser }
   await page.getByRole('button', { name: 'Search' }).click();
   await page.getByRole('link', { name: otherEmail }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Tia' })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Recent jobs' })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Looks' })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Model calls' })).toBeVisible();
+  // Beta's layout: her profile and timelines beside her wardrobe and looks, model calls below.
+  for (const section of ['Profile · Style DNA', 'Activity', 'Wardrobe', 'Looks', 'Model calls']) {
+    await expect(page.getByRole('region', { name: section })).toBeVisible();
+  }
 
   const userId = page.url().split('/').at(-1) ?? '';
   const audit = await (await page.request.get(`/api/v1/admin/audit?userId=${userId}`)).json();
