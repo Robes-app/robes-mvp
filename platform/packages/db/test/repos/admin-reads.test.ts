@@ -106,9 +106,108 @@ describe('admin reads (SEC-11)', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it('sorts by any column and pages through every user once, in order', async () => {
+    const ours = [admin, support, plain, target, other] as string[];
+    const all = async (
+      sort: 'name' | 'pieces' | 'jobs' | 'lastActive' | 'joined',
+      dir?: 'asc' | 'desc',
+    ) => {
+      const seen = [];
+      let cursor: string | undefined;
+      do {
+        const page = await adminReads.listUsers(as(admin), { sort, dir, limit: 2, cursor });
+        seen.push(...page.items);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      expect(new Set(seen.map((u) => u.id)).size).toBe(seen.length);
+      return seen.filter((u) => ours.includes(u.id));
+    };
+    // Words A→Z by default, and Z→A when flipped.
+    const byName = ['Ada Admin', 'Oli Other', 'Pat Plain', 'Sam Support', 'Tia Target'];
+    expect((await all('name')).map((u) => u.name)).toEqual(byName);
+    expect((await all('name', 'desc')).map((u) => u.name)).toEqual([...byName].reverse());
+    // Numbers largest first: Tia has the one piece; Tia and Oli the jobs.
+    expect((await all('pieces'))[0]?.id).toBe(target);
+    expect((await all('pieces', 'asc')).at(-1)?.id).toBe(target);
+    expect(new Set((await all('jobs')).slice(0, 2).map((u) => u.id))).toEqual(
+      new Set([target, other]),
+    );
+    // Never active sorts as oldest, every one of them reached once.
+    expect(await all('lastActive')).toHaveLength(ours.length);
+    expect((await all('joined', 'asc')).map((u) => u.id)).toEqual(ours);
+    expect((await auditsBy(admin)).at(-1)?.detail).toMatchObject({ sort: 'joined', dir: 'asc' });
+  });
+
+  it('starts from the top on a cursor from another sort or a forged one', async () => {
+    const first = await adminReads.listUsers(as(admin), { sort: 'name', limit: 2 });
+    const top = await adminReads.listUsers(as(admin), { sort: 'pieces', limit: 2 });
+    const mixed = await adminReads.listUsers(as(admin), {
+      sort: 'pieces',
+      limit: 2,
+      cursor: first.nextCursor ?? undefined,
+    });
+    expect(mixed.items.map((u) => u.id)).toEqual(top.items.map((u) => u.id));
+    const forged = Buffer.from(JSON.stringify(['pieces', '1; drop table', target])).toString(
+      'base64url',
+    );
+    const again = await adminReads.listUsers(as(admin), {
+      sort: 'pieces',
+      limit: 2,
+      cursor: forged,
+    });
+    expect(again.items.map((u) => u.id)).toEqual(top.items.map((u) => u.id));
+  });
+
   it('shows one user’s detail and nobody else’s, audited against that user', async () => {
+    await db
+      .insertInto('styleProfiles')
+      .values([
+        {
+          userId: target,
+          season: 'Soft Autumn',
+          undertone: 'Neutral-Warm',
+          contrast: 'Medium',
+          bodyType: 'Hourglass',
+        },
+        { userId: other, season: 'Not hers' },
+      ])
+      .execute();
+    await db
+      .updateTable('profiles')
+      .set({ styleIcons: ['Carolyn Bessette-Kennedy'], budget: '€500–1,500', homeCity: 'Suffolk' })
+      .where('id', '=', target)
+      .execute();
+    await db
+      .insertInto('sessions')
+      .values([
+        {
+          userId: target,
+          token: `t-${target}`,
+          expiresAt: new Date(Date.now() + 86_400_000),
+          updatedAt: new Date('2026-11-20T09:00:00Z'),
+        },
+        {
+          userId: other,
+          token: `t-${other}`,
+          expiresAt: new Date(Date.now() + 86_400_000),
+          updatedAt: new Date('2026-11-22T09:00:00Z'),
+        },
+      ])
+      .execute();
     const detail = await adminReads.userDetail(as(admin), target);
     expect(detail?.user.firstName).toBe('Tia');
+    expect(detail?.style).toEqual({
+      season: 'Soft Autumn',
+      undertone: 'Neutral-Warm',
+      contrast: 'Medium',
+      bodyType: 'Hourglass',
+    });
+    expect(detail?.user).toMatchObject({
+      styleIcons: ['Carolyn Bessette-Kennedy'],
+      budget: '€500–1,500',
+      homeCity: 'Suffolk',
+    });
+    expect(new Date(detail?.lastActiveAt as Date).toISOString()).toBe('2026-11-20T09:00:00.000Z');
     expect(detail?.consents).toEqual([
       expect.objectContaining({ kind: 'analytics', granted: true }),
     ]);
@@ -118,6 +217,7 @@ describe('admin reads (SEC-11)', () => {
     expect(detail?.deletion).toBeNull();
     const audits = await auditsBy(admin);
     expect(audits.at(-1)).toMatchObject({ action: 'admin.user.read', subjectUserId: target });
+    expect((await adminReads.userDetail(as(admin), plain))?.style).toBeNull();
     expect(
       await adminReads.userDetail(as(admin), '00000000-0000-4000-8000-000000000000'),
     ).toBeUndefined();
@@ -150,6 +250,13 @@ describe('admin reads (SEC-11)', () => {
       .insertInto('styleMemory')
       .values({ userId: target, kind: 'verdict', verdict: 1, subject: 'Office armour' })
       .execute();
+    await db
+      .insertInto('events')
+      .values([
+        { userId: target, eventType: 'home_render', metadata: JSON.stringify({ stage: 4 }) },
+        { userId: other, eventType: 'not_hers', metadata: '{}' },
+      ])
+      .execute();
 
     const photo = await db
       .insertInto('assets')
@@ -178,6 +285,9 @@ describe('admin reads (SEC-11)', () => {
     expect(r?.feedback[0]).toMatchObject({ rating: 0, note: 'Too formal' });
     expect(r?.memory[0]).toMatchObject({ kind: 'verdict', subject: 'Office armour' });
     expect(r?.calls[0]).toMatchObject({ feature: 'looks.style_piece', hasPrompt: false });
+    expect(r?.events).toEqual([
+      expect.objectContaining({ eventType: 'home_render', metadata: { stage: 4 } }),
+    ]);
     expect(JSON.stringify(r)).not.toContain('Not hers');
     expect((await auditsBy(admin)).at(-1)).toMatchObject({
       action: 'admin.user.records',

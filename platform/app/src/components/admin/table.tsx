@@ -1,4 +1,50 @@
+import { Icon } from '@robes/icons/web';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
+
+// A heading that sorts the table: a link to the same page sorted by it, the arrow on the one
+// sorted now (its direction is announced through aria-sort; the chevron is decorative).
+export interface SortableColumn {
+  label: string;
+  href: string;
+  sorted?: 'asc' | 'desc' | undefined;
+}
+
+const ARIA_SORT = { asc: 'ascending', desc: 'descending' } as const;
+
+function Heading({ column }: { column: string | SortableColumn }) {
+  if (typeof column === 'string') {
+    return (
+      <th scope="col" className="py-2 pr-4 font-medium">
+        {column}
+      </th>
+    );
+  }
+  return (
+    <th
+      scope="col"
+      aria-sort={column.sorted ? ARIA_SORT[column.sorted] : undefined}
+      className="pr-4 font-medium"
+    >
+      <Link
+        href={column.href}
+        scroll={false}
+        // Each view is an audited read; render it when she clicks, not on prefetch.
+        prefetch={false}
+        className={`inline-flex min-h-11 items-center gap-1 underline-offset-4 hover:underline ${column.sorted ? 'text-ink' : ''}`}
+      >
+        {column.label}
+        {column.sorted ? (
+          <Icon
+            name="down"
+            size={14}
+            className={column.sorted === 'asc' ? 'rotate-180' : undefined}
+          />
+        ) : null}
+      </Link>
+    </th>
+  );
+}
 
 // Dense, readable data tables for the admin area (1280px and up).
 export function DataTable({
@@ -8,7 +54,7 @@ export function DataTable({
   empty,
 }: {
   caption: string;
-  columns: string[];
+  columns: (string | SortableColumn)[];
   rows: ReactNode[][];
   empty: string;
 }) {
@@ -19,9 +65,7 @@ export function DataTable({
         <thead>
           <tr className="border-b border-hairline text-ink-muted">
             {columns.map((c) => (
-              <th key={c} scope="col" className="py-2 pr-4 font-medium">
-                {c}
-              </th>
+              <Heading key={typeof c === 'string' ? c : c.label} column={c} />
             ))}
           </tr>
         </thead>
@@ -51,25 +95,10 @@ export function DataTable({
   );
 }
 
-const dateTime = new Intl.DateTimeFormat('en-GB', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'UTC',
-});
-
-export function when(iso: string | null, empty: string): string {
-  return iso ? `${dateTime.format(new Date(iso))} UTC` : empty;
-}
+export { day, stamp, when } from './dates';
 
 export function money(micros: number): string {
   return `$${(micros / 1_000_000).toFixed(micros < 10_000_000 ? 4 : 2)}`;
-}
-
-// A small photo cell for admin tables; the URL is already signed for this read.
-export function Thumb({ src, empty }: { src: string | null; empty: string }) {
-  if (!src) return <span className="text-ink-muted">{empty}</span>;
-  // biome-ignore lint/performance/noImgElement: a short-lived signed URL the image optimiser can't fetch
-  return <img src={src} alt="" className="block h-14 w-11 rounded-crisp object-cover" />;
 }
 
 // Pretty-printed stored JSON, for the output and call viewers.

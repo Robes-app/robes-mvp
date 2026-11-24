@@ -1,8 +1,8 @@
 # Robes — Claude Code guide
 
 Two apps share this repo:
-- **`platform/`** — the rebuild (Next.js, Expo, AWS, private Postgres). Working there? `platform/CLAUDE.md` governs; the rest of this file is about the legacy app and is reference only from platform work.
-- **The legacy app (repo root)** — Express `server.js` + vanilla `public/` (no framework, no build step) + hand-run `supabase/*.sql`. It runs **beta.byrobes.com** (branch `beta`, live testers) and **www.byrobes.com** (branch `main`, landing + waitlist).
+- **`platform/`** — the product (Next.js, Expo, AWS, private Postgres): **app.byrobes.com** and the **iOS app** (TestFlight). Every product change lands here, and `platform/CLAUDE.md` governs; the rest of this file is about the legacy app and is reference only from platform work.
+- **The legacy app (repo root)** — Express `server.js` + vanilla `public/` (no framework, no build step) + hand-run `supabase/*.sql`. **beta.byrobes.com is retired (Annie, 23 Nov 2026)**: no new product work on the legacy app, and no feature is planned against it. It still serves **www.byrobes.com** (branch `main`, landing + waitlist). The `beta` branch remains the repo's integration branch (platform PRs merge into it).
 
 On `beta`, folder guides load when you work in them: `public/CLAUDE.md` (dashboard and pages), `supabase/CLAUDE.md` (migrations), `scripts/CLAUDE.md` (harnesses). `main` carries only the marketing site (`public/index.html`, `privacy.html`, `terms.html`, `support.html`, `look.html`, `css/site.css`, `js/site.js`) and `platform/`. www changes go on a `site/<topic>` branch cut from `main` and merge straight to `main`, never through `beta`; keep the waitlist on `POST /api/waitlist`, and give every new www page the canonical + `og:`/`twitter:` tags (see the history's 2026-11-11 entry).
 
@@ -29,7 +29,7 @@ Breaking one of these has been the bug every time.
 - **Copy**: never "AI" or "the engine" — it's Robes. Her own words render verbatim. Months print by table (`Sept` is a bug).
 - **Hidden, not deleted**: the trip (`_RB_TRIP_HIDDEN`, relaunch checklist in the history's 2026-10-10 entry), moodboards (`_RB_MB_HIDDEN`). The weekly track is deleted (ADR-001) — week planning is day chips in the Diary.
 
-## Keep beta up
+## Legacy rules (beta.byrobes.com retired 23 Nov 2026 — these hold for any legacy fix still asked for)
 - **The legacy database is frozen (2026-11-03).** No new `supabase/*.sql`, and nothing changed in the Supabase SQL editor or Table Editor: Robes_p0 now also holds production's `app` schema. New work lands on the platform, and a database change is a platform migration (`platform/docs/runbooks/database-migrations.md`). Terms: `GLOSSARY.md`.
 - Work on `beta`. Keep `main` in sync with path-level PRs from beta (`sync/<topic>` branches: `platform/`, this file, the history) — never a whole-branch merge, which would put the beta app on www.byrobes.com. Commit or push only when asked.
 - Migrations are run by hand and lag the deploy, so **every new column ships with a client degrade**: strip the column on a PGRST204 naming it, retry, and stand the feature down quietly (`supabase/CLAUDE.md`).
@@ -58,7 +58,7 @@ Breaking one of these has been the bug every time.
 | `docs/` | The history, briefs, audits |
 
 ## Deploy, env, Supabase
-- `git push origin beta` deploys beta.byrobes.com via Railway (`npm start` → `node server.js`); `main` deploys www.byrobes.com.
+- `main` deploys www.byrobes.com via Railway (`npm start` → `node server.js`). beta.byrobes.com is retired (23 Nov 2026); a push to `beta` no longer ships a product to testers.
 - Railway env: `GEMINI_API_KEY`, `AIRTABLE_TOKEN`, `AIRTABLE_BASE_ID`, `CLOUDINARY_CLOUD_NAME`/`_API_KEY`/`_API_SECRET` (on both services), `PUBLIC_URL` (`https://beta.byrobes.com` on beta, `https://www.byrobes.com` on production — drives share URLs and the `environment` capture column), `SUPABASE_SERVICE_ROLE_KEY` (server only), `RESEND_API_KEY` + `EMAIL_FROM` + `NOTIFY_SECRET` + `NOTIFY_TICK`, `INBOX_WEBHOOK_SECRET` / `RESEND_WEBHOOK_SECRET` + `INBOX_DOMAIN`. Missing keys degrade to silent no-ops; `/api/health` reports which are on.
 - Supabase project `Robes_p0` — `https://ayowpaknssulsqqvwpqx.supabase.co`, publishable key `sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ`. Beta and production share it. Auth redirect allowlist must include each domain's `/**`.
 - Analytics: PostHog EU via `public/js/posthog.js` on every page but `/admin`; call through `window.__rbPH`. Replay records typed text; password inputs carry `ph-no-capture` (keep it on any new one).
