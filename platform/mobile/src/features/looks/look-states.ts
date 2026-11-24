@@ -136,6 +136,8 @@ export function useSaveLook(
   onSaved?: (look: Look) => void,
   from: 'suggested' | 'draft' = 'draft',
   changes: () => number = () => 0,
+  // `plain`: "Saved to your lookbook.", a draft going back to where it began (a piece).
+  says: 'named' | 'plain' = 'named',
 ) {
   const toast = useToast();
   const refresh = useInvalidateLooks();
@@ -155,7 +157,7 @@ export function useSaveLook(
       toast.show(
         from === 'suggested'
           ? savedSuggestionToast(look, () => router.push(WISHLIST))
-          : { message: copy.savedAs(look.name) },
+          : { message: says === 'plain' ? copy.savedSuggestion.title : copy.savedAs(look.name) },
       );
       // Push is asked for after her first saved look, never on launch (7-day brief).
       void askForPushOnce(appApi).catch(() => undefined);

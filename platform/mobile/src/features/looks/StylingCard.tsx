@@ -73,6 +73,7 @@ export function useTurningPlaceholder(lines: readonly string[], on: boolean): st
 // draft and the saved look share it; what a send does is the parent's. Web twin:
 // app/src/components/looks/styling-card.tsx.
 export function StylingCard({
+  lead,
   context,
   tokens,
   inline = false,
@@ -92,6 +93,8 @@ export function StylingCard({
   boxed = false,
   busy,
 }: {
+  // What the box is about, over its sources: the piece on a piece's page (Style a piece).
+  lead?: ReactNode;
   // The day's place and weather, until her first send carries them into the conversation.
   context?: ReactNode;
   // What she picked after a thumbs down, standing in the box beside the sources (pin 11).
@@ -260,6 +263,7 @@ export function StylingCard({
       className={card ? 'gap-1 bg-surface-raised px-3 pt-3 pb-1' : 'gap-1 px-1.5 pt-1.5'}
       style={card ? [shadowNative.sheet, { borderRadius: DOCK_RADIUS }] : undefined}
     >
+      {lead ? <View className="pb-2">{lead}</View> : null}
       <View className="min-h-7 flex-row flex-wrap items-center gap-2.5">
         {toggles}
         {context ? (
@@ -321,6 +325,7 @@ export function PromptDock({
   answers,
   dot,
   beside = false,
+  sparkLabel,
   conversation,
   turns = 0,
   maxHeight,
@@ -348,6 +353,8 @@ export function PromptDock({
   // The sparkle stands beside the saved look's ink button (design 2c): outlined on white, so the
   // button stays the screen's one ink fill, with no padding of its own.
   beside?: boolean;
+  // What the sparkle says where it opens something of its own ("Style this piece").
+  sparkLabel?: string;
   conversation?: ReactNode;
   // How many turns the conversation holds: a new one scrolls it to its end.
   turns?: number;
@@ -390,7 +397,11 @@ export function PromptDock({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={dot ? `${copy.dock.open}. ${copy.dock.waiting}` : copy.dock.open}
+          accessibilityLabel={
+            dot
+              ? `${sparkLabel ?? copy.dock.open}. ${copy.dock.waiting}`
+              : (sparkLabel ?? copy.dock.open)
+          }
           onPress={onRestore}
           testID="prompt-spark"
           className={`items-center justify-center rounded-pill ${beside ? 'border-warm-line bg-surface-raised' : 'bg-ink'}`}
