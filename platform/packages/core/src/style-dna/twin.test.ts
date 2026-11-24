@@ -8,9 +8,6 @@ import {
   BRAND_POOL,
   BRAND_SEED,
   chooseSeason,
-  euShoe,
-  euSize,
-  feetInches,
   ICON_POOL,
   ICON_SEED,
   iconTag,
@@ -22,7 +19,6 @@ import {
   STYLE_TYPES,
   seasonChoices,
   seedWearerOf,
-  stepFact,
   styleTypeOf,
   styleTypesOf,
   wallPool,
@@ -155,17 +151,6 @@ describe('the twin vocabulary', () => {
     expect(investmentLabel('500_1500')).toBe('€500–1,500');
     expect(investmentLabel(null)).toBe('');
     expect(ageBandLabel('45_54')).toBe('45–54');
-  });
-
-  it('steps the facts inside the prototype’s ranges', () => {
-    expect(stepFact('heightCm', null, 1)).toBe(168);
-    expect(stepFact('heightCm', 210, 1)).toBe(210);
-    expect(stepFact('sizeUk', 10, 1)).toBe(12);
-    expect(stepFact('sizeUk', 4, -1)).toBe(4);
-    expect(stepFact('shoeUk', 5, 1)).toBe(5.5);
-    expect(euSize(10)).toBe(38);
-    expect(euShoe(5.5)).toBe(39);
-    expect(feetInches(168)).toBe('5′6″');
   });
 
   it('offers the read season and its two neighbours, then the rest', () => {

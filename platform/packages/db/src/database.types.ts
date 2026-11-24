@@ -417,6 +417,8 @@ export interface Profiles {
   bustBand: number | null;
   bustCm: number | null;
   bustCup: string | null;
+  chestCm: Numeric | null;
+  collarCm: Numeric | null;
   createdAt: Generated<Timestamp>;
   currency: Generated<string>;
   firstName: string | null;
@@ -430,6 +432,7 @@ export interface Profiles {
   homeLon: Numeric | null;
   homeSnoozes: Generated<Json>;
   id: string;
+  inseamCm: Numeric | null;
   instagramHandle: string | null;
   investmentLevel: string | null;
   lastName: string | null;
@@ -439,6 +442,7 @@ export interface Profiles {
   notificationPrefs: Generated<Json>;
   onboardedAt: Timestamp | null;
   shoeUk: Numeric | null;
+  shoulderWidthCm: Numeric | null;
   sizeUk: number | null;
   splurgeCategories: Generated<string[]>;
   styleArchetypes: Generated<string[]>;
@@ -446,6 +450,7 @@ export interface Profiles {
   styleConfirmedAt: Timestamp | null;
   styleIcons: Generated<string[]>;
   timezone: Generated<string>;
+  unitPrefs: Json | null;
   updatedAt: Generated<Timestamp>;
   waistCm: number | null;
   wardrobeDescription: string | null;

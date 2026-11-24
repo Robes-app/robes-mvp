@@ -29,6 +29,10 @@ export interface FactsPatch {
   bustCup?: string | null;
   bustCm?: number | null;
   waistCm?: number | null;
+  chestCm?: number | null;
+  inseamCm?: number | null;
+  collarCm?: number | null;
+  shoulderWidthCm?: number | null;
 }
 
 export interface MemoryEntryInput {
@@ -259,6 +263,11 @@ export function styleDnaRepo(db: Db) {
             'bustCup',
             'bustCm',
             'waistCm',
+            sql<number | null>`chest_cm::float8`.as('chestCm'),
+            sql<number | null>`inseam_cm::float8`.as('inseamCm'),
+            sql<number | null>`collar_cm::float8`.as('collarCm'),
+            sql<number | null>`shoulder_width_cm::float8`.as('shoulderWidthCm'),
+            'unitPrefs',
           ])
           .where('id', '=', userId)
           .executeTakeFirst(),
@@ -292,6 +301,18 @@ export function styleDnaRepo(db: Db) {
       ) as TastePatch;
       if (Object.keys(values).length === 0) return;
       await db.updateTable('profiles').set(values).where('id', '=', userId).execute();
+    },
+
+    // Her display units merge key by key over what she chose before (a unit never changes a value).
+    async setUnits(userId: UserId, units: Record<string, string>): Promise<void> {
+      if (Object.keys(units).length === 0) return;
+      await db
+        .updateTable('profiles')
+        .set({
+          unitPrefs: sql`coalesce(unit_prefs, '{}'::jsonb) || ${JSON.stringify(units)}::jsonb`,
+        })
+        .where('id', '=', userId)
+        .execute();
     },
 
     async setFacts(userId: UserId, patch: FactsPatch): Promise<void> {

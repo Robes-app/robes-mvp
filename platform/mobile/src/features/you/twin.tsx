@@ -1,25 +1,33 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import type { Facts, Model, StyleDna, UpdateModelInput } from '@robes/contracts';
-import { diary, twin, you } from '@robes/copy';
+import type { Facts, Model, StyleDna, UnitPrefs, UpdateModelInput } from '@robes/contracts';
+import { diary, twin, ui, you } from '@robes/copy';
 import {
-  BUST_CUPS,
   chosenTones,
   lineupOrder,
   readAdj,
-  stepTwinFact,
   TWIN_STATUS_STEP_MS,
-  type TwinStep,
   twinFigure,
   twinStatusIndex,
 } from '@robes/core/avatar';
-import { euShoe, euSize, type FactStep, feetInches, stepFact } from '@robes/core/style-dna';
+import {
+  CLEARED_FACTS,
+  type FactRow,
+  factRows,
+  type MeasureField,
+  type MeasurePatch,
+  type MeasureUnit,
+  measurePresenceOf,
+  type PickerColumn,
+  pickerOf,
+} from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/native';
 import {
+  AlertDialog,
   Button,
   Eyebrow,
   MIN_TOUCH,
-  Pill,
-  SegmentedControl,
+  PrimaryScope,
+  Sheet,
   Text,
   useColor,
   useToast,
@@ -300,13 +308,15 @@ export function SkinAndHair({ model, pick }: { model: Model; pick: Pick }) {
 export function Figure({
   facts,
   adj,
+  presence,
   tone,
 }: {
   facts: Facts;
   adj: Model['adj'];
+  presence?: Model['presence'];
   tone?: { skin: string; hair: string };
 }) {
-  const g = twinFigure(facts, readAdj(adj));
+  const g = twinFigure(facts, readAdj(adj, presence));
   const stroke = useColor('ink-muted');
   const guide = useColor('hairline');
   const fill = useColor('bg');
@@ -376,7 +386,8 @@ export function twinRead(model: Model, facts: Facts): TwinRead {
     facts.sizeUk ||
     facts.bustBand ||
     facts.bustCm ||
-    facts.waistCm
+    facts.waistCm ||
+    facts.chestCm
   );
   if (closeUp && line) return 'both';
   if (closeUp) return 'closeUp';
@@ -384,195 +395,264 @@ export function twinRead(model: Model, facts: Facts): TwinRead {
   return model.filed || model.skinSet || model.hairSet ? 'hand' : 'none';
 }
 
-export const bustOf = (facts: Facts): string =>
-  f.bustValue(facts.bustBand, facts.bustCup, facts.bustCm);
+// A row's value in words, in the unit she reads it in; '' when she has not given it. Twin of
+// web twin-parts.tsx rowValue.
+export function rowValue(row: FactRow): string {
+  if (row.value === null) return '';
+  if (typeof row.value === 'number') return f.value(row.field, row.unit, row.value);
+  return f.bustValue(row.value.band, row.value.cup);
+}
 
-// "170 cm · UK 12 · 34C": the facts that draw her line.
-export function lineSummary(facts: Facts): string {
-  return [
-    facts.heightCm ? f.heightValue(facts.heightCm) : '',
-    facts.sizeUk ? f.ukValue(facts.sizeUk) : '',
-    bustOf(facts),
-  ]
+// "170 cm · UK 12 · 34C" (his: "180 cm · 40 in"): the facts that draw the line, in her units.
+export function lineSummary(dna: StyleDna): string {
+  const presence = measurePresenceOf(dna.gender);
+  const draws: readonly MeasureField[] = ['height', 'size', 'bust', 'chest'];
+  return factRows(dna.facts, dna.units, presence)
+    .filter((r) => draws.includes(r.field))
+    .map(rowValue)
     .filter(Boolean)
     .join(' · ');
 }
 
-// Plain − and + (decided 27 Oct, both platforms), each a 44pt circle; an empty value reads "Add"
-// in the serif italic. Twin of web twin-parts.tsx Stepper.
-function Stepper({
+// The wheel (design "Picker open · Bust"): five slots around her value, the middle one chosen on
+// the warm fill, the outer ones fading; a tap on any steps to it. Twin of web twin-parts.tsx Wheel.
+function Wheel({
   label,
-  value,
-  sub,
-  onStep,
+  column,
+  text,
+  onPick,
 }: {
   label: string;
-  value: string;
-  sub?: string;
-  onStep: (dir: 1 | -1) => void;
+  column: PickerColumn;
+  text: (shown: number | string) => string;
+  onPick: (patch: MeasurePatch) => void;
 }) {
-  const ink = useColor('ink');
-  const step = (dir: 1 | -1) => (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${dir < 0 ? f.less : f.more}: ${label}`}
-      onPress={() => onStep(dir)}
-      style={{ width: MIN_TOUCH, height: MIN_TOUCH }}
-      className="items-center justify-center rounded-pill border border-border-control"
-    >
-      <Icon name={dir < 0 ? 'minus' : 'plus'} size={16} color={ink} />
-    </Pressable>
-  );
   return (
-    <View className="flex-row items-center justify-between gap-3">
-      <Text>{label}</Text>
-      <View className="items-end">
-        <View className="flex-row items-center gap-2">
-          {step(-1)}
-          <Text
-            accessibilityLabel={`${label}: ${value || f.add}`}
-            tone={value ? 'ink' : 'faint'}
-            italic={!value}
-            size={value ? 'body' : 'caption'}
-            className="min-w-16 text-center"
+    <View accessibilityLabel={label} className="min-w-0 flex-1 gap-0.5">
+      {column.slots.map((slot) => {
+        const shown = slot.shown;
+        const words = shown === null ? '' : text(shown);
+        return (
+          <Pressable
+            key={slot.offset}
+            accessibilityRole="button"
+            accessibilityLabel={words}
+            accessibilityState={{ selected: slot.selected, disabled: shown === null }}
+            disabled={shown === null}
+            onPress={() => (slot.patch ? onPick(slot.patch) : undefined)}
+            style={{
+              height: MIN_TOUCH,
+              opacity: slot.distance === 1 ? 0.55 : slot.distance === 2 ? 0.25 : 1,
+            }}
+            className={`items-center justify-center rounded-pill border ${
+              slot.selected ? 'border-selected-line bg-selected' : 'border-transparent'
+            }`}
           >
-            {value || f.add}
-          </Text>
-          {step(1)}
-        </View>
-        {sub ? (
-          <Text size="caption" tone="muted">
-            {sub}
-          </Text>
-        ) : null}
-      </View>
+            <Text className="font-display" style={{ fontSize: 24 }}>
+              {words}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
-// The facts drawer (size, never weight): height, size, bust, waist and shoes. Title and fields
-// only; her age and gender are set in Style DNA › You (Annie, 7 Nov; were pills on Body shape).
-export function FactsBody({ dna, gender }: { dna: StyleDna; gender: Model['presence'] }) {
-  const { update } = useDnaMutations();
-  const facts = dna.facts;
-  const [unit, setUnit] = useState<'cm' | 'ft'>('cm');
-  const [waistUnit, setWaistUnit] = useState<'cm' | 'in'>('cm');
-  const [bustMode, setBustMode] = useState<'bra' | 'cm'>(facts.bustCm ? 'cm' : 'bra');
-  const man = gender === 'man';
-  const set = (patch: Partial<Facts>) => update.mutate({ input: { facts: patch } });
-  const step = (kind: FactStep, key: 'heightCm' | 'sizeUk' | 'shoeUk', dir: 1 | -1) =>
-    set({ [key]: stepFact(kind, facts[key], dir) });
-  const stepTwin = (kind: TwinStep, dir: 1 | -1, patch: Partial<Facts> = {}) =>
-    set({ [kind]: stepTwinFact(kind, facts[kind], dir), ...patch });
-  const any = Object.entries(facts).some(([k, v]) => k !== 'ageBand' && v !== null);
-  const bra = bustMode === 'bra' && !man;
+// A row's unit toggle: its units as small caps, the one she reads underlined. Twin of web
+// twin-parts.tsx UnitToggle.
+function UnitToggle({
+  label,
+  units,
+  unit,
+  onPick,
+}: {
+  label: string;
+  units: readonly MeasureUnit[];
+  unit: MeasureUnit;
+  onPick: (unit: MeasureUnit) => void;
+}) {
   return (
-    <ScrollView style={{ flexShrink: 1 }} contentContainerClassName="gap-5 pb-6">
-      <Stepper
-        label={f.height}
-        value={
-          facts.heightCm
-            ? unit === 'cm'
-              ? f.heightValue(facts.heightCm)
-              : feetInches(facts.heightCm)
-            : ''
-        }
-        onStep={(d) => step('heightCm', 'heightCm', d)}
-      />
-      <SegmentedControl
-        label={f.height}
-        value={unit}
-        options={[
-          { value: 'cm', label: f.cm },
-          { value: 'ft', label: f.ftIn },
-        ]}
-        onChange={setUnit}
-      />
-      <Stepper
-        label={f.size}
-        value={facts.sizeUk ? f.ukValue(facts.sizeUk) : ''}
-        sub={facts.sizeUk ? f.euValue(euSize(facts.sizeUk)) : undefined}
-        onStep={(d) => step('sizeUk', 'sizeUk', d)}
-      />
-      {man ? null : (
-        <SegmentedControl
-          label={f.bust}
-          value={bustMode}
-          options={[
-            { value: 'bra', label: f.braSize },
-            { value: 'cm', label: f.tape },
-          ]}
-          onChange={setBustMode}
-        />
-      )}
-      {bra ? (
-        <>
-          <Stepper
-            label={f.band}
-            value={facts.bustBand ? String(facts.bustBand) : ''}
-            onStep={(d) => stepTwin('bustBand', d, { bustCm: null })}
-          />
-          <View className="gap-2">
-            <Text>{f.cup}</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {BUST_CUPS.map((c) => (
-                <Pill
-                  key={c}
-                  selected={facts.bustCup === c}
-                  onPress={() => set({ bustCup: facts.bustCup === c ? null : c, bustCm: null })}
-                >
-                  {c}
-                </Pill>
-              ))}
+    <View accessibilityLabel={f.unitsOf(label)} className="flex-row">
+      {units.map((u) => {
+        const on = u === unit;
+        return (
+          <Pressable
+            key={u}
+            accessibilityRole="button"
+            accessibilityLabel={f.units[u]}
+            accessibilityState={{ selected: on }}
+            onPress={() => onPick(u)}
+            style={{ minWidth: MIN_TOUCH, height: MIN_TOUCH }}
+            className="items-center justify-center px-1.5"
+          >
+            <Text
+              size="caption"
+              tone={on ? 'ink' : 'muted'}
+              className={`border-b pt-1 pb-[3px] uppercase ${on ? 'border-ink font-medium' : 'border-transparent'}`}
+              style={{ fontSize: 10, letterSpacing: 2.2 }}
+            >
+              {f.units[u]}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const labelOf = (field: MeasureField): string => f[field];
+
+// The facts (design "The facts — redesign", 24 Nov): a row per measurement with its unit toggle;
+// a tap opens its wheel in the same sheet (iOS presents one sheet at a time). A unit changes only
+// how a value reads, never what is saved. Every field is optional and none says so; Clear the
+// facts asks first. Writes land in the cache at once, so the wheel steps under her finger. Twin of
+// web twin-parts.tsx FactsSheet.
+export function FactsSheet({
+  open,
+  onClose,
+  dna,
+}: {
+  open: boolean;
+  onClose: () => void;
+  dna: StyleDna;
+}) {
+  const queryClient = useQueryClient();
+  const { update } = useDnaMutations();
+  const muted = useColor('ink-muted');
+  const [field, setField] = useState<MeasureField | null>(null);
+  // Clear asks over nothing: the sheet steps aside, the question shows once it has gone, and the
+  // sheet comes back once the question has (iOS presents one modal at a time).
+  const [asking, setAsking] = useState(false);
+  const [question, setQuestion] = useState(false);
+  const presence = measurePresenceOf(dna.gender);
+  const rows = factRows(dna.facts, dna.units, presence);
+  const row = field ? rows.find((r) => r.field === field) : undefined;
+  const save = (facts: MeasurePatch, units: UnitPrefs = {}) => {
+    queryClient.setQueryData(queryKeys.call('me.dna.get'), (old: StyleDna | undefined) =>
+      old ? { ...old, facts: { ...old.facts, ...facts }, units: { ...old.units, ...units } } : old,
+    );
+    update.mutate({
+      input: {
+        ...(Object.keys(facts).length ? { facts } : {}),
+        ...(Object.keys(units).length ? { units } : {}),
+      },
+    });
+  };
+  const pickUnit = (r: FactRow) => (unit: MeasureUnit) => save({}, { [r.field]: unit });
+  const any = rows.some((r) => r.value !== null);
+  const close = () => {
+    setField(null);
+    onClose();
+  };
+  return (
+    <>
+      <Sheet
+        open={open && !asking}
+        onClose={close}
+        onClosed={() => (asking ? setQuestion(true) : undefined)}
+        title={row ? labelOf(row.field) : f.title}
+        testID="facts-sheet"
+      >
+        <ScrollView style={{ flexShrink: 1 }} contentContainerClassName="gap-4 pb-2">
+          {row ? (
+            <>
+              <View className="flex-row justify-end">
+                <UnitToggle
+                  label={labelOf(row.field)}
+                  units={row.units}
+                  unit={row.unit}
+                  onPick={pickUnit(row)}
+                />
+              </View>
+              <View className="flex-row gap-2.5">
+                {pickerOf(row.field, row.unit, dna.facts, presence).map((col) => (
+                  <Wheel
+                    key={col.key}
+                    label={col.key === 'value' ? labelOf(row.field) : f[col.key]}
+                    column={col}
+                    text={(v) =>
+                      col.key === 'value' ? f.value(row.field, row.unit, Number(v)) : String(v)
+                    }
+                    onPick={(patch) => save(patch)}
+                  />
+                ))}
+              </View>
+            </>
+          ) : (
+            <View>
+              {rows.map((r) => {
+                const value = rowValue(r);
+                const label = labelOf(r.field);
+                return (
+                  <View
+                    key={r.field}
+                    style={{ minHeight: presence === 'man' ? 72 : 84 }}
+                    className="flex-row items-center gap-1 border-hairline border-b"
+                  >
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={f.rowLabel(label, value)}
+                      onPress={() => setField(r.field)}
+                      testID={`fact-${r.field}`}
+                      style={{ minHeight: 72 }}
+                      className="min-w-0 flex-1 flex-row items-center gap-2.5"
+                    >
+                      <View className="gap-2.5">
+                        <Eyebrow style={{ fontSize: 10, letterSpacing: 2.4 }}>{label}</Eyebrow>
+                        <Text
+                          className="font-display"
+                          tone={value ? 'ink' : 'muted'}
+                          italic={!value}
+                          style={value ? { fontSize: 26, lineHeight: 28 } : undefined}
+                        >
+                          {value || f.add}
+                        </Text>
+                      </View>
+                      <Icon name="down" size={14} color={muted} />
+                    </Pressable>
+                    <UnitToggle label={label} units={r.units} unit={r.unit} onPick={pickUnit(r)} />
+                  </View>
+                );
+              })}
             </View>
-          </View>
-        </>
-      ) : (
-        <Stepper
-          label={man ? twin.twinPage.chest : f.bust}
-          value={facts.bustCm ? f.heightValue(facts.bustCm) : ''}
-          onStep={(d) => stepTwin('bustCm', d, { bustBand: null, bustCup: null })}
-        />
-      )}
-      <Stepper
-        label={f.waist}
-        value={facts.waistCm ? f.waistValue(facts.waistCm, waistUnit) : ''}
-        onStep={(d) => stepTwin('waistCm', d)}
-      />
-      <SegmentedControl
-        label={f.waist}
-        value={waistUnit}
-        options={[
-          { value: 'cm', label: f.cm },
-          { value: 'in', label: f.inches },
+          )}
+        </ScrollView>
+        <View className="items-center gap-2 pt-3">
+          {row || !any ? null : (
+            <Button variant="quiet" onPress={() => setAsking(true)}>
+              {f.clear}
+            </Button>
+          )}
+          <PrimaryScope>
+            <Button
+              className="w-full"
+              onPress={() => (row ? setField(null) : close())}
+              testID="facts-done"
+            >
+              {ui.done}
+            </Button>
+          </PrimaryScope>
+        </View>
+      </Sheet>
+      <AlertDialog
+        open={question}
+        title={f.clearAsk.title}
+        message={f.clearAsk.body}
+        onDismiss={() => setQuestion(false)}
+        onClosed={() => setAsking(false)}
+        actions={[
+          {
+            label: f.clearAsk.confirm,
+            variant: 'danger',
+            onPress: () => {
+              setQuestion(false);
+              save(CLEARED_FACTS);
+            },
+          },
+          { label: f.clearAsk.cancel, variant: 'outline', onPress: () => setQuestion(false) },
         ]}
-        onChange={setWaistUnit}
+        testID="facts-clear"
       />
-      <Stepper
-        label={f.shoes}
-        value={facts.shoeUk ? f.ukValue(facts.shoeUk) : ''}
-        sub={facts.shoeUk ? f.euValue(euShoe(facts.shoeUk)) : undefined}
-        onStep={(d) => step('shoeUk', 'shoeUk', d)}
-      />
-      {any ? (
-        <Button
-          variant="quiet"
-          className="self-start"
-          onPress={() =>
-            set({
-              heightCm: null,
-              sizeUk: null,
-              shoeUk: null,
-              bustBand: null,
-              bustCup: null,
-              bustCm: null,
-              waistCm: null,
-            })
-          }
-        >
-          {f.clear}
-        </Button>
-      ) : null}
-    </ScrollView>
+    </>
   );
 }

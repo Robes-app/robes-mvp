@@ -13,6 +13,7 @@ const repos = {
     get: vi.fn(),
     updateTaste: vi.fn(async () => {}),
     setFacts: vi.fn(async () => {}),
+    setUnits: vi.fn(async () => {}),
     addLine: vi.fn(async (): Promise<boolean> => true),
     keepPending: vi.fn(async (): Promise<boolean> => false),
     dismissPending: vi.fn(async () => true),
@@ -158,6 +159,26 @@ describe('Style DNA server', () => {
       investmentLevel: undefined,
     });
     expect(repos.styleDna.setFacts).toHaveBeenCalledWith(USER, { sizeUk: 12 });
+  });
+
+  it('reads a G+ cup as G and her units, and saves units apart from the facts (24 Nov)', async () => {
+    const snap = snapshot();
+    repos.styleDna.get.mockResolvedValue({
+      ...snap,
+      profile: {
+        ...snap.profile,
+        bustBand: 34,
+        bustCup: 'G+',
+        chestCm: null,
+        collarCm: 39.4,
+        unitPrefs: { bust: 'us', collar: 'in', size: 'cm', nope: 'in' },
+      },
+    });
+    const dna = await twin.loadStyleDna(USER);
+    expect(dna.facts).toMatchObject({ bustBand: 34, bustCup: 'G', collarCm: 39.4, chestCm: null });
+    expect(dna.units).toEqual({ bust: 'us', collar: 'in' });
+    await twin.updateStyleDna(USER, { units: { bust: 'eu' } });
+    expect(repos.styleDna.setUnits).toHaveBeenCalledWith(USER, { bust: 'eu' });
   });
 
   it('is not_found for a line that is not hers or no longer waits', async () => {

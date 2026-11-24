@@ -212,6 +212,18 @@ export function factsLines(f: unknown): string[] {
   if (band >= 26 && band <= 50 && cup) parts.push(`bust ${Math.round(band)}${cup}`);
   else if (bcm >= 60 && bcm <= 160) parts.push(`bust ${Math.round(bcm)} cm`);
   if (w >= 45 && w <= 150) parts.push(`waist ${Math.round(w)} cm`);
+  // His fit measures (24 Nov): stored in cm to the tenth, said to the tenth only when it has one.
+  const tenth = (n: number) => String(Math.round(n * 10) / 10);
+  const fit: [string, string, number, number][] = [
+    ['chest_cm', 'chest', 60, 160],
+    ['inseam_cm', 'inseam', 40, 120],
+    ['collar_cm', 'collar', 25, 60],
+    ['shoulder_width_cm', 'shoulder width', 25, 70],
+  ];
+  for (const [key, name, min, max] of fit) {
+    const v = Number(facts[key]);
+    if (v >= min && v <= max) parts.push(`${name} ${tenth(v)} cm`);
+  }
   if (sh >= 1 && sh <= 14) parts.push(`shoes UK ${sh}`);
   const age =
     typeof facts.age_band === 'string' && facts.age_band.trim()

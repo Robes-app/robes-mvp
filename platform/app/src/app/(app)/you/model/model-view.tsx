@@ -54,7 +54,7 @@ export function ModelView() {
   }
   const onRobes = model.stand?.on === 'robes';
   const colour = style.data.colour;
-  const line = lineSummary(dna.data.facts);
+  const line = lineSummary(dna.data);
   const drewHer = twinRead(model, dna.data.facts);
   const error = read.error;
   const doors = (
@@ -184,7 +184,7 @@ function ModelStage({
           <div className={`absolute inset-0 ${empty ? 'opacity-[0.22]' : ''}`}>
             <Figure
               facts={facts}
-              adj={readAdj(model.adj)}
+              adj={readAdj(model.adj, model.presence)}
               tone={{
                 skin: model.swatches.skin[model.skin] ?? '',
                 hair: model.swatches.hair[model.hair] ?? '',

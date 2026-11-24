@@ -96,6 +96,7 @@ const her = {
   bustCup: 'C',
   bustCm: null,
   waistCm: 72,
+  chestCm: null,
   ageBand: '35_44',
   bodyType: null,
   headshotAssetId: CLOSE_UP,
