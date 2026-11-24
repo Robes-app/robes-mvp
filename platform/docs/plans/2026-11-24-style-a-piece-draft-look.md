@@ -1,5 +1,7 @@
 # Style a piece → draft look (handoff, Annie 24 Nov)
 
+**Status: built 24 Nov on `feat/style-a-piece` (tasks 1–8). Task 9, the launch, waits on review.**
+
 One owned piece, an optional line of words, one draft look built around it in the existing
 `DraftLook`. No three looks, no deck, nothing new inside the draft look but one rule (D4).
 Web and native ship in the same pass (twins named in comments).
@@ -17,8 +19,8 @@ Web and native ship in the same pass (twins named in comments).
 ## Decisions (Annie, 24 Nov)
 - D1. **No retry.** A look missing the anchor gets it inserted (today's behaviour). The piece's
   photo now rides the styling call and the piece is named as required, so misses are rare.
-- D2. **Save: one-line toast "Saved to your lookbook" (`lookbook.saved`), then back to the
-  piece.** No two-line card.
+- D2. **Save: one-line toast "Saved to your lookbook." (`lookbook.savedSuggestion.title`, the
+  same words a saved suggestion says), then back to the piece.** No two-line card.
 - D3. **The old door stays for now:** Create › Style a piece (three ways) and the piece page's
   "Robes suggested" rail are untouched; retiring them is a follow-up.
 - D4. **The anchor is locked to words:** `looks.ask` keeps it (KEEP); only Edit removes it.
@@ -32,7 +34,7 @@ Web and native ship in the same pass (twins named in comments).
 ## Tasks
 1. **Contract + job** (`packages/contracts/src/looks.ts`, `packages/jobs/src/handlers/style-piece.ts`;
    read `docs/api-security.md` first). `PromptLookInput.anchorPieceId` (uuid, optional). The job
-   loads it as hers (`styling.anchorPiece`, SEC-16), must be ready and owned, else `not_found`;
+   loads it as hers (`styling.anchorPiece`, SEC-16), else `not_found`;
    sends its photo; sets `anchorPieceId` on the minted draft; keeps it through `fallback`.
    Prompt text change → style-piece v10 with evals. Tests: anchored draft, missing-anchor insert,
    fallback keeps it, another user's piece is `not_found`.
@@ -46,7 +48,7 @@ Web and native ship in the same pass (twins named in comments).
 5. **Piece page** (web `piece/[id]/piece-detail.tsx`, native `features/wardrobe/PieceDetail.tsx`):
    the 54pt ink sparkle bottom-right, only when `status === 'ready'`, hidden while any sheet,
    dialog or the dock is open (iOS: through a yield like `useDockYield`). Send → `looks.prompt`
-   `{ prompt, draft: true, anchorPieceId, pieceIds: [id], balance }` → open the draft drawer
+   `{ prompt, draft: true, anchorPieceId, balance }` → open the draft drawer
    following that job. Her words reach the thread through client state, never the URL.
    Offline/failed send: the standard error, nothing created, words kept.
 6. **Piece origin** (like `day-origin.ts`): on a draft started from a piece, Save → toast → back to
@@ -63,3 +65,13 @@ off · send (button or Return) opens the draft dressing, with or without words �
 draft carries the anchor unless she removes it in Edit · draft look otherwise unchanged · ✓ saves
 with "Saved to your lookbook" and returns to the piece · no marker on the anchor · × returns to the
 piece · no "AI" in any string · iOS safe area and keyboard, staging web.
+
+## As built (notes for review)
+- One source always stays on through the existing `toggleSource`: turning off the last one turns
+  the other on (S3/S4), rather than the handoff's "does nothing", so every surface behaves alike.
+- Offline or a refused send shows the app's error on the piece's page and opens nothing.
+- The web sparkle and bar ride the screen's foot (`PromptSheetFixed`, now shared from
+  `styling-card.tsx`); on iOS the bar is `DockSheet` behind `useDockYield`
+  (`features/looks/dock-yield.ts`), so the draft sheet opens only once the bar has gone.
+- The e2e (`app/e2e/style-piece-ui.spec.ts`) runs in CI; it could not run in the build sandbox
+  (no MinIO).
