@@ -64,6 +64,9 @@ export interface LookTileProps {
   // A small warm chip at the eyebrow's right: Worn ✓ on a day she wore it.
   badge?: string | null;
   meta?: string;
+  // Robes' signature in place of the meta: the sparkle and "Suggested by Robes" in rose small
+  // caps (design "Suggested looks", 23 Nov). Web twin: look-tile.tsx.
+  signed?: string;
   // A glyph before the meta (the Lookbook card's calendar, PRD rev 3 §2.4) and a small mark at
   // the card's bottom right (the bag on a look with pieces to find), each named for a reader.
   metaIcon?: IconName;
@@ -98,6 +101,7 @@ export function LookTile({
   eyebrowTone = 'faint',
   badge,
   meta,
+  signed,
   metaIcon,
   mark,
   tag,
@@ -117,6 +121,7 @@ export function LookTile({
   const title = name ?? look.name;
   const ootd = variant === 'ootd';
   const muted = useColor('ink-muted');
+  const rose = useColor('accent-warm');
   // Beta's card: white on a hairline (Card), the dashed draft on the fine rule-mid edge.
   const frame = [
     dashed ? 'border-dashed border-rule-mid bg-transparent p-[6px]' : '',
@@ -188,6 +193,19 @@ export function LookTile({
                   style={{ fontFamily: fonts.sans, fontSize: 10 }}
                 >
                   {tag}
+                </RNText>
+              </View>
+            ) : null}
+            {signed ? (
+              <View className="mt-1 flex-row items-center gap-1.5">
+                <Icon name="looks" size={11} color={rose} />
+                <RNText
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+                  className="min-w-0 flex-1 uppercase text-accent-warm"
+                  style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.4 }}
+                >
+                  {signed}
                 </RNText>
               </View>
             ) : null}

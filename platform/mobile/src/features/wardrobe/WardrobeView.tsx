@@ -327,6 +327,10 @@ export function WardrobeView() {
   const [segment, setSegment] = useState<Segment>(
     SEGMENTS.includes(params.segment as Segment) ? (params.segment as Segment) : 'pieces',
   );
+  // A link into a Wardrobe already open (the saved suggestion's View) moves it to its segment.
+  useEffect(() => {
+    if (SEGMENTS.includes(params.segment as Segment)) setSegment(params.segment as Segment);
+  }, [params.segment]);
   useEffect(() => {
     if (params.segment === 'inbox') {
       router.setParams({ segment: undefined });

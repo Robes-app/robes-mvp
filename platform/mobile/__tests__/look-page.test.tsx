@@ -34,7 +34,6 @@ test('a suggested name is renamed in Details › Caption, never a "Keep this nam
   // No title, no pencil, no facts line, no suggestion line, no eyebrow over the picture.
   expect(screen.queryByRole('button', { name: looks.page.rename })).toBeNull();
   expect(screen.queryByText(/pinned for/)).toBeNull();
-  expect(screen.queryByText(lookbook.eyebrow.saved)).toBeNull();
   expect(screen.queryByText('Robes’ suggestion')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Keep this name' })).toBeNull();
 

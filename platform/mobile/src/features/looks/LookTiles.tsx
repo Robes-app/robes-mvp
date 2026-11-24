@@ -1,13 +1,11 @@
 import type { Look } from '@robes/contracts';
 import { lookbook as copy, filters } from '@robes/copy';
-import { weekdayLong } from '@robes/core/calendar';
-import { anchorName, startedLabel, suggestionReason } from '@robes/core/looks';
+import { startedLabel } from '@robes/core/looks';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
-import { type Aspect, fonts, Image, MIN_TOUCH, useColor } from '@robes/ui-native';
-import { Link, useRouter } from 'expo-router';
-import { Platform, Pressable, Text, View } from 'react-native';
-import { pieceSource } from '@/lib/images';
+import { type Aspect, MIN_TOUCH, useColor } from '@robes/ui-native';
+import { Link } from 'expo-router';
+import { Platform, Pressable, View } from 'react-native';
 import { LookTile } from './LookTile';
 import { Scanning, scanningLine } from './ScanLine';
 import { localDate } from './saved-looks';
@@ -53,25 +51,6 @@ export function cardMeta(look: Look): string {
     look.seasons.map((s) => filters.seasons[s]),
     filters.seasons.year_round,
   );
-}
-
-// Why Robes suggested a look, as the card's line (PRD §5.3).
-export function reasonLine(look: Look): string {
-  const reason = suggestionReason(look);
-  switch (reason.kind) {
-    case 'anchor':
-      return copy.suggestedTile.around(reason.piece);
-    case 'day':
-      return copy.suggestedTile.reason.day(weekdayLong(reason.date));
-    case 'wishlist':
-      return copy.suggestedTile.reason.wishlist;
-    case 'own':
-      return copy.suggestedTile.reason.own(reason.pieces);
-    case 'wearMost':
-      return copy.suggestedTile.reason.wearMost;
-    default:
-      return copy.suggestedTile.fromPrompt;
-  }
 }
 
 // Saved: no eyebrow (the default state needs no label). The calendar sits ON the image bottom
@@ -184,109 +163,57 @@ export function DraftTile({ look, onPress }: { look: Look; onPress: () => void }
   );
 }
 
-// Bottom left of a suggestion says where it came from (legacy _lkSuggCard): the piece it was
-// styled around — its photograph, or its initial — and a tap opens the piece; a look styled
-// from her own words wears a rose open-quote instead.
-function SuggestedMark({ look }: { look: Look }) {
-  const router = useRouter();
-  const rose = useColor('accent-inspire');
-  const anchor = look.anchor;
-  const frame = 'absolute bottom-2 left-2 overflow-hidden rounded-crisp border-2 border-bg';
-  if (!anchor) {
-    return (
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        testID={`suggested-${look.id}-quote`}
-        className={`${frame} items-center justify-center bg-surface`}
-        style={{ width: 36, height: 44 }}
-      >
-        <Text style={{ fontFamily: fonts.display, fontSize: 26, lineHeight: 30, color: rose }}>
-          {copy.suggestedTile.quote}
-        </Text>
-      </View>
-    );
-  }
-  const name = anchorName(anchor.label, anchor.brand);
-  const { uri, fit } = pieceSource(anchor.image, 36);
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={copy.suggestedTile.yourPiece(name)}
-      onPress={() => router.push(`/piece/${anchor.id}`)}
-      hitSlop={4}
-      className={`${frame} items-center justify-center bg-surface`}
-      style={{ width: 36, height: 44 }}
-      testID={`suggested-${look.id}-mark`}
-    >
-      {uri ? (
-        <Image source={uri} alt="" aspect="4:5" {...fit} />
-      ) : (
-        <Text className="text-ink" style={{ fontFamily: fonts.display, fontSize: 18 }}>
-          {name.charAt(0).toLocaleUpperCase()}
-        </Text>
-      )}
-    </Pressable>
-  );
-}
-
-// Suggested: Robes' frame, why it was suggested under the name, where it came from in the corner,
-// the bookmark that saves it on the photograph (PRD §5.3), ✕ always shown. No ↻: a suggestion is
-// kept or let go, never restyled from its tile (Annie, Christmas trial, 23 Nov).
+// Suggested (design "Suggested looks", 23 Nov): a Lookbook card signed by Robes — the photograph,
+// the name, Suggested by Robes, and nothing on the photograph. A tap opens the look; on iOS a long
+// press peeks at it with the native menu (Save look · Delete look), as on a saved card. Web twin:
+// look-tiles.tsx SuggestedTile.
 export function SuggestedTile({
   look,
   onPress,
-  onRemove,
   onSave,
-  saving = false,
-  showMark = true,
+  onDelete,
   aspect,
 }: {
   look: Look;
   onPress: () => void;
-  onRemove: () => void;
-  onSave?: () => void;
-  saving?: boolean;
-  showMark?: boolean;
+  onSave: () => void;
+  onDelete: () => void;
   aspect?: Aspect;
 }) {
   const busy = scanningLine(look);
-  return (
+  const tile = (press?: () => void) => (
     <LookTile
       look={look}
-      onPress={onPress}
+      {...(press ? { onPress: press } : {})}
       {...(aspect ? { aspect } : {})}
       className="flex-1"
-      eyebrow={copy.suggestedTile.eyebrow}
-      eyebrowTone="warm"
-      meta={reasonLine(look)}
-      mark={look.proposals.length ? { icon: 'shop', label: copy.card.shop } : null}
+      label={copy.suggestedTile.label(look.name)}
+      signed={copy.suggestedTile.by}
       testID={`suggested-${look.id}`}
-      onImage={
-        <>
-          {busy ? <Scanning line={busy} /> : null}
-          {showMark ? <SuggestedMark look={look} /> : null}
-          {onSave ? (
-            <View className="absolute right-2 bottom-2">
-              <OnPhoto
-                icon="bookmark"
-                label={copy.suggestedTile.save(look.name)}
-                size={32}
-                onPress={onSave}
-                disabled={saving}
-              />
-            </View>
-          ) : null}
-        </>
-      }
-      corner={
-        <OnPhoto
-          icon="close"
-          label={copy.suggestedTile.remove(look.name)}
-          size={32}
-          onPress={onRemove}
-        />
-      }
+      onImage={busy ? <Scanning line={busy} /> : null}
     />
+  );
+  if (Platform.OS !== 'ios') return tile(onPress);
+  return (
+    <Link href={`/look/${look.id}`} asChild>
+      <Link.Trigger>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.suggestedTile.label(look.name)}
+          className="flex-1"
+        >
+          {tile()}
+        </Pressable>
+      </Link.Trigger>
+      <Link.Preview />
+      <Link.Menu>
+        <Link.MenuAction icon="bookmark" onPress={onSave}>
+          {copy.suggestedTile.menu.save}
+        </Link.MenuAction>
+        <Link.MenuAction icon="trash" destructive onPress={onDelete}>
+          {copy.suggestedTile.menu.delete}
+        </Link.MenuAction>
+      </Link.Menu>
+    </Link>
   );
 }

@@ -11,7 +11,7 @@ import {
 } from './helpers';
 
 // Look states on the web (legacy beta 2026-10-06 → 10-13): a styling job lands on the keep-or-
-// pass deck; a suggestion is saved as is or edited into a draft; the look prompt edits a draft.
+// pass deck; a suggestion is saved from its page or its menu; the look prompt edits a draft.
 test.beforeEach(({ context }) => isolateClientIp(context));
 
 const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
@@ -57,7 +57,7 @@ test('a styled piece lands on the deck: keep, pass with Undo, then See Suggested
   expect(await seriousViolations(page), 'Suggested').toEqual([]);
 });
 
-test('a suggestion is saved as is; another, edited, becomes a draft in progress', async ({
+test('a suggestion is its saved look’s page: Save look keeps it; another is saved from its menu', async ({
   page,
 }) => {
   await signIn(page);
@@ -75,34 +75,30 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
   await expect(page.getByText('Around your navy blazer')).toBeVisible({ timeout: 30_000 });
   await deckLive(page);
 
-  // A tap opens the look in its suggested state.
-  const name = (await page.getByTestId(/^deck-card-/).getAttribute('aria-label')) ?? '';
+  // A tap opens the look: the saved look's anatomy, signed by Robes (design "Suggested looks" 03).
   await page.getByTestId(/^deck-card-/).click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
-  await expect(page.getByText('Suggested · around your navy blazer')).toBeVisible();
-  await expect(
-    page.getByRole('heading', { level: 2, name: /^The rack · \d+ pieces$/ }),
-  ).toBeVisible();
-  // A piece to find shows its bag and price at the row's right; readers hear "Not yours yet".
-  await expect(page.getByText('Not yours yet', { exact: false }).first()).toBeAttached();
+  await expect(page.getByText('Suggested by Robes', { exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Pieces' })).toBeVisible();
+  // How was this look? stays on a suggestion (Annie, 24 Nov).
+  await expect(page.getByText('How was this look?')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Schedule look' })).toHaveCount(0);
   expect(await seriousViolations(page), 'a suggested look').toEqual([]);
-  await page.getByRole('button', { name: 'Save to lookbook' }).click();
-  // The saved look (Felix 3e): Schedule look is its one ink button, and the diary waits for it
-  // (TestFlight 20 Nov).
-  await expect(page.getByRole('button', { name: 'Schedule look' })).toBeVisible();
-  await expect(page.getByText('Put in the diary', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Save look' }).click();
+  // Saved, she is back where she found it, and the toast says so.
+  await expect(page.getByText('Saved to your lookbook.', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}$/);
 
-  // The piece page shows the rest of the set; Edit on one makes it a draft.
+  // The piece page shows the rest of the set; a right click (a long press on a phone) on one
+  // offers Save look and Delete look.
   await page.goto(`/piece/${piece.id}`);
   const rail = page.getByTestId('suggested-rail');
   await expect(rail.getByRole('link').first()).toBeVisible();
-  await rail.getByRole('link').first().click();
-  await page.getByRole('button', { name: 'Edit', exact: true }).click();
-  await expect(page.getByText(/^Draft/)).toBeVisible();
+  await rail.getByRole('link').first().click({ button: 'right' });
+  await page.getByTestId('suggested-menu-save').click();
+  await expect(page.getByText('Saved to your lookbook.', { exact: true }).first()).toBeVisible();
   await page.goto('/looks');
-  await expect(page.getByRole('link', { name: name })).toBeVisible();
-  await expect(page.getByText('In progress', { exact: true })).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Saved' }).getByRole('link')).toHaveCount(1);
+  await expect(page.getByRole('list', { name: 'Saved' }).getByRole('link')).toHaveCount(2);
 });
 
 test('a new look is a draft; the look prompt swaps a piece and names what it replaced', async ({
@@ -191,11 +187,11 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   // The Front Door's filter row stands on both tabs (PRD rev 3 §5.1); there is no sort.
   await expect(page.getByRole('button', { name: /^Sort/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Filter' })).toBeVisible();
-  // Nothing suggested: beta's line, and the prompt (L7).
+  // Nothing suggested: one line, and the way back to Saved (design "Suggested looks" 08).
   await page.getByRole('tab', { name: 'Suggested' }).click();
-  await expect(
-    page.getByText('Tell Robes where you’re going, or pick a piece, and it dresses you.'),
-  ).toBeVisible();
+  await expect(page.getByText('You’ve no suggested looks.')).toBeVisible();
+  await page.getByRole('button', { name: 'Go to Saved' }).click();
+  await expect(page).toHaveURL(/\/looks$/);
 });
 
 test('the draft look at 390: her model, the piece picker, and the done disc', async ({ page }) => {

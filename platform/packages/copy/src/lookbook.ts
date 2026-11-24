@@ -40,23 +40,12 @@ export const lookbook = {
     meta: (when: string): string => `Not saved · started ${when}`,
   },
   suggestedTile: {
-    eyebrow: 'Suggested',
-    around: (piece: string): string => `Around your ${piece}`,
-    fromPrompt: 'From your prompt',
-    // The mark on a look styled from her own words; the piece's mark names the piece.
-    quote: '“',
-    yourPiece: (piece: string): string => `Your ${piece}`,
-    remove: (name: string): string => `Remove ${name}`,
-    // The bookmark on a suggestion's photograph (Front Door PRD rev 3 §5.3) saves it to Saved.
-    save: (name: string): string => `Save ${name}`,
-    saved: (name: string): string => `${name} is saved`,
-    // Why Robes suggested it, under the name (core suggestionReason).
-    reason: {
-      day: (weekday: string): string => `For ${weekday}`,
-      wishlist: 'Works with your wishlist',
-      own: (n: number): string => (n === 1 ? 'Uses 1 piece you own' : `Uses ${n} pieces you own`),
-      wearMost: 'Built from what you wear most',
-    },
+    // The suggested card's signature under its name, and the pill on its page's photograph
+    // (design "Suggested looks · Christmas trial", 23 Nov).
+    by: 'Suggested by Robes',
+    // Read with the card: a long press offers Save look and Delete look.
+    label: (name: string): string => `${name}, suggested by Robes`,
+    menu: { save: 'Save look', delete: 'Delete look' },
     framing: 'Creating the frame…',
     restyling: 'Changing the look…',
   },
@@ -74,20 +63,26 @@ export const lookbook = {
   seedDrops: {
     'xmas-2026': { title: 'Christmas private trial', line: 'Ten looks for the party season.' },
   } as Record<string, { title: string; line: string } | undefined>,
+  // The header's second, quieter sentence under every drop's line.
+  seedKeep: 'Keep what feels like you.',
   suggestedEmpty: {
-    title: 'Nothing suggested yet.',
-    body: 'Tell Robes where you’re going, or pick a piece, and it dresses you.',
+    title: 'You’ve no suggested looks.',
+    action: 'Go to Saved',
   },
-  // The look page, in each state.
-  eyebrow: {
-    suggested: 'Suggested',
-    suggestedAround: (piece: string): string => `Suggested · around your ${piece}`,
-    suggestedPrompt: 'Suggested · from your prompt',
-    draft: 'Draft look',
-    draftFromSuggestion: 'Draft · from Robes’ suggestion',
-    saved: 'Saved look',
-    // Once her words or her hands have changed it and the picture is behind (design 3b).
-    editing: 'Saved look · changed',
+  // A suggestion saved, from its page or its card's menu: the pieces to find went on her
+  // wishlist, and View opens it.
+  savedSuggestion: {
+    title: 'Saved to your lookbook.',
+    body: (n: number): string =>
+      n === 1 ? '1 piece added to your wishlist.' : `${n} pieces added to your wishlist.`,
+    view: 'View',
+  },
+  // A suggestion's page (Felix 3e anatomy): its pill, its one button, its delete.
+  suggestedLook: {
+    save: 'Save look',
+    deleteBody: 'It leaves your Lookbook, and its pieces won’t go on your wishlist.',
+    // The pencil's hint over a suggestion's rows.
+    editHint: 'Heart a piece for your wishlist, or swap it for one you own.',
   },
   meta: {
     pieces,
@@ -119,11 +114,6 @@ export const lookbook = {
         f.pinnedFor ? lookbook.meta.pinnedFor(f.pinnedFor) : null,
       ]),
   },
-  composedByRobes: 'Composed by Robes',
-  noteLabel: 'The look',
-  // The text block over a look's picture (plan 2026-11-03 §1.3): what it is made of.
-  mix: (yours: number, toFind: number): string =>
-    toFind === 0 ? `The look · ${pieces(yours)}` : `The look · ${yours} yours, ${toFind} to find`,
   card: {
     diary: 'Put this look in the diary',
     delete: 'Delete this look',
@@ -473,19 +463,7 @@ export const lookbook = {
       keep: 'Keep editing',
     },
   },
-  bar: {
-    save: 'Save',
-    saveToLookbook: 'Save to lookbook',
-    edit: 'Edit',
-    discard: 'Discard',
-    editLook: 'Edit look',
-    addPieces: '+ Add pieces',
-    done: 'Done',
-    update: 'Update look',
-    notForYou: 'Not for you',
-  },
-  // Beta's save and update toasts: a suggestion kept as it stands, a look she worked on by name.
-  saved: 'Saved to your lookbook',
+  // Beta's save toast: a look she worked on, by name (a suggestion's is savedSuggestion).
   savedAs: (name: string): string => `${name} saved to your Lookbook ✓`,
   // Update look landed (Capture PRD 3.5).
   updated: 'Look updated',
@@ -617,11 +595,6 @@ export const lookbook = {
     remove: (name: string): string => `Remove ${name} from this look`,
     empty: 'Nothing hangs here yet.',
     addWorn: 'Add the pieces you wore',
-  },
-  guide: {
-    title: 'Start with the canvas',
-    body: 'The basics that set proportion and tone.',
-    hint: 'A tee, jeans, a knit…',
   },
   swap: {
     // A swap on a suggested look lands at once, behind Undo.

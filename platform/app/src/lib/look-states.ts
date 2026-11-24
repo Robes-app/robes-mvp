@@ -19,8 +19,9 @@ import type {
 import { lookbook as copy, wardrobe } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { pictureLanding } from '@robes/core/looks';
-import { useToast } from '@robes/ui';
+import { type ToastOptions, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 import { errorCopy } from './error-copy';
@@ -122,6 +123,19 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
   };
 }
 
+const WISHLIST = '/wardrobe/wishlist';
+
+// A suggestion saved (design "Suggested looks", 04): its pieces to find are on her wishlist now,
+// and View opens it. Native twin: mobile/src/features/looks/look-states.ts.
+export function savedSuggestionToast(look: Look, onView: () => void): ToastOptions {
+  const wished = look.proposals.filter((p) => p.wishlistItemId).length;
+  return {
+    message: copy.savedSuggestion.title,
+    ...(wished ? { body: copy.savedSuggestion.body(wished) } : {}),
+    action: { label: copy.savedSuggestion.view, onAction: onView },
+  };
+}
+
 // `from` picks beta's toast: a suggestion saved as it stands, or a look she worked on, by name.
 // `changes`: how many changes she sent through the prompt before saving, for the event.
 export function useSaveLook(
@@ -131,6 +145,7 @@ export function useSaveLook(
 ) {
   const toast = useToast();
   const refresh = useRefreshLooks();
+  const router = useRouter();
   const { track } = useAnalytics().analytics;
   return useApiMutation('looks.save', {
     onSuccess: (look) => {
@@ -143,7 +158,8 @@ export function useSaveLook(
       });
       refresh(look);
       onSaved?.(look);
-      toast({ message: from === 'suggested' ? copy.saved : copy.savedAs(look.name) });
+      if (from === 'suggested') toast(savedSuggestionToast(look, () => router.push(WISHLIST)));
+      else toast({ message: copy.savedAs(look.name) });
     },
     onError: (err) => toast({ message: errorCopy(err) }),
   });
