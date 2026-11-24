@@ -4,6 +4,7 @@ import {
   anchorName,
   applyAsk,
   askWhen,
+  changeableRows,
   changedKeys,
   deckReduce,
   deckTop,
@@ -54,6 +55,17 @@ describe('copy helpers (legacy parity)', () => {
       'A late dinner, the jacket open',
     );
     expect(noteShort(null)).toBe('');
+  });
+
+  it('offers every piece but the anchor to Which piece?', () => {
+    const rows = [
+      { key: 'a', pieceId: 'coat' },
+      { key: 'b', pieceId: 'jeans' },
+      { key: 'p-1', pieceId: null },
+    ];
+    expect(changeableRows(rows, 'coat').map((r) => r.key)).toEqual(['b', 'p-1']);
+    expect(changeableRows(rows, null)).toEqual(rows);
+    expect(changeableRows(rows, undefined)).not.toBe(rows);
   });
 
   it('drops the brand from a name, never emptying it', () => {

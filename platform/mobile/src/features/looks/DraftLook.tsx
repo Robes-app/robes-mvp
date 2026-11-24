@@ -13,6 +13,7 @@ import { lookbook, looks as looksCopy } from '@robes/copy';
 import { readsAsThey } from '@robes/core/avatar';
 import {
   type Balance,
+  changeableRows,
   type DockMove,
   type DockState,
   defaultSources,
@@ -1595,8 +1596,9 @@ function DraftBody({
   // On the saved look's page the resting sparkle stands beside its one button (design 2c), while
   // that button stands (not while a prompt change is being kept).
   const besideButton = presentation === 'saved' && dockState === 'spark' && applying === null;
-  // The look's pieces for Which piece? (Q6), in the thread and on the bar alike.
-  const whichPieces = rows.map((r) => ({
+  // The look's pieces for Which piece? (Q6), in the thread and on the bar alike; never its anchor,
+  // which no change through the prompt takes.
+  const whichPieces = changeableRows(rows, look.anchor?.id).map((r) => ({
     key: r.key,
     name: nameNoBrand(r.name, r.brand),
     image: imageOf(r) ?? null,

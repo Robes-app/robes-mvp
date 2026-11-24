@@ -70,6 +70,15 @@ export function anchorName(label: string, brand: string | null | undefined): str
   return nm ? nm.charAt(0).toLowerCase() + nm.slice(1) : '';
 }
 
+// Which piece? (Q6) offers the pieces the prompt can change. The look's anchor is held through
+// every change (Style a piece, Annie 24 Nov), so it is never offered.
+export function changeableRows<T extends { pieceId: string | null }>(
+  rows: readonly T[],
+  anchorPieceId: string | null | undefined,
+): T[] {
+  return anchorPieceId ? rows.filter((r) => r.pieceId !== anchorPieceId) : [...rows];
+}
+
 // The facts a saved look states about itself, in the shape the copy line takes:
 // its rack, its wears, when it was last worn (the date as the day says it) and the
 // piece it was styled around. One reader, so the card and the look page agree.
