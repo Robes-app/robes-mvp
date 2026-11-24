@@ -1,6 +1,6 @@
 import { PICTURE_NOTE_MAX } from '@robes/core/looks';
 import { describe, expect, it } from 'vitest';
-import { Look, LookRobesInput, RedrawLookInput } from './looks';
+import { Look, LookRobesInput, PromptLookInput, RedrawLookInput } from './looks';
 
 const olderServerLook = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -68,5 +68,18 @@ describe('look contracts (D19, D21)', () => {
     expect(LookRobesInput.parse({ hidden: true })).toEqual({ hidden: true });
     expect(LookRobesInput.safeParse({}).success).toBe(false);
     expect(LookRobesInput.safeParse({ hidden: 'yes' }).success).toBe(false);
+  });
+});
+
+describe('style a piece or a wish (24 Nov)', () => {
+  const PIECE = '22222222-2222-4222-8222-222222222222';
+  const WISH = '33333333-3333-4333-8333-333333333333';
+  it('starts from one piece or one wish, never both', () => {
+    const base = { prompt: 'Style my silk cami', draft: true };
+    expect(PromptLookInput.safeParse({ ...base, anchorPieceId: PIECE }).success).toBe(true);
+    expect(PromptLookInput.safeParse({ ...base, anchorWishId: WISH }).success).toBe(true);
+    expect(
+      PromptLookInput.safeParse({ ...base, anchorPieceId: PIECE, anchorWishId: WISH }).success,
+    ).toBe(false);
   });
 });

@@ -125,7 +125,7 @@ export function rackUpdate(state: RackState, opts: { keepEdits: boolean }): Upda
 }
 
 // The rack as the look prompt reads it: her pieces by id (named from her wardrobe server-side),
-// proposals by their words, the anchor kept.
+// proposals by their words, the anchor kept (her piece, or the wish the draft started from).
 export function askRack(state: RackState, anchorPieceId: string | null): LookAskInput['rack'] {
   return state.rows.map((r) => ({
     key: r.key,
@@ -133,7 +133,7 @@ export function askRack(state: RackState, anchorPieceId: string | null): LookAsk
     proposal: r.proposal
       ? { name: r.proposal.name, category: r.proposal.category, brand: r.proposal.brand }
       : null,
-    keep: r.pieceId !== null && r.pieceId === anchorPieceId,
+    keep: (r.pieceId !== null && r.pieceId === anchorPieceId) || r.proposal?.anchor === true,
     was: state.edits[r.key]?.was?.name ?? null,
     styled: state.styling[r.key] ?? null,
   })) as LookAskInput['rack'];

@@ -22,6 +22,7 @@ import { type FieldInput, type PieceField, PieceFieldSheet } from './piece-field
 import { PieceHeader } from './piece-header';
 import { PieceImage } from './piece-image';
 import { PieceRow, RecordRows, type RecordTab, type RecordValues } from './piece-rows';
+import { PieceStyle } from './piece-style';
 
 const TABS = [copy.piece.tabs.piece, copy.piece.tabs.colour, copy.piece.tabs.wearing] as const;
 type TabLabel = (typeof TABS)[number];
@@ -74,7 +75,8 @@ export function wishInput(input: FieldInput): UpdateWishInput {
 // for it, the photograph edge to edge, PIECE · COLOUR · WEARING over the record's rows with Brand
 // and Shop (the retailer) — then Bought, and Delete piece asked first. A wish carries no wears yet
 // ("New"), and its In looks, Seasons and Wear it for are drawn but wait for their data (Annie,
-// 9 Nov). Native twin: mobile/src/features/wardrobe/WishDetail.tsx.
+// 9 Nov). The sparkle styles it with her wardrobe (PieceStyle). Native twin:
+// mobile/src/features/wardrobe/WishDetail.tsx.
 export function WishDetail({ id }: { id: string }) {
   const router = useRouter();
   const client = useApiClient();
@@ -208,6 +210,8 @@ export function WishDetail({ id }: { id: string }) {
           onSave={(input) => update.mutate({ params: { id: wish.id }, input: wishInput(input) })}
           saving={update.isPending}
         />
+        {/* Style a piece on a wish (Annie, 24 Nov): see it with her wardrobe before buying it. */}
+        <PieceStyle piece={wish} wish hidden={field !== null || confirm} />
       </article>
     </div>
   );

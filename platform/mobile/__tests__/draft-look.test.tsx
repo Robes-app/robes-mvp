@@ -2,6 +2,7 @@ import { diary, lookbook, ui, wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { DraftLook } from '../src/features/looks/DraftLook';
+import { handPieceStart } from '../src/lib/piece-start';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { openPrompt } from './support/prompt';
@@ -554,6 +555,54 @@ test('a draft saved from its sheet leaves it at once for its page, the diary clo
   expect(mockNavigation.setOptions.mock.invocationCallOrder[0]).toBeLessThan(
     mockRouter.replace.mock.invocationCallOrder[0] ?? 0,
   );
+});
+
+// Style a piece (handoff 24 Nov): the piece's page started the job; the sheet follows it into the
+// draft, her words heading the thread, and Save goes back to the piece with the plain toast.
+test('a draft started from a piece follows its job, and Save goes back to the piece', async () => {
+  handPieceStart({
+    jobId: MADE_JOB,
+    words: 'Style my camel wool coat',
+    sources: { wardrobe: true, shop: true },
+  });
+  const calls = mockFetch({
+    ...BASE,
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    [`GET /jobs/${MADE_JOB}`]: {
+      id: MADE_JOB,
+      kind: 'key_piece',
+      status: 'succeeded',
+      stage: 'done',
+      output: { lookIds: [LOOK_ID] },
+      error: null,
+      cancelRequested: false,
+      createdAt: '2026-11-06T09:00:00.000Z',
+      updatedAt: '2026-11-06T09:00:05.000Z',
+      finishedAt: '2026-11-06T09:00:05.000Z',
+    },
+    [`GET /looks/${LOOK_ID}`]: draftOf({
+      pieces: [{ piece: piece(), slot: null, role: 'anchor' }],
+    }),
+    [`POST /looks/${LOOK_ID}/save`]: look({ status: 'saved' }),
+    [`POST /looks/${LOOK_ID}/render`]: {
+      jobId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      status: 'queued',
+    },
+  });
+  const onClose = jest.fn();
+  await renderWithApi(
+    <DraftLook id="new" job={MADE_JOB} from={PIECE_ID} presentation="sheet" onClose={onClose} />,
+  );
+  // Nothing new is sent: the piece's page already asked.
+  await waitFor(() => expect(mockRouter.setParams).toHaveBeenCalledWith({ id: LOOK_ID }));
+  expect(calls.some((c) => c.path.endsWith('/looks/prompt'))).toBe(false);
+  await waitFor(() =>
+    expect(screen.getByTestId('draft-done').props.accessibilityState.disabled).toBe(false),
+  );
+  await fireEvent.press(screen.getByTestId('draft-done'));
+  await waitFor(() => expect(onClose).toHaveBeenCalled());
+  expect(mockRouter.replace).not.toHaveBeenCalled();
+  expect(await screen.findByText(lookbook.savedSuggestion.title)).toBeTruthy();
 });
 
 test('the diary asked for on arrival waits for the page to finish coming in', async () => {

@@ -5,7 +5,7 @@ import { DraftLook } from '@/features/looks/DraftLook';
 // a saved look as the Edit look sheet from Home (D18).
 export default function DraftRoute() {
   const router = useRouter();
-  const { id, pieceId, day, images, pick } = useLocalSearchParams<{
+  const { id, pieceId, day, images, pick, job, from, back } = useLocalSearchParams<{
     id: string;
     pieceId?: string;
     day?: string;
@@ -13,6 +13,11 @@ export default function DraftRoute() {
     images?: string;
     // New Look › From pieces (Front Door PRD rev 3 §5.5): a new draft with the piece picker up.
     pick?: string;
+    // Style a piece (handoff 24 Nov): the job her piece's page started, and that piece.
+    job?: string;
+    from?: string;
+    // `from` is a wish she is thinking of buying, not a piece she owns.
+    back?: string;
   }>();
   return (
     <DraftLook
@@ -21,6 +26,9 @@ export default function DraftRoute() {
       {...(day ? { day } : {})}
       {...(images === 'add' ? { images: 'add' as const } : {})}
       {...(pick === '1' ? { pick: true } : {})}
+      {...(job ? { job } : {})}
+      {...(from ? { from } : {})}
+      {...(back === 'wish' ? { fromWish: true } : {})}
       presentation="sheet"
       onClose={() => (router.canGoBack() ? router.back() : router.replace('/looks'))}
     />

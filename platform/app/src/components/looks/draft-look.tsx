@@ -16,6 +16,7 @@ import { readsAsThey } from '@robes/core/avatar';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import {
   type Balance,
+  changeableRows,
   type DockMove,
   type DockState,
   defaultSources,
@@ -69,6 +70,7 @@ import { usePhotoFiling } from '@/lib/file-photo';
 import { onRackIds, useLookEditor } from '@/lib/look-editor';
 import { useImageStage } from '@/lib/look-images';
 import { isDraftsFull, useLetGo, useRefreshLooks, useSaveLook } from '@/lib/look-states';
+import { pieceStart } from '@/lib/piece-start';
 import { useJob } from '@/lib/use-job';
 import { useWishOf } from '@/lib/wish-of';
 import { Answers, Feedback, FeedbackTokens, ThreadLines, Thumbs } from './adjust-dock';
@@ -88,7 +90,7 @@ import { RackRowCard } from './rack-row';
 import { ImageStack, useDressOnOpen } from './saved-look';
 import { Scanning } from './scan-line';
 import { SeasonsView } from './seasons-view';
-import { PromptDock, StylingCard } from './styling-card';
+import { PromptDock, PromptSheetFixed, StylingCard } from './styling-card';
 import { TagsView } from './tags-view';
 import { WornView } from './worn-view';
 
@@ -306,11 +308,19 @@ export function DraftLook({
   images,
   pick = false,
   schedule,
+  job,
+  from,
+  fromWish = false,
   presentation,
   onClose,
 }: {
   id: string;
   pieceId?: string;
+  // Style a piece (handoff 24 Nov): the job her piece's page started, which this new draft follows,
+  // and the piece she goes back to once the draft is saved or let go — a wish when `fromWish`.
+  job?: string;
+  from?: string;
+  fromWish?: boolean;
   // The day the draft is for (home's door): Save pins it there; Discard goes back to that day.
   day?: string;
   // Opened from Home's image stack (3k): image mode, Add a photo in focus (D19).
@@ -339,16 +349,27 @@ export function DraftLook({
       <NewDraft
         {...(pieceId ? { pieceId } : {})}
         {...(day ? { day } : {})}
+        {...(job ? { job } : {})}
+        {...(from ? { from } : {})}
+        fromWish={fromWish}
         pick={pick}
         presentation={presentation}
         onClose={onClose}
-        onCreated={(made, from) => {
-          if (from) setBrief(from);
+        onCreated={(made, said) => {
+          if (said) setBrief(said);
           setLookId(made.id);
           // The draft carries on under its own address, without leaving the drawer.
           if (typeof window !== 'undefined') {
-            const search = day ? `?day=${day}` : '';
-            window.history.replaceState(null, '', `/looks/draft/${made.id}${search}`);
+            const query = new URLSearchParams({
+              ...(day ? { day } : {}),
+              ...(from ? { from } : {}),
+              ...(from && fromWish ? { back: 'wish' } : {}),
+            }).toString();
+            window.history.replaceState(
+              null,
+              '',
+              `/looks/draft/${made.id}${query ? `?${query}` : ''}`,
+            );
           }
         }}
       />
@@ -377,6 +398,8 @@ export function DraftLook({
       schedule={schedule === true}
       {...(images ? { images } : {})}
       {...(brief ? { brief } : {})}
+      {...(from ? { from } : {})}
+      fromWish={fromWish}
       presentation={presentation}
       onClose={onClose}
     />
@@ -413,29 +436,6 @@ function PromptSheetLayer({ dock }: { dock: ShellDock }) {
         className="absolute inset-0 z-10 cursor-default bg-backdrop motion-safe:animate-[robes-fade-in_250ms_ease]"
       />
       <div className="absolute inset-x-0 bottom-0 z-20 motion-safe:animate-[robes-sheet-up_300ms_cubic-bezier(.2,0,.2,1)]">
-        {dock.node}
-      </div>
-    </>
-  );
-}
-
-// The same on a page, where nothing else lifts it: fixed to the screen's foot, on the keyboard.
-function PromptSheetFixed({ dock }: { dock: ShellDock }) {
-  const keyboard = useKeyboardInset();
-  return (
-    <>
-      <button
-        type="button"
-        tabIndex={-1}
-        aria-hidden
-        onClick={dock.onScrim}
-        data-testid="prompt-scrim"
-        className="fixed inset-0 z-40 cursor-default bg-backdrop motion-safe:animate-[robes-fade-in_250ms_ease]"
-      />
-      <div
-        className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md motion-safe:animate-[robes-sheet-up_300ms_cubic-bezier(.2,0,.2,1)]"
-        style={keyboard ? { bottom: keyboard } : undefined}
-      >
         {dock.node}
       </div>
     </>
@@ -572,7 +572,9 @@ function SavedShell({
           {dock.node}
         </div>
       ) : null}
-      {dock && sheet ? <PromptSheetFixed dock={dock} /> : null}
+      {dock && sheet ? (
+        <PromptSheetFixed onScrim={dock.onScrim}>{dock.node}</PromptSheetFixed>
+      ) : null}
       {/* The floating sheets ride the screen, not the page: 8px above everything, the look's bar
           included (redline 7 Nov). The layer lets taps through except where a sheet is. */}
       {over ? (
@@ -655,7 +657,9 @@ function PageShell({
           ) : null}
         </div>
         {over}
-        {dock?.onScrim ? <PromptSheetFixed dock={dock} /> : null}
+        {dock?.onScrim ? (
+          <PromptSheetFixed onScrim={dock.onScrim}>{dock.node}</PromptSheetFixed>
+        ) : null}
       </div>
     </article>
   );
@@ -667,6 +671,9 @@ function PageShell({
 function NewDraft({
   pieceId,
   day,
+  job,
+  from,
+  fromWish = false,
   pick = false,
   presentation,
   onClose,
@@ -677,6 +684,11 @@ function NewDraft({
   day?: string;
   // From pieces: the picker is already up when the drawer opens.
   pick?: boolean;
+  // Style a piece: the job her piece's page started, dressing the draft as this opens, and the
+  // piece it is styled around (its anchor again if she sends once more after a failure).
+  job?: string;
+  from?: string;
+  fromWish?: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
   // `from`: her brief, and the occasion Robes read in it, when Robes made the draft from it.
@@ -689,13 +701,15 @@ function NewDraft({
   const summary = useApi('wardrobe.summary');
   const owned = summary.data?.total ?? null;
   const hasWardrobe = owned !== null && owned > 0;
-  const src = useSources(owned);
+  // Her words and sources from the piece's page, when it started the job this follows.
+  const [handed] = useState(() => (job ? pieceStart(job) : null));
+  const src = useSources(owned, handed?.sources ?? null);
   const { track } = useAnalytics().analytics;
   const [emptyWardrobe, setEmptyWardrobe] = useState(false);
   const [picker, setPicker] = useState<PickerMode | null>(pick ? { add: true } : null);
   const [adding, setAdding] = useState(false);
   const [prompt, setPrompt] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(job !== undefined);
   const [full, setFull] = useState<{ input: CreateLookInput; oldest: string } | null>(null);
   const photo = usePhotoFiling();
 
@@ -745,14 +759,14 @@ function NewDraft({
   // one and for no day when there is not, dressed in the job; the drawer carries on with it as
   // soon as the job has made it. A prompt never deals suggestions to the deck.
   const [weatherOff, setWeatherOff] = useState(false);
-  const [waiting, setWaiting] = useState(false);
-  const [promptJob, setPromptJob] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState(job !== undefined);
+  const [promptJob, setPromptJob] = useState<string | null>(job ?? null);
   // Her words once sent (16 Nov): they leave the box for the conversation above it, Robes at work
   // under them, until the draft opens; a send that fails puts them back in the box.
-  const [sent, setSent] = useState<string | null>(null);
+  const [sent, setSent] = useState<string | null>(handed?.words ?? null);
   // An empty send folds the box to the sparkle (docked prompt K6); the sparkle brings it back.
-  const [folded, setFolded] = useState(false);
-  const sentRef = useRef<string | null>(null);
+  const [folded, setFolded] = useState(job !== undefined);
+  const sentRef = useRef<string | null>(handed?.words ?? null);
   const unsend = useCallback(() => {
     const words = sentRef.current;
     sentRef.current = null;
@@ -816,7 +830,7 @@ function NewDraft({
     setBusy(true);
     const tracked = (ok: boolean) =>
       track('prompt_submitted', {
-        surface: day ? 'home' : 'create',
+        surface: from ? 'piece' : day ? 'home' : 'create',
         intent: 'words',
         scope: day ? 'day' : 'none',
         ok,
@@ -831,6 +845,7 @@ function NewDraft({
           ...(day ? { date: day } : {}),
           draft: true,
           balance: src.balance,
+          ...(from ? (fromWish ? { anchorWishId: from } : { anchorPieceId: from }) : {}),
           ...(place && !weatherOff ? { place } : {}),
           ...(day && weatherOff ? { weather: false } : {}),
         },
@@ -967,6 +982,8 @@ function DraftBody({
   forDay,
   images,
   brief,
+  from,
+  fromWish = false,
   schedule,
   presentation,
   onClose,
@@ -977,11 +994,20 @@ function DraftBody({
   // Her words, when Robes made this draft from them just now (the draft's first send), and the
   // occasion Robes read in them.
   brief?: DraftBrief;
+  // Style a piece: the piece (or, `fromWish`, the wish) she goes back to once the draft is saved
+  // or let go.
+  from?: string;
+  fromWish?: boolean;
   schedule: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
 }) {
   const router = useRouter();
+  // Back to the piece (Style a piece): the drawer closes onto it; a page goes to it.
+  const toPiece = (piece: string) =>
+    presentation === 'drawer'
+      ? onClose()
+      : router.replace(fromWish ? `/wardrobe/wishlist/${piece}` : `/piece/${piece}`);
   const queryClient = useQueryClient();
   const toast = useToast();
   // A saved look is always in edit mode (D17): its changes wait for Update look. A suggestion is
@@ -1064,10 +1090,13 @@ function DraftBody({
       // the day was on — Home's day, or the Diary's day page. Else the saved look opens on its
       // page with the diary closed: it opens only from Schedule look (TestFlight 20 Nov).
       if (forDay) router.replace(dayReturn(forDay, saved.id));
+      else if (from) toPiece(from);
       else router.replace(`/look/${saved.id}`);
     },
     'draft',
     () => adjust.changeCount(),
+    // From a piece she goes back to it, so the toast says where the look went (handoff §5.4).
+    from ? 'plain' : 'named',
   );
   // A suggestion's Save look: her changes kept on it, then saved, its pieces to find filed to her
   // wishlist (the toast says how many), and she goes back to where she found it.
@@ -1250,6 +1279,7 @@ function DraftBody({
     }
     letGo(look.id);
     if (forDay) router.replace(dayReturn(forDay));
+    else if (from) toPiece(from);
     else onClose();
   };
   const del = () => {
@@ -1448,8 +1478,9 @@ function DraftBody({
   // Her first send carries the day's place and weather into the conversation (pin 13).
   const briefed = adjust.state.thread.some((l) => l.who === 'her');
   const dayContext = forDay && mode === 'draft' ? forDay : null;
-  // The look's pieces for Which piece? (Q6), in the thread and on the bar alike.
-  const whichPieces = rows.map((r) => ({
+  // The look's pieces for Which piece? (Q6), in the thread and on the bar alike; never its anchor,
+  // which no change through the prompt takes.
+  const whichPieces = changeableRows(rows, look.anchor?.id).map((r) => ({
     key: r.key,
     name: nameNoBrand(r.name, r.brand),
     image: imageOf(r) ?? null,

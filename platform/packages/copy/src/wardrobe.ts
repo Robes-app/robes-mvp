@@ -49,6 +49,17 @@ export const wardrobe = {
     saved: 'Saved.',
     remove: 'Remove from wardrobe',
     stylePiece: 'Style this piece',
+    // The sparkle's box on her piece (Style a piece → draft look, handoff 24 Nov): the piece as a
+    // chip over the sources and her words; sent empty, the piece is the request.
+    style: {
+      placeholder: 'Style it for…',
+      // "{Category} · {Brand}", or the category alone.
+      sub: (category: string, brand: string | null | undefined): string =>
+        brand?.trim() ? `${category} · ${brand.trim()}` : category,
+      // Her line in the thread when she sends nothing; the name as `anchorName` gives it.
+      prompt: (name: string): string => `Style my ${name}`,
+      close: 'Close',
+    },
     // The record door leads with the photograph (legacy bc56305): the name carries a pencil
     // and the brand is its own tappable line, empty or not.
     addBrand: 'Add the brand',
