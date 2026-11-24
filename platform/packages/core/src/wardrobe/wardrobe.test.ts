@@ -7,6 +7,7 @@ import {
   pieceEyebrow,
   rankCategories,
   seasonBandOn,
+  shopName,
 } from './index';
 
 describe('the piece card', () => {
@@ -129,5 +130,15 @@ describe('matchesSearch', () => {
   it('lets everything through with no words, and nothing that holds none of them', () => {
     expect(matchesSearch(coat, '  ')).toBe(true);
     expect(matchesSearch(coat, 'scarf')).toBe(false);
+  });
+});
+
+describe('shopName', () => {
+  it('names the shop by its link, without www', () => {
+    expect(shopName('https://www.freemans.com/skirt?x=1')).toBe('freemans.com');
+    expect(shopName('https://uk.sezane.com/product')).toBe('uk.sezane.com');
+    expect(shopName(null)).toBeNull();
+    expect(shopName('not a link')).toBeNull();
+    expect(shopName('javascript:alert(1)')).toBeNull();
   });
 });

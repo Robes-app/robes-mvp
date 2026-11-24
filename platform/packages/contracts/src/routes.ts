@@ -53,6 +53,7 @@ import {
   LookPage,
   LookParams,
   LookPhotoInput,
+  LookProposalParams,
   LookRobesInput,
   LookSet,
   LookSetParams,
@@ -875,6 +876,15 @@ export const routes = {
     auth: 'user',
     params: LookParams,
     input: SaveLookInput,
+    output: Look,
+  },
+  // The heart on one piece to find: filed to her wishlist as Save files it (photo, price, link).
+  'looks.proposals.wish': {
+    method: 'POST',
+    path: '/looks/:id/proposals/:key/wish',
+    auth: 'user',
+    params: LookProposalParams,
+    input: EmptyInput,
     output: Look,
   },
   // A new look in her words: one draft for the day, in the diary's slot (plan 2026-11-03).

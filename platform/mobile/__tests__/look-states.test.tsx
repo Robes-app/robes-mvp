@@ -234,9 +234,23 @@ test('a swap on a suggestion waits for Save look, which keeps it suggested until
     'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  // The pencil shows the swaps and the hint (design "Suggested looks" 03b).
-  await fireEvent.press(await screen.findByTestId('rack-pencil'));
-  expect(screen.getByText(lookbook.suggestedLook.editHint)).toBeTruthy();
+  // At rest a piece to find carries its heart (design "Suggested looks" 03); the pencil is a
+  // saved look's edit, swap and × with no heart (03b).
+  expect(
+    await screen.findByRole('button', { name: lookbook.rack.save('Black pointed mules') }),
+  ).toBeTruthy();
+  // A tap on a piece Robes picked opens it as a piece to find.
+  await fireEvent.press(
+    screen.getByRole('button', { name: lookbook.rack.open('Black pointed mules') }),
+  );
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    pathname: '/look-piece/[id]/[key]',
+    params: { id: LOOK_ID, key: mules.key },
+  });
+  await fireEvent.press(screen.getByTestId('rack-pencil'));
+  expect(
+    screen.queryByRole('button', { name: lookbook.rack.save('Black pointed mules') }),
+  ).toBeNull();
   await fireEvent.press(
     screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );

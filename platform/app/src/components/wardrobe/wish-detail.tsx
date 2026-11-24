@@ -9,10 +9,12 @@ import {
 } from '@robes/api-client/react';
 import type { UpdateWishInput, Wish } from '@robes/contracts';
 import { wardrobe as copy } from '@robes/copy';
+import { shopName } from '@robes/core/wardrobe';
 import { Button, ErrorText, Skeleton, Tabs, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { errorCopy } from '@/lib/error-copy';
 import { withoutId } from '@/lib/wardrobe';
 import { DeletePieceDialog } from './delete-piece-dialog';
@@ -49,7 +51,8 @@ export function wishValues(wish: Wish): RecordValues & { category: string } {
     price: wish.price,
     currency: wish.currency,
     seasonBand: null,
-    sourceLabel: wish.sourceLabel,
+    // The shop her link goes to when she named none (a piece Robes picked, filed with its link).
+    sourceLabel: wish.sourceLabel ?? shopName(wish.sourceUrl),
   };
 }
 
@@ -81,6 +84,7 @@ export function WishDetail({ id }: { id: string }) {
   const [tab, setTab] = useState<TabLabel>(TABS[0]);
   const [confirm, setConfirm] = useState(false);
   const query = useApi('wishlist.get', { params: { id } });
+  const { track } = useAnalytics().analytics;
   const update = useApiMutation('wishlist.update', {
     onSuccess: async (saved) => {
       queryClient.setQueryData(queryKeys.call('wishlist.get', { params: { id } }), saved);
@@ -160,6 +164,7 @@ export function WishDetail({ id }: { id: string }) {
               href={wish.sourceUrl}
               target="_blank"
               rel="noreferrer"
+              onClick={() => track('shop_opened', { from: 'wish' })}
               className={`self-start font-sans text-ink-muted text-sm underline underline-offset-4 hover:text-ink ${focus}`}
             >
               {wish.sourceLabel ?? copy.piece.openShop}
