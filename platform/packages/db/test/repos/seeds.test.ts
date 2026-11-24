@@ -114,6 +114,37 @@ describe('seeded drops', () => {
     expect(still.catalogBase).toBe('catalog/seeds/xmas-2026/xmas-01-1');
   });
 
+  it('keeps a piece’s still and link when an older app saves the rack without them', async () => {
+    const dana = await createTestUser(db, 'Dana');
+    try {
+      await seeds.land(dana, 'xmas-2026', XMAS);
+      const { items } = await looks.list(dana, { limit: 10, status: 'suggested' });
+      const look = items[0];
+      const stored = (look?.proposals ?? []) as Record<string, unknown>[];
+      const still = stored[0]?.stillAssetId;
+      expect(still).toBeTruthy();
+      // An older build sends the rows back without the fields it does not know.
+      const sent = stored.map(({ stillAssetId: _s, url: _u, ...rest }) => rest);
+      const row = await looks.update(dana, look?.id ?? '', {
+        proposals: sent,
+        keepSuggested: true,
+      });
+      expect(((row?.proposals ?? []) as Record<string, unknown>[])[0]).toMatchObject({
+        stillAssetId: still,
+        url: 'https://www.freemans.com/skirt',
+      });
+      // A still the request names is never taken: only the look's own stays.
+      const forged = stored.map((p) => ({ ...p, stillAssetId: crypto.randomUUID() }));
+      const again = await looks.update(dana, look?.id ?? '', {
+        proposals: forged,
+        keepSuggested: true,
+      });
+      expect(((again?.proposals ?? []) as Record<string, unknown>[])[0]?.stillAssetId).toBe(still);
+    } finally {
+      await deleteTestUsers(db, dana);
+    }
+  });
+
   it('retires an ended drop’s unsaved looks and keeps the ones she saved', async () => {
     expect(await seeds.retire(bea, ['xmas-2026'])).toBe(1);
     expect((await looks.list(bea, { limit: 10, status: 'suggested' })).items).toEqual([]);

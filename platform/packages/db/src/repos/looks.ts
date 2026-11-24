@@ -140,6 +140,33 @@ async function fileProposals(
   }
   return changed ? out : null;
 }
+// A rack saved from the app keeps what only the server sets on a proposal: its still
+// (stillAssetId), always the one the look already had under that key and never one the request
+// names; and its shop link, when the request has none. A phone build from before seeded looks
+// drops both fields from every row it sends back (plan "Seeded Christmas looks").
+export function keepServerFields(
+  incoming: readonly Record<string, unknown>[] | null,
+  stored: unknown,
+): Record<string, unknown>[] | null {
+  if (!incoming) return null;
+  const byKey = new Map<string, Record<string, unknown>>();
+  if (Array.isArray(stored)) {
+    for (const p of stored as unknown[]) {
+      if (p && typeof p === 'object' && typeof (p as { key?: unknown }).key === 'string') {
+        byKey.set((p as { key: string }).key, p as Record<string, unknown>);
+      }
+    }
+  }
+  return incoming.map((p) => {
+    const { stillAssetId: _ignored, ...rest } = p;
+    const was = typeof p.key === 'string' ? byKey.get(p.key) : undefined;
+    return {
+      ...rest,
+      ...(was?.stillAssetId ? { stillAssetId: was.stillAssetId } : {}),
+      ...(rest.url === undefined && was?.url ? { url: was.url } : {}),
+    };
+  });
+}
 const emptyToNull = (v: Record<string, unknown> | readonly unknown[] | null | undefined) =>
   v == null || (Array.isArray(v) ? v.length === 0 : Object.keys(v).length === 0) ? null : v;
 
@@ -684,7 +711,7 @@ export function looksRepo(db: Db) {
             originLookId: look.originLookId ?? null,
             renderAssetId: look.renderAssetId ?? null,
             status,
-            proposals: json(emptyToNull(look.proposals ?? null)),
+            proposals: json(emptyToNull(keepServerFields(look.proposals ?? null, null))),
             styling: json(emptyToNull(look.styling ?? null)),
             edits: status === 'saved' ? null : json(emptyToNull(look.edits ?? null)),
             dateHint: look.dateHint ?? null,
@@ -726,6 +753,21 @@ export function looksRepo(db: Db) {
           fields.proposals !== undefined ||
           fields.styling !== undefined);
       return db.transaction().execute(async (trx) => {
+        const proposals =
+          fields.proposals === undefined
+            ? undefined
+            : keepServerFields(
+                fields.proposals,
+                (
+                  await trx
+                    .selectFrom('looks')
+                    .select('proposals')
+                    .where('userId', '=', userId)
+                    .where('id', '=', id)
+                    .where('deletedAt', 'is', null)
+                    .executeTakeFirst()
+                )?.proposals,
+              );
         // A suggestion becoming a draft counts against the five drafts like a new one.
         if (rackChanged) {
           const cur = await trx
@@ -746,9 +788,7 @@ export function looksRepo(db: Db) {
             ...(fields.name !== undefined ? { name: fields.name, nameProvisional: false } : {}),
             ...(fields.note !== undefined ? { note: fields.note } : {}),
             ...seasonColumns(fields),
-            ...(fields.proposals !== undefined
-              ? { proposals: json(emptyToNull(fields.proposals)) }
-              : {}),
+            ...(proposals !== undefined ? { proposals: json(emptyToNull(proposals)) } : {}),
             ...(fields.styling !== undefined ? { styling: json(emptyToNull(fields.styling)) } : {}),
             ...(fields.dateHint !== undefined ? { dateHint: fields.dateHint } : {}),
             ...(fields.record !== undefined ? { recordImage: fields.record } : {}),
