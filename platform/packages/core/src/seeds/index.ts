@@ -25,13 +25,19 @@ export function seedStates(
 
 const SIGNS: Record<string, string> = { EUR: '€', GBP: '£' };
 
-// The piece's price in her currency, as a look's rows print it ("£48", "€78.40"); empty when the
-// shop gave none in it. Never converted: a price she sees is one the shop shows.
+// The piece's price in her currency, in whole units as a look's rows print it ("£48", "€62");
+// empty when the drop has none in it. Robes never converts: the sheet already holds both.
 export function seedPricePoint(prices: { EUR?: number; GBP?: number }, currency: string): string {
   const amount = currency === 'GBP' ? prices.GBP : currency === 'EUR' ? prices.EUR : undefined;
   const sign = SIGNS[currency];
   if (amount === undefined || !sign) return '';
-  return `${sign}${Number.isInteger(amount) ? amount : amount.toFixed(2)}`;
+  return `${sign}${Math.round(amount)}`;
+}
+
+// The shop link for her market: the UK page for a GBP account, the Irish page for every other,
+// each falling back to the other; none when the drop has neither.
+export function seedUrl(urls: { uk: string | null; ie: string | null }, currency: string) {
+  return currency === 'GBP' ? (urls.uk ?? urls.ie) : (urls.ie ?? urls.uk);
 }
 
 // The drop whose looks still wait in Suggested (the first one met, newest first), else null:

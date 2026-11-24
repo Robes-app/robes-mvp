@@ -8,7 +8,14 @@ import { LEGACY_CATEGORY, Seasons } from './wardrobe';
 // (`app/src/server/seeds`), never in a request: this schema is what CI holds each file to.
 const SeedSlug = z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/);
 const Day = z.iso.date();
-const Price = z.number().positive().max(100_000);
+const Price = z.number().int().positive().max(100_000);
+const ShopUrl = z
+  .url({ protocol: /^https$/ })
+  .max(2048)
+  .refine((u) => !/[?&](utm_|gclid|gbraid|gad_|fbclid)/i.test(u), {
+    message: 'tracking parameters',
+  })
+  .nullable();
 
 // A picture rendered once into catalog/seeds/<drop>/<look> (master + renditions); the numbers are
 // what the render reported, so her asset row can be written without touching the files.
@@ -24,12 +31,11 @@ export const SeedPiece = z.object({
   name: z.string().trim().min(1).max(120),
   category: LEGACY_CATEGORY,
   brand: z.string().trim().max(60),
-  // Prices as the shop shows them; she sees the one in her currency, else none.
+  // Whole euros and pounds as the shop shows them; she sees the one in her currency, else none.
   prices: z.object({ EUR: Price.optional(), GBP: Price.optional() }),
-  url: z
-    .url({ protocol: /^https$/ })
-    .max(2048)
-    .nullable(),
+  // The shop's page for each market: UK for a GBP account, Ireland for the rest, each falling
+  // back to the other.
+  urls: z.object({ uk: ShopUrl, ie: ShopUrl }),
   role: LookRole.nullable().default(null),
   // The piece's still, rendered into catalog/seeds/<drop>/<look>-<n> as the look's picture is.
   image: SeedImage.nullable().default(null),

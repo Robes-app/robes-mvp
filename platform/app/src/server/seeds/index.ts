@@ -1,7 +1,7 @@
 import 'server-only';
 import type { SeedDrop, SeedImage } from '@robes/contracts';
 import { frameKey, newProposalKey } from '@robes/core/looks';
-import { seedPricePoint, seedStates } from '@robes/core/seeds';
+import { seedPricePoint, seedStates, seedUrl } from '@robes/core/seeds';
 import type { SeedLanding, SeedPicture, UserId } from '@robes/db';
 import { repos } from '../db';
 import { todayIn } from '../plan';
@@ -40,7 +40,7 @@ export function landingsOf(drop: SeedDrop, currency: string): SeedLanding[] {
       wishlisted: false,
       wishlistItemId: null,
       capture: null,
-      url: p.url,
+      url: seedUrl(p.urls, currency),
     }));
     const base = `catalog/seeds/${drop.seedId}/${look.lookId}`;
     const stills: Record<string, SeedPicture> = {};
