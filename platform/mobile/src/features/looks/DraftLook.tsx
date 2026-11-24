@@ -44,6 +44,7 @@ import {
   DrawerHeader,
   EmptyState,
   FINE_EDGE,
+  fonts,
   Glass,
   Image,
   PrimaryScope,
@@ -87,6 +88,7 @@ import { CardPicture, ImageManager } from './ImageManager';
 import { LookDetails } from './LookDetails';
 import { LookPicture } from './LookPicture';
 import { PERSON_CROP } from './LookTile';
+import { LookVerdict } from './LookVerdict';
 import { onRackIds, useLookEditor } from './look-editor';
 import { useImageStage } from './look-images';
 import {
@@ -1097,8 +1099,11 @@ function DraftBody({
 }) {
   const router = useRouter();
   const toast = useToast();
-  // A saved look is always in edit mode (D17): its changes wait for Update look.
-  const mode: 'draft' | 'edit' = look.status === 'saved' ? 'edit' : 'draft';
+  // A saved look is always in edit mode (D17): its changes wait for Update look. A suggestion is
+  // too (design "Suggested looks", 23 Nov): the saved look's anatomy, its changes kept by Save
+  // look, which saves it. Web twin: draft-look.tsx.
+  const suggested = look.status === 'suggested';
+  const mode: 'draft' | 'edit' = look.status === 'draft' ? 'draft' : 'edit';
   const letGo = useLetGo(lookbook.discarded);
   const remove = useRemoveLook();
   const update = useLookDetails(look);
@@ -1121,7 +1126,11 @@ function DraftBody({
   const askContext = useAskContext(mode === 'edit' ? null : forDay, weatherOff);
   const adjustRef = useRef<Adjust | null>(null);
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
-  const adjust = useAdjust(look, editor, mode === 'edit' ? 'saved' : 'draft');
+  const adjust = useAdjust(
+    look,
+    editor,
+    suggested ? 'suggested' : mode === 'edit' ? 'saved' : 'draft',
+  );
   adjustRef.current = adjust;
   // Robes asks its one question about the look it just made (look prompt PRD F1, F3).
   const opened = useRef(false);
@@ -1182,6 +1191,13 @@ function DraftBody({
     'draft',
     () => adjust.changeCount(),
   );
+  // A suggestion's Save look: her changes kept on it, then saved, its pieces to find filed to her
+  // wishlist (the toast says how many), and she goes back to where she found it.
+  const keepSuggestion = useSaveLook(
+    () => onClose(),
+    'suggested',
+    () => adjust.changeCount(),
+  );
   const [tab, setTab] = useState<Tab>(TABS[0]);
   const [picker, setPicker] = useState<PickerMode | null>(null);
   const [subview, setSubview] = useState<'tags' | 'seasons' | 'worn' | null>(null);
@@ -1238,7 +1254,8 @@ function DraftBody({
     else if ('match' in at) capture.match(at.match.key, piece, 'add');
     else editor.addAll([piece]);
   });
-  const busy = adjust.busy || save.isPending || editor.saving || stack.committing;
+  const busy =
+    adjust.busy || save.isPending || keepSuggestion.isPending || editor.saving || stack.committing;
   const words = prompt.trim();
   // A saved look's edit: anything not yet applied with Update look (D17, D18). Her photographs
   // and the cover are not among them: the strip's ✓ keeps them (keepStrip).
@@ -1266,6 +1283,12 @@ function DraftBody({
   const apply = () => {
     if (mode !== 'edit' || busy || !pending) return;
     void commit();
+  };
+  const saveSuggestion = async () => {
+    if (!suggested || busy) return;
+    if (editor.dirty && !(await editor.update(true))) return;
+    adjust.drawForSave();
+    keepSuggestion.mutate({ params: { id: look.id }, input: {} });
   };
   // A saved look's prompt keeps its own change (redline 14 Nov, pin 25): once Robes has answered
   // on the rack, the rack is written and the model wears it, with no button and nothing said.
@@ -1341,7 +1364,7 @@ function DraftBody({
   const del = () => {
     setConfirm(null);
     remove.mutate({ params: { id: look.id } });
-    router.replace('/looks');
+    router.replace(suggested ? '/looks?tab=suggested' : '/looks');
   };
   // The box's send (look prompt PRD P2): her words go through the thread and the picture is drawn
   // once the rack is answered. The drawer stays open on the conversation, capped so the look shows
@@ -1376,7 +1399,7 @@ function DraftBody({
     confirm === 'delete'
       ? {
           title: lookbook.savedLook.deleteTitle,
-          message: lookbook.savedLook.deleteBody,
+          message: suggested ? lookbook.suggestedLook.deleteBody : lookbook.savedLook.deleteBody,
           actions: [
             { label: lookbook.savedLook.delete, variant: 'danger', onPress: del },
             { label: lookbook.savedLook.cancel, variant: 'quiet', onPress: () => setConfirm(null) },
@@ -1657,7 +1680,17 @@ function DraftBody({
   const footButton =
     noButton ? undefined : // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
     // hand edit waits — never both.
-    presentation === 'saved' && !pending ? (
+    suggested ? (
+      // A suggestion's one button (design "Suggested looks" 03): Save look, her changes and all.
+      <Button
+        onPress={() => void saveSuggestion()}
+        disabled={busy}
+        icon="bookmark"
+        testID="save-suggestion"
+      >
+        {lookbook.suggestedLook.save}
+      </Button>
+    ) : presentation === 'saved' && !pending ? (
       <Button onPress={() => setDiary(true)} testID="schedule-look">
         {lookbook.savedLook.schedule}
       </Button>
@@ -1701,7 +1734,11 @@ function DraftBody({
           redressing={adjust.busy && !adjust.state.asking}
           chip={snap.reading ? lookbook.figure.reading : null}
           pronoun={pronoun(model.data)}
-          onImages={() => setManaging(true)}
+          // A suggestion's picture is Robes' alone until she saves it: no image stack, and its
+          // pill says whose it is.
+          {...(suggested
+            ? { signed: lookbook.suggestedTile.by }
+            : { onImages: () => setManaging(true) })}
           onRetry={adjust.updateModel}
           stage={stack.stage}
           {...(presentation === 'saved' ? { onBack: close } : {})}
@@ -1730,6 +1767,11 @@ function DraftBody({
         />
         {tab === TABS[0] ? (
           <View className="gap-3" testID="pieces-tab">
+            {suggested && editingPieces ? (
+              <Text size="small" tone="muted">
+                {lookbook.suggestedLook.editHint}
+              </Text>
+            ) : null}
             {capturePieces ? (
               <CapturePieces look={look} capture={capture}>
                 {rackRows}
@@ -1758,6 +1800,9 @@ function DraftBody({
                 <RemovedLine capture={capture} />
               </>
             )}
+            {/* How was this look? (Annie, 24 Nov): her verdict on what Robes suggested is kept in
+                her style memory; Not quite asks why, then lets the look go. */}
+            {suggested ? <LookVerdict look={look} onLetGo={del} /> : null}
           </View>
         ) : (
           <View className="gap-3">
@@ -1766,9 +1811,14 @@ function DraftBody({
               onTags={() => setSubview('tags')}
               onSeasons={() => setSubview('seasons')}
               // A draft has no wears (Q5); a saved look's Worn row opens WornView.
-              {...(mode === 'edit' ? { onWorn: () => setSubview('worn') } : {})}
-              // The Caption is the name (D16).
-              onCaption={(name) => update.mutate({ params: { id: look.id }, input: { name } })}
+              {...(mode === 'edit' && !suggested ? { onWorn: () => setSubview('worn') } : {})}
+              // The Caption is the name (D16); a suggestion stays suggested.
+              onCaption={(name) =>
+                update.mutate({
+                  params: { id: look.id },
+                  input: suggested ? { name, keepSuggested: true } : { name },
+                })
+              }
             />
             {mode === 'edit' ? (
               // Delete (D9), asked first. Felix keeps both reds off text: the link is ink-soft and
@@ -1931,6 +1981,7 @@ function DraftPhoto({
   chip,
   pronoun,
   onImages,
+  signed,
   onRetry,
   onBack,
   stage,
@@ -1942,7 +1993,10 @@ function DraftPhoto({
   redressing: boolean;
   chip: string | null;
   pronoun: string;
-  onImages: () => void;
+  // The image stack's door to the ImageManager; a suggestion has none.
+  onImages?: () => void;
+  // A suggestion's pill bottom-left: Suggested by Robes.
+  signed?: string;
   // "Couldn't dress her · Try again": draws the picture once more.
   onRetry: () => void;
   onBack?: () => void;
@@ -2050,7 +2104,29 @@ function DraftPhoto({
           </Text>
         </Pressable>
       ) : null}
-      <ImageStack look={look} onOpen={onImages} />
+      {signed ? <SignedPill label={signed} /> : null}
+      {onImages ? <ImageStack look={look} onOpen={onImages} /> : null}
+    </View>
+  );
+}
+
+// "Suggested by Robes" on a suggestion's photograph, bottom left (design "Suggested looks" 03).
+function SignedPill({ label }: { label: string }) {
+  const rose = useColor('accent-warm');
+  return (
+    <View
+      className="absolute flex-row items-center gap-1.5 rounded-pill bg-bg"
+      style={{ left: 12, bottom: 16, paddingVertical: 7, paddingLeft: 9, paddingRight: 11 }}
+      testID="suggested-pill"
+    >
+      <Icon name="looks" size={12} color={rose} />
+      <Text
+        size="caption"
+        className="uppercase text-accent-warm"
+        style={{ fontSize: 9, letterSpacing: 1.4, fontFamily: fonts.sansMedium }}
+      >
+        {label}
+      </Text>
     </View>
   );
 }

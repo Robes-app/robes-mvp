@@ -561,33 +561,6 @@ export function wearForOptions(
   return [...new Set(looks.flatMap(lookWearFor))].sort((a, b) => a.localeCompare(b, 'en-GB'));
 }
 
-// Why Robes suggested a look (Front Door PRD rev 3 §5.3), read from what the look carries: the
-// piece it was styled around, the day it was made for, a wish it works with, how much of it is
-// hers, or her own words. A stored reason from the jobs can replace this later (plan PR 2).
-export type SuggestionReason =
-  | { kind: 'anchor'; piece: string }
-  | { kind: 'day'; date: string }
-  | { kind: 'wishlist' }
-  | { kind: 'own'; pieces: number }
-  | { kind: 'wearMost' }
-  | { kind: 'prompt' };
-
-export function suggestionReason(look: {
-  anchor?: { label: string; brand: string | null } | null;
-  dateHint?: string | null;
-  pieces: readonly unknown[];
-  proposals: readonly { wishlisted?: boolean }[];
-}): SuggestionReason {
-  if (look.anchor)
-    return { kind: 'anchor', piece: anchorName(look.anchor.label, look.anchor.brand) };
-  if (look.dateHint) return { kind: 'day', date: look.dateHint };
-  if (look.proposals.some((p) => p.wishlisted)) return { kind: 'wishlist' };
-  if (look.pieces.length && look.proposals.length)
-    return { kind: 'own', pieces: look.pieces.length };
-  if (look.pieces.length) return { kind: 'wearMost' };
-  return { kind: 'prompt' };
-}
-
 // Where a new look's pieces come from. The prompt's Wardrobe and Shop toggles answer it (look
 // prompt PRD S5, `sourceBalance`): Wardrobe alone is `owned`, both is `mix` (her pieces first, her
 // wishlist and new pieces where the look needs them), Shop alone is `new`. `balanceNote` stays on
@@ -680,4 +653,17 @@ export function lookLine(look: {
 export const LOOKBOOK_SEARCH_FROM = 50;
 export function showLookbookSearch(savedCount: number, query: string): boolean {
   return savedCount >= LOOKBOOK_SEARCH_FROM || query.trim() !== '';
+}
+
+// The Lookbook tabs' counts (design "Suggested looks", 23 Nov): a tab shows its count once it
+// holds a look, and the tab in view always does, so the last suggestion gone reads Suggested 0.
+// A count still loading shows nothing.
+export function lookbookCounts(
+  tab: 'saved' | 'suggested',
+  saved: number | undefined,
+  suggested: number | undefined,
+): { saved?: number; suggested?: number } {
+  const show = (which: 'saved' | 'suggested', n: number | undefined) =>
+    n !== undefined && (n > 0 || which === tab) ? { [which]: n } : {};
+  return { ...show('saved', saved), ...show('suggested', suggested) };
 }

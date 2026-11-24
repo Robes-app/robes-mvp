@@ -25,6 +25,9 @@ export interface LookTileProps {
   // A small warm chip at the eyebrow's right: Worn ✓ on a day she wore it.
   badge?: string | null;
   meta?: ReactNode;
+  // Robes' signature in place of the meta: the sparkle and "Suggested by Robes" in rose small
+  // caps (design "Suggested looks", 23 Nov).
+  signed?: string;
   // A glyph before the meta (the Lookbook card's calendar, PRD rev 3 §2.4) and a small mark at
   // the card's bottom right (the bag on a look with pieces to find), each named for a reader.
   metaIcon?: IconName;
@@ -66,6 +69,7 @@ export function LookTile({
   eyebrowTone = 'faint',
   badge,
   meta,
+  signed,
   metaIcon,
   mark,
   tag,
@@ -159,6 +163,12 @@ export function LookTile({
                 <span className="mt-1 mb-0.5 self-start rounded-pill border border-hairline bg-surface px-2 py-0.5 font-sans text-[10px] text-ink-muted">
                   {tag}
                 </span>
+              ) : null}
+              {signed ? (
+                <p className="mt-1 flex min-w-0 items-center gap-1.5 font-medium font-sans text-[9px] text-accent-warm uppercase leading-[1.3] tracking-[0.16em]">
+                  <Icon name="looks" size={11} className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{signed}</span>
+                </p>
               ) : null}
               {meta ? (
                 <p className="flex min-w-0 items-center gap-1.5 font-sans text-[11px] text-ink-muted">

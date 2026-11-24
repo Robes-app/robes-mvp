@@ -64,9 +64,9 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const d = copy.draft;
   // Her brief, when Robes made this look from her words: Restyle it all starts fresh from it.
   const brief = useRef('');
-  // The prompt's own dock (a draft, a saved look) shows a change instead of telling it (redline
+  // The prompt's own dock (a draft, a saved look, a suggestion) shows a change instead of telling it (redline
   // 14 Nov): no line says what was done, and the picture is drawn without being asked.
-  const shown = surface === 'draft' || surface === 'saved';
+  const shown = surface === 'draft' || surface === 'saved' || surface === 'suggested';
   // The picture being drawn was not asked for in words: nothing is said when it lands.
   const hushed = useRef(false);
   // Her last send, so one tap that fires twice (the keyboard's send and the button) is one line.

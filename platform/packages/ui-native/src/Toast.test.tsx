@@ -31,6 +31,29 @@ test('shows a message with an Undo action that runs and dismisses', async () => 
   expect(screen.queryByText('Piece removed.')).toBeNull();
 });
 
+test('a second line sits under the message and is read with it', async () => {
+  const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+  const view = jest.fn();
+  await render(
+    <ToastProvider>
+      <Trigger
+        options={{
+          message: 'Saved to your lookbook.',
+          body: '5 pieces added to your wishlist.',
+          action: { label: 'View', onPress: view },
+        }}
+      />
+    </ToastProvider>,
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Remove' }));
+  expect(screen.getByText('5 pieces added to your wishlist.')).toBeTruthy();
+  expect(announce).toHaveBeenCalledWith(
+    'Saved to your lookbook. 5 pieces added to your wishlist. View',
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'View' }));
+  expect(view).toHaveBeenCalledTimes(1);
+});
+
 test('a plain toast leaves after the default, as on web', async () => {
   await render(
     <ToastProvider>
