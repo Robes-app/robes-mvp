@@ -75,3 +75,13 @@ piece · no "AI" in any string · iOS safe area and keyboard, staging web.
   (`features/looks/dock-yield.ts`), so the draft sheet opens only once the bar has gone.
 - The e2e (`app/e2e/style-piece-ui.spec.ts`) runs in CI; it could not run in the build sandbox
   (no MinIO).
+
+## Wishes too (Annie, 24 Nov — supersedes handoff §7 "owned pieces only")
+A wish is styled with her wardrobe so she can see whether it is worth buying. The wish's page
+carries the sparkle; its box opens on Wardrobe alone (`styleSources`; Shop while she owns
+nothing). `looks.prompt` takes `anchorWishId` (never with `anchorPieceId`); the job loads it as hers
+and still wanted (`styling.anchorWish`), names it in style-piece v13 as a wish she is thinking of
+buying, and holds it on the rack as a proposal marked `anchor` (`holdWish`), already filed to her
+wishlist. The flag is server-set (`keepServerFields`), held by `look-ask`, kept by `askRack`, and
+left out of Which piece?. Restyle it all keeps it through the set's `key.wishId`. The draft goes
+back to the wish page (`back=wish`).

@@ -96,3 +96,37 @@ test('her words style the piece too, and × lets the draft go back to the piece'
   await expect(page).toHaveURL(new RegExp(`/piece/${id}$`));
   expect((await (await page.request.get('/api/v1/looks?status=draft')).json()).items).toEqual([]);
 });
+
+test('a wish is styled with her wardrobe, held on the draft, and × goes back to the wish', async ({
+  page,
+}) => {
+  test.setTimeout(150_000);
+  await signIn(page);
+  await declineConsent(page);
+  // She owns a piece, so the wish's box opens on her wardrobe alone.
+  await readyPiece(page, 'Camel shacket');
+  const wish = await (
+    await page.request.post('/api/v1/wishlist/items', {
+      data: { label: 'Silk cami', brand: 'Vince' },
+    })
+  ).json();
+  await page.goto(`/wardrobe/wishlist/${wish.id}`);
+  await page.getByRole('button', { name: 'Style this piece' }).click();
+  await expect(page.getByTestId('piece-chip')).toContainText('Silk cami');
+  await expect(page.getByTestId('source-wardrobe')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('source-shop')).toHaveAttribute('aria-checked', 'false');
+  await page.getByTestId('prompt-send').click();
+  await expect(page).toHaveURL(
+    new RegExp(`/looks/draft/[0-9a-f-]{36}\\?from=${wish.id}&back=wish$`),
+    { timeout: 30_000 },
+  );
+  const lookId = /\/looks\/draft\/([0-9a-f-]{36})/.exec(page.url())?.[1] ?? '';
+  const look = await (await page.request.get(`/api/v1/looks/${lookId}`)).json();
+  // The wish is on the draft as its anchor, already her wish (never filed twice).
+  const held = look.proposals.filter((p: { anchor?: boolean }) => p.anchor === true);
+  expect(held).toHaveLength(1);
+  expect(held[0]).toMatchObject({ wishlisted: true, wishlistItemId: wish.id });
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Discard' }).click();
+  await expect(page).toHaveURL(new RegExp(`/wardrobe/wishlist/${wish.id}$`));
+});

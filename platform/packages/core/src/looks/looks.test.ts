@@ -33,6 +33,7 @@ import {
   sortLooks,
   sourceBalance,
   startedLabel,
+  styleSources,
   theName,
   toggleSource,
   wearForOptions,
@@ -57,6 +58,12 @@ describe('copy helpers (legacy parity)', () => {
     expect(noteShort(null)).toBe('');
   });
 
+  it('opens a piece’s box on both sources, and a wish’s on her wardrobe alone', () => {
+    expect(styleSources(false, 12)).toEqual({ wardrobe: true, shop: true });
+    expect(styleSources(true, 12)).toEqual({ wardrobe: true, shop: false });
+    expect(styleSources(true, 0)).toEqual({ wardrobe: false, shop: true });
+  });
+
   it('offers every piece but the anchor to Which piece?', () => {
     const rows = [
       { key: 'a', pieceId: 'coat' },
@@ -66,6 +73,9 @@ describe('copy helpers (legacy parity)', () => {
     expect(changeableRows(rows, 'coat').map((r) => r.key)).toEqual(['b', 'p-1']);
     expect(changeableRows(rows, null)).toEqual(rows);
     expect(changeableRows(rows, undefined)).not.toBe(rows);
+    // A wish the draft was started from is its anchor too.
+    const wish = [...rows, { key: 'p-2', pieceId: null, proposal: { anchor: true } }];
+    expect(changeableRows(wish, null).map((r) => r.key)).toEqual(['a', 'b', 'p-1']);
   });
 
   it('drops the brand from a name, never emptying it', () => {

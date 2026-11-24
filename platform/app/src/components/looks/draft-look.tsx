@@ -310,15 +310,17 @@ export function DraftLook({
   schedule,
   job,
   from,
+  fromWish = false,
   presentation,
   onClose,
 }: {
   id: string;
   pieceId?: string;
   // Style a piece (handoff 24 Nov): the job her piece's page started, which this new draft follows,
-  // and the piece she goes back to once the draft is saved or let go.
+  // and the piece she goes back to once the draft is saved or let go — a wish when `fromWish`.
   job?: string;
   from?: string;
+  fromWish?: boolean;
   // The day the draft is for (home's door): Save pins it there; Discard goes back to that day.
   day?: string;
   // Opened from Home's image stack (3k): image mode, Add a photo in focus (D19).
@@ -349,6 +351,7 @@ export function DraftLook({
         {...(day ? { day } : {})}
         {...(job ? { job } : {})}
         {...(from ? { from } : {})}
+        fromWish={fromWish}
         pick={pick}
         presentation={presentation}
         onClose={onClose}
@@ -360,6 +363,7 @@ export function DraftLook({
             const query = new URLSearchParams({
               ...(day ? { day } : {}),
               ...(from ? { from } : {}),
+              ...(from && fromWish ? { back: 'wish' } : {}),
             }).toString();
             window.history.replaceState(
               null,
@@ -395,6 +399,7 @@ export function DraftLook({
       {...(images ? { images } : {})}
       {...(brief ? { brief } : {})}
       {...(from ? { from } : {})}
+      fromWish={fromWish}
       presentation={presentation}
       onClose={onClose}
     />
@@ -668,6 +673,7 @@ function NewDraft({
   day,
   job,
   from,
+  fromWish = false,
   pick = false,
   presentation,
   onClose,
@@ -682,6 +688,7 @@ function NewDraft({
   // piece it is styled around (its anchor again if she sends once more after a failure).
   job?: string;
   from?: string;
+  fromWish?: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
   // `from`: her brief, and the occasion Robes read in it, when Robes made the draft from it.
@@ -838,7 +845,7 @@ function NewDraft({
           ...(day ? { date: day } : {}),
           draft: true,
           balance: src.balance,
-          ...(from ? { anchorPieceId: from } : {}),
+          ...(from ? (fromWish ? { anchorWishId: from } : { anchorPieceId: from }) : {}),
           ...(place && !weatherOff ? { place } : {}),
           ...(day && weatherOff ? { weather: false } : {}),
         },
@@ -976,6 +983,7 @@ function DraftBody({
   images,
   brief,
   from,
+  fromWish = false,
   schedule,
   presentation,
   onClose,
@@ -986,8 +994,10 @@ function DraftBody({
   // Her words, when Robes made this draft from them just now (the draft's first send), and the
   // occasion Robes read in them.
   brief?: DraftBrief;
-  // Style a piece: the piece she goes back to once the draft is saved or let go.
+  // Style a piece: the piece (or, `fromWish`, the wish) she goes back to once the draft is saved
+  // or let go.
   from?: string;
+  fromWish?: boolean;
   schedule: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
@@ -995,7 +1005,9 @@ function DraftBody({
   const router = useRouter();
   // Back to the piece (Style a piece): the drawer closes onto it; a page goes to it.
   const toPiece = (piece: string) =>
-    presentation === 'drawer' ? onClose() : router.replace(`/piece/${piece}`);
+    presentation === 'drawer'
+      ? onClose()
+      : router.replace(fromWish ? `/wardrobe/wishlist/${piece}` : `/piece/${piece}`);
   const queryClient = useQueryClient();
   const toast = useToast();
   // A saved look is always in edit mode (D17): its changes wait for Update look. A suggestion is

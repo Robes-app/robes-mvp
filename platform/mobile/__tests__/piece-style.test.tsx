@@ -64,3 +64,29 @@ test('stands down while another sheet of the page is open', async () => {
   await renderWithApi(<PieceStyle piece={coat} hidden />);
   expect(screen.queryByRole('button', { name: copy.stylePiece })).toBeNull();
 });
+
+// Style a piece on a wish (Annie, 24 Nov): styled with her wardrobe, to see if it is worth buying.
+test('a wish opens on her wardrobe alone and starts a draft anchored on the wish', async () => {
+  const calls = mockFetch({
+    'GET /wardrobe/summary': { total: 4, categories: [] },
+    'POST /looks/prompt': { jobId: JOB_ID, status: 'queued' },
+  });
+  await renderWithApi(<PieceStyle piece={coat} wish hidden={false} />);
+  await fireEvent.press(screen.getByRole('button', { name: copy.stylePiece }));
+  await waitFor(() =>
+    expect(screen.getByTestId('source-wardrobe').props.accessibilityState.checked).toBe(true),
+  );
+  expect(screen.getByTestId('source-shop').props.accessibilityState.checked).toBe(false);
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalled());
+  expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
+    prompt: 'Style my camel shacket',
+    draft: true,
+    anchorWishId: PIECE_ID,
+    balance: 'owned',
+  });
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    pathname: '/looks/draft/[id]',
+    params: { id: 'new', job: JOB_ID, from: PIECE_ID, back: 'wish' },
+  });
+});

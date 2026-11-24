@@ -361,15 +361,17 @@ export function DraftLook({
   schedule,
   job,
   from,
+  fromWish = false,
   presentation,
   onClose,
 }: {
   id: string;
   pieceId?: string;
   // Style a piece (handoff 24 Nov): the job her piece's page started, which this new draft follows,
-  // and the piece she goes back to once the draft is saved or let go.
+  // and the piece she goes back to once the draft is saved or let go — a wish when `fromWish`.
   job?: string;
   from?: string;
+  fromWish?: boolean;
   // The day the draft is for (home's door): Save pins it there; Discard goes back to that day.
   day?: string;
   // Opened from Home's image stack (3k): image mode, Add a photo in focus (D19).
@@ -403,6 +405,7 @@ export function DraftLook({
         {...(day ? { day } : {})}
         {...(job ? { job } : {})}
         {...(from ? { from } : {})}
+        fromWish={fromWish}
         pick={pick}
         presentation={presentation}
         onClose={onClose}
@@ -681,6 +684,7 @@ function NewDraft({
   day,
   job,
   from,
+  fromWish = false,
   pick = false,
   presentation,
   onClose,
@@ -695,6 +699,7 @@ function NewDraft({
   // piece it is styled around (its anchor again if she sends once more after a failure).
   job?: string;
   from?: string;
+  fromWish?: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
   // `from`: her brief, and the occasion Robes read in it, when Robes made the draft from it.
@@ -877,7 +882,7 @@ function NewDraft({
           ...(day ? { date: day } : {}),
           draft: true,
           balance: src.balance,
-          ...(from ? { anchorPieceId: from } : {}),
+          ...(from ? (fromWish ? { anchorWishId: from } : { anchorPieceId: from }) : {}),
           ...(place && !weatherOff ? { place } : {}),
           ...(day && weatherOff ? { weather: false } : {}),
         },

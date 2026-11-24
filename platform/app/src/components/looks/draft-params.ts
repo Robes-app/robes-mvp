@@ -15,5 +15,7 @@ export const DraftSearch = z
     // back to once the draft is saved or let go.
     job: z.uuid().optional(),
     from: z.uuid().optional(),
+    // `from` is a wish she is thinking of buying, not a piece she owns.
+    back: z.literal('wish').optional(),
   })
   .catch({});

@@ -70,13 +70,15 @@ export function anchorName(label: string, brand: string | null | undefined): str
   return nm ? nm.charAt(0).toLowerCase() + nm.slice(1) : '';
 }
 
-// Which piece? (Q6) offers the pieces the prompt can change. The look's anchor is held through
-// every change (Style a piece, Annie 24 Nov), so it is never offered.
-export function changeableRows<T extends { pieceId: string | null }>(
-  rows: readonly T[],
-  anchorPieceId: string | null | undefined,
-): T[] {
-  return anchorPieceId ? rows.filter((r) => r.pieceId !== anchorPieceId) : [...rows];
+// Which piece? (Q6) offers the pieces the prompt can change. The look's anchor — her piece, or
+// the wish the draft was started from — is held through every change (Style a piece, Annie
+// 24 Nov), so it is never offered.
+export function changeableRows<
+  T extends { pieceId: string | null; proposal?: { anchor?: boolean } | null },
+>(rows: readonly T[], anchorPieceId: string | null | undefined): T[] {
+  return rows.filter(
+    (r) => !(anchorPieceId && r.pieceId === anchorPieceId) && r.proposal?.anchor !== true,
+  );
 }
 
 // The facts a saved look states about itself, in the shape the copy line takes:
@@ -123,6 +125,8 @@ export interface Proposal {
   wishlistItemId?: string | null;
   // A piece found in her photograph, not filed yet (Capture PRD 1c.6); see `./capture`.
   capture?: CaptureRead | null;
+  // The wish the draft was started from: the look's anchor (Style a piece on a wish).
+  anchor?: boolean;
 }
 
 // Where a piece found in her photograph lives: its read, its crop, and her piece it looks like.
@@ -593,6 +597,13 @@ export type Source = keyof Sources;
 // At rest (S2, S3): her wardrobe alone once she owns a piece; Shop alone while she owns none.
 export function defaultSources(ownedPieces: number): Sources {
   return ownedPieces > 0 ? { wardrobe: true, shop: false } : { wardrobe: false, shop: true };
+}
+
+// The sources a piece's own box opens with (Style a piece, 24 Nov): a piece she owns, her
+// wardrobe and the shop; a wish she is thinking of buying, her wardrobe alone, so she sees it with
+// what she has (the shop while she owns nothing).
+export function styleSources(wish: boolean, ownedPieces: number): Sources {
+  return wish ? defaultSources(ownedPieces) : { wardrobe: true, shop: true };
 }
 
 // A tap on one toggle (S3, S4). One source is always on: turning off the only one turns the other
