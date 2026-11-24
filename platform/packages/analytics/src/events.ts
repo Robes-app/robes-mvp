@@ -89,6 +89,9 @@ export const EVENTS = {
     })
     .strict(),
 
+  // She opens a piece's shop page: from her wish's page, or from a piece Robes picked for a look
+  // before it is hers (ProposalDetail). Only where it was opened; never the link or the shop.
+  shop_opened: z.object({ from: z.enum(['wish', 'piece_to_find']) }).strict(),
   // The wardrobe sheet opens to swap a piece or add one.
   swap_drawer_opened: z.object({ mode: z.enum(['swap', 'add', 'match']) }).strict(),
   // The look editor: a piece is swapped in (`surface` is the look's state).

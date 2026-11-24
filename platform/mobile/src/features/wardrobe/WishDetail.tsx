@@ -1,6 +1,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { UpdateWishInput, Wish } from '@robes/contracts';
 import { wardrobe as copy, ui } from '@robes/copy';
+import { shopName } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
@@ -18,6 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
+import { nativeAnalytics } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
 import { cutoutUri, renditionUri } from '@/lib/images';
 import { DeletePieceDialog } from './DeletePieceDialog';
@@ -52,7 +54,8 @@ export function wishValues(wish: Wish): RecordValues & { category: string } {
     price: wish.price,
     currency: wish.currency,
     seasonBand: null,
-    sourceLabel: wish.sourceLabel,
+    // The shop her link goes to when she named none (a piece Robes picked, filed with its link).
+    sourceLabel: wish.sourceLabel ?? shopName(wish.sourceUrl),
   };
 }
 
@@ -165,7 +168,10 @@ export function WishDetail({ id }: { id: string }) {
             <Pressable
               accessibilityRole="link"
               accessibilityLabel={copy.piece.openShop}
-              onPress={() => void Linking.openURL(wish.sourceUrl ?? '')}
+              onPress={() => {
+                nativeAnalytics.track('shop_opened', { from: 'wish' });
+                void Linking.openURL(wish.sourceUrl ?? '');
+              }}
               className="min-h-11 justify-center self-start"
             >
               <Text size="small" tone="muted" style={{ textDecorationLine: 'underline' }}>

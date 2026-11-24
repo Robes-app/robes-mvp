@@ -282,6 +282,8 @@ export const Look = z.object({
 export type Look = z.infer<typeof Look>;
 
 export const LookParams = z.object({ id: z.uuid() });
+// One piece to find on a look, by its proposal key (the heart, wishProposal).
+export const LookProposalParams = z.object({ id: z.uuid(), key: ProposalKey });
 export const WearParams = z.object({ id: z.uuid(), date: wornOn });
 
 export const ListLooksInput = z.object({

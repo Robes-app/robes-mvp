@@ -189,3 +189,16 @@ export function matchesSearch(
     item.categoryL3,
   ].some((v) => (v ?? '').toLowerCase().includes(words));
 }
+
+// The shop a piece's link goes to, as its Shop row names it when nothing else does: the link's
+// host without www ("freemans.com"). Not a link, or not http(s): nothing.
+export function shopName(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const { protocol, hostname } = new URL(url);
+    if (protocol !== 'https:' && protocol !== 'http:') return null;
+    return hostname.replace(/^www\./i, '') || null;
+  } catch {
+    return null;
+  }
+}

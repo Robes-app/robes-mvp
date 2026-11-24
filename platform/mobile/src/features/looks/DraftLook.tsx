@@ -1224,12 +1224,19 @@ function DraftBody({
     return was ? (imageOf(was) ?? null) : null;
   };
   // At rest a row opens its piece (PRD §6.1), a wish its wish; a proposal Robes made has no page.
-  const opens = (row: RackRow) => !!row.pieceId || !!wishFor(row);
+  const heldProposal = (row: RackRow) =>
+    !!row.proposal && look.proposals.some((p) => p.key === row.key);
+  const opens = (row: RackRow) => !!row.pieceId || !!wishFor(row) || heldProposal(row);
   const openPiece = (row: RackRow) => {
     if (row.pieceId) router.push({ pathname: '/piece/[id]', params: { id: row.pieceId } });
     else {
       const wish = wishFor(row);
       if (wish) router.push({ pathname: '/wish/[id]', params: { id: wish.id } });
+      // A piece Robes picked that the look holds opens as a piece to find until she adds it
+      // (ProposalDetail, Annie 24 Nov). Web twin: draft-look.tsx hrefOf.
+      else if (heldProposal(row)) {
+        router.push({ pathname: '/look-piece/[id]/[key]', params: { id: look.id, key: row.key } });
+      }
     }
   };
   const sendOpts = {
@@ -1452,7 +1459,11 @@ function DraftBody({
         {...((mode === 'edit' || captureDraft) && row.pieceId
           ? { wears: pieceOf(row.pieceId)?.wearCount ?? 0 }
           : {})}
-        {...(row.proposal && editingPieces ? { onWish: () => editor.wish(row.key) } : {})}
+        // A suggestion's heart is at rest and its edit is a saved look's, swap and × alone; a
+        // saved or draft look hearts a piece to find in edit (design "Suggested looks" 03, 03b).
+        {...(row.proposal && (suggested ? !editingPieces : editingPieces)
+          ? { onWish: () => editor.wish(row.key) }
+          : {})}
         editing={editingPieces}
         {...(editingPieces
           ? {
@@ -1760,11 +1771,6 @@ function DraftBody({
         />
         {tab === TABS[0] ? (
           <View className="gap-3" testID="pieces-tab">
-            {suggested && editingPieces ? (
-              <Text size="small" tone="muted">
-                {lookbook.suggestedLook.editHint}
-              </Text>
-            ) : null}
             {capturePieces ? (
               <CapturePieces look={look} capture={capture}>
                 {rackRows}

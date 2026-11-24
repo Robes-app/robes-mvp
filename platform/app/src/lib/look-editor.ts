@@ -244,6 +244,29 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     wish: (key: string) => {
       const row = rack.rows.find((r) => r.key === key);
       if (!row?.proposal || row.proposal.wishlisted) return;
+      const mark = (r: RackState, wishId: string): RackState => ({
+        ...r,
+        rows: r.rows.map((x) =>
+          x.key === key && x.proposal
+            ? { ...x, proposal: { ...x.proposal, wishlisted: true, wishlistItemId: wishId } }
+            : x,
+        ),
+      });
+      // A piece the look already holds is filed on the server as Save files it — its photo,
+      // price and shop link — and marked there at once, so the rack waits on nothing and Save
+      // never files it twice. Only a row she has not kept yet (a change waiting for Update look)
+      // is filed from what the rack knows.
+      if (look.proposals.some((p) => p.key === key)) {
+        void api
+          .call('looks.proposals.wish', { params: { id: look.id, key }, input: {} })
+          .then((updated) => {
+            const wishId = updated.proposals.find((p) => p.key === key)?.wishlistItemId;
+            if (wishId) setRack(mark(current.current, wishId));
+            refresh(updated);
+          })
+          .catch(() => toast({ message: errors.internal }));
+        return;
+      }
       const p = row.proposal;
       void api
         .call('wishlist.create', {
@@ -254,16 +277,7 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
             ...(p.retailerHint ? { sourceLabel: p.retailerHint } : {}),
           },
         })
-        .then((wish) =>
-          change({
-            ...rack,
-            rows: rack.rows.map((r) =>
-              r.key === key && r.proposal
-                ? { ...r, proposal: { ...r.proposal, wishlisted: true, wishlistItemId: wish.id } }
-                : r,
-            ),
-          }),
-        )
+        .then((wish) => change(mark(rack, wish.id)))
         .catch(() => toast({ message: errors.internal }));
     },
     // Saved look: Update commits the rack (working notes drop); Done/Discard leaves it as it was.
