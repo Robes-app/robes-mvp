@@ -3,7 +3,7 @@
 import { lookbook } from '@robes/copy';
 import { ASK_MAX_CHARS, type DockState, type Source, type Sources } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { ErrorText, IconToggle } from '@robes/ui';
+import { ErrorText, IconToggle, useKeyboardInset } from '@robes/ui';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { SheetField } from './draft-sheets';
 
@@ -49,6 +49,7 @@ const lift = 'shadow-[0_16px_34px_-14px_color-mix(in_srgb,var(--color-ink)_42%,t
 // draft and the saved look share it; what a send does is the parent's. Native twin:
 // mobile/src/features/looks/StylingCard.tsx.
 export function StylingCard({
+  lead,
   context,
   tokens,
   inline = false,
@@ -65,6 +66,8 @@ export function StylingCard({
   boxed = false,
   busy,
 }: {
+  // What the box is about, over its sources: the piece on a piece's page (Style a piece).
+  lead?: ReactNode;
   // The day's place and weather, until her first send carries them into the conversation.
   context?: ReactNode;
   // What she picked after a thumbs down, standing in the box beside the sources (pin 11).
@@ -192,6 +195,7 @@ export function StylingCard({
       data-testid="styling-card"
       className="flex flex-col gap-1 px-1.5 pt-1.5"
     >
+      {lead ? <div className="pb-2">{lead}</div> : null}
       <div className="flex min-h-7 flex-wrap items-center gap-2.5">
         {toggles}
         {context ? (
@@ -208,6 +212,37 @@ export function StylingCard({
       </div>
       {over}
     </section>
+  );
+}
+
+// The open prompt on a page, where nothing else lifts it: fixed to the screen's foot over a scrim
+// that closes it, standing on the keyboard. The draft and saved look's sheet, and the bar on a
+// piece's page (Style a piece).
+export function PromptSheetFixed({
+  onScrim,
+  children,
+}: {
+  onScrim?: (() => void) | undefined;
+  children: ReactNode;
+}) {
+  const keyboard = useKeyboardInset();
+  return (
+    <>
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden
+        onClick={onScrim}
+        data-testid="prompt-scrim"
+        className="fixed inset-0 z-40 cursor-default bg-backdrop motion-safe:animate-[robes-fade-in_250ms_ease]"
+      />
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md motion-safe:animate-[robes-sheet-up_300ms_cubic-bezier(.2,0,.2,1)]"
+        style={keyboard ? { bottom: keyboard } : undefined}
+      >
+        {children}
+      </div>
+    </>
   );
 }
 

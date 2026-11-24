@@ -137,3 +137,14 @@ describe('gender copy', () => {
     expect(asIs('woman')).toBe('As she is');
   });
 });
+
+describe('style a piece', () => {
+  it('names the piece’s category and brand, or the category alone', async () => {
+    const { wardrobe } = await import('./wardrobe');
+    const { style } = wardrobe.piece;
+    expect(style.sub('Outerwear', 'Anine Bing')).toBe('Outerwear · Anine Bing');
+    expect(style.sub('Outerwear', null)).toBe('Outerwear');
+    expect(style.sub('Outerwear', '  ')).toBe('Outerwear');
+    expect(style.prompt('camel shacket')).toBe('Style my camel shacket');
+  });
+});

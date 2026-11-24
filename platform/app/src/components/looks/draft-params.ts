@@ -11,5 +11,9 @@ export const DraftSearch = z
     images: z.literal('add').optional(),
     // New Look › From pieces (Front Door PRD rev 3 §5.5): a new draft with the piece picker up.
     pick: z.literal('1').optional(),
+    // Style a piece (handoff 24 Nov): the job her piece's page started, and the piece she goes
+    // back to once the draft is saved or let go.
+    job: z.uuid().optional(),
+    from: z.uuid().optional(),
   })
   .catch({});

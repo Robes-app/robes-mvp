@@ -138,10 +138,12 @@ export function savedSuggestionToast(look: Look, onView: () => void): ToastOptio
 
 // `from` picks beta's toast: a suggestion saved as it stands, or a look she worked on, by name.
 // `changes`: how many changes she sent through the prompt before saving, for the event.
+// `says`: `plain` for "Saved to your lookbook", a draft going back to where it began (a piece).
 export function useSaveLook(
   onSaved?: (look: Look) => void,
   from: 'suggested' | 'draft' = 'draft',
   changes: () => number = () => 0,
+  says: 'named' | 'plain' = 'named',
 ) {
   const toast = useToast();
   const refresh = useRefreshLooks();
@@ -159,7 +161,8 @@ export function useSaveLook(
       refresh(look);
       onSaved?.(look);
       if (from === 'suggested') toast(savedSuggestionToast(look, () => router.push(WISHLIST)));
-      else toast({ message: copy.savedAs(look.name) });
+      else
+        toast({ message: says === 'plain' ? copy.savedSuggestion.title : copy.savedAs(look.name) });
     },
     onError: (err) => toast({ message: errorCopy(err) }),
   });

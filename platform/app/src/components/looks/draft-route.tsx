@@ -12,6 +12,8 @@ export function DraftRoute({
   day,
   images,
   pick,
+  job,
+  from,
   presentation,
 }: {
   id: string;
@@ -19,6 +21,9 @@ export function DraftRoute({
   day?: string;
   images?: 'add';
   pick?: boolean;
+  // Style a piece: the job her piece's page started, and that piece.
+  job?: string;
+  from?: string;
   presentation: DraftPresentation;
 }) {
   const router = useRouter();
@@ -33,6 +38,8 @@ export function DraftRoute({
       {...(day ? { day } : {})}
       {...(images ? { images } : {})}
       {...(pick ? { pick } : {})}
+      {...(job ? { job } : {})}
+      {...(from ? { from } : {})}
       presentation={presentation}
       onClose={onClose}
     />

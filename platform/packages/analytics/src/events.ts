@@ -16,7 +16,7 @@ const category = z.enum(LEGACY_CATEGORIES);
 // Where a look prompt sits (a look in each state, a day page), and where a new-look box sits:
 // home, or the create box (the Lookbook, Create, a piece page).
 const askSurface = z.enum(['suggested', 'draft', 'saved', 'day']);
-const boxSurface = z.enum(['home', 'create']);
+const boxSurface = z.enum(['home', 'create', 'piece']);
 const bellKind = z.enum(['twin', 'dna', 'observations', 'receipts', 'diary', 'overnight']);
 const askIntent = z.enum(['swap', 'back', 'rule', 'styled', 'clarify', 'draft', 'none', 'picture']);
 // The docked prompt (docked prompt PRD, Analytics): its three states, and how many changes she
@@ -160,7 +160,10 @@ export const EVENTS = {
     })
     .strict(),
 
+  // A piece's page: the sparkle opens the box that styles a draft around the piece (24 Nov).
+  piece_style_opened: none,
   // The new-look box: a look is asked for (a piece, or her words), and whether the ask was taken.
+  // `piece`: the box on a piece's page.
   prompt_submitted: z
     .object({
       surface: boxSurface,
