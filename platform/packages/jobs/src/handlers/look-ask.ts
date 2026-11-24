@@ -60,7 +60,8 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
                 name: piece.label,
                 category: piece.category ?? '',
                 owned: true,
-                keep: r.keep,
+                // The look's anchor is held whatever the request says (Style a piece, 24 Nov).
+                keep: r.keep || r.pieceId === found.look.anchorPieceId,
                 was: r.was,
                 styled: r.styled,
               },

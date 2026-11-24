@@ -405,6 +405,9 @@ export type RestyleLookInput = z.infer<typeof RestyleLookInput>;
 // around, and where she is that day when it is not home. Both are ids and intent only (SEC-16).
 const PromptAround = {
   pieceIds: z.array(z.uuid()).max(8).optional(),
+  // Style a piece (handoff 24 Nov): the piece of hers the draft starts from. It is the look's
+  // anchor, so every change the prompt makes keeps it; only her own hand in Edit takes it off.
+  anchorPieceId: z.uuid().optional(),
   // × on the weather chip: the look is dressed for the day without its forecast.
   weather: z.boolean().optional(),
   place: z

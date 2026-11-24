@@ -162,7 +162,7 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       expect.objectContaining({
         title: 'Camel coat',
-        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 12 }),
+        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 13 }),
       }),
     );
     const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
@@ -449,6 +449,120 @@ describe('key_piece handler (suggested looks)', () => {
           },
         }),
       }),
+    );
+  });
+
+  it('styles a draft around the piece she started from: its anchor, its photo, its set', async () => {
+    const { run, suggested, styling, generateJson } = setup();
+    vi.mocked(styling.anchorPiece).mockResolvedValue({
+      id: PIECE,
+      label: 'Camel coat',
+      imageAssetId: ASSET,
+      wearFor: [],
+    } as never);
+    await expect(
+      run({
+        mode: 'prompt',
+        draft: true,
+        prompt: 'Drinks on Friday',
+        pieceIds: [PIECE],
+        anchorPieceId: PIECE,
+      }),
+    ).resolves.toEqual({ status: 'succeeded', artifactId: SET });
+    const req = generateJson.mock.calls[0]?.[0];
+    expect(req?.user).toContain('THE KEY PIECE');
+    expect(req?.user).toContain('A photo of it is attached.');
+    expect(req?.images).toHaveLength(1);
+    const [, , specs, , opts] = suggested.mintSet.mock.calls[0] ?? [];
+    const [spec] = specs as ReturnType<typeof specFromWay>[];
+    expect(opts).toEqual({ status: 'draft' });
+    expect(spec?.anchorPieceId).toBe(PIECE);
+    expect(spec?.pieces.some((p) => p.pieceId === PIECE)).toBe(true);
+    expect((styling.createSet.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
+      data: { key: { pieceId: PIECE, label: 'Camel coat' } },
+    });
+  });
+
+  it('keeps the piece she started from when her words are too vague to style', async () => {
+    const ai = createFakeProvider({
+      'looks.style_piece': () => ({ ...fake({ dressMe: true }), fallback: true }),
+    });
+    const { run, suggested, styling } = setup(ai);
+    vi.mocked(styling.anchorPiece).mockResolvedValue({
+      id: PIECE,
+      label: 'Camel coat',
+      imageAssetId: ASSET,
+      wearFor: [],
+    } as never);
+    await run({ mode: 'prompt', draft: true, prompt: 'zzzz', anchorPieceId: PIECE });
+    const [spec] = (suggested.mintSet.mock.calls[0]?.[2] ?? []) as ReturnType<typeof specFromWay>[];
+    expect(spec?.anchorPieceId).toBe(PIECE);
+    expect(spec?.pieces.some((p) => p.pieceId === PIECE)).toBe(true);
+  });
+
+  it('never styles a piece that is not hers', async () => {
+    const { run, styling, suggested } = setup();
+    vi.mocked(styling.anchorPiece).mockResolvedValue(undefined as never);
+    await expect(
+      run({ mode: 'prompt', draft: true, prompt: 'Drinks', anchorPieceId: PIECE }),
+    ).rejects.toMatchObject({ code: 'not_found' });
+    expect(suggested.mintSet).not.toHaveBeenCalled();
+  });
+
+  it('holds the piece a draft started from through Restyle it all', async () => {
+    const { run, generateJson, suggested, styling } = setup();
+    vi.mocked(styling.anchorPiece).mockResolvedValue({
+      id: PIECE,
+      label: 'Camel coat',
+      imageAssetId: ASSET,
+      wearFor: [],
+    } as never);
+    styling.getSet.mockResolvedValueOnce({
+      id: SET,
+      title: 'Drinks on Friday',
+      generationJobId: JOB,
+      data: {
+        set: true,
+        mode: 'prompt',
+        anchor: { type: 'text', label: 'Drinks on Friday' },
+        prompt: 'Drinks on Friday',
+        dateHint: null,
+        day: null,
+        fallback: false,
+        wearer: 'woman',
+        ways: fake().ways.slice(0, 1),
+        around: [{ pieceId: PIECE, label: 'Camel coat' }],
+        key: { pieceId: PIECE, label: 'Camel coat' },
+        draft: true,
+      },
+    } as never);
+    suggested.look.mockResolvedValueOnce({
+      look: {
+        id: LOOK,
+        name: 'Friday drinks',
+        status: 'draft',
+        setId: SET,
+        setIndex: 0,
+        anchorPieceId: PIECE,
+        proposals: [],
+        styling: null,
+        frameAssetId: null,
+        renderKey: null,
+        dateHint: null,
+      },
+      pieces: [{ id: PIECE, label: 'Camel coat', category: 'Outerwear' }],
+      siblings: [],
+    } as never);
+    await run({ mode: 'restyle', lookId: LOOK });
+    const req = generateJson.mock.calls[0]?.[0];
+    expect(req?.user).toContain('THE KEY PIECE');
+    expect(req?.user).toContain('built around the same key piece');
+    expect(req?.images).toHaveLength(1);
+    expect(suggested.rewrite).toHaveBeenCalledWith(
+      USER,
+      LOOK,
+      expect.objectContaining({ anchorPieceId: PIECE }),
+      expect.anything(),
     );
   });
 

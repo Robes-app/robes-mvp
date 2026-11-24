@@ -11,7 +11,7 @@ const JEAN = '33333333-3333-4333-8333-333333333333';
 const NOT_HERS = '44444444-4444-4444-8444-444444444444';
 const CAMI = '55555555-5555-4555-8555-555555555555';
 
-function setup() {
+function setup(anchorPieceId: string | null = null) {
   const ai = createFakeProvider({ [FEATURE]: (req) => fakeOutput(req.system, req.user) });
   const generateJson = vi.spyOn(ai, 'generateJson');
   const lookPrompt = { notice: vi.fn(async () => true), remember: vi.fn(async () => {}) };
@@ -61,7 +61,9 @@ function setup() {
     } as never,
     suggested: {
       look: vi.fn(async (_u: string, id: string) =>
-        id === LOOK ? { look: { name: 'Harbour dinner' }, pieces: [], siblings: [] } : undefined,
+        id === LOOK
+          ? { look: { name: 'Harbour dinner', anchorPieceId }, pieces: [], siblings: [] }
+          : undefined,
       ),
     } as never,
     lookPrompt,
@@ -125,6 +127,16 @@ describe('look_ask handler (the look prompt)', () => {
     expect(ledger.record).toHaveBeenCalledWith(
       expect.objectContaining({ feature: 'looks.ask', status: 'ok' }),
     );
+  });
+
+  it('holds the look’s anchor whatever the request says, so a swap never takes it', async () => {
+    const { run, answer, generateJson } = setup(TROUSER);
+    await run('swap the trouser for the dark straight jean');
+    const system = generateJson.mock.calls[0]?.[0].system ?? '';
+    expect(system).toContain(
+      '[0] White wide-leg trouser [Bottoms] — KEEP (anchored, never changes)',
+    );
+    expect(answer()).toMatchObject({ swaps: [] });
   });
 
   it('a rule waits as a Robes-noticed line, never changing the look', async () => {

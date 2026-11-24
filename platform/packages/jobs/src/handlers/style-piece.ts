@@ -135,6 +135,8 @@ export const StoredSet = z.object({
     .catch(undefined),
   // Made as her draft (Describe on Home): its picture stands on her model in the studio.
   draft: z.boolean().optional().catch(undefined),
+  // The piece of hers a draft started from (Style a piece): the look's anchor; ↻ keeps it.
+  key: z.object({ pieceId: z.uuid(), label: z.string() }).optional().catch(undefined),
 });
 
 // Where a set's look is drawn (style-piece v8): her draft, or a look made as one, on her model in
@@ -581,6 +583,11 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           set.data.anchor.type === 'piece'
             ? await deps.styling.anchorPiece(ctx.userId, set.data.anchor.pieceId)
             : undefined;
+        // The piece a draft started from (Style a piece) is held through a re-dress too.
+        const keyPiece = set.data.key
+          ? await deps.styling.anchorPiece(ctx.userId, set.data.key.pieceId)
+          : undefined;
+        const held = anchorPiece ?? keyPiece;
         const mode: Mode = set.data.mode === 'prompt' ? 'dress-me' : 'piece';
         const ask: Ask =
           mode === 'dress-me'
@@ -589,6 +596,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
                 prompt: set.data.prompt ?? set.data.anchor.label,
                 day: set.data.day,
                 ...(set.data.around?.length ? { around: set.data.around } : {}),
+                ...(keyPiece ? { key: { label: keyPiece.label, wearFor: keyPiece.wearFor } } : {}),
               }
             : {
                 mode,
@@ -606,14 +614,14 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         const refine: Refine = {
           adjustment: said
             ? said
-            : `A different look entirely — change the whole direction, not one piece${anchorPiece ? ', built around the same key piece' : ''}${others.length ? ', unlike the other looks' : ''}.`,
+            : `A different look entirely — change the whole direction, not one piece${held ? ', built around the same key piece' : ''}${others.length ? ', unlike the other looks' : ''}.`,
           title: found.look.name,
           pieces: [
             ...found.pieces.map((p) => ({
               name: p.label,
               category: p.category ?? '',
               owned: true,
-              keep: p.id === anchorPiece?.id,
+              keep: p.id === held?.id,
             })),
             ...proposals.map((p) => ({
               name: p.name,
@@ -624,7 +632,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           ],
           others,
         };
-        const photo = await piecePhoto(ctx.userId, anchorPiece?.imageAssetId);
+        const photo = await piecePhoto(ctx.userId, held?.imageAssetId);
         // ↻ honours the answer the set was made with.
         const steer: Steer = {
           balance: set.data.balance ?? null,
@@ -648,7 +656,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           pieces: markWants(normalisePieces(raw.pieces, styleCtx.closet), styleCtx, steer),
         };
         const spec = specFromWay(way, found.look.setIndex ?? 0, {
-          anchorPieceId: anchorPiece?.id ?? null,
+          anchorPieceId: held?.id ?? null,
           dateHint: found.look.dateHint,
           // The pieces she chose to build the day around stay on the rack through a re-dress.
           aroundIds: (set.data.around ?? []).map((p) => p.pieceId),
@@ -669,7 +677,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           mode,
           fallback: false,
           pieceLabel: anchorPiece?.label ?? null,
-          piecePhoto: photo,
+          // A key piece is drawn from its own rack row; only the piece door's photo leads.
+          piecePhoto: anchorPiece ? photo : null,
           brief: set.data.prompt,
           way,
           rack: rackOf(way.pieces, styleCtx.closet),
@@ -696,6 +705,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       let dateHint: string | null = null;
       let brief: string | null = null;
       let around: { pieceId: string; label: string }[] = [];
+      let key: { pieceId: string; label: string } | null = null;
       const steer: Steer = {
         balance: 'balance' in input ? (input.balance ?? null) : null,
         balanceNote: 'balanceNote' in input ? (input.balanceNote ?? null) : null,
@@ -718,11 +728,23 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
             (input.pieceIds ?? []).map((id) => deps.styling.anchorPiece(ctx.userId, id)),
           )
         ).flatMap((p) => (p ? [{ pieceId: p.id, label: p.label }] : []));
+        // The piece she started from (Style a piece): hers, by id; its photo rides the styling
+        // call, and it is the draft's anchor.
+        let keyAsk: { label: string; wearFor: string[] } | null = null;
+        if (input.anchorPieceId) {
+          const piece = await deps.styling.anchorPiece(ctx.userId, input.anchorPieceId);
+          if (!piece) throw new JobError('not_found');
+          photo = await piecePhoto(ctx.userId, piece.imageAssetId);
+          anchorPieceId = piece.id;
+          key = { pieceId: piece.id, label: piece.label };
+          keyAsk = { label: piece.label, wearFor: piece.wearFor };
+        }
         ask = {
           mode,
           prompt: input.prompt,
           day,
           ...(around.length ? { around: around.map((p) => ({ label: p.label })) } : {}),
+          ...(keyAsk ? { key: keyAsk } : {}),
         };
         anchor = { type: 'text', label: input.prompt };
         brief = input.prompt;
@@ -754,6 +776,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         (o) => audit(o.ways.slice(0, count), styleCtx, steer),
       );
       const { fallback } = out;
+      // A draft from a piece always holds it: words too vague to style still leave the piece.
+      const dropPieces = fallback && !key;
       // Her profile decides the wearer; the model's judgement stands only when it is silent.
       const wearer =
         styleCtx.gender === 'man' || styleCtx.gender === 'woman'
@@ -782,6 +806,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           balance: steer.balance,
           balanceNote: steer.balanceNote,
           ...(around.length ? { around } : {}),
+          ...(key ? { key } : {}),
           ...(draft ? { draft: true } : {}),
           images: [],
           promptVersion: VERSION,
@@ -789,9 +814,9 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       });
       const specs = ways.map((w, i) =>
         specFromWay(w, i, {
-          anchorPieceId: fallback ? null : anchorPieceId,
+          anchorPieceId: dropPieces ? null : anchorPieceId,
           dateHint,
-          aroundIds: fallback ? [] : around.map((p) => p.pieceId),
+          aroundIds: dropPieces ? [] : around.map((p) => p.pieceId),
         }),
       );
       // The hero's frame is claimed with the mint, before the set is exposed (no second draw).
@@ -827,7 +852,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         mode,
         fallback,
         pieceLabel: fallback ? null : anchor.label,
-        piecePhoto: photo,
+        // A key piece is drawn from its own rack row; only the piece door's photo leads.
+        piecePhoto: key ? null : photo,
         brief,
         way: hero,
         rack: rackOf(hero.pieces, styleCtx.closet),
