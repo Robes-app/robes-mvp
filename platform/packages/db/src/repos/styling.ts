@@ -350,6 +350,31 @@ export function stylingRepo(db: Db) {
       return { ...row, wearFor: tags.map((t) => t.label) };
     },
 
+    // A wish she starts a look from (Style a piece on a wish, Annie 24 Nov): hers, still wanted
+    // (not deleted, not bought), with what the styling prompt and the look's row need.
+    async anchorWish(userId: UserId, wishId: string) {
+      const row = await db
+        .selectFrom('wishlistItems')
+        .select([
+          'id',
+          'label',
+          'category',
+          'color',
+          'brand',
+          'sourceLabel',
+          'price',
+          'currency',
+          'imageAssetId',
+        ])
+        .where('userId', '=', userId)
+        .where('id', '=', wishId)
+        .where('deletedAt', 'is', null)
+        .where('promotedItemId', 'is', null)
+        .executeTakeFirst();
+      if (!row) return undefined;
+      return { ...row, price: row.price === null ? null : Number(row.price) };
+    },
+
     // A picture drawn for her that landed too late to be used (she deleted her twin, or asked for
     // another meanwhile): marked deleted, and the maintenance sweep deletes its files.
     async discardGenerated(userId: UserId, assetId: string): Promise<void> {

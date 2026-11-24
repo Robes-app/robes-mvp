@@ -11,7 +11,7 @@ const JEAN = '33333333-3333-4333-8333-333333333333';
 const NOT_HERS = '44444444-4444-4444-8444-444444444444';
 const CAMI = '55555555-5555-4555-8555-555555555555';
 
-function setup(anchorPieceId: string | null = null) {
+function setup(anchorPieceId: string | null = null, proposals: unknown[] = []) {
   const ai = createFakeProvider({ [FEATURE]: (req) => fakeOutput(req.system, req.user) });
   const generateJson = vi.spyOn(ai, 'generateJson');
   const lookPrompt = { notice: vi.fn(async () => true), remember: vi.fn(async () => {}) };
@@ -62,7 +62,7 @@ function setup(anchorPieceId: string | null = null) {
     suggested: {
       look: vi.fn(async (_u: string, id: string) =>
         id === LOOK
-          ? { look: { name: 'Harbour dinner', anchorPieceId }, pieces: [], siblings: [] }
+          ? { look: { name: 'Harbour dinner', anchorPieceId, proposals }, pieces: [], siblings: [] }
           : undefined,
       ),
     } as never,
@@ -137,6 +137,16 @@ describe('look_ask handler (the look prompt)', () => {
       '[0] White wide-leg trouser [Bottoms] — KEEP (anchored, never changes)',
     );
     expect(answer()).toMatchObject({ swaps: [] });
+  });
+
+  it('holds the wish a draft was started from, whatever the request says', async () => {
+    const { run, generateJson } = setup(null, [
+      { key: 'p-aaaa1111', name: 'Black mules', anchor: true },
+    ]);
+    await run('lose the mules');
+    expect(generateJson.mock.calls[0]?.[0].system ?? '').toContain(
+      'Black mules [Shoes] — KEEP (anchored, never changes)',
+    );
   });
 
   it('a rule waits as a Robes-noticed line, never changing the look', async () => {

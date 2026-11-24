@@ -153,7 +153,9 @@ async function fileProposals(
 // A rack saved from the app keeps what only the server sets on a proposal: its still
 // (stillAssetId), always the one the look already had under that key and never one the request
 // names; and its shop link, when the request has none. A phone build from before seeded looks
-// drops both fields from every row it sends back (plan "Seeded Christmas looks").
+// drops both fields from every row it sends back (plan "Seeded Christmas looks"). Its anchor
+// (the wish a draft was started from) is the server's too: kept from the stored row, never taken
+// from a request.
 export function keepServerFields(
   incoming: readonly Record<string, unknown>[] | null,
   stored: unknown,
@@ -168,7 +170,7 @@ export function keepServerFields(
     }
   }
   return incoming.map((p) => {
-    const { stillAssetId: _ignored, ...rest } = p;
+    const { stillAssetId: _ignored, anchor: _asked, ...rest } = p;
     const was = typeof p.key === 'string' ? byKey.get(p.key) : undefined;
     // A piece already filed to her wishlist stays filed: a rack sent from before its heart landed
     // never makes Save file it twice.
@@ -178,6 +180,7 @@ export function keepServerFields(
       ...(was?.stillAssetId ? { stillAssetId: was.stillAssetId } : {}),
       ...(rest.url === undefined && was?.url ? { url: was.url } : {}),
       ...(filed ? { wishlisted: true, wishlistItemId: was.wishlistItemId } : {}),
+      ...(was?.anchor === true ? { anchor: true } : {}),
     };
   });
 }

@@ -66,6 +66,18 @@ describe('styling + ideas', () => {
     ).toBeUndefined();
   });
 
+  it('loads a wish she styles only while it is hers and still wanted', async () => {
+    const wish = await repos.wishlist.create(ann, { label: 'Silk cami', brand: 'Vince' });
+    expect(await styling.anchorWish(ann, wish.id)).toMatchObject({
+      id: wish.id,
+      label: 'Silk cami',
+      brand: 'Vince',
+    });
+    expect(await styling.anchorWish(bea, wish.id)).toBeUndefined();
+    await repos.wishlist.promote(ann, wish.id);
+    expect(await styling.anchorWish(ann, wish.id)).toBeUndefined();
+  });
+
   it('creates an expiring idea that saving keeps, private to its owner', async () => {
     const { job } = await repos.jobs.create(ann, { kind: 'key_piece', input: {} });
     const id = await styling.createIdea(ann, {

@@ -2,7 +2,7 @@ import { AiError, createFakeProvider } from '@robes/ai';
 import { fakeOutput } from '@robes/ai/prompts/style-piece';
 import { verifiedUserId } from '@robes/db';
 import { describe, expect, it, vi } from 'vitest';
-import { createStylePieceHandler, type specFromWay } from './style-piece';
+import { createStylePieceHandler, holdWish, type specFromWay } from './style-piece';
 
 const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const PIECE = '22222222-2222-4222-8222-222222222222';
@@ -42,6 +42,21 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fake() })) {
       timezone: 'Europe/Dublin',
     })),
     anchorPiece: vi.fn(async () => ({ id: PIECE, label: 'Camel coat', imageAssetId: ASSET })),
+    anchorWish: vi.fn(async (_u: unknown, id: string) =>
+      id === WISH
+        ? {
+            id: WISH,
+            label: 'Silk cami',
+            category: 'Tops',
+            color: 'coral',
+            brand: 'Vince',
+            sourceLabel: 'vince.com',
+            price: 89,
+            currency: 'EUR',
+            imageAssetId: ASSET,
+          }
+        : undefined,
+    ),
     createGeneratedAsset: vi.fn(async () => `44444444-4444-4444-8444-44444444444${n++}`),
     trackImage: vi.fn(async () => {}),
     createSet: vi.fn(async () => SET),
@@ -562,6 +577,115 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       LOOK,
       expect.objectContaining({ anchorPieceId: PIECE }),
+      expect.anything(),
+    );
+  });
+
+  it('styles a wish she is thinking of buying with her wardrobe, held as the anchor', async () => {
+    const { run, suggested, styling, generateJson } = setup();
+    await run({
+      mode: 'prompt',
+      draft: true,
+      prompt: 'Style my silk cami',
+      anchorWishId: WISH,
+      balance: 'owned',
+    });
+    const req = generateJson.mock.calls[0]?.[0];
+    expect(req?.user).toContain('a piece on her wishlist she is thinking of buying');
+    expect(req?.images).toHaveLength(1);
+    const [spec] = (suggested.mintSet.mock.calls[0]?.[2] ?? []) as ReturnType<typeof specFromWay>[];
+    expect(spec?.anchorPieceId).toBeNull();
+    const anchored = spec?.proposals.filter((p) => p.anchor === true) ?? [];
+    expect(anchored).toHaveLength(1);
+    expect(anchored[0]).toMatchObject({
+      name: 'Silk cami',
+      wishlisted: true,
+      wishlistItemId: WISH,
+      pricePoint: '€89',
+    });
+    expect((styling.createSet.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
+      data: { key: { wishId: WISH, label: 'Silk cami' } },
+    });
+    // Someone else's wish, or one she has bought, is not hers to style.
+    await expect(
+      run({ mode: 'prompt', draft: true, prompt: 'Drinks', anchorWishId: LOOK }),
+    ).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('holds the wish on the rack once: the model’s own row for it, else her wishlist’s', () => {
+    const wish = {
+      id: WISH,
+      label: 'Silk cami',
+      category: 'Tops',
+      color: 'coral',
+      brand: 'Vince',
+      sourceLabel: null,
+      price: null,
+      currency: null,
+    };
+    const listed: Record<string, unknown>[] = [
+      { key: 'p-aaaa1111', name: 'Black mules' },
+      { key: 'p-bbbb2222', name: 'silk cami', role: 'texture' },
+    ];
+    holdWish(listed, wish);
+    expect(listed.map((p) => [p.key, p.anchor])).toEqual([
+      ['p-bbbb2222', true],
+      ['p-aaaa1111', undefined],
+    ]);
+    expect(listed[0]).toMatchObject({ role: 'texture', wishlistItemId: WISH });
+    const left: Record<string, unknown>[] = [{ key: 'p-aaaa1111', name: 'Black mules' }];
+    holdWish(left, wish);
+    expect(left).toHaveLength(2);
+    expect(left[0]).toMatchObject({ name: 'Silk cami', anchor: true, role: 'anchor' });
+  });
+
+  it('holds the wish a draft started from through Restyle it all', async () => {
+    const { run, generateJson, suggested, styling } = setup();
+    styling.getSet.mockResolvedValueOnce({
+      id: SET,
+      title: 'Style my silk cami',
+      generationJobId: JOB,
+      data: {
+        set: true,
+        mode: 'prompt',
+        anchor: { type: 'text', label: 'Style my silk cami' },
+        prompt: 'Style my silk cami',
+        dateHint: null,
+        day: null,
+        fallback: false,
+        wearer: 'woman',
+        ways: fake().ways.slice(0, 1),
+        key: { wishId: WISH, label: 'Silk cami' },
+        draft: true,
+      },
+    } as never);
+    suggested.look.mockResolvedValueOnce({
+      look: {
+        id: LOOK,
+        name: 'Cami, easy',
+        status: 'draft',
+        setId: SET,
+        setIndex: 0,
+        anchorPieceId: null,
+        proposals: [],
+        styling: null,
+        frameAssetId: null,
+        renderKey: null,
+        dateHint: null,
+      },
+      pieces: [],
+      siblings: [],
+    } as never);
+    await run({ mode: 'restyle', lookId: LOOK });
+    expect(generateJson.mock.calls[0]?.[0].user).toContain('thinking of buying');
+    expect(suggested.rewrite).toHaveBeenCalledWith(
+      USER,
+      LOOK,
+      expect.objectContaining({
+        proposals: expect.arrayContaining([
+          expect.objectContaining({ anchor: true, wishlistItemId: WISH }),
+        ]),
+      }),
       expect.anything(),
     );
   });
