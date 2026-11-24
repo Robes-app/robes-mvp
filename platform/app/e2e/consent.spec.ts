@@ -73,10 +73,13 @@ async function saveALook(page: Page, label: string): Promise<void> {
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
   const lookUrl = page.url();
   // A suggestion's one button is Save look (design "Suggested looks", 23 Nov); saved, she is back
-  // on the deck, and the look's own page carries Schedule look.
+  // on the deck, and the look's own page carries Schedule look. Forward, not a reload, so the app
+  // (and its queued events) stays up.
   await page.getByRole('button', { name: 'Save look' }).click();
   await expect(page.getByText('Saved to your lookbook.', { exact: true })).toBeVisible();
-  await page.goto(lookUrl);
+  await expect(page).not.toHaveURL(lookUrl);
+  await page.goForward();
+  await expect(page).toHaveURL(lookUrl);
   await page.getByRole('button', { name: 'Schedule look' }).click();
   await page.getByRole('button', { name: 'Put it in the diary' }).click();
   await expect(page.getByText(/is in your diary for/).first()).toBeVisible();
