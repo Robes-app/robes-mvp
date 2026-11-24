@@ -63,7 +63,7 @@ test('the sparkle styles a draft around her piece, saved back to the piece', asy
   const lookId = /\/looks\/draft\/([0-9a-f-]{36})/.exec(page.url())?.[1] ?? '';
   const look = await (await page.request.get(`/api/v1/looks/${lookId}`)).json();
   expect(look.anchor?.id).toBe(id);
-  expect(look.pieces.map((p: { id: string }) => p.id)).toContain(id);
+  expect(look.pieces.map((p: { piece: { id: string } }) => p.piece.id)).toContain(id);
   // Her line heads the thread: the piece, named.
   await page.getByTestId('prompt-spark').click();
   await page.getByTestId('prompt-expand').click();
