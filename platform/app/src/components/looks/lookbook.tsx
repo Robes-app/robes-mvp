@@ -52,7 +52,12 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   useEffect(() => {
     if (landed.current || !suggested.data) return;
     landed.current = true;
-    if (tab === 'saved' && seed) router.replace('/looks?tab=suggested');
+    // Only while she is still on the Lookbook with no tab chosen: never pull her back from a
+    // screen she tapped through to while the looks were loading.
+    const here = window.location;
+    if (tab === 'saved' && seed && here.pathname === '/looks' && !here.search.includes('tab=')) {
+      router.replace('/looks?tab=suggested');
+    }
   }, [suggested.data, seed, tab, router]);
   return (
     <div className="flex flex-col gap-5">

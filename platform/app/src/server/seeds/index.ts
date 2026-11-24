@@ -4,6 +4,7 @@ import { frameKey, newProposalKey } from '@robes/core/looks';
 import { seedPricePoint, seedStates, seedUrl } from '@robes/core/seeds';
 import type { SeedLanding, SeedPicture, UserId } from '@robes/db';
 import { repos } from '../db';
+import { env } from '../env';
 import { todayIn } from '../plan';
 import { XMAS_2026 } from './xmas-2026';
 
@@ -69,6 +70,7 @@ export async function landSeeds(
   now = new Date(),
   drops: readonly SeedDrop[] = DROPS,
 ): Promise<void> {
+  if (env.SEEDS_OFF !== undefined) return;
   const profile = await repos.profiles.get(userId);
   if (!profile) return;
   const { live, ended } = seedStates(drops, todayIn(profile.timezone, now));

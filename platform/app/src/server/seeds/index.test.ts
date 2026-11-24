@@ -14,6 +14,16 @@ const repos = {
   },
 };
 vi.mock('../db', () => ({ repos }));
+// The real env, with SEEDS_OFF set per test.
+const flags = vi.hoisted(() => ({}) as { SEEDS_OFF?: string });
+vi.mock('../env', async (importOriginal) => {
+  const { env } = await importOriginal<typeof import('../env')>();
+  return {
+    env: new Proxy(env, {
+      get: (target, key) => (key === 'SEEDS_OFF' ? flags.SEEDS_OFF : Reflect.get(target, key)),
+    }),
+  };
+});
 
 const { DROPS, landingsOf, landSeeds } = await import('.');
 const ANN = verifiedUserId('11111111-1111-4111-8111-111111111111');
@@ -90,5 +100,17 @@ describe('landSeeds', () => {
     await landSeeds(ANN, new Date('2027-01-07T09:00:00Z'), [DROP]);
     expect(repos.seeds.retire).toHaveBeenCalledWith(ANN, ['xmas-2026']);
     expect(repos.seeds.land).toHaveBeenCalledTimes(1);
+  });
+
+  it('lands and retires nothing where seeds are off (e2e)', async () => {
+    flags.SEEDS_OFF = '1';
+    try {
+      await landSeeds(ANN, new Date('2026-12-01T09:00:00Z'), [DROP]);
+      await landSeeds(ANN, new Date('2027-02-01T09:00:00Z'), [DROP]);
+    } finally {
+      delete flags.SEEDS_OFF;
+    }
+    expect(repos.profiles.get).not.toHaveBeenCalled();
+    expect(repos.seeds.land).not.toHaveBeenCalled();
   });
 });
