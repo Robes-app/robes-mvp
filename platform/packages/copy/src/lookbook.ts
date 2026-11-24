@@ -77,12 +77,16 @@ export const lookbook = {
       n === 1 ? '1 piece added to your wishlist.' : `${n} pieces added to your wishlist.`,
     view: 'View',
   },
+  // A piece Robes picked for a look, before it is on her wishlist: its own page from the look's
+  // row, and the one button that keeps it (it then becomes her wish and opens as one).
+  pieceToFind: {
+    add: 'Add to wishlist',
+    gone: 'This piece is no longer on the look.',
+  },
   // A suggestion's page (Felix 3e anatomy): its pill, its one button, its delete.
   suggestedLook: {
     save: 'Save look',
     deleteBody: 'It leaves your Lookbook, and its pieces won’t go on your wishlist.',
-    // The pencil's hint over a suggestion's rows.
-    editHint: 'Heart a piece for your wishlist, or swap it for one you own.',
   },
   meta: {
     pieces,

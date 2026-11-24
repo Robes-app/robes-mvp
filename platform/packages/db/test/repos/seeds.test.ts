@@ -145,6 +145,47 @@ describe('seeded drops', () => {
     }
   });
 
+  it('files one hearted piece as Save files it, once, and keeps the look suggested', async () => {
+    const eve = await createTestUser(db, 'Eve');
+    const fay = await createTestUser(db, 'Fay');
+    try {
+      await seeds.land(eve, 'xmas-2026', XMAS);
+      const { items } = await looks.list(eve, { limit: 10, status: 'suggested' });
+      const look = items[0];
+      const key = ((look?.proposals ?? []) as { key: string }[])[0]?.key ?? '';
+      // Not hers: nothing is filed.
+      expect(await looks.wishProposal(fay, look?.id ?? '', key)).toBeUndefined();
+      expect(await looks.wishProposal(eve, look?.id ?? '', 'p-zzzzzzzz')).toBeUndefined();
+      const hearted = await looks.wishProposal(eve, look?.id ?? '', key);
+      expect(hearted?.status).toBe('suggested');
+      const filed = ((hearted?.proposals ?? []) as Record<string, unknown>[])[0];
+      expect(filed).toMatchObject({ wishlisted: true });
+      const wishes = await wishlist.list(eve, { limit: 10 });
+      expect(wishes.items).toHaveLength(1);
+      expect(wishes.items[0]).toMatchObject({
+        label: 'Merlot Sequin Midi Skirt',
+        sourceUrl: 'https://www.freemans.com/skirt',
+        sourceLabel: 'freemans.com',
+        price: '43.00',
+        currency: 'GBP',
+      });
+      expect(wishes.items[0]?.imageAssetId).toBeTruthy();
+      // Again, or a rack sent from before the heart landed, then Save: still the one wish.
+      await looks.wishProposal(eve, look?.id ?? '', key);
+      const stale = ((look?.proposals ?? []) as Record<string, unknown>[]).map((p) => ({
+        ...p,
+        wishlisted: false,
+        wishlistItemId: null,
+      }));
+      await looks.update(eve, look?.id ?? '', { proposals: stale, keepSuggested: true });
+      await looks.save(eve, look?.id ?? '');
+      expect((await wishlist.list(eve, { limit: 10 })).items).toHaveLength(1);
+      expect((await wishlist.list(fay, { limit: 10 })).items).toHaveLength(0);
+    } finally {
+      await deleteTestUsers(db, eve, fay);
+    }
+  });
+
   it('retires an ended drop’s unsaved looks and keeps the ones she saved', async () => {
     expect(await seeds.retire(bea, ['xmas-2026'])).toBe(1);
     expect((await looks.list(bea, { limit: 10, status: 'suggested' })).items).toEqual([]);

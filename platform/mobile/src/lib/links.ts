@@ -27,6 +27,8 @@ const RULES: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   // The Wishlist is a segment of the Wardrobe tab on native; a wish's page is /wish/:id.
   rule('/wardrobe/wishlist', () => '/wardrobe?segment=wishlist'),
   rule(`/wardrobe/wishlist/${UUID}`, (m) => `/wish/${m[1]}`),
+  // A piece Robes picked for a look (ProposalDetail): web /look/:id/piece/:key, native /look-piece.
+  rule(`/look/${UUID}/piece/([^/]+)`, (m) => `/look-piece/${m[1]}/${m[2]}`),
   rule('/soon/[a-z-]+', () => '/soon'),
   rule('/auth/sign-in', () => '/sign-in'),
   rule('/auth/sign-up', () => '/sign-up'),

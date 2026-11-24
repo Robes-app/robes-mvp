@@ -1116,13 +1116,16 @@ function DraftBody({
     const was = editor.rack.edits[key]?.was;
     return was ? (imageOf(was) ?? null) : null;
   };
-  // A wish on the rack opens its own page (Annie, 15 Nov); a proposal Robes made has none.
+  // A wish on the rack opens its own page (Annie, 15 Nov); a piece Robes picked that the look
+  // holds opens as a piece to find until she adds it (ProposalDetail, Annie 24 Nov).
   const hrefOf = (row: RackRow) =>
     row.pieceId
       ? `/piece/${row.pieceId}`
       : wishFor(row)
         ? `/wardrobe/wishlist/${row.proposal?.wishlistItemId}`
-        : undefined;
+        : row.proposal && look.proposals.some((p) => p.key === row.key)
+          ? `/look/${look.id}/piece/${row.key}`
+          : undefined;
   const sendOpts = {
     balance: src.balance,
     ...(askContext ? { context: askContext } : {}),
@@ -1357,7 +1360,11 @@ function DraftBody({
         {...((mode === 'edit' || captureDraft) && row.pieceId
           ? { wears: pieceOf(row.pieceId)?.wearCount ?? 0 }
           : {})}
-        {...(row.proposal && editingPieces ? { onWish: () => editor.wish(row.key) } : {})}
+        // A suggestion's heart is at rest and its edit is a saved look's, swap and × alone; a
+        // saved or draft look hearts a piece to find in edit (design "Suggested looks" 03, 03b).
+        {...(row.proposal && (suggested ? !editingPieces : editingPieces)
+          ? { onWish: () => editor.wish(row.key) }
+          : {})}
         editing={editingPieces}
         {...(!row.pieceId && hrefOf(row) ? { wishHref: hrefOf(row) as string } : {})}
         {...(editingPieces
@@ -1654,9 +1661,6 @@ function DraftBody({
         />
         {tab === TABS[0] ? (
           <div className="flex flex-col gap-3" data-testid="pieces-tab">
-            {suggested && editingPieces ? (
-              <p className="font-sans text-ink-muted text-xs">{lookbook.suggestedLook.editHint}</p>
-            ) : null}
             {capturePieces ? (
               <CapturePieces look={look} capture={capture}>
                 {rackRows}
