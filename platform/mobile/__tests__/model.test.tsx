@@ -276,12 +276,17 @@ test('body shape: the facts rows, a wheel and a unit, a scale by hand, Reset, a 
   await fireEvent.press(await screen.findByRole('button', { name: f.rowLabel(f.size, '') }));
   // A row opens its wheel in the same sheet, on the middle when she has given nothing.
   await fireEvent.press(await screen.findByTestId('fact-size'));
+  const dnaPatches = () =>
+    calls.filter((c) => c.method === 'PATCH' && c.path.endsWith('/me/dna')).map((c) => c.body);
+  // The wheel scrolls (Annie, 25 Nov): where it comes to rest is saved — two rows past the middle
+  // (UK 10, the fourth of UK 4–24) is UK 14.
+  await fireEvent(await screen.findByTestId(`wheel-${twin.facts.size}`), 'momentumScrollEnd', {
+    nativeEvent: { contentOffset: { x: 0, y: 5 * 44 } },
+  });
+  await waitFor(() => expect(dnaPatches()).toEqual([{ facts: { sizeUk: 14 } }]));
+  // A tap scrolls a value into the band and saves it.
   await fireEvent.press(await screen.findByRole('button', { name: 'UK 10' }));
-  await waitFor(() =>
-    expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/dna'))?.body).toEqual({
-      facts: { sizeUk: 10 },
-    }),
-  );
+  await waitFor(() => expect(dnaPatches().at(-1)).toEqual({ facts: { sizeUk: 10 } }));
   // A unit changes how it reads, never what is saved.
   await fireEvent.press(screen.getByRole('button', { name: 'US' }));
   await waitFor(() =>

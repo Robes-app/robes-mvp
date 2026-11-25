@@ -357,40 +357,26 @@ export function bustPatch(
   };
 }
 
-// The wheel: five slots around the current value (blank past either end), nearest when the stored
-// value falls between steps or outside the range.
-export interface WheelSlot<T> {
-  value: T | null;
-  selected: boolean;
-  // Its place from the centre, −2 to 2 (a stable key); distance fades the outer ones.
-  offset: number;
-  distance: 0 | 1 | 2;
+// The wheel she scrolls (Annie, 25 Nov: "it's expected to scroll"): every value is on it; the one
+// resting in the middle band is the pick. A stored value between steps or past the ends rests on
+// the nearest.
+export function nearestIndex<T>(list: readonly T[], current: T, near?: (v: T) => number): number {
+  const i = list.indexOf(current);
+  if (i >= 0 || !near) return Math.max(0, i);
+  let best = 0;
+  list.forEach((v, k) => {
+    if (near(v) < near(list[best] as T)) best = k;
+  });
+  return best;
 }
-export function wheelOf<T>(
-  list: readonly T[],
-  current: T,
-  near?: (v: T) => number,
-): WheelSlot<T>[] {
-  let i = list.indexOf(current);
-  if (i < 0) {
-    i = 0;
-    if (near) {
-      list.forEach((v, k) => {
-        if (near(v) < near(list[i] as T)) i = k;
-      });
-    }
-  }
-  const out: WheelSlot<T>[] = [];
-  for (let d = -2; d <= 2; d++) {
-    const v = list[i + d];
-    out.push({
-      value: v === undefined ? null : v,
-      selected: d === 0,
-      offset: d,
-      distance: Math.abs(d) as 0 | 1 | 2,
-    });
-  }
-  return out;
+
+// Rows shown above and below the band, and how each fades by its distance from it.
+export const WHEEL_SIDE = 2;
+export const wheelOpacity = (distance: number): number =>
+  distance === 0 ? 1 : distance === 1 ? 0.55 : 0.25;
+// The row the wheel settles on, from how far it has scrolled (rows of `item` px), kept in range.
+export function settledIndex(offset: number, item: number, count: number): number {
+  return Math.min(count - 1, Math.max(0, Math.round(offset / item)));
 }
 
 // A row of The facts as it reads: its unit and what she gave in it (a number in that unit, or the
@@ -417,18 +403,19 @@ export function factRows(
   });
 }
 
-// The picker for a row: one wheel (two for the bust, band and cup). Each slot carries what it
-// shows in her unit and the patch a tap on it saves.
-export interface PickerSlot {
-  shown: number | string | null;
-  selected: boolean;
-  offset: number;
-  distance: 0 | 1 | 2;
+// The picker for a row: one wheel (two for the bust, band and cup). Each item carries what it
+// shows in her unit and the patch saved when the wheel settles on it, or a tap picks it; `selected`
+// is the item resting in the band.
+export interface PickerItem {
+  shown: number | string;
   patch: MeasurePatch | null;
 }
 export interface PickerColumn {
   key: 'value' | 'band' | 'cup';
-  slots: PickerSlot[];
+  items: PickerItem[];
+  selected: number;
+  // False while she has given nothing: the wheel rests on the middle, and picking it saves it.
+  saved: boolean;
 }
 export function pickerOf(
   field: MeasureField,
@@ -439,27 +426,25 @@ export function pickerOf(
   if (field === 'bust') {
     const band = facts.bustBand ?? 34;
     const cup = cupOf(facts.bustCup) ?? 'B';
+    const bands = withSaved(BUST_BANDS, facts.bustBand);
     return [
       {
         key: 'band',
-        slots: wheelOf(withSaved(BUST_BANDS, facts.bustBand), band, (v) => Math.abs(v - band)).map(
-          (s) => ({
-            ...s,
-            shown: s.value === null ? null : bandIn(s.value, unit),
-            patch:
-              s.value === null || !BUST_BANDS.includes(s.value)
-                ? null
-                : bustPatch(facts, { band: s.value }),
-          }),
-        ),
+        items: bands.map((v) => ({
+          shown: bandIn(v, unit),
+          patch: BUST_BANDS.includes(v) ? bustPatch(facts, { band: v }) : null,
+        })),
+        selected: nearestIndex(bands, band, (v) => Math.abs(v - band)),
+        saved: bustOf('uk', facts) !== null,
       },
       {
         key: 'cup',
-        slots: wheelOf(BUST_CUPS, cup).map((s) => ({
-          ...s,
-          shown: s.value === null ? null : cupIn(s.value, unit),
-          patch: s.value === null ? null : bustPatch(facts, { cup: s.value }),
+        items: BUST_CUPS.map((c) => ({
+          shown: cupIn(c, unit),
+          patch: bustPatch(facts, { cup: c }),
         })),
+        selected: nearestIndex(BUST_CUPS, cup),
+        saved: bustOf('uk', facts) !== null,
       },
     ];
   }
@@ -470,14 +455,12 @@ export function pickerOf(
   return [
     {
       key: 'value',
-      slots: wheelOf(list, cur, (v) => Math.abs(v - cur)).map((s) => ({
-        ...s,
-        shown: s.value,
-        patch:
-          s.value === null || !range.includes(s.value)
-            ? null
-            : storedPatch(field, unit, s.value, presence),
+      items: list.map((v) => ({
+        shown: v,
+        patch: range.includes(v) ? storedPatch(field, unit, v, presence) : null,
       })),
+      selected: nearestIndex(list, cur, (v) => Math.abs(v - cur)),
+      saved: saved !== null,
     },
   ];
 }

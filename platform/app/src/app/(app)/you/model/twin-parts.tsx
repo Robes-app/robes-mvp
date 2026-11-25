@@ -20,6 +20,9 @@ import {
   measurePresenceOf,
   type PickerColumn,
   pickerOf,
+  settledIndex,
+  WHEEL_SIDE,
+  wheelOpacity,
 } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/web';
 import { AlertDialog, Button, Eyebrow, Sheet, useToast } from '@robes/ui';
@@ -372,9 +375,13 @@ export function lineSummary(dna: StyleDna): string {
     .join(' · ');
 }
 
-// The wheel (design "Picker open · Bust"): five slots around her value, the middle one chosen on
-// the warm fill, the outer ones fading; a tap on any steps to it. Native twin: Wheel in
+// The wheel (design "Picker open · Bust"; Annie, 25 Nov: "it's expected to scroll"): every value
+// on a list that scrolls and snaps, the one resting in the warm band in the middle being the pick,
+// the rows fading as they leave it. Where it settles is saved; a tap scrolls a value into the band
+// and saves it at once; ↑ and ↓ step through it. Native twin: Wheel in
 // mobile/src/features/you/twin.tsx.
+const ITEM = 44;
+const SETTLE_MS = 140;
 function Wheel({
   label,
   column,
@@ -386,26 +393,78 @@ function Wheel({
   text: (shown: number | string) => string;
   onPick: (patch: Partial<Facts>) => void;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const timer = useRef<number | null>(null);
+  // The row in the band while she scrolls; the pick is saved only once the wheel settles.
+  const [at, setAt] = useState(column.selected);
+  const count = column.items.length;
+  const opened = useRef(column.selected);
+  useEffect(() => {
+    // Opens on her value; a change of unit draws a new wheel (its key).
+    ref.current?.scrollTo({ top: opened.current * ITEM });
+    return () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    };
+  }, []);
+  // The row last saved, so a tap's own scroll into the band never saves it twice.
+  const kept = useRef<number | null>(column.saved ? column.selected : null);
+  const pick = (i: number) => {
+    const item = column.items[i];
+    if (!item?.patch || i === kept.current) return;
+    kept.current = i;
+    onPick(item.patch);
+  };
+  const onScroll = () => {
+    const el = ref.current;
+    if (!el) return;
+    setAt(settledIndex(el.scrollTop, ITEM, count));
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(
+      () => pick(settledIndex(el.scrollTop, ITEM, count)),
+      SETTLE_MS,
+    );
+  };
+  const choose = (i: number) => {
+    setAt(i);
+    pick(i);
+    ref.current?.scrollTo({ top: i * ITEM, behavior: 'smooth' });
+  };
   return (
-    <div role="listbox" aria-label={label} className="flex min-w-0 flex-1 flex-col gap-0.5">
-      {column.slots.map((slot) => {
-        const shown = slot.shown;
-        return (
+    <div className="relative min-w-0 flex-1" style={{ height: ITEM * (2 * WHEEL_SIDE + 1) }}>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 rounded-pill border border-selected-line bg-selected"
+        style={{ top: ITEM * WHEEL_SIDE, height: ITEM }}
+      />
+      <div
+        ref={ref}
+        role="listbox"
+        aria-label={label}
+        tabIndex={0}
+        onScroll={onScroll}
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+          e.preventDefault();
+          choose(Math.min(count - 1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1))));
+        }}
+        className="relative h-full snap-y snap-mandatory overflow-y-auto overscroll-contain rounded-pill [scrollbar-width:none] focus-visible:outline-[1.5px] focus-visible:outline-focus-ring [&::-webkit-scrollbar]:hidden"
+        style={{ paddingBlock: ITEM * WHEEL_SIDE }}
+      >
+        {column.items.map((item, i) => (
           <button
-            key={slot.offset}
+            key={String(item.shown)}
             type="button"
             role="option"
-            aria-selected={slot.selected}
-            disabled={shown === null}
-            onClick={() => (slot.patch ? onPick(slot.patch) : undefined)}
-            className={`h-11 rounded-pill border font-display text-2xl text-ink focus-visible:outline-[1.5px] focus-visible:outline-focus-ring ${
-              slot.selected ? 'border-selected-line bg-selected' : 'border-transparent'
-            } ${slot.distance === 1 ? 'opacity-55' : slot.distance === 2 ? 'opacity-25' : ''}`}
+            aria-selected={i === at}
+            tabIndex={-1}
+            onClick={() => choose(i)}
+            className="block w-full snap-center font-display text-2xl text-ink"
+            style={{ height: ITEM, opacity: wheelOpacity(Math.abs(i - at)) }}
           >
-            {shown === null ? '' : text(shown)}
+            {text(item.shown)}
           </button>
-        );
-      })}
+        ))}
+      </div>
     </div>
   );
 }
@@ -519,7 +578,7 @@ export function FactsSheet({
             <div className="flex gap-2.5">
               {pickerOf(row.field, row.unit, dna.facts, presence).map((col) => (
                 <Wheel
-                  key={col.key}
+                  key={`${col.key}-${row.unit}`}
                   label={col.key === 'value' ? labelOf(row.field) : f[col.key]}
                   column={col}
                   text={(v) =>

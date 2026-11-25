@@ -19,6 +19,9 @@ import {
   measurePresenceOf,
   type PickerColumn,
   pickerOf,
+  settledIndex,
+  WHEEL_SIDE,
+  wheelOpacity,
 } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/native';
 import {
@@ -35,7 +38,13 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { Image as ExpoImage } from 'expo-image';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  type ScrollViewInstance,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Svg, { Ellipse, Line, Path, Rect } from 'react-native-svg';
 import { errorMessage } from '@/lib/errors';
 import { useDnaMutations } from './dna';
@@ -414,8 +423,11 @@ export function lineSummary(dna: StyleDna): string {
     .join(' · ');
 }
 
-// The wheel (design "Picker open · Bust"): five slots around her value, the middle one chosen on
-// the warm fill, the outer ones fading; a tap on any steps to it. Twin of web twin-parts.tsx Wheel.
+// The wheel (design "Picker open · Bust"; Annie, 25 Nov: "it's expected to scroll"): every value
+// on a list that scrolls and snaps, the one resting in the warm band in the middle being the pick,
+// the rows fading as they leave it. Where it comes to rest is saved; a tap scrolls a value into
+// the band and saves it at once. Twin of web twin-parts.tsx Wheel.
+const ITEM = MIN_TOUCH;
 function Wheel({
   label,
   column,
@@ -427,33 +439,79 @@ function Wheel({
   text: (shown: number | string) => string;
   onPick: (patch: MeasurePatch) => void;
 }) {
+  const ref = useRef<ScrollViewInstance>(null);
+  // The row in the band while she scrolls; the pick is saved only once the wheel comes to rest.
+  const [at, setAt] = useState(column.selected);
+  // The row last saved, so a tap's own scroll into the band never saves it twice.
+  const kept = useRef<number | null>(column.saved ? column.selected : null);
+  const opened = useRef(false);
+  const count = column.items.length;
+  const pick = (i: number) => {
+    const item = column.items[i];
+    if (!item?.patch || i === kept.current) return;
+    kept.current = i;
+    onPick(item.patch);
+  };
+  const rest = (y: number) => {
+    const i = settledIndex(y, ITEM, count);
+    setAt(i);
+    pick(i);
+  };
+  const choose = (i: number) => {
+    setAt(i);
+    pick(i);
+    ref.current?.scrollTo({ y: i * ITEM, animated: true });
+  };
   return (
-    <View accessibilityLabel={label} className="min-w-0 flex-1 gap-0.5">
-      {column.slots.map((slot) => {
-        const shown = slot.shown;
-        const words = shown === null ? '' : text(shown);
-        return (
-          <Pressable
-            key={slot.offset}
-            accessibilityRole="button"
-            accessibilityLabel={words}
-            accessibilityState={{ selected: slot.selected, disabled: shown === null }}
-            disabled={shown === null}
-            onPress={() => (slot.patch ? onPick(slot.patch) : undefined)}
-            style={{
-              height: MIN_TOUCH,
-              opacity: slot.distance === 1 ? 0.55 : slot.distance === 2 ? 0.25 : 1,
-            }}
-            className={`items-center justify-center rounded-pill border ${
-              slot.selected ? 'border-selected-line bg-selected' : 'border-transparent'
-            }`}
-          >
-            <Text className="font-display" style={{ fontSize: 24 }}>
-              {words}
-            </Text>
-          </Pressable>
-        );
-      })}
+    <View className="min-w-0 flex-1" style={{ height: ITEM * (2 * WHEEL_SIDE + 1) }}>
+      <View
+        pointerEvents="none"
+        className="absolute inset-x-0 rounded-pill border border-selected-line bg-selected"
+        style={{ top: ITEM * WHEEL_SIDE, height: ITEM }}
+      />
+      <ScrollView
+        ref={ref}
+        accessibilityLabel={label}
+        testID={`wheel-${label}`}
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM}
+        decelerationRate="fast"
+        contentOffset={{ x: 0, y: column.selected * ITEM }}
+        contentContainerStyle={{ paddingVertical: ITEM * WHEEL_SIDE }}
+        scrollEventThrottle={16}
+        // Opens on her value (Android ignores contentOffset); a change of unit draws a new wheel.
+        onLayout={() => {
+          if (opened.current) return;
+          opened.current = true;
+          ref.current?.scrollTo({ y: column.selected * ITEM, animated: false });
+        }}
+        onScroll={(e) => setAt(settledIndex(e.nativeEvent.contentOffset.y, ITEM, count))}
+        onMomentumScrollEnd={(e) => rest(e.nativeEvent.contentOffset.y)}
+        // A drag let go without a fling comes to rest where it is.
+        onScrollEndDrag={(e) => {
+          if (Math.abs(e.nativeEvent.velocity?.y ?? 0) < 0.05) rest(e.nativeEvent.contentOffset.y);
+        }}
+      >
+        {column.items.map((item, i) => {
+          const words = text(item.shown);
+          return (
+            <Pressable
+              key={String(item.shown)}
+              accessibilityRole="button"
+              accessibilityLabel={words}
+              accessibilityState={{ selected: i === at }}
+              onPress={() => choose(i)}
+              style={{ height: ITEM, opacity: wheelOpacity(Math.abs(i - at)) }}
+              className="items-center justify-center"
+            >
+              <Text className="font-display" style={{ fontSize: 24 }}>
+                {words}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
@@ -567,7 +625,7 @@ export function FactsSheet({
               <View className="flex-row gap-2.5">
                 {pickerOf(row.field, row.unit, dna.facts, presence).map((col) => (
                   <Wheel
-                    key={col.key}
+                    key={`${col.key}-${row.unit}`}
                     label={col.key === 'value' ? labelOf(row.field) : f[col.key]}
                     column={col}
                     text={(v) =>

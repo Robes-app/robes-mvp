@@ -131,6 +131,12 @@ test('Style DNA: her types, a brand, the investment level, a hard no and a fact'
   // A row opens its wheel in the same drawer, on the middle when she has given nothing.
   await facts.getByRole('button', { name: 'Size, not set' }).click();
   const size = page.getByRole('dialog', { name: 'Size' });
+  // The wheel scrolls (Annie, 25 Nov): two rows down from the middle settles on UK 14 and saves it.
+  await size.getByRole('listbox', { name: 'Size' }).evaluate((el) => el.scrollBy({ top: 88 }));
+  await expect
+    .poll(async () => (await (await page.request.get('/api/v1/me/dna')).json()).facts.sizeUk)
+    .toBe(14);
+  // A tap scrolls a value into the band and saves it.
   await size.getByRole('option', { name: 'UK 10' }).click();
   await size.getByRole('button', { name: 'Done' }).click();
   await expect(facts.getByRole('button', { name: 'Size, UK 10' })).toBeVisible();

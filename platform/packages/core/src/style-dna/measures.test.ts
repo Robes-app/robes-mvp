@@ -12,15 +12,22 @@ import {
   factsFor,
   type MeasureFacts,
   measurePresenceOf,
+  nearestIndex,
   optionsOf,
+  type PickerColumn,
   pickerOf,
   readUnitPrefs,
   STORED_RANGES,
+  settledIndex,
   startOf,
   storedPatch,
   unitFor,
-  wheelOf,
+  wheelOpacity,
 } from './measures';
+
+// The five rows around the band, as the wheel opens (blank past either end).
+const around = (col: PickerColumn | undefined) =>
+  [-2, -1, 0, 1, 2].map((d) => col?.items[(col?.selected ?? 0) + d]?.shown ?? null);
 
 const facts = (patch: Partial<MeasureFacts> = {}): MeasureFacts => ({ ...CLEARED_FACTS, ...patch });
 
@@ -132,12 +139,13 @@ describe('the facts (handoff 24 Nov)', () => {
     });
   });
 
-  it('draws five wheel slots around the value, blank past the ends', () => {
-    const w = wheelOf([1, 2, 3, 4], 1);
-    expect(w.map((s) => s.value)).toEqual([null, null, 1, 2, 3]);
-    expect(w.map((s) => s.selected)).toEqual([false, false, true, false, false]);
-    expect(w.map((s) => s.distance)).toEqual([2, 1, 0, 1, 2]);
-    expect(wheelOf([10, 12, 14], 13.4, (v) => Math.abs(v - 13.4))[2]?.value).toBe(14);
+  it('rests the wheel on her value, the nearest one between steps, and settles where it stops', () => {
+    expect(nearestIndex([1, 2, 3, 4], 3)).toBe(2);
+    expect(nearestIndex([10, 12, 14], 13.4, (v) => Math.abs(v - 13.4))).toBe(2);
+    expect(settledIndex(130, 44, 10)).toBe(3);
+    expect(settledIndex(-40, 44, 10)).toBe(0);
+    expect(settledIndex(9_999, 44, 10)).toBe(9);
+    expect([0, 1, 2, 3].map(wheelOpacity)).toEqual([1, 0.55, 0.25, 0.25]);
     expect(displayOf('height', 'cm', startOf('height', 'man'), 'man')).toBe(178);
   });
 });
@@ -160,19 +168,21 @@ describe('the rows and the picker', () => {
 
   it('opens a wheel on her value, or the middle when she has none, and saves the stored value', () => {
     const [col] = pickerOf('collar', 'in', facts({ collarCm: 39.4 }), 'man');
-    expect(col?.slots.map((s) => s.shown)).toEqual([14.5, 15, 15.5, 16, 16.5]);
-    expect(col?.slots[3]?.patch).toEqual({ collarCm: 40.6 });
+    expect(around(col)).toEqual([14.5, 15, 15.5, 16, 16.5]);
+    // Every value is on the wheel, to scroll through.
+    expect(col?.items).toHaveLength(10);
+    expect(col?.items[(col?.selected ?? 0) + 1]?.patch).toEqual({ collarCm: 40.6 });
     const [empty] = pickerOf('height', 'cm', facts(), 'woman');
-    expect(empty?.slots[2]?.shown).toBe(168);
-    expect(empty?.slots[2]?.selected).toBe(true);
+    expect(empty?.items[empty.selected]?.shown).toBe(168);
+    expect([col?.saved, empty?.saved]).toEqual([true, false]);
   });
 
   it('gives the bust two wheels in her unit, each saving band and cup together', () => {
     const [band, cup] = pickerOf('bust', 'eu', facts({ bustBand: 28, bustCup: 'AA' }), 'woman');
-    expect(band?.slots.map((s) => s.shown)).toEqual([null, null, 60, 65, 70]);
-    expect(band?.slots[3]?.patch).toEqual({ bustBand: 30, bustCup: 'AA', bustCm: null });
-    expect(cup?.slots.map((s) => s.shown)).toEqual([null, null, 'AA', 'A', 'B']);
-    expect(cup?.slots[0]?.patch).toBeNull();
+    expect(around(band)).toEqual([null, null, 60, 65, 70]);
+    expect(band?.items[1]?.patch).toEqual({ bustBand: 30, bustCup: 'AA', bustCm: null });
+    expect(around(cup)).toEqual([null, null, 'AA', 'A', 'B']);
+    expect(cup?.items).toHaveLength(10);
   });
 });
 
@@ -188,19 +198,17 @@ describe('a switch of gender (25 Nov)', () => {
 
   it('opens his wheel on what she saved, even outside his range, and that slot saves nothing', () => {
     const [shoes] = pickerOf('shoes', 'uk', hers, 'man');
-    expect(shoes?.slots.map((s) => s.shown)).toEqual([null, null, 5, 6, 6.5]);
-    expect(shoes?.slots[2]).toMatchObject({ selected: true, patch: null });
-    expect(shoes?.slots[3]?.patch).toEqual({ shoeUk: 6 });
+    expect(around(shoes)).toEqual([null, null, 5, 6, 6.5]);
+    expect(shoes?.items[shoes.selected]?.patch).toBeNull();
+    expect(shoes?.items[1]?.patch).toEqual({ shoeUk: 6 });
     const [waist] = pickerOf('waist', 'in', hers, 'man');
-    expect(waist?.slots[2]).toMatchObject({ shown: 24, selected: true, patch: null });
+    expect(waist?.items[waist.selected]).toEqual({ shown: 24, patch: null });
     // Her band past the wheel's 44 stands at its end.
     const [band] = pickerOf('bust', 'uk', hers, 'woman');
-    expect(band?.slots.map((s) => s.shown)).toEqual([42, 44, 46, null, null]);
-    expect(band?.slots[2]?.patch).toBeNull();
+    expect(around(band)).toEqual([42, 44, 46, null, null]);
+    expect(band?.items[band.selected]?.patch).toBeNull();
     // Inside the range nothing is added.
-    expect(pickerOf('shoes', 'uk', hers, 'woman')[0]?.slots.map((s) => s.shown)).toEqual([
-      4, 4.5, 5, 5.5, 6,
-    ]);
+    expect(around(pickerOf('shoes', 'uk', hers, 'woman')[0])).toEqual([4, 4.5, 5, 5.5, 6]);
   });
 
   it('keeps only the facts the rows show, and leaves the rest to come back to', () => {
