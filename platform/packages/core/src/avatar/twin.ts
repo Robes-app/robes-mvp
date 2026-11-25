@@ -81,8 +81,22 @@ export function adjFor(
   bodyType: string | null | undefined,
   gender: string | null = null,
 ): TwinAdj {
-  if (stored !== undefined && stored !== null) return readAdj(stored, gender);
-  return onlyScales({ ...NO_ADJ, ...(bodyType ? (LEGACY_SEED[bodyType] ?? {}) : {}) }, gender);
+  return onlyScales(storedScales(stored, bodyType), gender);
+}
+
+// Every scale on file, the ones this gender is not offered included (her hips while he is a man):
+// a switch of gender hides a scale, and a slider moved or Reset never wipes it (25 Nov).
+export function storedScales(stored: unknown, bodyType: string | null | undefined): TwinAdj {
+  if (stored !== undefined && stored !== null) return readAdj(stored);
+  return { ...NO_ADJ, ...(bodyType ? (LEGACY_SEED[bodyType] ?? {}) : {}) };
+}
+
+// Reset on Body shape: the scales this gender is offered go back to the facts; the others stay.
+export function resetScales(stored: TwinAdj, gender: string | null): TwinAdj {
+  const shown = scalesFor(gender);
+  return Object.fromEntries(
+    TWIN_SCALES.map((k) => [k, shown.includes(k) ? null : stored[k]]),
+  ) as TwinAdj;
 }
 
 export function bustCmOf(f: Pick<TwinFacts, 'bustBand' | 'bustCup' | 'bustCm'>): number | null {

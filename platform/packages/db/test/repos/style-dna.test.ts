@@ -87,8 +87,29 @@ describe('style DNA repos', () => {
       chestCm: null,
       unitPrefs: null,
     });
-    const ctx = await styling.context(bea);
-    expect(ctx.styleDna.facts).toMatchObject({ chest_cm: 101.6, collar_cm: 39.4 });
+    // Only the facts her rows show reach a prompt: hers, until she is a man, then his (25 Nov).
+    expect((await styling.context(bea)).styleDna.facts).toMatchObject({
+      size_uk: 22,
+      bust_cup: 'FF',
+      chest_cm: null,
+      collar_cm: null,
+    });
+    const { genderIdentity } = await db
+      .selectFrom('profiles')
+      .select('genderIdentity')
+      .where('id', '=', bea)
+      .executeTakeFirstOrThrow();
+    await db.updateTable('profiles').set({ genderIdentity: 'man' }).where('id', '=', bea).execute();
+    expect((await styling.context(bea)).styleDna.facts).toMatchObject({
+      size_uk: null,
+      bust_cup: null,
+      chest_cm: 101.6,
+      collar_cm: 39.4,
+      shoe_uk: 11.5,
+    });
+    await db.updateTable('profiles').set({ genderIdentity }).where('id', '=', bea).execute();
+    // Hidden, never deleted: what she gave as a woman is still on file.
+    expect((await repos.styleDna.get(bea)).profile).toMatchObject({ sizeUk: 22, bustCup: 'FF' });
     // The database holds the ranges too.
     await expect(repos.styleDna.setFacts(bea, { chestCm: 200 })).rejects.toThrow();
     await expect(repos.styleDna.setFacts(bea, { sizeUk: 26 })).rejects.toThrow();

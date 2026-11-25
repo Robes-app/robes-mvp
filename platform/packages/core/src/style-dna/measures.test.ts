@@ -9,6 +9,7 @@ import {
   FACT_ROWS,
   FIELD_UNITS,
   factRows,
+  factsFor,
   type MeasureFacts,
   measurePresenceOf,
   optionsOf,
@@ -172,5 +173,57 @@ describe('the rows and the picker', () => {
     expect(band?.slots[3]?.patch).toEqual({ bustBand: 30, bustCup: 'AA', bustCm: null });
     expect(cup?.slots.map((s) => s.shown)).toEqual([null, null, 'AA', 'A', 'B']);
     expect(cup?.slots[0]?.patch).toBeNull();
+  });
+});
+
+describe('a switch of gender (25 Nov)', () => {
+  const hers = facts({
+    heightCm: 166,
+    sizeUk: 12,
+    bustBand: 46,
+    bustCup: 'C',
+    waistCm: 62,
+    shoeUk: 5,
+  });
+
+  it('opens his wheel on what she saved, even outside his range, and that slot saves nothing', () => {
+    const [shoes] = pickerOf('shoes', 'uk', hers, 'man');
+    expect(shoes?.slots.map((s) => s.shown)).toEqual([null, null, 5, 6, 6.5]);
+    expect(shoes?.slots[2]).toMatchObject({ selected: true, patch: null });
+    expect(shoes?.slots[3]?.patch).toEqual({ shoeUk: 6 });
+    const [waist] = pickerOf('waist', 'in', hers, 'man');
+    expect(waist?.slots[2]).toMatchObject({ shown: 24, selected: true, patch: null });
+    // Her band past the wheel's 44 stands at its end.
+    const [band] = pickerOf('bust', 'uk', hers, 'woman');
+    expect(band?.slots.map((s) => s.shown)).toEqual([42, 44, 46, null, null]);
+    expect(band?.slots[2]?.patch).toBeNull();
+    // Inside the range nothing is added.
+    expect(pickerOf('shoes', 'uk', hers, 'woman')[0]?.slots.map((s) => s.shown)).toEqual([
+      4, 4.5, 5, 5.5, 6,
+    ]);
+  });
+
+  it('keeps only the facts the rows show, and leaves the rest to come back to', () => {
+    const his = factsFor({ ...hers, chestCm: 101.6, ageBand: '35_44' }, 'man');
+    expect(his).toMatchObject({
+      heightCm: 166,
+      waistCm: 62,
+      shoeUk: 5,
+      chestCm: 101.6,
+      sizeUk: null,
+      bustBand: null,
+      bustCup: null,
+      ageBand: '35_44',
+    });
+    expect(factsFor({ ...hers, chestCm: 101.6 }, 'woman')).toMatchObject({
+      sizeUk: 12,
+      bustBand: 46,
+      chestCm: null,
+    });
+    // The rows and the facts kept are one list.
+    for (const presence of ['woman', 'man'] as const) {
+      const shown = factRows({ ...CLEARED_FACTS }, {}, presence).map((r) => r.field);
+      expect(shown).toEqual(FACT_ROWS[presence]);
+    }
   });
 });
