@@ -1,61 +1,45 @@
+import type { TwinSpec } from '@robes/core/avatar';
 import { describe, expect, it } from 'vitest';
-import { buildFrameRenderPrompt as v8Frame, buildRenderPrompt as v8Render } from './v8';
-import { buildFrameRenderPrompt, buildRenderPrompt, VERSION, wornLine } from './v9';
+import { twinFigureLine as v8Line, buildTwinPrompt as v8Twin } from './v8';
+import { buildTwinPrompt, twinFigureLine, VERSION } from './v9';
 
-const shirt = {
-  name: 'Light blue oversized shirt',
-  category: 'Tops',
-  hasImage: true,
-  shape: ['Oversized'],
-  detail: 'Dropped shoulder',
-  styled: 'untucked',
-};
-const skirt = { name: 'Cream midi skirt', category: 'Bottoms', hasImage: true };
-const anchor = { face: true, figure: '' };
+const spec = (over: Partial<TwinSpec> = {}): TwinSpec => ({
+  gender: 'woman',
+  heightCm: 168,
+  sizeUk: 12,
+  stops: { shoulders: 0, bust: 1, hips: 2, waist: 0 },
+  waistDiff: 20,
+  age: 35,
+  skin: 3,
+  hair: 1,
+  skinSet: false,
+  hairSet: false,
+  hasFace: false,
+  ...over,
+});
 
-const lineOf = (p: string, name: string) => p.split('\n').find((l) => l.includes(name)) ?? '';
-
-describe('avatar v9 (how it is worn wins over its photograph, 25 Nov)', () => {
-  it('ends the piece’s garment line on how it is worn, overriding the photograph', () => {
+describe('avatar v9 (his waist scale, 24 Nov)', () => {
+  it('draws her exactly as v8 did', () => {
     expect(VERSION).toBe(9);
-    for (const p of [
-      buildRenderPrompt('woman', [shirt, skirt]),
-      buildFrameRenderPrompt('woman', [shirt, skirt], null, anchor),
-    ]) {
-      const line = lineOf(p, 'Light blue oversized shirt');
-      expect(line.endsWith(wornLine('untucked'))).toBe(true);
-      expect(line).toContain('This overrides how it is worn in its photograph');
-      // The old mid-line note is gone, and only the shirt carries one.
-      expect(p).not.toContain('Worn: untucked.');
-      expect(p.match(/How it is worn in this look/g)).toHaveLength(1);
-      expect(lineOf(p, 'Cream midi skirt')).not.toContain('How it is worn');
-    }
+    expect(twinFigureLine(spec())).toBe(v8Line(spec()));
+    expect(buildTwinPrompt(spec())).toBe(v8Twin(spec()));
   });
 
-  it('comes after the shape and the defining detail', () => {
-    const line = lineOf(buildRenderPrompt('woman', [shirt, skirt]), 'Light blue oversized shirt');
-    expect(line.indexOf('Its shape:')).toBeLessThan(line.indexOf('How it is worn'));
-    expect(line.indexOf('Its defining detail:')).toBeLessThan(line.indexOf('How it is worn'));
+  it('names his waist from his scale, never his hips', () => {
+    const him = spec({ gender: 'man', stops: { shoulders: 1, bust: 1, hips: 2, waist: 1 } });
+    const line = twinFigureLine(him);
+    expect(line).toContain('a fuller waist');
+    expect(line).toContain('a broad chest');
+    expect(line).not.toContain('very full, rounded hips');
+    expect(line).not.toContain('defined waist');
+    expect(line.endsWith('.')).toBe(true);
+    expect(buildTwinPrompt(him)).toContain(line);
   });
 
-  it('is v8 to the letter when no piece carries a styling note', () => {
-    const { styled: _, ...plain } = shirt;
-    expect(buildRenderPrompt('woman', [plain, skirt])).toBe(v8Render('woman', [plain, skirt]));
-    expect(buildFrameRenderPrompt('woman', [plain, skirt], 'outdoors', anchor)).toBe(
-      v8Frame('woman', [plain, skirt], 'outdoors', anchor),
+  it('says nothing of his waist at its middle', () => {
+    const line = twinFigureLine(
+      spec({ gender: 'man', stops: { shoulders: 0, bust: 0, hips: 0, waist: 0 } }),
     );
-  });
-
-  it('carries the same words v8 did, moved, for a note that needs cleaning', () => {
-    const messy = { ...shirt, styled: `  left   out,\n sleeves rolled ${'x'.repeat(200)}` };
-    const p = buildRenderPrompt('woman', [messy, skirt]);
-    const said = `left out, sleeves rolled ${'x'.repeat(200)}`.slice(0, 120);
-    expect(v8Render('woman', [messy, skirt])).toContain(`Worn: ${said}.`);
-    expect(lineOf(p, 'Light blue oversized shirt').endsWith(wornLine(said))).toBe(true);
-  });
-
-  it('works for a piece with no photograph', () => {
-    const p = buildRenderPrompt('woman', [{ ...shirt, hasImage: false }, skirt]);
-    expect(lineOf(p, 'Light blue oversized shirt').endsWith(wornLine('untucked'))).toBe(true);
+    expect(line).not.toContain('waist');
   });
 });

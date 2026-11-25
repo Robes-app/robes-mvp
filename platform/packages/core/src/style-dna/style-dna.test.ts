@@ -63,6 +63,22 @@ describe('the facts with bust and waist (the digital twin)', () => {
     ]);
     expect(factsLines({ bust_band: 34, bust_cm: 92 })[0]).toContain('bust 92 cm');
     expect(factsLines({ bust_cup: 'Z', bust_band: 34 })).toEqual([]);
+    expect(factsLines({ bust_band: 34, bust_cup: 'FF' })[0]).toContain('bust 34FF');
+  });
+
+  it('carries his fit measures to the tenth (24 Nov)', () => {
+    expect(
+      factsLines({
+        chest_cm: 101.6,
+        waist_cm: 81,
+        inseam_cm: 81.3,
+        collar_cm: 39.4,
+        shoulder_width_cm: 46,
+      }),
+    ).toEqual([
+      'THE FACTS she gave — size, never weight: waist 81 cm, chest 101.6 cm, inseam 81.3 cm, collar 39.4 cm, shoulder width 46 cm. Size every piece to these; never estimate them from a photograph.',
+    ]);
+    expect(factsLines({ chest_cm: 'a lot' })).toEqual([]);
   });
 });
 

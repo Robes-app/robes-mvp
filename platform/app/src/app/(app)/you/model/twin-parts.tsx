@@ -1,22 +1,28 @@
 'use client';
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import type { Facts, Model, StyleDna, UpdateModelInput } from '@robes/contracts';
-import { diary, twin, you } from '@robes/copy';
+import type { Facts, Model, StyleDna, UnitPrefs, UpdateModelInput } from '@robes/contracts';
+import { diary, twin, ui, you } from '@robes/copy';
 import {
-  BUST_CUPS,
   chosenTones,
   lineupOrder,
-  stepTwinFact,
   TWIN_STATUS_STEP_MS,
   type TwinAdj,
-  type TwinStep,
   twinFigure,
   twinStatusIndex,
 } from '@robes/core/avatar';
-import { euShoe, euSize, type FactStep, feetInches, stepFact } from '@robes/core/style-dna';
+import {
+  CLEARED_FACTS,
+  type FactRow,
+  factRows,
+  type MeasureField,
+  type MeasureUnit,
+  measurePresenceOf,
+  type PickerColumn,
+  pickerOf,
+} from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/web';
-import { Button, Eyebrow, Pill, SegmentedControl, useToast } from '@robes/ui';
+import { AlertDialog, Button, Eyebrow, Sheet, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
@@ -339,7 +345,8 @@ export function twinRead(model: Model, facts: Facts): TwinRead {
     facts.sizeUk ||
     facts.bustBand ||
     facts.bustCm ||
-    facts.waistCm
+    facts.waistCm ||
+    facts.chestCm
   );
   if (closeUp && line) return 'both';
   if (closeUp) return 'closeUp';
@@ -347,178 +354,235 @@ export function twinRead(model: Model, facts: Facts): TwinRead {
   return model.filed || model.skinSet || model.hairSet ? 'hand' : 'none';
 }
 
-export const bustOf = (facts: Facts): string =>
-  f.bustValue(facts.bustBand, facts.bustCup, facts.bustCm);
+// A row's value in words, in the unit she reads it in; '' when she has not given it.
+export function rowValue(row: FactRow): string {
+  if (row.value === null) return '';
+  if (typeof row.value === 'number') return f.value(row.field, row.unit, row.value);
+  return f.bustValue(row.value.band, row.value.cup);
+}
 
-// "170 cm · UK 12 · 34C": the facts that draw her line.
-export function lineSummary(facts: Facts): string {
-  return [
-    facts.heightCm ? f.heightValue(facts.heightCm) : '',
-    facts.sizeUk ? f.ukValue(facts.sizeUk) : '',
-    bustOf(facts),
-  ]
+// "170 cm · UK 12 · 34C" (his: "180 cm · 40 in"): the facts that draw the line, in her units.
+export function lineSummary(dna: StyleDna): string {
+  const presence = measurePresenceOf(dna.gender);
+  const draws: readonly MeasureField[] = ['height', 'size', 'bust', 'chest'];
+  return factRows(dna.facts, dna.units, presence)
+    .filter((r) => draws.includes(r.field))
+    .map(rowValue)
     .filter(Boolean)
     .join(' · ');
 }
 
-function Stepper({
+// The wheel (design "Picker open · Bust"): five slots around her value, the middle one chosen on
+// the warm fill, the outer ones fading; a tap on any steps to it. Native twin: Wheel in
+// mobile/src/features/you/twin.tsx.
+function Wheel({
   label,
-  value,
-  sub,
-  onStep,
+  column,
+  text,
+  onPick,
 }: {
   label: string;
-  value: string;
-  sub?: string;
-  onStep: (dir: 1 | -1) => void;
+  column: PickerColumn;
+  text: (shown: number | string) => string;
+  onPick: (patch: Partial<Facts>) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="font-sans text-base text-ink">{label}</span>
-      <span className="flex flex-col items-end">
-        <span className="flex items-center gap-2">
-          <Button variant="outline" aria-label={`${f.less}: ${label}`} onClick={() => onStep(-1)}>
-            −
-          </Button>
-          <output
-            aria-label={label}
-            className={`min-w-16 text-center ${value ? 'font-sans text-base text-ink' : 'font-display text-lg text-ink-faint italic'}`}
+    <div role="listbox" aria-label={label} className="flex min-w-0 flex-1 flex-col gap-0.5">
+      {column.slots.map((slot) => {
+        const shown = slot.shown;
+        return (
+          <button
+            key={slot.offset}
+            type="button"
+            role="option"
+            aria-selected={slot.selected}
+            disabled={shown === null}
+            onClick={() => (slot.patch ? onPick(slot.patch) : undefined)}
+            className={`h-11 rounded-pill border font-display text-2xl text-ink focus-visible:outline-[1.5px] focus-visible:outline-focus-ring ${
+              slot.selected ? 'border-selected-line bg-selected' : 'border-transparent'
+            } ${slot.distance === 1 ? 'opacity-55' : slot.distance === 2 ? 'opacity-25' : ''}`}
           >
-            {value || f.add}
-          </output>
-          <Button variant="outline" aria-label={`${f.more}: ${label}`} onClick={() => onStep(1)}>
-            +
-          </Button>
-        </span>
-        {sub ? <span className="font-sans text-xs text-ink-muted">{sub}</span> : null}
-      </span>
+            {shown === null ? '' : text(shown)}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-// The facts drawer (size, never weight): height, size, bust, waist and shoes. Title and fields
-// only; her age and gender are set in Style DNA › You (Annie, 7 Nov; were pills on Body shape).
-export function FactsBody({ dna, gender }: { dna: StyleDna; gender: Model['presence'] }) {
-  const { update } = useDnaMutations();
-  const [unit, setUnit] = useState<'cm' | 'ft'>('cm');
-  const [waistUnit, setWaistUnit] = useState<'cm' | 'in'>('cm');
-  const facts = dna.facts;
-  const [bustMode, setBustMode] = useState<'bra' | 'cm'>(facts.bustCm ? 'cm' : 'bra');
-  const man = gender === 'man';
-  const set = (patch: Partial<Facts>) => update.mutate({ input: { facts: patch } });
-  const step = (kind: FactStep, key: 'heightCm' | 'sizeUk' | 'shoeUk', dir: 1 | -1) =>
-    set({ [key]: stepFact(kind, facts[key], dir) });
-  const stepTwin = (kind: TwinStep, dir: 1 | -1, patch: Partial<Facts> = {}) =>
-    set({ [kind]: stepTwinFact(kind, facts[kind], dir), ...patch });
-  const any = Object.entries(facts).some(([k, v]) => k !== 'ageBand' && v !== null);
-  const bra = bustMode === 'bra' && !man;
+// A row's unit toggle: its units as small caps, the one she reads underlined.
+function UnitToggle({
+  label,
+  units,
+  unit,
+  onPick,
+}: {
+  label: string;
+  units: readonly MeasureUnit[];
+  unit: MeasureUnit;
+  onPick: (unit: MeasureUnit) => void;
+}) {
   return (
-    <div className="flex flex-col gap-6">
-      <Stepper
-        label={f.height}
-        value={
-          facts.heightCm
-            ? unit === 'cm'
-              ? f.heightValue(facts.heightCm)
-              : feetInches(facts.heightCm)
-            : ''
+    <fieldset aria-label={f.unitsOf(label)} className="flex shrink-0">
+      {units.map((u) => (
+        <button
+          key={u}
+          type="button"
+          aria-pressed={u === unit}
+          onClick={() => onPick(u)}
+          className="flex h-11 min-w-11 items-center justify-center px-1.5 font-sans text-[10px] uppercase tracking-[0.22em] focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
+        >
+          <span
+            className={`border-b pt-1 pb-[3px] ${u === unit ? 'border-ink font-medium text-ink' : 'border-transparent text-ink-muted'}`}
+          >
+            {f.units[u]}
+          </span>
+        </button>
+      ))}
+    </fieldset>
+  );
+}
+
+const labelOf = (field: MeasureField): string => f[field];
+
+// The facts (design "The facts — redesign", 24 Nov): a row per measurement with its unit toggle;
+// a tap opens its wheel in the same drawer. A unit changes only how a value reads, never what is
+// saved. Every field is optional and none says so; Clear the facts asks first. Writes land in the
+// cache at once, so the wheel steps under her finger. Native twin: FactsSheet in
+// mobile/src/features/you/twin.tsx.
+export function FactsSheet({
+  open,
+  onOpenChange,
+  dna,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  dna: StyleDna;
+}) {
+  const queryClient = useQueryClient();
+  const { update } = useDnaMutations();
+  const [field, setField] = useState<MeasureField | null>(null);
+  const [asking, setAsking] = useState(false);
+  const presence = measurePresenceOf(dna.gender);
+  const rows = factRows(dna.facts, dna.units, presence);
+  const row = field ? rows.find((r) => r.field === field) : undefined;
+  const save = (facts: Partial<Facts>, units: UnitPrefs = {}) => {
+    queryClient.setQueryData(queryKeys.call('me.dna.get'), (old: StyleDna | undefined) =>
+      old ? { ...old, facts: { ...old.facts, ...facts }, units: { ...old.units, ...units } } : old,
+    );
+    update.mutate({
+      input: {
+        ...(Object.keys(facts).length ? { facts } : {}),
+        ...(Object.keys(units).length ? { units } : {}),
+      },
+    });
+  };
+  const pickUnit = (r: FactRow) => (unit: MeasureUnit) => save({}, { [r.field]: unit });
+  const any = rows.some((r) => r.value !== null);
+  const close = (next: boolean) => {
+    if (!next) setField(null);
+    onOpenChange(next);
+  };
+  return (
+    <>
+      <Sheet
+        open={open}
+        onOpenChange={close}
+        title={row ? labelOf(row.field) : f.title}
+        footer={
+          <div className="flex w-full flex-col items-center gap-2">
+            {row || !any ? null : (
+              <Button variant="quiet" onClick={() => setAsking(true)}>
+                {f.clear}
+              </Button>
+            )}
+            <Button
+              className="w-full"
+              onClick={() => (row ? setField(null) : close(false))}
+              data-testid="facts-done"
+            >
+              {ui.done}
+            </Button>
+          </div>
         }
-        onStep={(d) => step('heightCm', 'heightCm', d)}
-      />
-      <SegmentedControl
-        label={f.height}
-        value={unit}
-        options={[
-          { value: 'cm', label: f.cm },
-          { value: 'ft', label: f.ftIn },
-        ]}
-        onChange={setUnit}
-      />
-      <Stepper
-        label={f.size}
-        value={facts.sizeUk ? f.ukValue(facts.sizeUk) : ''}
-        sub={facts.sizeUk ? f.euValue(euSize(facts.sizeUk)) : undefined}
-        onStep={(d) => step('sizeUk', 'sizeUk', d)}
-      />
-      {man ? null : (
-        <SegmentedControl
-          label={f.bust}
-          value={bustMode}
-          options={[
-            { value: 'bra', label: f.braSize },
-            { value: 'cm', label: f.tape },
-          ]}
-          onChange={setBustMode}
-        />
-      )}
-      {bra ? (
-        <>
-          <Stepper
-            label={f.band}
-            value={facts.bustBand ? String(facts.bustBand) : ''}
-            onStep={(d) => stepTwin('bustBand', d, { bustCm: null })}
-          />
-          <fieldset className="flex flex-col gap-2">
-            <legend className="font-sans text-base text-ink">{f.cup}</legend>
-            <div className="flex flex-wrap gap-2">
-              {BUST_CUPS.map((c) => (
-                <Pill
-                  key={c}
-                  selected={facts.bustCup === c}
-                  onClick={() => set({ bustCup: facts.bustCup === c ? null : c, bustCm: null })}
-                >
-                  {c}
-                </Pill>
+      >
+        {row ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-end">
+              <UnitToggle
+                label={labelOf(row.field)}
+                units={row.units}
+                unit={row.unit}
+                onPick={pickUnit(row)}
+              />
+            </div>
+            <div className="flex gap-2.5">
+              {pickerOf(row.field, row.unit, dna.facts, presence).map((col) => (
+                <Wheel
+                  key={col.key}
+                  label={col.key === 'value' ? labelOf(row.field) : f[col.key]}
+                  column={col}
+                  text={(v) =>
+                    col.key === 'value' ? f.value(row.field, row.unit, Number(v)) : String(v)
+                  }
+                  onPick={(patch) => save(patch)}
+                />
               ))}
             </div>
-          </fieldset>
-        </>
-      ) : (
-        <Stepper
-          label={man ? twin.twinPage.chest : f.bust}
-          value={facts.bustCm ? f.heightValue(facts.bustCm) : ''}
-          onStep={(d) => stepTwin('bustCm', d, { bustBand: null, bustCup: null })}
-        />
-      )}
-      <Stepper
-        label={f.waist}
-        value={facts.waistCm ? f.waistValue(facts.waistCm, waistUnit) : ''}
-        onStep={(d) => stepTwin('waistCm', d)}
-      />
-      <SegmentedControl
-        label={f.waist}
-        value={waistUnit}
-        options={[
-          { value: 'cm', label: f.cm },
-          { value: 'in', label: f.inches },
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            {rows.map((r) => {
+              const value = rowValue(r);
+              const label = labelOf(r.field);
+              return (
+                <div
+                  key={r.field}
+                  className={`flex items-center gap-1 border-hairline border-b ${presence === 'man' ? 'min-h-[72px]' : 'min-h-[84px]'}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setField(r.field)}
+                    aria-label={f.rowLabel(label, value)}
+                    data-testid={`fact-${r.field}`}
+                    className="flex min-h-[72px] min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
+                  >
+                    <span className="flex flex-col gap-2.5">
+                      <span className="font-medium font-sans text-[10px] text-ink-muted uppercase leading-none tracking-[0.24em]">
+                        {label}
+                      </span>
+                      <span
+                        className={`font-display text-[26px] leading-none ${value ? 'text-ink' : 'font-light text-ink-muted italic'}`}
+                      >
+                        {value || f.add}
+                      </span>
+                    </span>
+                    <Icon name="down" size={14} className="mt-5 text-ink-muted" />
+                  </button>
+                  <UnitToggle label={label} units={r.units} unit={r.unit} onPick={pickUnit(r)} />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Sheet>
+      <AlertDialog
+        open={asking}
+        title={f.clearAsk.title}
+        message={f.clearAsk.body}
+        onDismiss={() => setAsking(false)}
+        actions={[
+          {
+            label: f.clearAsk.confirm,
+            variant: 'danger',
+            onClick: () => {
+              setAsking(false);
+              save(CLEARED_FACTS);
+            },
+          },
+          { label: f.clearAsk.cancel, variant: 'outline', onClick: () => setAsking(false) },
         ]}
-        onChange={setWaistUnit}
       />
-      <Stepper
-        label={f.shoes}
-        value={facts.shoeUk ? f.ukValue(facts.shoeUk) : ''}
-        sub={facts.shoeUk ? f.euValue(euShoe(facts.shoeUk)) : undefined}
-        onStep={(d) => step('shoeUk', 'shoeUk', d)}
-      />
-      {any ? (
-        <Button
-          variant="quiet"
-          className="self-start"
-          onClick={() =>
-            set({
-              heightCm: null,
-              sizeUk: null,
-              shoeUk: null,
-              bustBand: null,
-              bustCup: null,
-              bustCm: null,
-              waistCm: null,
-            })
-          }
-        >
-          {f.clear}
-        </Button>
-      ) : null}
-    </div>
+    </>
   );
 }

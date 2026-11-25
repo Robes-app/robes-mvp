@@ -83,6 +83,7 @@ async function twinFor(userId: UserId) {
     heightCm: 167,
     sizeUk: 12,
     waistCm: 72,
+    chestCm: 101.6,
     ageBand: '35_44',
   });
   await repos.model.savePicks(userId, { skin: 2, adj: { shoulders: null, bust: 1, hips: 0 } });
@@ -108,6 +109,7 @@ describe('model.deleteTwin', () => {
       heightCm: null,
       sizeUk: null,
       waistCm: null,
+      chestCm: null,
       avatarPrefs: null,
       filedCellId: null,
       twinAssetId: null,
@@ -129,6 +131,7 @@ describe('model.deleteTwin', () => {
     for (const id of Object.values(theirs)) expect(await deletedAt(id)).toBeNull();
     expect(await repos.model.get(bea)).toMatchObject({
       heightCm: 167,
+      chestCm: 101.6,
       twinAssetId: theirs.twin,
       headshotAssetId: theirs.closeUp,
       colourRead: true,

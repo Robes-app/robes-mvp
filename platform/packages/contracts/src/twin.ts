@@ -1,9 +1,13 @@
-import { BUST_CUPS } from '@robes/core/avatar';
 import {
   AGE_BAND_KEYS,
+  BUST_CUPS,
+  FIELD_UNITS,
   INVESTMENT_KEYS,
+  MEASURE_FIELDS,
+  type MeasureField,
   RETIRED_STYLE_TYPES,
   SEASON_WHEEL,
+  STORED_RANGES,
   STYLE_TYPES,
   styleTypesOf,
 } from '@robes/core/style-dna';
@@ -44,34 +48,48 @@ export type Observation = z.infer<typeof Observation>;
 export const AgeBand = z.enum(AGE_BAND_KEYS);
 export const InvestmentLevel = z.enum(INVESTMENT_KEYS);
 
-// Size, never weight. Ranges per the prototype.
+// Size, never weight. Lengths in cm (height and waist whole, the rest to the tenth), dress size and
+// shoes as UK numbers, the bust as a UK band and cup (handoff 24 Nov: STORED_RANGES).
+const R = STORED_RANGES;
+const tenth = (key: keyof typeof R) =>
+  z
+    .number()
+    .min(R[key].min)
+    .max(R[key].max)
+    .refine((n) => Math.abs(n * 10 - Math.round(n * 10)) < 1e-6)
+    .nullable();
 export const Facts = z.object({
-  heightCm: z.number().int().min(140).max(210).nullable(),
+  heightCm: z.number().int().min(R.heightCm.min).max(R.heightCm.max).nullable(),
   sizeUk: z
     .number()
     .int()
-    .min(4)
-    .max(16)
+    .min(R.sizeUk.min)
+    .max(R.sizeUk.max)
     .refine((n) => n % 2 === 0)
     .nullable(),
   shoeUk: z
     .number()
-    .min(2)
-    .max(8)
+    .min(R.shoeUk.min)
+    .max(R.shoeUk.max)
     .refine((n) => Number.isInteger(n * 2))
     .nullable(),
   ageBand: AgeBand.nullable(),
-  // Her bust as a bra size (band + cup) or the tape, and her waist (the digital twin).
+  // Her bust as a bra size (band + cup); the tape (bustCm) is no longer offered but still read.
   bustBand: z
     .number()
     .int()
-    .min(28)
-    .max(46)
+    .min(R.bustBand.min)
+    .max(R.bustBand.max)
     .refine((n) => n % 2 === 0)
     .nullable(),
   bustCup: z.enum(BUST_CUPS).nullable(),
-  bustCm: z.number().int().min(70).max(140).nullable(),
-  waistCm: z.number().int().min(50).max(130).nullable(),
+  bustCm: z.number().int().min(R.bustCm.min).max(R.bustCm.max).nullable(),
+  waistCm: z.number().int().min(R.waistCm.min).max(R.waistCm.max).nullable(),
+  // His fit measures (24 Nov).
+  chestCm: tenth('chestCm'),
+  inseamCm: tenth('inseamCm'),
+  collarCm: tenth('collarCm'),
+  shoulderWidthCm: tenth('shoulderWidthCm'),
 });
 export type Facts = z.infer<typeof Facts>;
 
@@ -83,12 +101,23 @@ const STYLE_TYPE_NAMES = [...STYLE_TYPES, ...Object.keys(RETIRED_STYLE_TYPES)] a
   ...string[],
 ];
 
+// Her display unit per row of The facts; a row left out shows its default.
+export const UnitPrefs = z
+  .object(
+    Object.fromEntries(
+      MEASURE_FIELDS.map((f) => [f, z.enum(FIELD_UNITS[f] as [string, ...string[]]).optional()]),
+    ) as Record<MeasureField, z.ZodOptional<z.ZodEnum>>,
+  )
+  .strict();
+export type UnitPrefs = z.infer<typeof UnitPrefs>;
+
 export const StyleDna = z.object({
   types: z.array(z.string()),
   brands: z.array(z.string()),
   icons: z.array(z.object({ name: z.string(), tag: z.string() })),
   investment: InvestmentLevel.nullable(),
   facts: Facts,
+  units: UnitPrefs,
   gender: ModelPresence,
   // Her starred pieces, in star order.
   pieces: z.array(
@@ -121,6 +150,7 @@ export const UpdateStyleDnaInput = z
     icons: z.array(name).max(20),
     investment: InvestmentLevel,
     facts: Facts.partial().strict(),
+    units: UnitPrefs,
   })
   .partial()
   .strict();

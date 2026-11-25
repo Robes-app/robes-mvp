@@ -246,7 +246,7 @@ describe('look_render: Robes’ frame of a look', () => {
     expect(req?.references).toHaveLength(2);
     expect(req?.prompt).toContain('IMAGE 1 is an existing photograph of this look');
     expect(req?.prompt).toContain('- IMAGE 2: the Silk shirt (ivory Tops)');
-    // How it is worn ends its line and overrides its photograph (avatar v9, 25 Nov).
+    // How it is worn ends its line and overrides its photograph (avatar v10, 25 Nov).
     expect(req?.prompt).toContain(
       'Oversized mother-of-pearl buttons. That is the point of this piece: draw it unmistakably, never softened into a plain version.' +
         wornLine('tucked at the front'),

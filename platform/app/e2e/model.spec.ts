@@ -143,9 +143,9 @@ test('You › Your digital twin: on a Robes model the doors are closed; her fact
   await page.getByRole('link', { name: 'Back' }).click();
 
   await page.getByRole('link', { name: /Body shape/ }).click();
-  await page.getByRole('button', { name: 'Hips: much fuller' }).click();
-  await expect(page.getByRole('button', { name: 'Hips: much fuller' })).toHaveAttribute(
-    'aria-pressed',
+  await page.getByRole('radio', { name: 'Hips: much fuller' }).click();
+  await expect(page.getByRole('radio', { name: 'Hips: much fuller' })).toHaveAttribute(
+    'aria-checked',
     'true',
   );
   await page.getByRole('link', { name: 'Back' }).click();

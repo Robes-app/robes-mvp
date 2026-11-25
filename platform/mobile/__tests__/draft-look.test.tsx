@@ -83,7 +83,7 @@ const MODEL = {
   swatches: { skin: [], hair: [] },
   skinSet: false,
   hairSet: false,
-  adj: { shoulders: null, bust: null, hips: null },
+  adj: { shoulders: null, bust: null, hips: null, waist: null },
   closeUpUrl: null,
   twin: { status: 'none', current: false, imageUrl: null },
   stand: { imageUrl: 'https://m.test/w-s4-h1-nt.png', generic: true },
