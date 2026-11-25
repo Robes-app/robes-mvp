@@ -173,6 +173,26 @@ describe('her twin', () => {
     expect(repos.model.savePicks).toHaveBeenLastCalledWith(USER, { adj: NO_ADJ }, undefined);
   });
 
+  it('keeps her hips while she is a man: a moved scale and Reset touch only his (25 Nov)', async () => {
+    row = {
+      ...base,
+      genderIdentity: 'man',
+      avatarPrefs: { adj: { shoulders: null, bust: 1, hips: 2, waist: null } },
+    };
+    await updateModel(USER, req, { adj: { waist: -1 } });
+    expect(repos.model.savePicks).toHaveBeenLastCalledWith(
+      USER,
+      { adj: { shoulders: null, bust: 1, hips: 2, waist: -1 } },
+      undefined,
+    );
+    await updateModel(USER, req, { adj: {} });
+    expect(repos.model.savePicks).toHaveBeenLastCalledWith(
+      USER,
+      { adj: { ...NO_ADJ, hips: 2 } },
+      undefined,
+    );
+  });
+
   it('a twin drawn anew stands over a Robes model she chose: the selfie wins', async () => {
     row = { ...base, modelPreset: 3 };
     await drawTwin(USER, req);

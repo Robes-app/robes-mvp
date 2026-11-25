@@ -8,7 +8,9 @@ import {
   isTwinCurrent,
   NO_ADJ,
   readAdj,
+  resetScales,
   scalesFor,
+  storedScales,
   type TwinFacts,
   type TwinInputs,
   twinAge,
@@ -185,6 +187,19 @@ describe('the twin', () => {
       twinKeyMaterial(man),
     );
     expect(twinSpec({ ...man, adj: { ...NO_ADJ, waist: -1 } }, false).stops.waist).toBe(-1);
+  });
+
+  it('keeps every scale on file across a switch of gender; Reset clears only the ones shown', () => {
+    const onFile = storedScales({ hips: 2, waist: 1, bust: 7 }, null);
+    expect(onFile).toEqual({ ...NO_ADJ, hips: 2, waist: 1 });
+    // No sliders on file: the legacy seed, every scale of it.
+    expect(storedScales(undefined, 'Inverted Triangle')).toEqual({
+      ...NO_ADJ,
+      shoulders: 1,
+      hips: -1,
+    });
+    expect(resetScales(onFile, 'man')).toEqual({ ...NO_ADJ, hips: 2 });
+    expect(resetScales(onFile, 'woman')).toEqual({ ...NO_ADJ, waist: 1 });
   });
 
   it('keeps her key as it was before his waist scale', () => {

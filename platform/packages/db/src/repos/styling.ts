@@ -1,5 +1,11 @@
 import { presenceOf } from '@robes/core/avatar';
-import { ageBandLabel, iconTag, investmentLabel } from '@robes/core/style-dna';
+import {
+  ageBandLabel,
+  factsFor,
+  iconTag,
+  investmentLabel,
+  measurePresenceOf,
+} from '@robes/core/style-dna';
 import { detailOf, shapeOf } from '@robes/core/taxonomy';
 import { sql } from 'kysely';
 import type { Db } from '../client';
@@ -116,6 +122,24 @@ export function stylingRepo(db: Db) {
         .orderBy('createdAt', 'desc')
         .limit(40)
         .execute();
+      // Only the facts her rows show reach the prompt: after a switch of gender the other's are
+      // kept (switching back finds them) but never style him or her (25 Nov).
+      const facts = factsFor(
+        {
+          heightCm: profile?.heightCm ?? null,
+          sizeUk: profile?.sizeUk ?? null,
+          shoeUk: profile?.shoeUk ?? null,
+          bustBand: profile?.bustBand ?? null,
+          bustCup: profile?.bustCup ?? null,
+          bustCm: profile?.bustCm ?? null,
+          waistCm: profile?.waistCm ?? null,
+          chestCm: profile?.chestCm ?? null,
+          inseamCm: profile?.inseamCm ?? null,
+          collarCm: profile?.collarCm ?? null,
+          shoulderWidthCm: profile?.shoulderWidthCm ?? null,
+        },
+        measurePresenceOf(profile?.genderIdentity),
+      );
       return {
         styleDna: {
           color_harmony: dna?.colorHarmony ?? null,
@@ -136,17 +160,17 @@ export function stylingRepo(db: Db) {
           brands: profile?.styleBrands ?? [],
           investment: investmentLabel(profile?.investmentLevel),
           facts: {
-            height_cm: profile?.heightCm ?? null,
-            size_uk: profile?.sizeUk ?? null,
-            shoe_uk: profile?.shoeUk ?? null,
-            bust_band: profile?.bustBand ?? null,
-            bust_cup: profile?.bustCup ?? null,
-            bust_cm: profile?.bustCm ?? null,
-            waist_cm: profile?.waistCm ?? null,
-            chest_cm: profile?.chestCm ?? null,
-            inseam_cm: profile?.inseamCm ?? null,
-            collar_cm: profile?.collarCm ?? null,
-            shoulder_width_cm: profile?.shoulderWidthCm ?? null,
+            height_cm: facts.heightCm,
+            size_uk: facts.sizeUk,
+            shoe_uk: facts.shoeUk,
+            bust_band: facts.bustBand,
+            bust_cup: facts.bustCup,
+            bust_cm: facts.bustCm,
+            waist_cm: facts.waistCm,
+            chest_cm: facts.chestCm,
+            inseam_cm: facts.inseamCm,
+            collar_cm: facts.collarCm,
+            shoulder_width_cm: facts.shoulderWidthCm,
             age_band: ageBandLabel(profile?.ageBand),
           },
           icon_tags: iconTags,

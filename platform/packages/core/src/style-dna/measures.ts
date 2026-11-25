@@ -442,11 +442,16 @@ export function pickerOf(
     return [
       {
         key: 'band',
-        slots: wheelOf(BUST_BANDS, band, (v) => Math.abs(v - band)).map((s) => ({
-          ...s,
-          shown: s.value === null ? null : bandIn(s.value, unit),
-          patch: s.value === null ? null : bustPatch(facts, { band: s.value }),
-        })),
+        slots: wheelOf(withSaved(BUST_BANDS, facts.bustBand), band, (v) => Math.abs(v - band)).map(
+          (s) => ({
+            ...s,
+            shown: s.value === null ? null : bandIn(s.value, unit),
+            patch:
+              s.value === null || !BUST_BANDS.includes(s.value)
+                ? null
+                : bustPatch(facts, { band: s.value }),
+          }),
+        ),
       },
       {
         key: 'cup',
@@ -458,18 +463,43 @@ export function pickerOf(
       },
     ];
   }
-  const list = optionsOf(field, unit, presence);
-  const cur =
-    displayOf(field, unit, facts, presence) ??
-    (displayOf(field, unit, startOf(field, presence), presence) as number);
+  const range = optionsOf(field, unit, presence);
+  const saved = displayOf(field, unit, facts, presence);
+  const list = withSaved(range, saved);
+  const cur = saved ?? (displayOf(field, unit, startOf(field, presence), presence) as number);
   return [
     {
       key: 'value',
       slots: wheelOf(list, cur, (v) => Math.abs(v - cur)).map((s) => ({
         ...s,
         shown: s.value,
-        patch: s.value === null ? null : storedPatch(field, unit, s.value, presence),
+        patch:
+          s.value === null || !range.includes(s.value)
+            ? null
+            : storedPatch(field, unit, s.value, presence),
       })),
     },
   ];
+}
+
+// A value she saved outside a wheel's range (given as the other gender, whose sizes run
+// differently: her UK 5 shoes on his UK 6–13) stands as a slot of its own, so the wheel opens on
+// what is saved, never on a neighbour. It saves nothing when tapped: it is already hers.
+function withSaved(range: readonly number[], saved: number | null): number[] {
+  return saved === null || range.includes(saved)
+    ? [...range]
+    : [...range, saved].sort((a, b) => a - b);
+}
+
+// The stored facts each gender's rows read (FACT_ROWS), and so what reaches a styling prompt: a
+// switch of gender hides the other's rows and keeps their values, which never style him or her.
+export const PRESENCE_FACTS: Record<MeasurePresence, readonly (keyof MeasureFacts)[]> = {
+  woman: ['heightCm', 'sizeUk', 'bustBand', 'bustCup', 'bustCm', 'waistCm', 'shoeUk'],
+  man: ['heightCm', 'chestCm', 'waistCm', 'inseamCm', 'collarCm', 'shoeUk', 'shoulderWidthCm'],
+};
+export function factsFor<T extends Partial<MeasureFacts>>(facts: T, presence: MeasurePresence): T {
+  const keep = PRESENCE_FACTS[presence] as readonly string[];
+  return Object.fromEntries(
+    Object.entries(facts).map(([k, v]) => [k, k in CLEARED_FACTS && !keep.includes(k) ? null : v]),
+  ) as T;
 }
