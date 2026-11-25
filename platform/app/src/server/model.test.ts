@@ -15,6 +15,7 @@ const base = {
   bustCup: null,
   bustCm: null,
   waistCm: null,
+  chestCm: null as number | null,
   ageBand: null,
   modelPreset: null as number | null,
   filedCellId: 'w-s3-h1-nt' as string | null,
@@ -165,7 +166,7 @@ describe('her twin', () => {
     await updateModel(USER, req, { adj: { bust: 2 } });
     expect(repos.model.savePicks).toHaveBeenLastCalledWith(
       USER,
-      { adj: { shoulders: null, bust: 2, hips: 1 } },
+      { adj: { shoulders: null, bust: 2, hips: 1, waist: null } },
       undefined,
     );
     await updateModel(USER, req, { adj: {} });

@@ -46,6 +46,10 @@ export function stylingRepo(db: Db) {
           'bustCup',
           'bustCm',
           'waistCm',
+          sql<number | null>`chest_cm::float8`.as('chestCm'),
+          sql<number | null>`inseam_cm::float8`.as('inseamCm'),
+          sql<number | null>`collar_cm::float8`.as('collarCm'),
+          sql<number | null>`shoulder_width_cm::float8`.as('shoulderWidthCm'),
         ])
         .where('id', '=', userId)
         .executeTakeFirst();
@@ -139,6 +143,10 @@ export function stylingRepo(db: Db) {
             bust_cup: profile?.bustCup ?? null,
             bust_cm: profile?.bustCm ?? null,
             waist_cm: profile?.waistCm ?? null,
+            chest_cm: profile?.chestCm ?? null,
+            inseam_cm: profile?.inseamCm ?? null,
+            collar_cm: profile?.collarCm ?? null,
+            shoulder_width_cm: profile?.shoulderWidthCm ?? null,
             age_band: ageBandLabel(profile?.ageBand),
           },
           icon_tags: iconTags,

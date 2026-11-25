@@ -401,26 +401,6 @@ export type AgeBand = (typeof AGE_BANDS)[number]['key'];
 export const AGE_BAND_KEYS = AGE_BANDS.map((a) => a.key) as [AgeBand, ...AgeBand[]];
 export const ageBandLabel = (key: string | null | undefined): string =>
   AGE_BANDS.find((a) => a.key === key)?.label ?? '';
-export const FACT_RANGES = {
-  heightCm: { min: 140, max: 210, step: 1, start: 168 },
-  sizeUk: { min: 4, max: 16, step: 2, start: 10 },
-  shoeUk: { min: 2, max: 8, step: 0.5, start: 5 },
-} as const;
-export type FactStep = keyof typeof FACT_RANGES;
-
-// A stepper's next value, clamped; null starts from the prototype's middle.
-export function stepFact(kind: FactStep, value: number | null, dir: 1 | -1): number {
-  const r = FACT_RANGES[kind];
-  const next = value === null ? r.start : value + dir * r.step;
-  return Math.min(r.max, Math.max(r.min, Math.round(next * 2) / 2));
-}
-export const euSize = (uk: number): number => uk + 28;
-export const euShoe = (uk: number): number => Math.round(uk + 33);
-export function feetInches(cm: number): string {
-  const inches = Math.round(cm / 2.54);
-  return `${Math.floor(inches / 12)}′${inches % 12}″`;
-}
-
 // Musts and hard nos as chips: a tap files the line with the chip as its prompt. Head covered is a
 // must (a rule Robes keeps on every look), never a no.
 export const MUST_CHIPS = {

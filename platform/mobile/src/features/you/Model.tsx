@@ -80,7 +80,7 @@ export function Model() {
     return <Skeleton width="100%" height={HERO} className="rounded-none" />;
   const onRobes = model.stand?.on === 'robes';
   const colour = style.data.colour;
-  const line = lineSummary(dna.data.facts);
+  const line = lineSummary(dna.data);
   const drewHer = twinRead(model, dna.data.facts);
   const error = read.error;
   const doors = (
@@ -228,6 +228,7 @@ function Stage({
             <Figure
               facts={facts}
               adj={model.adj}
+              presence={model.presence}
               tone={{
                 skin: model.swatches.skin[model.skin] ?? '',
                 hair: model.swatches.hair[model.hair] ?? '',

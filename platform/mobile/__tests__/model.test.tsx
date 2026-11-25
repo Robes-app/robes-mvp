@@ -248,50 +248,119 @@ test('a skin or hair she never chose is never named under her model', async () =
   expect(screen.queryByText(/Tan/)).toBeNull();
 });
 
-test('body shape: the facts drawer, a scale by hand, back to her facts, a redraw on leaving', async () => {
+test('body shape: the facts rows, a wheel and a unit, a scale by hand, Reset, a redraw on leaving', async () => {
   const calls = mockFetch({
     ...TWIN,
     'GET /me/model': model({ filed: true }),
     'POST /me/model/twin': model({ filed: true }),
-    'PATCH /me/dna': (init: RequestInit) =>
-      styleDna({ facts: { ...styleDna().facts, ...JSON.parse(String(init.body)).facts } }),
+    'PATCH /me/dna': (init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      return styleDna({
+        facts: { ...styleDna().facts, ...(body.facts ?? {}) },
+        units: body.units ?? {},
+      });
+    },
     'PATCH /me/model': (init: RequestInit) => {
       const body = JSON.parse(String(init.body));
       return model({
         filed: true,
         ...body,
-        adj: { shoulders: null, bust: null, hips: null, ...(body.adj ?? {}) },
+        adj: { shoulders: null, bust: null, hips: null, waist: null, ...(body.adj ?? {}) },
       });
     },
     'GET /today': {},
   });
   const view = await renderWithApi(<BodyShape />);
-  await fireEvent.press(await screen.findByRole('button', { name: twin.facts.title }));
-  // Plain − and + (decided 27 Oct); the drawer holds no age and no gender.
-  await fireEvent.press(
-    screen.getByRole('button', { name: `${twin.facts.more}: ${twin.facts.size}` }),
-  );
-  expect(screen.queryByRole('button', { name: '45–54' })).toBeNull();
+  const f = twin.facts;
+  // Her five rows, each "Add" until given; a row opens The facts.
+  await fireEvent.press(await screen.findByRole('button', { name: f.rowLabel(f.size, '') }));
+  // A row opens its wheel in the same sheet, on the middle when she has given nothing.
+  await fireEvent.press(await screen.findByTestId('fact-size'));
+  await fireEvent.press(await screen.findByRole('button', { name: 'UK 10' }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/dna'))?.body).toEqual({
       facts: { sizeUk: 10 },
     }),
   );
-  // Gender and age live in Style DNA › You now (Annie, 7 Nov): Body shape asks for neither.
-  expect(
-    screen.queryByRole('button', { name: `${tw.gender}: ${twin.facts.genderOptions.woman}` }),
-  ).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Hips: much fuller' }));
+  // A unit changes how it reads, never what is saved.
+  await fireEvent.press(screen.getByRole('button', { name: 'US' }));
+  await waitFor(() =>
+    expect(calls.filter((c) => c.path.endsWith('/me/dna')).at(-1)?.body).toEqual({
+      units: { size: 'us' },
+    }),
+  );
+  // Age and gender live in Style DNA › You (Annie, 7 Nov): Body shape asks for neither.
+  expect(screen.queryByRole('button', { name: '45–54' })).toBeNull();
+  await fireEvent.press(screen.getByTestId('facts-done'));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Hips: much fuller' }));
   await waitFor(() =>
     expect(calls.filter((c) => c.method === 'PATCH').at(-1)?.body).toEqual({ adj: { hips: 2 } }),
   );
-  await fireEvent.press(await screen.findByRole('button', { name: tw.backToFacts }));
+  await fireEvent.press(await screen.findByRole('button', { name: tw.reset }));
   await waitFor(() =>
     expect(calls.filter((c) => c.method === 'PATCH').at(-1)?.body).toEqual({ adj: {} }),
   );
   expect(twinCalls(calls)).toHaveLength(0);
   view.unmount();
   await waitFor(() => expect(twinCalls(calls)).toHaveLength(1));
+});
+
+test('body shape: his seven rows and a waist scale where hers has hips', async () => {
+  const him = model({ filed: true, presence: 'man' });
+  mockFetch({
+    ...TWIN,
+    'GET /me/dna': styleDna({
+      gender: 'man',
+      facts: { ...styleDna().facts, chestCm: 101.6, collarCm: 39.4 },
+      units: { collar: 'cm' },
+    }),
+    'GET /me/model': him,
+    'POST /me/model/twin': him,
+  });
+  await renderWithApi(<BodyShape />);
+  const f = twin.facts;
+  expect(await screen.findByRole('button', { name: f.rowLabel(f.chest, '40 in') })).toBeTruthy();
+  expect(screen.getByRole('button', { name: f.rowLabel(f.collar, '39 cm') })).toBeTruthy();
+  for (const field of [f.height, f.waist, f.inseam, f.shoes, f.shoulders]) {
+    expect(screen.getByRole('button', { name: f.rowLabel(field, '') })).toBeTruthy();
+  }
+  expect(screen.queryByRole('button', { name: f.rowLabel(f.size, '') })).toBeNull();
+  expect(screen.getByRole('radio', { name: 'Waist: much fuller' })).toBeTruthy();
+  expect(screen.queryByRole('radio', { name: 'Hips: much fuller' })).toBeNull();
+});
+
+test('body shape: Clear the facts asks first, then empties every measurement', async () => {
+  const calls = mockFetch({
+    ...TWIN,
+    'GET /me/dna': styleDna({ facts: { ...styleDna().facts, heightCm: 166, sizeUk: 12 } }),
+    'PATCH /me/dna': styleDna(),
+    'GET /me/model': model({ filed: true }),
+    'POST /me/model/twin': model({ filed: true }),
+  });
+  await renderWithApi(<BodyShape />);
+  const f = twin.facts;
+  await fireEvent.press(
+    await screen.findByRole('button', { name: f.rowLabel(f.height, '166 cm') }),
+  );
+  await fireEvent.press(await screen.findByRole('button', { name: f.clear }));
+  await fireEvent.press(await screen.findByRole('button', { name: f.clearAsk.confirm }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/dna'))?.body).toEqual({
+      facts: {
+        heightCm: null,
+        sizeUk: null,
+        shoeUk: null,
+        bustBand: null,
+        bustCup: null,
+        bustCm: null,
+        waistCm: null,
+        chestCm: null,
+        inseamCm: null,
+        collarCm: null,
+        shoulderWidthCm: null,
+      },
+    }),
+  );
 });
 
 test('colouring offers the seasons next door; a pick changes it', async () => {
