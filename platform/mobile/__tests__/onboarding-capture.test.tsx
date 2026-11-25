@@ -137,6 +137,50 @@ test('a failed save keeps nothing and says so', async () => {
   expect(await screen.findByText(copy.looks.failed)).toBeTruthy();
 });
 
+// 25 Nov: eleven saved looks never saved because the first photo's upload never answered and the
+// ten queued behind it never started. A stuck photo now gives up past uploadPhoto's deadline, is
+// tried once more, and is left out; the rest upload beside it and Save N saves them.
+test('a photo that never uploads does not hold the others: Save saves the rest', async () => {
+  const { uploadPhoto } = jest.requireMock('../src/features/wardrobe/add-pieces');
+  uploadPhoto
+    .mockRejectedValueOnce(new Error('upload timed out after 60000 ms'))
+    .mockRejectedValueOnce(new Error('upload timed out after 60000 ms'))
+    .mockRejectedValueOnce(new Error('upload timed out after 60000 ms'));
+  const calls = mockFetch({ 'POST /looks': look() });
+  await renderWithApi(<CaptureStep {...steps} mode="looks" onDone={jest.fn()} />);
+  await fireEvent.press(screen.getByRole('button', { name: copy.looks.choose }));
+  // The first photo fails both its tries; the second's first try fails too and its retry lands.
+  await shoot(3);
+  const save = screen.getByRole('button', { name: copy.save(3) });
+  await waitFor(() => expect(save).not.toBeDisabled());
+  await act(async () => {
+    await fireEvent.press(save);
+  });
+  expect(
+    await screen.findByText(`${copy.looks.saved} ${copy.looks.savedEm(2)}`, { exact: false }),
+  ).toBeTruthy();
+  expect(calls.filter((c) => c.path.endsWith('/looks'))).toHaveLength(2);
+  expect(uploadPhoto).toHaveBeenCalledTimes(5);
+});
+
+test('a photo whose first try fails is tried again and saves', async () => {
+  const { uploadPhoto } = jest.requireMock('../src/features/wardrobe/add-pieces');
+  uploadPhoto.mockRejectedValueOnce(new Error('upload failed: 503'));
+  const calls = mockFetch({ 'POST /looks': look() });
+  await renderWithApi(<CaptureStep {...steps} mode="looks" onDone={jest.fn()} />);
+  await fireEvent.press(screen.getByRole('button', { name: copy.looks.choose }));
+  await shoot(1);
+  const save = screen.getByRole('button', { name: copy.save(1) });
+  await waitFor(() => expect(save).not.toBeDisabled());
+  await act(async () => {
+    await fireEvent.press(save);
+  });
+  expect(await screen.findByText(`${copy.looks.saved}`, { exact: false })).toBeTruthy();
+  expect(calls.filter((c) => c.path.endsWith('/looks')).map((c) => c.body)).toEqual([
+    { status: 'saved', pieces: [], photoAssetId: asset(1) },
+  ]);
+});
+
 test('Today’s outfit saves her photo as a look on today and goes Home, no draft drawer', async () => {
   const onSaved = jest.fn();
   const calls = mockFetch({

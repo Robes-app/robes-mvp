@@ -10,7 +10,7 @@ import { FirstRunFrame } from '@/features/home/FirstRunFrame';
 import { useInvalidateLooks } from '@/features/looks/look-states';
 import { REVIEW_MAX } from '@/features/wardrobe/add/flow';
 import { nativeAnalytics } from '@/lib/analytics';
-import { useUploadSitting } from './use-upload-sitting';
+import { uploadState, useUploadSitting } from './use-upload-sitting';
 
 export type CaptureMode = 'looks' | 'pieces';
 
@@ -31,6 +31,8 @@ const cameraCopy = (mode: CaptureMode): ShotCameraCopy => {
     done: copy.save,
     taken: wardrobe.camera.taken,
     remove: copy.removePhoto,
+    uploaded: copy.uploaded,
+    notUploaded: copy.notUploaded,
   };
 };
 
@@ -139,7 +141,7 @@ export function CaptureStep({
     return (
       <ShotCamera
         copy={cameraCopy(mode)}
-        shots={sitting.shots}
+        shots={sitting.shots.map((s) => ({ key: s.key, uri: s.uri, upload: uploadState(s) }))}
         max={REVIEW_MAX}
         canDone={sitting.ready && !saving}
         onAdd={sitting.add}

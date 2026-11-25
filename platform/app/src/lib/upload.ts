@@ -48,23 +48,55 @@ async function fitForUpload(file: File): Promise<File> {
   }
 }
 
-// Bytes go straight to storage on the presigned URL, never through the API (SEC-20).
-export async function uploadPhoto(
+// How long one photo may take, start to finish, before it is given up as failed. An upload that
+// never answers otherwise holds everything queued behind it (25 Nov: a first-run Save 11 stayed
+// disabled behind a first photo that never reached storage). Native twin: UPLOAD_DEADLINE_MS in
+// mobile/src/features/wardrobe/add-pieces.ts.
+export const UPLOAD_DEADLINE_MS = 60_000;
+
+// Runs `run` with a signal aborted at `ms`; past it the promise rejects whether or not `run` heeds
+// the signal.
+export async function withDeadline<T>(
+  ms: number,
+  run: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`upload timed out after ${ms} ms`));
+    }, ms);
+  });
+  try {
+    return await Promise.race([run(controller.signal), expired]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Bytes go straight to storage on the presigned URL, never through the API (SEC-20), within
+// UPLOAD_DEADLINE_MS.
+export function uploadPhoto(
   api: ApiClient,
   picked: File,
   kind: UploadKind = 'wardrobe',
 ): Promise<Asset> {
-  const file = await fitForUpload(picked);
-  const contentType = UploadContentType.parse(file.type);
-  const { assetId, upload } = await api.call('uploads.create', {
-    input: { kind, contentType, bytes: file.size },
+  return withDeadline(UPLOAD_DEADLINE_MS, async (signal) => {
+    const file = await fitForUpload(picked);
+    const contentType = UploadContentType.parse(file.type);
+    const { assetId, upload } = await api.call('uploads.create', {
+      input: { kind, contentType, bytes: file.size },
+      signal,
+    });
+    const put = await fetch(upload.url, {
+      method: upload.method,
+      headers: upload.headers,
+      body: file,
+      signal,
+    });
+    if (!put.ok) throw new Error('put');
+    rememberPreview(assetId, file);
+    return api.call('uploads.complete', { params: { id: assetId }, signal });
   });
-  const put = await fetch(upload.url, {
-    method: upload.method,
-    headers: upload.headers,
-    body: file,
-  });
-  if (!put.ok) throw new Error('put');
-  rememberPreview(assetId, file);
-  return api.call('uploads.complete', { params: { id: assetId } });
 }

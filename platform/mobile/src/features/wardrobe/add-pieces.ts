@@ -73,14 +73,52 @@ async function renderableFile(
   return { file: new File(saved.uri), contentType: 'image/jpeg' };
 }
 
-// Photo → presigned PUT straight to storage (never through the API, SEC-20) → complete.
-// `lift`: a wardrobe photo about to be read for its pieces is also lifted on the phone (iPhone,
-// iOS 17+), and what was lifted goes up beside it so each piece can be cut out (cutout brief).
-export async function uploadPhoto(
+// How long one photo may take, start to finish, before it is given up as failed. An upload that
+// never answers otherwise holds everything queued behind it: on 25 Nov a first-run Save 11 stayed
+// disabled because the first photo never reached storage and the other ten never started.
+// Web twin: UPLOAD_DEADLINE_MS in app/src/lib/upload.ts.
+export const UPLOAD_DEADLINE_MS = 60_000;
+
+// Runs `run` with a signal aborted at `ms`; past it the promise rejects whether or not `run` heeds
+// the signal.
+export async function withDeadline<T>(
+  ms: number,
+  run: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`upload timed out after ${ms} ms`));
+    }, ms);
+  });
+  try {
+    return await Promise.race([run(controller.signal), expired]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Photo → presigned PUT straight to storage (never through the API, SEC-20) → complete, within
+// UPLOAD_DEADLINE_MS. `lift`: a wardrobe photo about to be read for its pieces is also lifted on
+// the phone (iPhone, iOS 17+), and what was lifted goes up beside it so each piece can be cut out
+// (cutout brief).
+export function uploadPhoto(
   api: ApiClient,
   photo: PickedPhoto,
   kind: UploadKind = 'wardrobe',
   opts: { lift?: boolean } = {},
+): Promise<string> {
+  return withDeadline(UPLOAD_DEADLINE_MS, (signal) => sendPhoto(api, photo, kind, opts, signal));
+}
+
+async function sendPhoto(
+  api: ApiClient,
+  photo: PickedPhoto,
+  kind: UploadKind,
+  opts: { lift?: boolean },
+  signal: AbortSignal,
 ): Promise<string> {
   // The presigned PUT signs the byte count, so it must be the file's own: the picker re-encodes
   // (PICKER_OPTIONS), and its `fileSize` can be the original's, which storage then refuses. Read
@@ -91,14 +129,16 @@ export async function uploadPhoto(
   const lifting = opts.lift && kind === 'wardrobe' ? liftPhoto(file.uri) : null;
   const { assetId, upload } = await api.call('uploads.create', {
     input: { kind, contentType, bytes: file.size },
+    signal,
   });
   const put = await file.upload(upload.url, {
     httpMethod: upload.method,
     headers: upload.headers,
     uploadType: UploadType.BINARY_CONTENT,
+    signal,
   });
   if (put.status < 200 || put.status >= 300) throw new Error(`upload failed: ${put.status}`);
-  await api.call('uploads.complete', { params: { id: assetId } });
+  await api.call('uploads.complete', { params: { id: assetId }, signal });
   if (lifting) await uploadLift(api, assetId, lifting);
   return assetId;
 }

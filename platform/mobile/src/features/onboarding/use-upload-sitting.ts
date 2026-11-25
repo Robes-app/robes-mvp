@@ -12,38 +12,70 @@ export interface SittingShot {
   failed?: boolean;
 }
 
-// A capture step's photographs as she takes them (onboarding PRD R-S4): each uploads at once, one
-// at a time in the order she took them, so Save N waits only on the last. They are drafts until
-// she saves (nothing is a look or a piece before that); one she takes off the strip is discarded.
+// Photos uploading at once, and the tries each gets (a second after a failure or a stall past
+// uploadPhoto's deadline). Web twin: app/src/lib/use-upload-sitting.ts.
+export const UPLOADS_AT_ONCE = 3;
+export const UPLOAD_TRIES = 2;
+
+// What the camera shows on a photo's thumbnail: still on its way, or given up (none: landed).
+export function uploadState(shot: SittingShot): 'pending' | 'failed' | undefined {
+  if (shot.assetId) return undefined;
+  return shot.failed ? 'failed' : 'pending';
+}
+
+// A capture step's photographs as she takes them (onboarding PRD R-S4): each uploads at once,
+// UPLOADS_AT_ONCE at a time in the order she took them, so Save N waits only on the last few.
+// One stuck photo can no longer hold the rest: uploadPhoto gives up past its deadline and the photo
+// is tried once more, then marked failed. They are drafts until she saves (nothing is a look or a
+// piece before that); one she takes off the strip is discarded.
 export function useUploadSitting(kind: UploadKind) {
   const api = useApiClient();
   const seq = useRef(0);
-  const queue = useRef<Promise<void>>(Promise.resolve());
+  const waiting = useRef<(() => Promise<void>)[]>([]);
+  const running = useRef(0);
   const [shots, setShots] = useState<SittingShot[]>([]);
   // Taken off the strip while uploading: its asset is discarded once it lands.
   const removed = useRef(new Set<string>());
+
+  const pump = useCallback(() => {
+    while (running.current < UPLOADS_AT_ONCE) {
+      const job = waiting.current.shift();
+      if (!job) return;
+      running.current++;
+      void job().finally(() => {
+        running.current--;
+        pump();
+      });
+    }
+  }, []);
 
   const add = useCallback(
     (photo: CameraPhoto) => {
       const key = `s${seq.current++}`;
       setShots((all) => [...all, { key, uri: photo.uri }]);
-      queue.current = queue.current.then(async () => {
-        try {
-          // A piece's photo is lifted on the phone as it uploads, so the piece can be cut out of
-          // it (uploadPhoto lifts wardrobe photos only).
-          const assetId = await uploadPhoto(api, photo, kind, { lift: true });
-          if (removed.current.has(key)) {
-            void api.call('uploads.discard', { params: { id: assetId } }).catch(() => {});
+      waiting.current.push(async () => {
+        for (let tries = 1; !removed.current.has(key); tries++) {
+          try {
+            // A piece's photo is lifted on the phone as it uploads, so the piece can be cut out
+            // of it (uploadPhoto lifts wardrobe photos only).
+            const assetId = await uploadPhoto(api, photo, kind, { lift: true });
+            if (removed.current.has(key)) {
+              void api.call('uploads.discard', { params: { id: assetId } }).catch(() => {});
+              return;
+            }
+            setShots((all) => all.map((s) => (s.key === key ? { ...s, assetId } : s)));
+            return;
+          } catch (err) {
+            if (tries < UPLOAD_TRIES) continue;
+            report(err, 'onboarding.upload');
+            setShots((all) => all.map((s) => (s.key === key ? { ...s, failed: true } : s)));
             return;
           }
-          setShots((all) => all.map((s) => (s.key === key ? { ...s, assetId } : s)));
-        } catch (err) {
-          report(err, 'onboarding.upload');
-          setShots((all) => all.map((s) => (s.key === key ? { ...s, failed: true } : s)));
         }
       });
+      pump();
     },
-    [api, kind],
+    [api, kind, pump],
   );
 
   const remove = useCallback(
