@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 import { type CameraShot, ShotCamera, type ShotCameraCopy } from '@/components/capture/shot-camera';
 import { REVIEW_MAX } from '@/lib/add-flow';
-import { useUploadSitting } from '@/lib/use-upload-sitting';
+import { uploadState, useUploadSitting } from '@/lib/use-upload-sitting';
 import { Frame, QuietLink } from './frame';
 
 export type CaptureMode = 'looks' | 'pieces';
@@ -29,6 +29,8 @@ const cameraCopy = (mode: CaptureMode): ShotCameraCopy => {
     done: copy.save,
     taken: wardrobe.camera.taken,
     remove: copy.removePhoto,
+    uploaded: copy.uploaded,
+    notUploaded: copy.notUploaded,
   };
 };
 
@@ -114,7 +116,7 @@ export function CaptureStep({
     return (
       <ShotCamera
         copy={cameraCopy(mode)}
-        shots={sitting.shots}
+        shots={sitting.shots.map((s) => ({ key: s.key, url: s.url, upload: uploadState(s) }))}
         max={REVIEW_MAX}
         canDone={sitting.ready && !saving}
         onAdd={sitting.add}
