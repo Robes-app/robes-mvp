@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createBrowserAnalytics, type LoadPostHog, posthogOptions } from './browser';
+import { createBrowserAnalytics, type LoadPostHog, MAX_PENDING, posthogOptions } from './browser';
 
 function fakePostHog() {
   const client = {
@@ -15,6 +15,22 @@ function fakePostHog() {
   };
   const load = vi.fn(async () => client) as unknown as LoadPostHog & ReturnType<typeof vi.fn>;
   return { client, load };
+}
+
+// A loader that resolves (or fails) only when the test says so: the window while PostHog loads.
+function slowPostHog() {
+  const { client } = fakePostHog();
+  const waiting: { resolve: (c: typeof client) => void; reject: (err: Error) => void }[] = [];
+  const load = vi.fn(
+    () => new Promise<typeof client>((resolve, reject) => waiting.push({ resolve, reject })),
+  ) as unknown as LoadPostHog & ReturnType<typeof vi.fn>;
+  const finish = () => {
+    for (const w of waiting.splice(0)) w.resolve(client);
+  };
+  const fail = (err: Error) => {
+    for (const w of waiting.splice(0)) w.reject(err);
+  };
+  return { client, load, finish, fail };
 }
 
 const config = { key: 'phc_test', host: 'https://eu.i.posthog.com', environment: 'staging' };
@@ -106,5 +122,89 @@ describe('browser analytics (SEC-84)', () => {
     expect(client.opt_in_capturing).toHaveBeenCalled();
     analytics.track('$pageview');
     expect(client.capture).toHaveBeenCalledWith('$pageview', {});
+  });
+
+  it('sends what she does while PostHog loads, in order, after identifying her', async () => {
+    const { client, load, finish } = slowPostHog();
+    const analytics = createBrowserAnalytics(config, load);
+    const started = analytics.start({ userId: 'u1', replay: false });
+    analytics.track('$pageview');
+    analytics.track('job_started', { kind: 'fake' });
+    expect(client.capture).not.toHaveBeenCalled();
+    finish();
+    await started;
+    expect(client.capture.mock.calls).toEqual([
+      ['$pageview', {}],
+      ['job_started', { kind: 'fake' }],
+    ]);
+    expect(client.identify.mock.invocationCallOrder[0]).toBeLessThan(
+      client.capture.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it('never holds an event tracked before start', async () => {
+    const { client, load } = fakePostHog();
+    const analytics = createBrowserAnalytics(config, load);
+    analytics.track('job_started', { kind: 'fake' });
+    await analytics.start({ userId: 'u1', replay: false });
+    expect(client.capture).not.toHaveBeenCalled();
+  });
+
+  it('drops what was held, and stays off, when she withdraws while it loads', async () => {
+    const { client, load, finish } = slowPostHog();
+    const analytics = createBrowserAnalytics(config, load);
+    const started = analytics.start({ userId: 'u1', replay: true });
+    analytics.track('job_started', { kind: 'fake' });
+    analytics.stop();
+    analytics.track('$pageview');
+    finish();
+    await started;
+    expect(client.init).not.toHaveBeenCalled();
+    expect(client.identify).not.toHaveBeenCalled();
+    expect(client.startSessionRecording).not.toHaveBeenCalled();
+    analytics.track('$pageview');
+    expect(client.capture).not.toHaveBeenCalled();
+  });
+
+  it('drops what was held when PostHog fails to load', async () => {
+    const { client, load, fail } = slowPostHog();
+    const analytics = createBrowserAnalytics(config, load);
+    const started = analytics.start({ userId: 'u1', replay: false });
+    analytics.track('job_started', { kind: 'fake' });
+    fail(new Error('chunk failed'));
+    await expect(started).rejects.toThrow('chunk failed');
+    analytics.track('$pageview');
+
+    load.mockResolvedValueOnce(client);
+    await analytics.start({ userId: 'u1', replay: false });
+    expect(client.capture).not.toHaveBeenCalled();
+  });
+
+  it('holds at most MAX_PENDING events while it loads', async () => {
+    const { client, load, finish } = slowPostHog();
+    const analytics = createBrowserAnalytics(config, load);
+    const started = analytics.start({ userId: 'u1', replay: false });
+    for (let n = 0; n < MAX_PENDING + 10; n++)
+      analytics.track('onboarding_captured', { step: 'looks', n });
+    finish();
+    await started;
+    expect(client.capture).toHaveBeenCalledTimes(MAX_PENDING);
+    expect(client.capture).toHaveBeenLastCalledWith('onboarding_captured', {
+      step: 'looks',
+      n: MAX_PENDING - 1,
+    });
+  });
+
+  it('initialises once, with the latest start, when two overlap', async () => {
+    const { client, load, finish } = slowPostHog();
+    const analytics = createBrowserAnalytics(config, load);
+    const first = analytics.start({ userId: 'u1', replay: false });
+    const second = analytics.start({ userId: 'u1', replay: true });
+    analytics.track('$pageview');
+    finish();
+    await Promise.all([first, second]);
+    expect(client.init).toHaveBeenCalledTimes(1);
+    expect(client.init.mock.calls[0]?.[1]).toMatchObject({ disable_session_recording: false });
+    expect(client.capture).toHaveBeenCalledTimes(1);
   });
 });

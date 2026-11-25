@@ -1,5 +1,5 @@
 import type { PostHog, PostHogConfig } from 'posthog-js/dist/module.no-external';
-import { type Analytics, createAnalytics, UNRECORDED } from './index';
+import { type Analytics, createAnalytics, type EventName, UNRECORDED } from './index';
 
 export interface BrowserAnalyticsConfig {
   key: string;
@@ -93,16 +93,26 @@ export function posthogOptions(config: BrowserAnalyticsConfig, replay: boolean) 
   } satisfies Partial<PostHogConfig>;
 }
 
+// What she does between her yes and PostHog having loaded is held, at most this many events.
+export const MAX_PENDING = 50;
+
 export function createBrowserAnalytics(
   config: BrowserAnalyticsConfig,
   load: LoadPostHog = loadPostHog,
 ): BrowserAnalytics {
   let client: Client | null = null;
   let active = false;
+  // Events tracked while a start() is loading, sent in order once it has. Null whenever no start()
+  // is in flight, so nothing is ever held before her yes; stop() and a failed load drop it.
+  // Native twin: createNativeAnalytics (mobile/src/lib/analytics.tsx).
+  let pending: [EventName, Record<string, unknown>][] | null = null;
+  // Bumped by every start() and stop(): a start overtaken by either never turns capture on.
+  let attempt = 0;
 
   const analytics = createAnalytics({
     capture: (event, properties) => {
       if (active) client?.capture(event, properties);
+      else if (pending && pending.length < MAX_PENDING) pending.push([event, properties]);
     },
     identify: (userId) => {
       if (active) client?.identify(userId);
@@ -113,8 +123,17 @@ export function createBrowserAnalytics(
   return {
     ...analytics,
     async start({ userId, replay }) {
-      // The loader also pulls in the replay recorder the first time replay is granted.
-      const loaded = await load(replay);
+      const mine = ++attempt;
+      if (!active) pending ??= [];
+      let loaded: Client;
+      try {
+        // The loader also pulls in the replay recorder the first time replay is granted.
+        loaded = await load(replay);
+      } catch (err) {
+        if (mine === attempt) pending = null;
+        throw err;
+      }
+      if (mine !== attempt) return;
       if (client) {
         client.opt_in_capturing();
       } else {
@@ -126,8 +145,13 @@ export function createBrowserAnalytics(
       else client.stopSessionRecording();
       active = true;
       client.identify(userId);
+      const held = pending ?? [];
+      pending = null;
+      for (const [event, properties] of held) client.capture(event, properties);
     },
     stop() {
+      attempt++;
+      pending = null;
       active = false;
       if (!client) return;
       client.stopSessionRecording();

@@ -53,18 +53,36 @@ export interface NativeAnalytics extends Analytics {
   isActive(): boolean;
 }
 
+// What she does between her yes and PostHog having loaded is held, at most this many events.
+const MAX_PENDING = 50;
+
 // Same contract as the web's browser analytics: `start` once she has said yes, `stop` when she
-// withdraws it or on sign-out. Every event is checked against the shared catalogue first.
+// withdraws it or on sign-out. Every event is checked against the shared catalogue first. What
+// she does while a `start` is loading is held and sent once it has; nothing is held before her
+// yes, and `stop` or a failed load drops it. Web twin: createBrowserAnalytics.
 export function createNativeAnalytics(
   config: PostHogConfig | null,
   load: LoadPostHog = loadPostHog,
 ): NativeAnalytics {
   let client: Client | null = null;
+  // One PostHog for the app: overlapping starts share the load.
+  let loading: Promise<Client> | null = null;
   let active = false;
+  let pending: ((c: Client) => void)[] | null = null;
+  // Bumped by every start and stop: a start overtaken by either never turns capture on.
+  let attempt = 0;
+  let consented = false;
+  const send = (fn: (c: Client) => void) => {
+    if (active && client) fn(client);
+    else if (pending && pending.length < MAX_PENDING) pending.push(fn);
+  };
+  const silence = (c: Client) => {
+    void c.stopSessionRecording();
+    void c.optOut();
+    c.reset();
+  };
   const analytics = createAnalytics({
-    capture: (event, properties) => {
-      if (active) client?.capture(event, properties);
-    },
+    capture: (event, properties) => send((c) => c.capture(event, properties)),
     identify: (userId) => {
       if (active) client?.identify(userId);
     },
@@ -74,26 +92,48 @@ export function createNativeAnalytics(
     ...analytics,
     async start(userId, options) {
       if (!config) return;
-      if (client) await client.optIn();
-      else {
-        client = await load(config);
-        // Staging and production share one project for now.
-        await client.register({ environment: config.environment });
+      const mine = ++attempt;
+      consented = true;
+      if (!active) pending ??= [];
+      const fresh = !client;
+      try {
+        if (client) await client.optIn();
+        else {
+          loading ??= load(config).then(async (c) => {
+            // Staging and production share one project for now.
+            await c.register({ environment: config.environment });
+            return c;
+          });
+          client = await loading;
+        }
+      } catch (err) {
+        loading = null;
+        if (mine === attempt) pending = null;
+        throw err;
+      }
+      if (mine !== attempt) {
+        // Withdrawn while it loaded: PostHog runs from its constructor, and stop() found nothing
+        // to silence.
+        if (!consented && fresh) silence(client);
+        return;
       }
       active = true;
       client.identify(userId);
+      const held = pending ?? [];
+      pending = null;
+      for (const fn of held) fn(client);
       if (options?.recordings) await client.startSessionRecording();
       else await client.stopSessionRecording();
     },
     stop() {
+      attempt++;
+      consented = false;
+      pending = null;
       active = false;
-      if (!client) return;
-      void client.stopSessionRecording();
-      void client.optOut();
-      client.reset();
+      if (client) silence(client);
     },
     reportError(error) {
-      if (active) client?.captureException(error);
+      send((c) => c.captureException(error));
     },
     isActive: () => active,
   };
