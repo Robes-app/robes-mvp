@@ -1,6 +1,7 @@
 'use client';
 
 import { Icon } from '@robes/icons/web';
+import { useToast } from '@robes/ui';
 import { useEffect, useRef, useState } from 'react';
 import { CAMERA_CONSTRAINTS } from '@/components/wardrobe/camera-capture';
 import { isPhoto } from '@/lib/add-flow';
@@ -37,6 +38,8 @@ export interface ShotCameraCopy {
   // landed while any is on its way, and a thumbnail that failed says so.
   uploaded?: (n: number, total: number) => string;
   notUploaded?: string;
+  // Said when `onAdd` turned photos away because they were already in (onboarding: no photo twice).
+  already?: string;
 }
 
 export interface CameraShot {
@@ -70,7 +73,8 @@ export function ShotCamera({
   shots: readonly CameraShot[];
   max: number;
   canDone: boolean;
-  onAdd: (file: File) => void;
+  // False turns the photo away (the caller already has it); anything else takes it.
+  onAdd: (file: File) => unknown;
   onRemove?: (key: string) => void;
   onDone: () => void;
   onClose: () => void;
@@ -80,6 +84,7 @@ export function ShotCamera({
   rollFirst?: boolean;
   testId?: string;
 }) {
+  const toast = useToast();
   const library = useRef<HTMLInputElement>(null);
   const [flash, setFlash] = useState(false);
   const { video, live, refused, shoot, stop } = useCameraStream(CAMERA_CONSTRAINTS, true);
@@ -285,7 +290,15 @@ export function ShotCamera({
         onChange={(event) => {
           const files = [...(event.target.files ?? [])].filter(isPhoto);
           event.target.value = '';
-          for (const file of files.slice(0, Math.max(0, max - shots.length))) onAdd(file);
+          // A photo turned away takes no room: the strip fills with ones that are new.
+          let room = max - shots.length;
+          let turned = 0;
+          for (const file of files) {
+            if (room <= 0) break;
+            if (onAdd(file) === false) turned++;
+            else room--;
+          }
+          if (turned && copy.already) toast({ message: copy.already });
         }}
       />
     </div>

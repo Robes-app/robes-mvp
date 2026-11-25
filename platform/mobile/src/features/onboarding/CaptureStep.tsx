@@ -3,7 +3,7 @@ import { firstRun as copy, wardrobe } from '@robes/copy';
 import { Button, ErrorText, fonts, maxFontSizeMultiplier, Text, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import { Pressable, Text as RNText, View } from 'react-native';
 import { type CameraShot, ShotCamera, type ShotCameraCopy } from '@/features/capture/ShotCamera';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
@@ -34,6 +34,7 @@ const cameraCopy = (mode: CaptureMode): ShotCameraCopy => {
     remove: copy.removePhoto,
     uploaded: copy.uploaded,
     notUploaded: copy.notUploaded,
+    already: copy.already,
   };
 };
 
@@ -96,13 +97,17 @@ export function CaptureStep({
   const [view, setView] = useState<'intro' | 'camera' | 'saved'>('intro');
   const [saved, setSaved] = useState<CameraShot[]>([]);
   const [saving, setSaving] = useState(false);
+  // Held from the first tap: a quick second tap on Save N, before `saving` re-renders, would save
+  // every look twice.
+  const savingNow = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const c = copy[mode];
 
   // Save N: nothing is a look or a piece before this tap (rule: a look is saved only when she
   // saves it). A failure keeps the sitting so she can try again.
   async function save() {
-    if (saving || !sitting.ready) return;
+    if (savingNow.current || !sitting.ready) return;
+    savingNow.current = true;
     setSaving(true);
     setError(null);
     const assetIds = sitting.kept.flatMap((s) => (s.assetId ? [s.assetId] : []));
@@ -134,6 +139,7 @@ export function CaptureStep({
       setError(c.failed);
       setView('intro');
     } finally {
+      savingNow.current = false;
       setSaving(false);
     }
   }
