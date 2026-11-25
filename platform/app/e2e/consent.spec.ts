@@ -177,6 +177,9 @@ test.describe('product events', () => {
   test('after consent, product events carry the catalogue props; before it, nothing is sent', async ({
     page,
   }) => {
+    // Sign-in, two looks styled and saved and a draft dressed from words, each step with its own
+    // wait: more than the default 30 s under CI load, which cut the last poll short.
+    test.setTimeout(120_000);
     const { hits, events } = await watchEvents(page);
     await signIn(page);
     // Not now: the whole flow sends nothing.
@@ -203,6 +206,12 @@ test.describe('product events', () => {
     expect(sent('look_pinned')[0]).toMatchObject({ offset_from_today: 0 });
     // Her words for a look, from New look with no day: the prompt box says so (enums only).
     await page.goto('/looks/draft/new');
+    // A full load starts PostHog afresh, and an event tracked before it has started is dropped:
+    // send her words only once this page's view has gone out. (The draft then takes its own
+    // address by history.replaceState, so nothing unloads the page before the event is sent.)
+    const viewed = () =>
+      sent('$pageview').some((p) => String(p.$current_url).endsWith('/looks/draft/new'));
+    await expect.poll(viewed, { timeout: 20_000 }).toBe(true);
     await page.getByTestId('draft-prompt').fill('Dinner with friends');
     await page.getByTestId('prompt-send').click();
     await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/, { timeout: 30_000 });
