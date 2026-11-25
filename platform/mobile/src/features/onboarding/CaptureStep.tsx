@@ -21,6 +21,7 @@ const cameraCopy = (mode: CaptureMode): ShotCameraCopy => {
     close: wardrobe.camera.close,
     shutter: wardrobe.capture.camera.shutter,
     photos: wardrobe.capture.camera.photos,
+    adding: wardrobe.capture.camera.adding,
     hint: c.hint,
     next: c.next,
     full: c.full,

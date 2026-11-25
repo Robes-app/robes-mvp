@@ -24,6 +24,7 @@ export interface ShotCameraCopy {
   close: string;
   shutter: string;
   photos: string;
+  adding: string;
   hint: string;
   next: string;
   full: string;
@@ -87,6 +88,17 @@ export function ShotCamera({
   const [shooting, setShooting] = useState(false);
   const [flash, setFlash] = useState(0);
   const asked = useRef(false);
+  // Her photos chosen and on their way: iOS prepares every one before the picker answers, which
+  // for ten takes seconds, so a waiting tile shows at once. A pick that answers after the camera
+  // has closed is dropped: closing and choosing again doubled the sitting (25 Nov).
+  const [adding, setAdding] = useState(false);
+  const open = useRef(true);
+  useEffect(() => {
+    open.current = true;
+    return () => {
+      open.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain && !asked.current) {
@@ -122,8 +134,17 @@ export function ShotCamera({
   }
 
   async function roll() {
-    const picked = await pickFromRoll();
-    for (const photo of (picked ?? []).slice(0, Math.max(0, max - shots.length))) onAdd(photo);
+    if (adding) return;
+    setAdding(true);
+    try {
+      const picked = await pickFromRoll();
+      if (!open.current) return;
+      for (const photo of (picked ?? []).slice(0, Math.max(0, max - shots.length))) onAdd(photo);
+    } catch {
+      if (open.current) toast.show({ message: copy.failed });
+    } finally {
+      if (open.current) setAdding(false);
+    }
   }
 
   const refused = !!permission && !permission.granted && !permission.canAskAgain;
@@ -205,13 +226,15 @@ export function ShotCamera({
       >
         <CamPill
           text={
-            pending && copy.uploaded
-              ? copy.uploaded(shots.length - pending, shots.length)
-              : full
-                ? copy.full
-                : shots.length
-                  ? copy.next
-                  : copy.hint
+            adding
+              ? copy.adding
+              : pending && copy.uploaded
+                ? copy.uploaded(shots.length - pending, shots.length)
+                : full
+                  ? copy.full
+                  : shots.length
+                    ? copy.next
+                    : copy.hint
           }
         />
         {/* The sitting so far: each shot with its sage tick, newest at the right. */}
@@ -219,7 +242,7 @@ export function ShotCamera({
           horizontal
           showsHorizontalScrollIndicator={false}
           accessibilityLabel={copy.taken(shots.length)}
-          style={{ height: 60, opacity: shots.length ? 1 : 0 }}
+          style={{ height: 60, opacity: shots.length || adding ? 1 : 0 }}
           contentContainerStyle={{ gap: 8, paddingHorizontal: 28 }}
         >
           {shots.map((shot) => (
@@ -291,6 +314,23 @@ export function ShotCamera({
               </View>
             </Pressable>
           ))}
+          {adding ? (
+            <View
+              accessibilityLabel={copy.adding}
+              testID="piece-camera-adding"
+              style={{
+                width: 48,
+                height: 60,
+                borderRadius: 4,
+                borderWidth: 1.5,
+                borderColor: palette.white,
+                backgroundColor: `${palette.cream50}26`,
+              }}
+              className="items-center justify-center"
+            >
+              <ActivityIndicator size="small" color={palette.white} />
+            </View>
+          ) : null}
         </ScrollView>
         <View
           pointerEvents="box-none"
@@ -302,6 +342,7 @@ export function ShotCamera({
               icon="image"
               label={copy.photos}
               onPress={() => void roll()}
+              disabled={adding}
               size={48}
               testID="piece-camera-photos"
             />
