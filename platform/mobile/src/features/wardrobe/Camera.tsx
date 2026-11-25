@@ -14,6 +14,7 @@ const CAMERA_COPY: ShotCameraCopy = {
   close: copy.close,
   shutter: copy.shutter,
   photos: copy.photos,
+  adding: copy.adding,
   hint: copy.hint,
   next: copy.next,
   full: copy.full,

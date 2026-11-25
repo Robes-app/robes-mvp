@@ -398,6 +398,9 @@ export const wardrobe = {
       review: (n: number): string => `Review ${n}`,
       close: 'Close',
       photos: 'Choose from your photos',
+      // The strip's waiting tile, from the moment her photos are chosen until they arrive (the
+      // phone prepares them all before handing any over).
+      adding: 'Adding your photos…',
       shutter: 'Take photo',
       denied: 'Allow the camera in your settings to take a photo here.',
       // The sitting's limit (twelve photographs; each is read on its own).
