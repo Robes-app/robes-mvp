@@ -17,6 +17,11 @@ export interface SittingShot {
 export const UPLOADS_AT_ONCE = 3;
 export const UPLOAD_TRIES = 2;
 
+// Which photo a file is: the same one chosen twice has the same name, size and date.
+export function fileSource(file: File): string {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
 // What the camera shows on a photo's thumbnail: still on its way, or given up (none: landed).
 export function uploadState(shot: SittingShot): 'pending' | 'failed' | undefined {
   if (shot.assetId) return undefined;
@@ -35,6 +40,12 @@ export function useUploadSitting(kind: UploadKind) {
   const running = useRef(0);
   const [shots, setShots] = useState<SittingShot[]>([]);
   const removed = useRef(new Set<string>());
+  // Which file each shot on the strip is, and the ones this step has already saved: the same photo
+  // is never taken twice, in one sitting or after Add more (25 Nov: duplicate looks).
+  const sources = useRef(new Map<string, string>());
+  const savedSources = useRef(new Set<string>());
+  const current = useRef(shots);
+  current.current = shots;
   // Every preview's object URL, let go when the step goes.
   const urls = useRef(new Set<string>());
   useEffect(
@@ -57,8 +68,12 @@ export function useUploadSitting(kind: UploadKind) {
   }, []);
 
   const add = useCallback(
-    (file: File) => {
+    (file: File): boolean => {
+      const source = fileSource(file);
+      if (savedSources.current.has(source) || [...sources.current.values()].includes(source))
+        return false;
       const key = `s${seq.current++}`;
+      sources.current.set(key, source);
       const url = URL.createObjectURL(file);
       urls.current.add(url);
       setShots((all) => [...all, { key, url }]);
@@ -80,6 +95,7 @@ export function useUploadSitting(kind: UploadKind) {
         }
       });
       pump();
+      return true;
     },
     [api, kind, pump],
   );
@@ -87,6 +103,7 @@ export function useUploadSitting(kind: UploadKind) {
   const remove = useCallback(
     (key: string) => {
       removed.current.add(key);
+      sources.current.delete(key);
       setShots((all) => {
         const shot = all.find((s) => s.key === key);
         if (shot?.assetId)
@@ -97,7 +114,15 @@ export function useUploadSitting(kind: UploadKind) {
     [api],
   );
 
-  const reset = useCallback(() => setShots([]), []);
+  // After Save: what landed is saved, so its photo can't be chosen again in this step.
+  const reset = useCallback(() => {
+    for (const shot of current.current) {
+      const source = sources.current.get(shot.key);
+      if (source && shot.assetId) savedSources.current.add(source);
+    }
+    sources.current.clear();
+    setShots([]);
+  }, []);
   const kept = shots.filter((s) => s.assetId);
   // Ready once every photograph has landed (or failed) and at least one has.
   const ready = kept.length > 0 && shots.every((s) => s.assetId || s.failed);

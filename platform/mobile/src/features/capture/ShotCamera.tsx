@@ -40,6 +40,8 @@ export interface ShotCameraCopy {
   // landed while any is on its way, and a thumbnail that failed says so.
   uploaded?: (n: number, total: number) => string;
   notUploaded?: string;
+  // Said when `onAdd` turned photos away because they were already in (onboarding: no photo twice).
+  already?: string;
 }
 
 export interface CameraShot {
@@ -49,7 +51,8 @@ export interface CameraShot {
   upload?: 'pending' | 'failed';
 }
 
-export type CameraPhoto = { uri: string; width: number; height: number };
+// `source`: which library photo it is, when it came from her photos (a camera shot has none).
+export type CameraPhoto = { uri: string; width: number; height: number; source?: string };
 
 // The camera for several photographs (Capture PRD 3c.2; canvas frame 3c), shared by Wardrobe ›
 // Photo and Getting to know you's Saved looks and Pieces you love: the viewfinder stays open
@@ -75,7 +78,8 @@ export function ShotCamera({
   shots: readonly CameraShot[];
   max: number;
   canDone: boolean;
-  onAdd: (photo: CameraPhoto) => void;
+  // False turns the photo away (the caller already has it); anything else takes it.
+  onAdd: (photo: CameraPhoto) => unknown;
   onRemove?: (key: string) => void;
   onDone: () => void;
   onClose: () => void;
@@ -139,7 +143,15 @@ export function ShotCamera({
     try {
       const picked = await pickFromRoll();
       if (!open.current) return;
-      for (const photo of (picked ?? []).slice(0, Math.max(0, max - shots.length))) onAdd(photo);
+      // A photo turned away takes no room: the strip fills with ones that are new.
+      let room = max - shots.length;
+      let turned = 0;
+      for (const photo of picked ?? []) {
+        if (room <= 0) break;
+        if (onAdd(photo) === false) turned++;
+        else room--;
+      }
+      if (turned && copy.already) toast.show({ message: copy.already });
     } catch {
       if (open.current) toast.show({ message: copy.failed });
     } finally {

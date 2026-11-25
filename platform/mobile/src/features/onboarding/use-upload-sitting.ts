@@ -36,6 +36,12 @@ export function useUploadSitting(kind: UploadKind) {
   const [shots, setShots] = useState<SittingShot[]>([]);
   // Taken off the strip while uploading: its asset is discarded once it lands.
   const removed = useRef(new Set<string>());
+  // Which library photo each shot on the strip is, and the ones this step has already saved: the
+  // same photo is never taken twice, in one sitting or after Add more (25 Nov: duplicate looks).
+  const sources = useRef(new Map<string, string>());
+  const savedSources = useRef(new Set<string>());
+  const current = useRef(shots);
+  current.current = shots;
 
   const pump = useCallback(() => {
     while (running.current < UPLOADS_AT_ONCE) {
@@ -50,8 +56,15 @@ export function useUploadSitting(kind: UploadKind) {
   }, []);
 
   const add = useCallback(
-    (photo: CameraPhoto) => {
+    (photo: CameraPhoto): boolean => {
+      const { source } = photo;
+      if (
+        source &&
+        (savedSources.current.has(source) || [...sources.current.values()].includes(source))
+      )
+        return false;
       const key = `s${seq.current++}`;
+      if (source) sources.current.set(key, source);
       setShots((all) => [...all, { key, uri: photo.uri }]);
       waiting.current.push(async () => {
         for (let tries = 1; !removed.current.has(key); tries++) {
@@ -74,6 +87,7 @@ export function useUploadSitting(kind: UploadKind) {
         }
       });
       pump();
+      return true;
     },
     [api, kind, pump],
   );
@@ -81,6 +95,7 @@ export function useUploadSitting(kind: UploadKind) {
   const remove = useCallback(
     (key: string) => {
       removed.current.add(key);
+      sources.current.delete(key);
       setShots((all) => {
         const shot = all.find((s) => s.key === key);
         if (shot?.assetId)
@@ -91,7 +106,15 @@ export function useUploadSitting(kind: UploadKind) {
     [api],
   );
 
-  const reset = useCallback(() => setShots([]), []);
+  // After Save: what landed is saved, so its photo can't be chosen again in this step.
+  const reset = useCallback(() => {
+    for (const shot of current.current) {
+      const source = sources.current.get(shot.key);
+      if (source && shot.assetId) savedSources.current.add(source);
+    }
+    sources.current.clear();
+    setShots([]);
+  }, []);
   const kept = shots.filter((s) => s.assetId);
   // Ready once every photograph has landed (or failed) and at least one has.
   const ready = kept.length > 0 && shots.every((s) => s.assetId || s.failed);

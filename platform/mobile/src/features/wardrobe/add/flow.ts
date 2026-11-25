@@ -96,7 +96,19 @@ export async function startRead(api: ApiClient, photo: PickedPhoto): Promise<str
 }
 
 // The camera roll: several at once, in the order she picked them.
-export async function pickFromRoll(): Promise<ReviewShot[] | null> {
+// Which photo in her library a pick is (the picker's id, else its file name and size), so the same
+// photo chosen twice can be told apart from two photos; undefined when the picker gives neither.
+export function photoSource(a: {
+  assetId?: string | null;
+  fileName?: string | null;
+  width: number;
+  height: number;
+}): string | undefined {
+  if (a.assetId) return a.assetId;
+  return a.fileName ? `${a.fileName}:${a.width}x${a.height}` : undefined;
+}
+
+export async function pickFromRoll(): Promise<(ReviewShot & { source?: string })[] | null> {
   const result = await ImagePicker.launchImageLibraryAsync({
     ...PICKER_OPTIONS,
     allowsMultipleSelection: true,
@@ -104,7 +116,12 @@ export async function pickFromRoll(): Promise<ReviewShot[] | null> {
     selectionLimit: REVIEW_MAX,
   });
   if (result.canceled) return null;
-  return result.assets.map((a) => ({ uri: a.uri, width: a.width, height: a.height }));
+  return result.assets.map((a) => ({
+    uri: a.uri,
+    width: a.width,
+    height: a.height,
+    source: photoSource(a),
+  }));
 }
 
 export function wardrobeHref(to: AddDestination): Href {

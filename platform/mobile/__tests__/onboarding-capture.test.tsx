@@ -36,7 +36,7 @@ jest.mock('../src/features/capture/ShotCamera', () => {
       shots: { key: string }[];
       canDone: boolean;
       copy: { done: (n: number) => string };
-      onAdd: (p: { uri: string; width: number; height: number }) => void;
+      onAdd: (p: { uri: string; width: number; height: number; source?: string }) => unknown;
       onDone: () => void;
     }) => (
       <>
@@ -46,6 +46,16 @@ jest.mock('../src/features/capture/ShotCamera', () => {
           onPress={() => props.onAdd({ uri: 'file:///shot.jpg', width: 1200, height: 1600 })}
         >
           <Text>shoot</Text>
+        </Pressable>
+        {/* The same library photo, chosen from her photos. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="choose photo 1"
+          onPress={() =>
+            props.onAdd({ uri: 'file:///p1.jpg', width: 1200, height: 1600, source: 'ph://1' })
+          }
+        >
+          <Text>choose photo 1</Text>
         </Pressable>
         {props.shots.length ? (
           <Pressable
@@ -179,6 +189,45 @@ test('a photo whose first try fails is tried again and saves', async () => {
   expect(calls.filter((c) => c.path.endsWith('/looks')).map((c) => c.body)).toEqual([
     { status: 'saved', pieces: [], photoAssetId: asset(1) },
   ]);
+});
+
+// 25 Nov (device test): the same photos chosen again came back as duplicate looks.
+test('a photo already chosen in this step is never taken twice, before or after Save', async () => {
+  const calls = mockFetch({ 'POST /looks': look() });
+  await renderWithApi(<CaptureStep {...steps} mode="looks" onDone={jest.fn()} />);
+  await fireEvent.press(screen.getByRole('button', { name: copy.looks.choose }));
+  const choose = async () =>
+    act(async () => {
+      await fireEvent.press(screen.getByRole('button', { name: 'choose photo 1' }));
+    });
+  await choose();
+  await choose();
+  const save = screen.getByRole('button', { name: copy.save(1) });
+  await waitFor(() => expect(save).not.toBeDisabled());
+  await act(async () => {
+    await fireEvent.press(save);
+  });
+  await screen.findByText(copy.looks.saved, { exact: false });
+  // Add more, and the same photo again: still nothing new on the strip.
+  await fireEvent.press(screen.getByRole('button', { name: copy.addMore }));
+  await choose();
+  expect(screen.queryByRole('button', { name: copy.save(1) })).toBeNull();
+  expect(calls.filter((c) => c.path.endsWith('/looks'))).toHaveLength(1);
+});
+
+test('two quick taps on Save N save each look once', async () => {
+  const calls = mockFetch({ 'POST /looks': look() });
+  await renderWithApi(<CaptureStep {...steps} mode="looks" onDone={jest.fn()} />);
+  await fireEvent.press(screen.getByRole('button', { name: copy.looks.choose }));
+  await shoot(2);
+  const save = screen.getByRole('button', { name: copy.save(2) });
+  await waitFor(() => expect(save).not.toBeDisabled());
+  await act(async () => {
+    fireEvent.press(save);
+    fireEvent.press(save);
+  });
+  await screen.findByText(copy.looks.saved, { exact: false });
+  expect(calls.filter((c) => c.path.endsWith('/looks'))).toHaveLength(2);
 });
 
 test('Today’s outfit saves her photo as a look on today and goes Home, no draft drawer', async () => {
