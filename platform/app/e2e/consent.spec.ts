@@ -102,7 +102,7 @@ test('the one-time ask: nothing is sent while it waits, and Allow turns on all t
   await answerUsageAsk(page, 'Allow');
   expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
     analytics: true,
-    recordings: true,
+    full_recordings: true,
     look_sharing: true,
   });
   await expect.poll(() => hits.length).toBeGreaterThan(0);
@@ -130,7 +130,7 @@ test('nothing reaches PostHog until she turns usage counts on, and it stops when
   expect(hits, 'PostHog was contacted before consent').toEqual([]);
   expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
     analytics: false,
-    recordings: false,
+    full_recordings: false,
     look_sharing: false,
   });
 
@@ -143,7 +143,8 @@ test('nothing reaches PostHog until she turns usage counts on, and it stops when
   expect(await (await page.request.get('/api/v1/me/consents')).json()).toMatchObject({
     analytics: true,
     replay: null,
-    recordings: false,
+    recordings: null,
+    full_recordings: false,
   });
 
   await usage.uncheck();

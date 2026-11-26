@@ -57,8 +57,9 @@ export function AnalyticsProvider({
   const pathname = usePathname();
 
   const analyticsOn = Boolean(browser && userId && consents?.analytics === true);
-  // Only her yes to recordings that show her words; an older `replay` yes was to masked ones.
-  const replayOn = consents?.recordings === true;
+  // Only her yes to recordings that show her photos; an older `recordings` or `replay` yes was to
+  // recordings with photos (or every word) hidden, so it starts none (Annie, 26 Nov 2026).
+  const replayOn = consents?.full_recordings === true;
 
   useEffect(() => {
     if (!browser) return;

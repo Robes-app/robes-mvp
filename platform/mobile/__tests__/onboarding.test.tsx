@@ -38,6 +38,7 @@ const CONSENTS: Consents = {
   photo_analysis: null,
   look_sharing: null,
   recordings: null,
+  full_recordings: null,
 };
 // What the capture steps read; each test adds its /me.
 const STEPS: Routes = {

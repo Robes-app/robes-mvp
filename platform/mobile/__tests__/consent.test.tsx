@@ -24,6 +24,7 @@ const UNANSWERED: Consents = {
   photo_analysis: null,
   look_sharing: null,
   recordings: null,
+  full_recordings: null,
 };
 
 beforeEach(() => jest.clearAllMocks());
@@ -75,7 +76,7 @@ test('asked once, nothing counted before a yes, and one yes turns on all three',
     'GET /me/consents': UNANSWERED,
     'POST /me/consents': {
       ...UNANSWERED,
-      ...{ analytics: true, recordings: true, look_sharing: true },
+      ...{ analytics: true, full_recordings: true, look_sharing: true },
     },
   });
   await renderWithApi(<AnalyticsSetup />);
@@ -86,9 +87,21 @@ test('asked once, nothing counted before a yes, and one yes turns on all three',
   await waitFor(() => expect(start).toHaveBeenCalledWith(ME.id, { recordings: true }));
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     source: 'ios',
-    consents: { analytics: true, recordings: true, look_sharing: true },
+    consents: { analytics: true, full_recordings: true, look_sharing: true },
   });
   await waitFor(() => expect(screen.queryByText(consent.askTitle)).toBeNull());
+});
+
+// Her yes to recordings with her photos hidden (before 26 Nov) starts none that show them.
+test('an earlier recordings yes counts usage but records nothing', async () => {
+  const start = jest.spyOn(nativeAnalytics, 'start').mockResolvedValue();
+  mockFetch({
+    'GET /me': ME,
+    'GET /me/consents': { ...UNANSWERED, analytics: true, replay: true, recordings: true },
+  });
+  await renderWithApi(<AnalyticsSetup />);
+  await waitFor(() => expect(start).toHaveBeenCalledWith(ME.id, { recordings: false }));
+  expect(start).not.toHaveBeenCalledWith(ME.id, { recordings: true });
 });
 
 test('a no is saved and counts nothing', async () => {
@@ -98,7 +111,7 @@ test('a no is saved and counts nothing', async () => {
     'GET /me/consents': UNANSWERED,
     'POST /me/consents': {
       ...UNANSWERED,
-      ...{ analytics: false, recordings: false, look_sharing: false },
+      ...{ analytics: false, full_recordings: false, look_sharing: false },
     },
   });
   await renderWithApi(<AnalyticsSetup />);
@@ -106,7 +119,7 @@ test('a no is saved and counts nothing', async () => {
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       source: 'ios',
-      consents: { analytics: false, recordings: false, look_sharing: false },
+      consents: { analytics: false, full_recordings: false, look_sharing: false },
     }),
   );
   await waitFor(() => expect(screen.queryByText(consent.askTitle)).toBeNull());

@@ -9,7 +9,7 @@ import { useAnalytics } from '@/components/analytics-provider';
 
 // One question answers all three switches (Annie, 19 Nov): usage counts, screen recordings and
 // Share my looks. Each stays its own switch in You › Your data.
-const answerAll = (yes: boolean) => ({ analytics: yes, recordings: yes, look_sharing: yes });
+const answerAll = (yes: boolean) => ({ analytics: yes, full_recordings: yes, look_sharing: yes });
 
 // Asked once in the signed-in app, while she has given no answer (null). Nothing is counted until
 // she says yes (SEC-84). Native twin: AnalyticsSetup in mobile/src/lib/analytics.tsx.

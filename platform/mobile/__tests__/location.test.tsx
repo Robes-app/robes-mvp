@@ -102,6 +102,7 @@ test('waits for her answer to the usage question before asking where she is', as
     photo_analysis: null,
     look_sharing: null,
     recordings: null,
+    full_recordings: null,
   };
   mockFetch({
     'GET /me': ME,

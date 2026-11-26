@@ -21,6 +21,19 @@ interface Client {
 type PostHogConfig = { key: string; host: string; environment: string };
 export type LoadPostHog = (config: PostHogConfig) => Promise<Client>;
 
+// Recordings run only on her `full_recordings` yes, started and stopped by `start` (SEC-84). They
+// show the app as she sees it — her words, her photos, crops and her drawn model — so a tester's
+// recording shows a render bug (Annie, 26 Nov 2026). Never a view marked UNRECORDED (her email,
+// the sign-in code), nor the system's photo picker (her camera roll is not Robes). No console
+// lines or network calls. Web twin: posthogOptions in @robes/analytics/browser.
+export const SESSION_REPLAY_CONFIG = {
+  maskAllTextInputs: false,
+  maskAllImages: false,
+  maskAllSandboxedViews: true,
+  captureLog: false,
+  captureNetworkTelemetry: false,
+} as const;
+
 // Loaded once she is signed in and has said yes to usage counts (SEC-84).
 const loadPostHog: LoadPostHog = async ({ key, host }) => {
   const { PostHog } = await import('posthog-react-native');
@@ -30,22 +43,13 @@ const loadPostHog: LoadPostHog = async ({ key, host }) => {
     // Catalogue events and uncaught JS errors only: no lifecycle pings.
     captureAppLifecycleEvents: false,
     errorTracking: { autocapture: { uncaughtExceptions: true, unhandledRejections: true } },
-    // Recordings run only on her yes to them, started and stopped by `start` (SEC-84, owner
-    // 16 Nov 2026): her words show, photos never do, nor a view marked UNRECORDED (her email,
-    // the sign-in code). Web twin: posthogOptions in @robes/analytics/browser.
     enableSessionReplay: false,
-    sessionReplayConfig: {
-      maskAllTextInputs: false,
-      maskAllImages: true,
-      maskAllSandboxedViews: true,
-      captureLog: false,
-      captureNetworkTelemetry: false,
-    },
+    sessionReplayConfig: { ...SESSION_REPLAY_CONFIG },
   }) as unknown as Client;
 };
 
 export interface NativeAnalytics extends Analytics {
-  // `recordings`: her yes to screen recordings; without it none runs.
+  // `recordings`: her `full_recordings` yes to screen recordings; without it none runs.
   start(userId: string, options?: { recordings?: boolean }): Promise<void>;
   stop(): void;
   // A failure the app caught and showed her (a toast, an error line): autocapture never sees it.
@@ -103,7 +107,7 @@ export const nativeAnalytics = createNativeAnalytics(POSTHOG);
 
 // One question answers all three switches (Annie, 19 Nov): usage counts, screen recordings and
 // Share my looks. Each stays its own switch in You › Your data.
-const answerAll = (yes: boolean) => ({ analytics: yes, recordings: yes, look_sharing: yes });
+const answerAll = (yes: boolean) => ({ analytics: yes, full_recordings: yes, look_sharing: yes });
 
 // Signed-in shell: nothing is counted until she says yes (SEC-84). She is asked once, while she
 // has given no answer (null); after that the switches in You › Your data are the way to change it.
@@ -113,8 +117,9 @@ export function AnalyticsSetup(): ReactElement {
   const { consents, give } = useConsents();
   const userId = me.data?.id;
   const allowed = consents?.analytics === true;
-  // Only her yes to recordings that show her words; an older `replay` yes was to masked ones.
-  const recordings = allowed && consents?.recordings === true;
+  // Only her yes to recordings that show her photos; an older `recordings` or `replay` yes was to
+  // recordings with photos (or every word) hidden, so it starts none (Annie, 26 Nov 2026).
+  const recordings = allowed && consents?.full_recordings === true;
   useEffect(() => {
     if (userId && allowed)
       void nativeAnalytics

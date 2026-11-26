@@ -10,6 +10,7 @@ export const Consents = z.object({
   photo_analysis: answer.nullable(),
   look_sharing: answer.nullable(),
   recordings: answer.nullable(),
+  full_recordings: answer.nullable(),
 });
 export type Consents = z.infer<typeof Consents>;
 
@@ -24,6 +25,7 @@ export const UpdateConsentsInput = z.object({
       photo_analysis: answer,
       look_sharing: answer,
       recordings: answer,
+      full_recordings: answer,
     })
     .partial()
     .strict()

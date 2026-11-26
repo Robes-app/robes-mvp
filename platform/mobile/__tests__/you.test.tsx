@@ -171,6 +171,7 @@ test('turning usage counts off also withdraws recordings', async () => {
       photo_analysis: null,
       look_sharing: null,
       recordings: true,
+      full_recordings: true,
     },
     'POST /me/consents': {
       analytics: false,
@@ -179,6 +180,7 @@ test('turning usage counts off also withdraws recordings', async () => {
       photo_analysis: null,
       look_sharing: null,
       recordings: false,
+      full_recordings: false,
     },
   });
   await renderWithApi(<Privacy />);
@@ -187,22 +189,24 @@ test('turning usage counts off also withdraws recordings', async () => {
   await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     source: 'ios',
-    consents: { analytics: false, recordings: false },
+    consents: { analytics: false, full_recordings: false },
   });
 });
 
-test('Screen recordings asks afresh: a yes to masked recordings leaves the switch off', async () => {
+// A yes given to recordings with her photos hidden never stands for ones that show them (26 Nov).
+test('Screen recordings asks afresh: a yes to the earlier recordings leaves the switch off', async () => {
   const before = {
     analytics: true,
     replay: true,
     marketing_email: null,
     photo_analysis: null,
     look_sharing: null,
-    recordings: null,
+    recordings: true,
+    full_recordings: null,
   };
   const calls = mockFetch({
     'GET /me/consents': before,
-    'POST /me/consents': { ...before, recordings: true },
+    'POST /me/consents': { ...before, full_recordings: true },
   });
   await renderWithApi(<Privacy />);
   const recordings = await screen.findByLabelText(consent.replayLabel);
@@ -211,7 +215,7 @@ test('Screen recordings asks afresh: a yes to masked recordings leaves the switc
   await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     source: 'ios',
-    consents: { recordings: true },
+    consents: { full_recordings: true },
   });
 });
 
@@ -223,6 +227,7 @@ test('sharing her looks is its own yes, with no usage counts needed', async () =
     photo_analysis: null,
     look_sharing: null,
     recordings: null,
+    full_recordings: null,
   };
   const calls = mockFetch({
     'GET /me/consents': unanswered,
@@ -256,6 +261,7 @@ test('Download your data: prepare, then the ready file opens to download (SEC-81
       photo_analysis: null,
       look_sharing: null,
       recordings: null,
+      full_recordings: null,
     },
     'GET /me/exports': () => ({
       export: ready ? exp({ status: 'ready', downloadUrl: 'https://files.test/robes.zip' }) : null,
