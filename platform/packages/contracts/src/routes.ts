@@ -108,6 +108,7 @@ import {
   FileReadOutput,
   LookFromPhotoInput,
   PhotoReadParams,
+  ReadCrops,
   StartPhotoReadInput,
 } from './photo-reads';
 import {
@@ -620,6 +621,14 @@ export const routes = {
     params: PhotoReadParams,
     input: LookFromPhotoInput,
     output: Look,
+  },
+  'photoReads.crops': {
+    method: 'GET',
+    path: '/wardrobe/photo-reads/:id/crops',
+    auth: 'user',
+    params: PhotoReadParams,
+    input: EmptyInput,
+    output: ReadCrops,
   },
   'wishlist.list': {
     method: 'GET',
@@ -1386,3 +1395,14 @@ export type QueryRouteKey = {
   [K in JsonRouteKey]: Routes[K]['method'] extends 'GET' ? K : never;
 }[JsonRouteKey];
 export type MutationRouteKey = Exclude<JsonRouteKey, QueryRouteKey>;
+
+// Reads the server works out from "today" in her timezone (todayIn): refetched when her device
+// moves her to another zone (B6; web shell/device-timezone.tsx, native lib/timezone.tsx).
+export const DATED_ROUTES = [
+  'today.get',
+  'today.weather',
+  'plan.get',
+  'plan.day',
+  'notifications.list',
+  'wardrobe.list',
+] as const satisfies readonly QueryRouteKey[];

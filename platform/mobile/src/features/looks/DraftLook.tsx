@@ -14,6 +14,7 @@ import { readsAsThey } from '@robes/core/avatar';
 import {
   type Balance,
   changeableRows,
+  cropsLanding,
   type DockMove,
   type DockState,
   defaultSources,
@@ -394,8 +395,10 @@ export function DraftLook({
     { params: { id: lookId ?? '' } },
     {
       enabled: lookId !== null,
-      // Until the picture has landed, renditions and all (pictureLanding).
-      refetchInterval: (q) => (pictureLanding(q.state.data) ? 3_000 : false),
+      // Until the picture has landed, renditions and all (pictureLanding), and every found
+      // row's crop with it (cropsLanding: they render after the read, tester trial 25 Nov).
+      refetchInterval: (q) =>
+        pictureLanding(q.state.data) || cropsLanding(q.state.data) ? 3_000 : false,
     },
   );
   if (lookId === null) {
@@ -1445,7 +1448,6 @@ function DraftBody({
       <CaptureRow
         key={row.key}
         row={row}
-        look={look}
         capture={capture}
         onMatch={() =>
           setPicker({
@@ -1910,7 +1912,6 @@ function DraftBody({
         row={
           dockYield.gate(newPiece !== null) ? (rows.find((r) => r.key === newPiece) ?? null) : null
         }
-        look={look}
         capture={capture}
         onClose={() => setNewPiece(null)}
         onAdded={(piece) => {
