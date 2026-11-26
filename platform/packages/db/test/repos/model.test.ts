@@ -224,6 +224,45 @@ describe('look rendered on her model', () => {
     expect(await system.modelRender.look(bea, look.id)).toBeUndefined();
   });
 
+  // D1: the render reads the look's proposals, and only her own ready photos of them.
+  it('reads the proposals with the look, and only her own ready assets for their photos', async () => {
+    const proposals = [{ key: 'p-jeans', name: 'Straight jeans', category: 'Bottoms' }];
+    const look = await repos.looks.create(niall, {
+      name: 'Found',
+      nameProvisional: false,
+      pieces: [],
+    });
+    await db
+      .updateTable('looks')
+      .set({ proposals: JSON.stringify(proposals) })
+      .where('id', '=', look.id)
+      .execute();
+    expect((await system.modelRender.look(niall, look.id))?.look.proposals).toEqual(proposals);
+    const mine = await repos.assets.createPending(niall, {
+      kind: 'look_photo',
+      contentType: 'image/jpeg',
+      bytes: 1000,
+    });
+    const pending = await repos.assets.createPending(niall, {
+      kind: 'look_photo',
+      contentType: 'image/jpeg',
+      bytes: 1000,
+    });
+    const hers = await repos.assets.createPending(bea, {
+      kind: 'look_photo',
+      contentType: 'image/jpeg',
+      bytes: 1000,
+    });
+    await db
+      .updateTable('assets')
+      .set({ status: 'ready' })
+      .where('id', 'in', [mine.id, hers.id])
+      .execute();
+    const ready = await system.modelRender.readyAssets(niall, [mine.id, pending.id, hers.id]);
+    expect([...ready]).toEqual([mine.id]);
+    expect(await system.modelRender.readyAssets(niall, [])).toEqual(new Set());
+  });
+
   // D21: her picture note sent asks for a fresh picture even when the key is the same.
   it('draws again when forced, but never twice at once, and only for her own look', async () => {
     const look = await repos.looks.create(niall, {
