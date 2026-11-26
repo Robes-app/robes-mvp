@@ -545,6 +545,45 @@ describe('a look on her model', () => {
     expect((repos.looks.claimRender.mock.calls[0] as unknown[])[2]).toBe(bare);
   });
 
+  // D1 (Annie, 26 Nov): every piece on the look is drawn, found and added ones too.
+  it('draws the proposals with her pieces, and a found or added one is a new picture', async () => {
+    repos.avatarCells.get.mockImplementation(readyCell);
+    const keyOf = () => (repos.looks.claimRender.mock.calls[0] as unknown[])[2] as string;
+    await renderOnModel(USER, req, LOOK);
+    const filedOnly = keyOf();
+    vi.clearAllMocks();
+    const jeans = { key: 'p-jeans', name: 'Straight jeans', category: 'Bottoms' };
+    look = { status: 'saved', frameAssetId: null, styling: {}, proposals: [jeans] };
+    await renderOnModel(USER, req, LOOK);
+    const withJeans = keyOf();
+    expect(withJeans).not.toBe(filedOnly);
+    vi.clearAllMocks();
+    const loafers = { key: 'p-loafers', name: 'Black loafers', category: 'Shoes' };
+    look = { ...look, proposals: [jeans, loafers] };
+    await renderOnModel(USER, req, LOOK);
+    expect(keyOf()).not.toBe(withJeans);
+    // The job carries ids and intent only: the worker reads the proposals from the look.
+    expect(JSON.stringify(startJob.mock.calls[0])).not.toContain('loafers');
+  });
+
+  it('draws a look of found pieces alone, and refuses one with nothing on it', async () => {
+    repos.avatarCells.get.mockImplementation(readyCell);
+    repos.looks.piecesFor.mockResolvedValueOnce([]);
+    look = {
+      status: 'draft',
+      frameAssetId: null,
+      styling: {},
+      proposals: [{ key: 'p-stripe', name: 'Striped top', category: 'Tops' }],
+    };
+    await renderOnModel(USER, req, LOOK);
+    expect(startJob).toHaveBeenCalled();
+    vi.clearAllMocks();
+    repos.looks.piecesFor.mockResolvedValueOnce([]);
+    look = { status: 'draft', frameAssetId: null, styling: {}, proposals: [] };
+    await expect(renderOnModel(USER, req, LOOK)).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(startJob).not.toHaveBeenCalled();
+  });
+
   it('writes no note on a look it can’t draw, nor on one that is not hers', async () => {
     repos.avatarCells.get.mockImplementation(readyCell);
     look = { status: 'draft', frameAssetId: 'f', styling: {} };
