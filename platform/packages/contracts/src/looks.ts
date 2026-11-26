@@ -345,6 +345,10 @@ export const UpdateLookInput = z
     keepSuggested: z.boolean(),
     // You / Model: which picture is the record.
     record: z.enum(['photo', 'model']),
+    // Found rows filed in this write (`fileRow`): each found row's key, and the row it became
+    // (her piece's id, or the wish's key). Her picture wore the found piece, so filing keeps it
+    // current (Annie, 26 Nov); the server checks each against the look before it counts.
+    filed: z.array(z.object({ from: ProposalKey, to: RackKey })).max(MAX_ROWS),
   })
   .partial();
 export type UpdateLookInput = z.infer<typeof UpdateLookInput>;

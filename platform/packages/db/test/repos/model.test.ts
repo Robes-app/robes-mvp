@@ -224,6 +224,30 @@ describe('look rendered on her model', () => {
     expect(await system.modelRender.look(bea, look.id)).toBeUndefined();
   });
 
+  // Filing a found piece keeps the picture (Annie, 26 Nov): a ready render's key moves, nothing else.
+  it('carries a ready render to its new key, only on her own look and only from its own key', async () => {
+    const look = await repos.looks.create(niall, {
+      name: 'Filed',
+      nameProvisional: false,
+      pieces: [],
+    });
+    expect(await repos.looks.claimRender(niall, look.id, 'm:k1')).toBe(true);
+    // Still drawing: nothing to carry.
+    expect(await repos.looks.carryRender(niall, look.id, 'm:k1', 'm:k2')).toBe(false);
+    const asset = await system.styling.createGeneratedAsset(niall);
+    await system.modelRender.setRender(niall, look.id, 'm:k1', asset);
+    expect(await repos.looks.carryRender(bea, look.id, 'm:k1', 'm:k2')).toBe(false);
+    expect(await repos.looks.carryRender(niall, look.id, 'm:k0', 'm:k2')).toBe(false);
+    expect(await repos.looks.carryRender(niall, look.id, 'm:k1', 'm:k2')).toBe(true);
+    expect(await repos.looks.renderState(niall, look.id)).toMatchObject({
+      renderKey: 'm:k2',
+      renderStatus: 'ready',
+      renderAssetId: asset,
+    });
+    // The carried key is current: asking for it again draws nothing.
+    expect(await repos.looks.claimRender(niall, look.id, 'm:k2')).toBe(false);
+  });
+
   // D1: the render reads the look's proposals, and only her own ready photos of them.
   it('reads the proposals with the look, and only her own ready assets for their photos', async () => {
     const proposals = [{ key: 'p-jeans', name: 'Straight jeans', category: 'Bottoms' }];

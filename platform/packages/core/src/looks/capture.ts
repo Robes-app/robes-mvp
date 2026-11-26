@@ -103,7 +103,9 @@ export function restoreRows(rows: readonly RackRow[], removed: readonly RemovedR
 }
 
 // Matched or added: the row becomes her piece, or a wish from her wishlist as a piece to find
-// (TestFlight 20 Nov), in the same place. Neither is hung twice; the found row just goes.
+// (TestFlight 20 Nov), in the same place. Neither is hung twice; the found row just goes. The
+// filed row remembers the found row it was, so her picture, drawn wearing the found piece, stays
+// current: it is the same piece, now filed (Annie, 26 Nov).
 export function fileRow(rows: readonly RackRow[], key: string, piece: RackRow): RackRow[] {
   const wishId = piece.proposal?.wishlistItemId ?? null;
   const same = (r: RackRow) =>
@@ -111,7 +113,23 @@ export function fileRow(rows: readonly RackRow[], key: string, piece: RackRow): 
       ? r.pieceId === piece.pieceId
       : wishId !== null && r.proposal?.wishlistItemId === wishId;
   if (rows.some(same)) return rows.filter((r) => r.key !== key);
-  return rows.map((r) => (r.key === key ? piece : r));
+  const from = rows.find((r) => r.key === key);
+  const filedFrom = from && isCaptureRow(from) ? { filedFrom: key } : {};
+  return rows.map((r) => (r.key === key ? { ...piece, ...filedFrom } : r));
+}
+
+// True when `after` is `before` with found rows filed in place (`fileRow`) and nothing else
+// changed: the picture still wears it, so the change does not count against the picture.
+export function filesOnly(before: readonly RackRow[], after: readonly RackRow[]): boolean {
+  if (before.length !== after.length) return false;
+  let filed = false;
+  for (const [i, row] of after.entries()) {
+    const was = before[i] as RackRow;
+    if (row === was) continue;
+    if (!row.filedFrom || row.filedFrom !== was.key || !isCaptureRow(was)) return false;
+    filed = true;
+  }
+  return filed;
 }
 
 export const filedCount = (rows: readonly RackRow[]): number =>
@@ -173,7 +191,8 @@ export function cropsLanding(
 
 // The reads whose crops a rack fetches for itself: those of its found rows the look holds no crop
 // for. A draft writes its rows through at once and the look comes back with their crops; a saved
-// look keeps them on her phone until Update look (the editor's `live`), so its look has none.
+// look writes the found rows at once too (D1), but a row it holds only on her phone until Update
+// look, or one written before the look comes back, has none there yet.
 export function cropReads(
   rows: readonly RackRow[],
   look: { status: string; captureImages: Readonly<Record<string, unknown>> },

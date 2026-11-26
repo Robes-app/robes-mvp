@@ -611,6 +611,21 @@ export function looksRepo(db: Db) {
         .execute();
     },
 
+    // Her picture, drawn for `from`, now stands for `to`: a found piece filed is the same piece
+    // (Annie, 26 Nov). Only a ready render still keyed `from` moves; false otherwise.
+    async carryRender(userId: UserId, id: string, from: string, to: string): Promise<boolean> {
+      const res = await db
+        .updateTable('looks')
+        .set({ renderKey: to })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('deletedAt', 'is', null)
+        .where('renderKey', '=', from)
+        .where('renderStatus', '=', 'ready')
+        .executeTakeFirst();
+      return res.numUpdatedRows > 0n;
+    },
+
     getMany(userId: UserId, ids: readonly string[]) {
       if (ids.length === 0) return Promise.resolve([]);
       return active()

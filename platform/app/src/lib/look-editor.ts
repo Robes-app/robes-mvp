@@ -15,7 +15,14 @@ import {
   wishRow,
 } from '@robes/contracts';
 import { errors, lookbook, wardrobe } from '@robes/copy';
-import { applyAsk, changedKeys, type RackRow, type RackState, rowNote } from '@robes/core/looks';
+import {
+  applyAsk,
+  changedKeys,
+  filesOnly,
+  type RackRow,
+  type RackState,
+  rowNote,
+} from '@robes/core/looks';
 import { useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
@@ -86,9 +93,11 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     oldest: string | null;
   } | null>(null);
 
-  const change = (next: RackState) => {
+  // `drawn`: the picture already wears `next` (a found piece filed, Annie 26 Nov), so it is not
+  // counted as a change the picture is behind on.
+  const change = (next: RackState, drawn = false) => {
     setRack(next);
-    onChange.current?.();
+    if (!drawn) onChange.current?.();
     if (live) {
       inFlight.current = write
         .mutateAsync({ params: { id: look.id }, input: rackUpdate(next, { keepEdits: true }) })
@@ -215,7 +224,7 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     setRows: (rows: RackRow[]) => {
       const keys = new Set(rows.map((r) => r.key));
       const edits = Object.fromEntries(Object.entries(rack.edits).filter(([k]) => keys.has(k)));
-      change({ ...rack, rows, edits });
+      change({ ...rack, rows, edits }, filesOnly(current.current.rows, rows));
     },
     // The pieces Find the pieces read from her photograph (D1, Annie 26 Nov): they join the rack
     // and are written at once, on a saved look too, so her model can be drawn wearing them. A

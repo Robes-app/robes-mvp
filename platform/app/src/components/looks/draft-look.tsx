@@ -1238,8 +1238,8 @@ function DraftBody({
       // A draft's photographs are kept as it is saved.
       void stack.commit().then((ok) => {
         if (!ok) return;
-        // A look from her photograph is drawn only once its pieces were found (D1): then the
-        // model catches up with what she matched or removed since.
+        // A look from her photograph is drawn only once its pieces were found (D1); after
+        // that, Save draws what is behind as it does for any draft.
         if (!capture.on || (look.onModel ?? null) !== null) adjust.drawForSave();
         save.mutate({ params: { id: look.id }, input: forDay ? { date: forDay } : {} });
       });
@@ -1311,13 +1311,19 @@ function DraftBody({
   // taken off by hand dress it at once, the picks of one moment in one picture, and a draft that
   // has pieces but no picture yet is dressed as it opens. Not while a picture is being drawn, nor
   // again after one failed; Robes' own photograph is the picture of a look it made. A captured
-  // draft is dressed once, when its pieces are found (`onFound`, D1), not as each is matched.
-  // A saved look's changes still wait for Update look (D17).
+  // draft is first dressed when its pieces are found (`onFound`, D1); from then on it is dressed
+  // exactly as a hand-built one, each piece matched, added or taken off drawn as it lands (Annie,
+  // 26 Nov). Filing a found piece changes nothing it wears, so it draws nothing. Before its first
+  // picture her photograph is its only one. A saved look's changes still wait for Update look (D17).
   // Native twin: DraftLook.tsx.
   const handBuilt = mode === 'draft' && !captureDraft && !look.frame && rows.length > 0;
   const undressed = look.model === null && (look.onModel ?? null) === null;
+  const drawnCapture = captureDraft && rows.length > 0 && (look.onModel ?? null) !== null;
   const toDress =
-    handBuilt && !adjust.busy && look.onModel !== 'pending' && (adjust.stale || undressed);
+    (handBuilt || drawnCapture) &&
+    !adjust.busy &&
+    look.onModel !== 'pending' &&
+    (adjust.stale || undressed);
   // biome-ignore lint/correctness/useExhaustiveDependencies: another pick restarts the wait
   useEffect(() => {
     if (!toDress) return;
