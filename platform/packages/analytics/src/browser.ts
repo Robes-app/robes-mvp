@@ -44,15 +44,8 @@ const loadPostHog: LoadPostHog = async (replay) => {
   return posthog;
 };
 
-const BLOCKED = [
-  'img',
-  'picture',
-  'video',
-  'canvas',
-  'svg image',
-  '[style*="background-image"]',
-  'input[type="file"]',
-];
+// A file input's value is a file name from her device, not Robes' screen.
+const BLOCKED = ['input[type="file"]'];
 
 export function posthogOptions(config: BrowserAnalyticsConfig, replay: boolean) {
   return {
@@ -78,10 +71,12 @@ export function posthogOptions(config: BrowserAnalyticsConfig, replay: boolean) 
     // Set here so no project setting can turn them on: console lines and request bodies can carry
     // her email or another value the recording hides.
     enable_recording_console_log: false,
-    // SEC-84 (owner, 16 Nov 2026): with her yes to recordings, her words show — the text on
-    // screen and what she types — so a recording can be read for what she asks Robes for. Photos
-    // and file names never record (a photo drawn as a CSS background included), nor her email or
-    // anything marked UNRECORDED.
+    // SEC-84 (Annie, 26 Nov 2026): with her yes to Screen recordings and to Share my looks with
+    // Robes (`look_sharing`), a recording shows the app as
+    // she sees it — the text on screen, what she types, her photos, crops and her drawn model — so
+    // a tester's recording shows a render bug. Never her email, a password, a file name or
+    // anything marked UNRECORDED (the sign-in code, the admin pages). Canvas frames are not
+    // recorded (rrweb's default); a live camera feed never is. Native twin: SESSION_REPLAY_CONFIG.
     session_recording: {
       maskAllInputs: false,
       maskInputOptions: { password: true, email: true },

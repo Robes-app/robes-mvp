@@ -1,3 +1,4 @@
+import { UNRECORDED } from '@robes/analytics';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Platform } from 'react-native';
 import SignIn from '../src/app/(auth)/sign-in';
@@ -65,6 +66,25 @@ test('sends a code, then shows the code step and a wrong-code message', async ()
   );
   expect(await screen.findByText('That code didn’t match. Check it and try again.')).toBeTruthy();
   expect(mockReplace).not.toHaveBeenCalled();
+});
+
+// Screen recordings show her photos and words now (26 Nov 2026), never her email or the code.
+function unrecorded(el: { parent: unknown; props: Record<string, unknown> } | null): boolean {
+  for (let node = el; node; node = node.parent as typeof el) {
+    if (node.props.accessibilityLabel === UNRECORDED) return true;
+  }
+  return false;
+}
+
+test('her email and the sign-in code stay out of screen recordings', async () => {
+  mockFetch(EMAIL_ONLY);
+  await renderWithApi(<SignIn />);
+  expect(unrecorded(screen.getByLabelText('Email'))).toBe(true);
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'niall@test.dev');
+  await fireEvent.press(screen.getByRole('button', { name: 'Email me a code' }));
+  expect(await screen.findByText('Check your email.')).toBeTruthy();
+  expect(unrecorded(screen.getByLabelText('Code'))).toBe(true);
+  expect(unrecorded(screen.getByText('Check your email.'))).toBe(false);
 });
 
 // Audit F6: a link opened while signed out comes back after the code; only one of ours.
