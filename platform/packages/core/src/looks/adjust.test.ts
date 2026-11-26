@@ -254,6 +254,20 @@ describe('the dock (K2, K3, K6, K8)', () => {
     expect(dockNext('thread', 'restore')).toBe('thread');
   });
 
+  // Annie, 26 Nov (D6): on a saved look the prompt stays open while Robes works, and its question
+  // folds it to the sparkle with the redraw; a draft stays where she had it.
+  it('folds a saved look to the sparkle once Robes asks about the change, never a draft', () => {
+    expect(dockNext('bar', 'answered', 'saved')).toBe('spark');
+    // The full conversation folds by the same rule (Annie, 26 Nov): open while she waits, folded
+    // once the answer lands, never back to the bar first.
+    expect(dockNext('thread', 'answered', 'saved')).toBe('spark');
+    expect(dockNext('spark', 'answered', 'saved')).toBe('spark');
+    expect(dockNext('bar', 'answered', 'draft')).toBe('bar');
+    expect(dockNext('thread', 'answered', 'draft')).toBe('thread');
+    expect(dockNext('spark', 'answered', 'draft')).toBe('spark');
+    expect(dockNext('bar', 'answered')).toBe('bar');
+  });
+
   it('marks the sparkle while a question waits', () => {
     const asked = adjustReduce(EMPTY_ADJUST, { type: 'question', text: 'How is this look?' });
     expect(dockDot('spark', asked)).toBe(true);

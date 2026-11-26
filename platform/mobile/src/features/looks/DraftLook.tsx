@@ -1301,9 +1301,11 @@ function DraftBody({
   };
   // A saved look's prompt keeps its own change (redline 14 Nov, pin 25): once Robes has answered
   // on the rack, the rack is written and the model wears it, with no button and nothing said.
-  const [applying, setApplying] = useState<'asked' | 'reading' | null>(null);
+  // `keeping`: the change is being written, between Robes' answer and the redraw it starts, so
+  // Robes is still at work there (25 Nov: Robes' work dropped for that moment and the dock folded
+  // twice on one send).
+  const [applying, setApplying] = useState<'asked' | 'reading' | 'keeping' | null>(null);
   const keep = async () => {
-    if (!editor.dirty) return;
     if (!(await editor.update(true))) return;
     src.settle();
     adjust.drawNow();
@@ -1311,8 +1313,12 @@ function DraftBody({
   useEffect(() => {
     if (applying === 'asked' && adjust.busy) setApplying('reading');
     if (applying === 'reading' && !adjust.busy) {
-      setApplying(null);
-      void keep();
+      if (!editor.dirty) {
+        setApplying(null);
+        return;
+      }
+      setApplying('keeping');
+      void keep().finally(() => setApplying(null));
     }
   });
   const done = () => {
@@ -1539,13 +1545,14 @@ function DraftBody({
   useEffect(() => {
     if (firstDress) setDockState('spark');
   }, [firstDress]);
-  // On a saved look her send puts the dock away to the sparkle while Robes works, as a draft does
-  // while it is first dressed; the sparkle's dot says when Robes has answered, a question or its
-  // words (Annie, 18 Nov).
-  const savedWorking = mode !== 'draft' && adjust.busy;
+  // On a saved look her send keeps the prompt open on Robes at work, at the bar or the thread she
+  // sent from, and Robes' question about the change, asked as its picture lands, folds either to
+  // the sparkle with the redraw, its dot holding the question; Robes' words alone keep it open on
+  // them (Annie, 26 Nov, D6). Put away by her while Robes works, the dot says when it has answered.
+  const question = adjust.state.question;
   useEffect(() => {
-    if (savedWorking) setDockState('spark');
-  }, [savedWorking]);
+    if (question !== null) setDockState((from) => dockNext(from, 'answered', dockContext));
+  }, [question, dockContext]);
   const [unread, setUnread] = useState(false);
   const dockNow = useRef(dockState);
   dockNow.current = dockState;
@@ -1569,7 +1576,9 @@ function DraftBody({
   }, [verdict]);
   const hasThread = adjust.state.thread.length > 0 || adjust.state.question !== null;
   const lastLine = adjust.state.thread.at(-1);
-  const working = lastLine?.who === 'work';
+  // While her change is written, before its redraw starts, Robes is still dressing it.
+  const keeping = applying === 'keeping' && lastLine?.who !== 'work';
+  const working = lastLine?.who === 'work' || keeping;
   const said =
     (lastLine?.who === 'robes' || lastLine?.who === 'filed') && lastLine.text !== d.modelDone
       ? lastLine
@@ -1627,11 +1636,13 @@ function DraftBody({
       state={dockState}
       first={!hasThread}
       line={
-        working
-          ? (lastLine?.text ?? null)
-          : verdict === 'down'
-            ? fb.change
-            : (adjust.state.question ?? said?.text ?? null)
+        keeping
+          ? d.dressing
+          : working
+            ? (lastLine?.text ?? null)
+            : verdict === 'down'
+              ? fb.change
+              : (adjust.state.question ?? said?.text ?? null)
       }
       working={working}
       thumbs={verdict === 'ask' ? <Thumbs adjust={adjust} /> : null}

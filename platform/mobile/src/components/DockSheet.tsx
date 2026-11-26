@@ -77,8 +77,10 @@ export function DockSheet({
   const asThread = detent === 'bar' ? pulled : !(shown > 0 && shown <= barHeight + PULL / 2);
   const toDetent = (d: DockDetent): PresentationDetent =>
     d === 'bar' ? BAR : d === 'thread' ? THREAD : 'large';
+  // The bar is the one height given in points: one iOS reports from before the bar resized (Robes'
+  // line arriving while the sheet stays up, 26 Nov) is still the bar, never the full sheet.
   const fromDetent = (d: PresentationDetent): DockDetent =>
-    same(d, BAR) ? 'bar' : same(d, THREAD) ? 'thread' : 'full';
+    typeof d === 'object' && 'height' in d ? 'bar' : same(d, THREAD) ? 'thread' : 'full';
   // Toasts are drawn under the sheet: at the bar they stand above it (the thread dims the look,
   // and says what it needs itself).
   useToastLift(open && detent === 'bar' ? barHeight + TOAST_GAP : 0);

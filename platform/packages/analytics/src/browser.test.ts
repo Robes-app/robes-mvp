@@ -57,7 +57,7 @@ describe('browser analytics (SEC-84)', () => {
     expect(client.capture).toHaveBeenCalledWith('job_started', { kind: 'fake' });
   });
 
-  it('records her words but never photos, file names, her email or what is marked', async () => {
+  it('records the app as she sees it, photos included, but never her email or what is marked', async () => {
     const options = posthogOptions(config, true);
     expect(options.session_recording).toMatchObject({
       maskAllInputs: false,
@@ -67,19 +67,10 @@ describe('browser analytics (SEC-84)', () => {
       recordBody: false,
     });
     expect(options.enable_recording_console_log).toBe(false);
-    const blocked = options.session_recording.blockSelector.split(', ');
-    for (const sel of [
-      'img',
-      'picture',
-      'video',
-      'canvas',
-      'svg image',
-      '[style*="background-image"]',
-      'input[type="file"]',
-    ]) {
-      expect(blocked).toContain(sel);
-    }
+    // Her photos, crops and drawn model show (Annie, 26 Nov 2026); only a file name stays out.
+    expect(options.session_recording.blockSelector).toBe('input[type="file"]');
     expect(options.session_recording).not.toHaveProperty('maskTextSelector');
+    expect(options.session_recording).not.toHaveProperty('captureCanvas');
   });
 
   it('records replay only with replay consent', async () => {
