@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CreatePieceInput, LEGACY_CATEGORY, Piece, Wish } from './wardrobe';
+import { CreatePieceInput, LEGACY_CATEGORY, Piece, PieceImage, Wish } from './wardrobe';
 
 // Several pieces from one photograph (legacy 2026-10-13): one read behind "several pieces to the
 // wardrobe" and "a look from a photo". Every piece is confirmed by her, never filed on Robes' word.
@@ -36,6 +36,14 @@ export type ReadPiece = z.infer<typeof ReadPiece>;
 
 export const StartPhotoReadInput = z.object({ assetId: z.uuid() });
 export const PhotoReadParams = z.object({ id: z.uuid() });
+
+// Each piece's crop of a read, by the piece's index, signed for her: a found row on a saved look
+// waits on her phone until Update look, so the look itself has no crop to hand it (tester trial
+// 25 Nov). `pending` until its renditions exist.
+export const ReadCrops = z.object({
+  crops: z.array(z.object({ index: pieceIndex, image: PieceImage })),
+});
+export type ReadCrops = z.infer<typeof ReadCrops>;
 
 // Her edits from the single-piece screen, scoped to one piece of the read.
 export const ReadPieceEdits = CreatePieceInput.omit({ imageAssetId: true });

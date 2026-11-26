@@ -7,6 +7,7 @@ const repos = {
   capacity: { isExhausted: vi.fn(async () => false) },
   assets: {
     getForUser: vi.fn(),
+    getManyForUser: vi.fn(async (): Promise<Array<{ id: string; status: string }>> => []),
     discardCrops: vi.fn(async () => 0),
   },
   jobs: { getForUser: vi.fn() },
@@ -35,13 +36,21 @@ vi.mock('./wardrobe', () => ({
   liftedWith,
 }));
 vi.mock('./wishlist', () => ({ toWishes: vi.fn(async (_u: unknown, rows: unknown[]) => rows) }));
+vi.mock('./media', () => ({ mediaDelivery: { url: vi.fn() } }));
+// Signing is asset-urls' own (tested there): here the image says which asset and its status.
+vi.mock('./asset-urls', () => ({
+  toImage: vi.fn(async (_d: unknown, _u: unknown, a: { id: string; status: string }) => ({
+    assetId: a.id,
+    status: a.status,
+  })),
+}));
 vi.mock('./looks-entity', () => ({
   suggestedName: vi.fn(async () => 'Suggested'),
   toLook: vi.fn(async (_u: unknown, row: unknown) => row),
   withOwnedPieces: (write: () => Promise<unknown>) => write(),
 }));
 
-const { fileRead, filePiece, findLookPieces, lookFromRead, startPhotoRead, wishPiece } =
+const { fileRead, filePiece, findLookPieces, lookFromRead, readCrops, startPhotoRead, wishPiece } =
   await import('./photo-reads');
 
 const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
@@ -432,6 +441,29 @@ describe('photo reads', () => {
     repos.jobs.getForUser.mockResolvedValueOnce(undefined);
     await expect(filePiece(USER, JOB, { index: 0 })).rejects.toMatchObject({ code: 'not_found' });
     expect(repos.wardrobe.createFromRead).not.toHaveBeenCalled();
+  });
+
+  it("hands over each piece's crop of her read by index, pending until it renders", async () => {
+    repos.assets.getManyForUser.mockResolvedValueOnce([
+      { id: crop(2), status: 'ready' },
+      { id: crop(0), status: 'pending' },
+    ]);
+    const out = await readCrops(USER, JOB);
+    expect(repos.jobs.getForUser).toHaveBeenCalledWith(USER, JOB);
+    expect(repos.assets.getManyForUser).toHaveBeenCalledWith(USER, [crop(0), crop(1), crop(2)]);
+    // The second piece's crop is gone (discarded): it is left out, never signed.
+    expect(out.crops).toEqual([
+      { index: 0, image: { assetId: crop(0), status: 'pending' } },
+      { index: 2, image: { assetId: crop(2), status: 'ready' } },
+    ]);
+  });
+
+  it('hands over no crops of a read that is not hers or still reading', async () => {
+    repos.jobs.getForUser.mockResolvedValueOnce(undefined);
+    await expect(readCrops(USER, JOB)).rejects.toMatchObject({ code: 'not_found' });
+    repos.jobs.getForUser.mockResolvedValueOnce({ kind: 'wardrobe_pieces', status: 'running' });
+    await expect(readCrops(USER, JOB)).rejects.toMatchObject({ code: 'conflict' });
+    expect(repos.assets.getManyForUser).not.toHaveBeenCalled();
   });
 
   it('finds the pieces of a look from the photograph in front', async () => {

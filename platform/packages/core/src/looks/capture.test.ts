@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   captureEyebrow,
+  captureImage,
   captureRows,
   captureStage,
+  cropReads,
+  cropsLanding,
   type FoundPiece,
   filedCount,
   fileRow,
@@ -150,5 +153,58 @@ describe('captureStage', () => {
   it('keeps the photo when the read fails or every row is removed', () => {
     expect(captureStage({ ...rest, failed: true })).toBe('failed');
     expect(captureStage({ ...rest, cleared: true })).toBe('clear');
+  });
+});
+
+describe('found rows and their crops', () => {
+  const [top, bottom] = captureRows(READ, [found(0), found(1)], keys());
+  if (!top || !bottom) throw new Error('two rows');
+  const crop = (status: 'pending' | 'ready' | 'failed', renditions: unknown[] = []) => ({
+    assetId: top.proposal?.capture?.cropAssetId ?? '',
+    status,
+    renditions,
+  });
+
+  it('keeps a look landing while any found row’s crop is still being made', () => {
+    expect(cropsLanding(undefined)).toBe(false);
+    expect(cropsLanding({ captureImages: {} })).toBe(false);
+    expect(cropsLanding({ captureImages: { a: crop('ready'), b: crop('pending') } })).toBe(true);
+    expect(cropsLanding({ captureImages: { a: crop('ready'), b: crop('failed') } })).toBe(false);
+  });
+
+  it('fetches the read for found rows a saved look holds no crop for, once per read', () => {
+    const saved = (captureImages: Record<string, unknown>) => ({ status: 'saved', captureImages });
+    expect(cropReads([top, bottom], saved({}))).toEqual([READ]);
+    expect(cropReads([top, bottom], saved({ [top.key]: crop('pending') }))).toEqual([READ]);
+    expect(
+      cropReads([top, bottom], saved({ [top.key]: crop('pending'), [bottom.key]: crop('ready') })),
+    ).toEqual([]);
+    expect(cropReads([hers()], saved({}))).toEqual([]);
+  });
+
+  it('leaves a draft to its look, which its rows are written to at once', () => {
+    expect(cropReads([top, bottom], { status: 'draft', captureImages: {} })).toEqual([]);
+  });
+
+  it('draws whichever crop has landed, the look’s first', () => {
+    const ready = crop('ready', [{ width: 200 }]);
+    expect(captureImage(top, ready, crop('ready'))).toBe(ready);
+    expect(captureImage(top, crop('pending'), ready)).toBe(ready);
+    const pending = crop('pending');
+    expect(captureImage(top, pending, undefined)).toBe(pending);
+    expect(captureImage(top, undefined, pending)).toBe(pending);
+  });
+
+  it('stands in a pending crop before anything has come back, and none for a failed one', () => {
+    expect(captureImage(top, undefined, undefined)).toEqual({
+      assetId: top.proposal?.capture?.cropAssetId,
+      status: 'pending',
+      width: null,
+      height: null,
+      blurhash: null,
+      renditions: [],
+    });
+    expect(captureImage(top, undefined, crop('failed'))).toBeNull();
+    expect(captureImage(hers(), undefined, undefined)).toBeNull();
   });
 });
