@@ -239,16 +239,26 @@ export function followUp(sent: {
 // The dock (K2): the sparkle alone, the bar (the latest line and the field), or the open thread.
 // A draft opens at the bar; a saved look at the sparkle. Tapping the sparkle restores the bar;
 // the bar's top edge opens the thread and the close folds it back; an empty send or a thumbs up
-// minimises it to the sparkle (K6). Moves that do not apply leave it where it is.
+// minimises it to the sparkle (K6). Her send moves nothing: the prompt stays open on Robes at
+// work. `answered`: Robes' question about the change she sent has come, its picture drawn (or
+// failed, or none to follow). On a saved look that folds it to the sparkle, so she sees the
+// redraw and the dot holds the question; a draft stays where she had it (Annie, 26 Nov, D6).
+// Robes' words alone (nothing changed) are no move: the prompt stays open on them. Moves that do
+// not apply leave it where it is.
 export const DOCK_STATES = ['spark', 'bar', 'thread'] as const;
 export type DockState = (typeof DOCK_STATES)[number];
-export type DockMove = 'restore' | 'expand' | 'collapse' | 'minimise';
+export type DockContext = 'draft' | 'saved';
+export type DockMove = 'restore' | 'expand' | 'collapse' | 'minimise' | 'answered';
 
-export function dockStart(context: 'draft' | 'saved'): DockState {
+export function dockStart(context: DockContext): DockState {
   return context === 'draft' ? 'bar' : 'spark';
 }
 
-export function dockNext(state: DockState, move: DockMove): DockState {
+export function dockNext(
+  state: DockState,
+  move: DockMove,
+  context: DockContext = 'draft',
+): DockState {
   switch (move) {
     case 'restore':
       return state === 'spark' ? 'bar' : state;
@@ -258,6 +268,8 @@ export function dockNext(state: DockState, move: DockMove): DockState {
       return state === 'thread' ? 'bar' : state;
     case 'minimise':
       return 'spark';
+    case 'answered':
+      return context === 'saved' ? 'spark' : state;
   }
 }
 
