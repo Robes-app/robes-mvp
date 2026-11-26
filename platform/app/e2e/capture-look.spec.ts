@@ -213,6 +213,14 @@ test('a draft from her photograph, its read and its pieces are hers alone', asyn
   expect((await (await api.get('/api/v1/wardrobe/items')).json()).items).toHaveLength(1);
   expect((await api.post(pieceUrl, { data: { index: 7 } })).status()).toBe(404);
 
+  // Her read's crops, each by its piece, signed for her (B2: a saved look's found rows need them
+  // before Update look).
+  const cropsUrl = `/api/v1/wardrobe/photo-reads/${jobId}/crops`;
+  const crops = await api.get(cropsUrl);
+  expect(crops.status()).toBe(200);
+  const { crops: list } = await crops.json();
+  expect(list.map((c: { index: number }) => c.index)).toEqual([0, 1, 2]);
+
   // Another account can make nothing of her photograph, her look or her read.
   const other = await browser.newPage();
   await signIn(other);
@@ -227,5 +235,6 @@ test('a draft from her photograph, its read and its pieces are hers alone', asyn
     (await other.request.post(`/api/v1/looks/${look.id}/pieces/find`, { data: {} })).status(),
   ).toBe(404);
   expect((await other.request.post(pieceUrl, { data: { index: 0 } })).status()).toBe(404);
+  expect((await other.request.get(cropsUrl)).status()).toBe(404);
   await other.close();
 });

@@ -108,6 +108,7 @@ import {
   FileReadOutput,
   LookFromPhotoInput,
   PhotoReadParams,
+  ReadCrops,
   StartPhotoReadInput,
 } from './photo-reads';
 import {
@@ -620,6 +621,14 @@ export const routes = {
     params: PhotoReadParams,
     input: LookFromPhotoInput,
     output: Look,
+  },
+  'photoReads.crops': {
+    method: 'GET',
+    path: '/wardrobe/photo-reads/:id/crops',
+    auth: 'user',
+    params: PhotoReadParams,
+    input: EmptyInput,
+    output: ReadCrops,
   },
   'wishlist.list': {
     method: 'GET',
