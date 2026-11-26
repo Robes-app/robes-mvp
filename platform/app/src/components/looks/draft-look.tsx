@@ -17,6 +17,7 @@ import { isTerminalJobStatus } from '@robes/core/jobs';
 import {
   type Balance,
   changeableRows,
+  cropsLanding,
   type DockMove,
   type DockState,
   defaultSources,
@@ -340,8 +341,10 @@ export function DraftLook({
     { params: { id: lookId ?? '' } },
     {
       enabled: lookId !== null,
-      // Until the picture has landed, renditions and all (pictureLanding).
-      refetchInterval: (q) => (pictureLanding(q.state.data) ? 3_000 : false),
+      // Until the picture has landed, renditions and all (pictureLanding), and every found
+      // row's crop with it (cropsLanding: they render after the read, tester trial 25 Nov).
+      refetchInterval: (q) =>
+        pictureLanding(q.state.data) || cropsLanding(q.state.data) ? 3_000 : false,
     },
   );
   if (lookId === null) {

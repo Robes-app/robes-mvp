@@ -39,6 +39,7 @@ import {
 } from '@/lib/nav';
 import { FeaturesProvider } from '../features';
 import { useDeviceLocation } from './device-location';
+import { useDeviceTimeZone } from './device-timezone';
 
 const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
@@ -146,6 +147,7 @@ export function AppShell({
   const dock = useRef<HTMLElement>(null);
   useToastLiftOver(dock);
   useDeviceLocation();
+  useDeviceTimeZone();
   const current = activeRoot(pathname);
   // The Wardrobe's badge counts every piece she owns (Front Door PRD rev 3, Q1); an empty wardrobe
   // reads a red 0 (Robes MVP 1a, Annie 16 Nov). Nothing until the count is known.

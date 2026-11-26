@@ -514,3 +514,79 @@ test('a read that fails says so with Retry, and the photo is kept', async () => 
   expect(screen.getByRole('button', { name: copy.retry })).toBeTruthy();
   expect(screen.getByText(copy.card.later)).toBeTruthy();
 });
+
+// Tester trial 25 Nov (B2): the found rows showed no pictures, because their crops render after
+// the read and nothing asked for them again until she removed a piece.
+const cropUrl = (i: number) => `http://m.test/crop-${i}.webp`;
+const cropImage = (i: number, status: 'pending' | 'ready') => ({
+  assetId: crop(i),
+  status,
+  width: status === 'ready' ? 400 : null,
+  height: status === 'ready' ? 500 : null,
+  blurhash: null,
+  renditions: status === 'ready' ? [{ width: 320, avif: cropUrl(i), webp: cropUrl(i) }] : [],
+});
+const drawn = (url: string) => JSON.stringify(screen.toJSON()).includes(url);
+
+test("a draft's found rows wait on their crops and show them once they render", async () => {
+  const routes = draftRoutes();
+  const patch = routes[`PATCH /looks/${LOOK_ID}`];
+  let rendered = false;
+  const withCrops = (l: ReturnType<typeof captured>) =>
+    captured({
+      ...l,
+      captureImages: Object.fromEntries(
+        (l.proposals ?? []).flatMap((p) =>
+          p.capture
+            ? [[p.key, cropImage(p.capture.index, rendered ? 'ready' : 'pending')] as const]
+            : [],
+        ),
+      ),
+    });
+  const calls = mockFetch({
+    ...routes,
+    // The write lands before the crops render; the next read of the look has them.
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => withCrops(patch(init)),
+    [`GET /looks/${LOOK_ID}`]: () => {
+      const out = withCrops(routes[`GET /looks/${LOOK_ID}`]());
+      if (out.proposals.length) rendered = true;
+      return out;
+    },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  expect(await screen.findByTestId('capture-rack-rack')).toBeTruthy();
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(drawn(cropUrl(0))).toBe(false);
+  await waitFor(() => expect(drawn(cropUrl(0))).toBe(true), { timeout: 8000 });
+  expect(drawn(cropUrl(1))).toBe(true);
+  // The look itself carried them: no separate read of the crops for a draft.
+  expect(calls.some((c) => c.path.endsWith('/crops'))).toBe(false);
+}, 15_000);
+
+test("a saved look's found rows show their crops before Update look", async () => {
+  let rendered = false;
+  const saved = captured({ status: 'saved', photo: PHOTO, image: PHOTO });
+  const calls = mockFetch({
+    ...draftRoutes(saved),
+    [`GET /wardrobe/photo-reads/${JOB_ID}/crops`]: () => {
+      const out = {
+        crops: READ.map((p) => ({
+          index: p.index,
+          image: cropImage(p.index, rendered ? 'ready' : 'pending'),
+        })),
+      };
+      rendered = true;
+      return out;
+    },
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="saved" onClose={jest.fn()} />);
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  expect(await screen.findByText('Cropped sweatshirt')).toBeTruthy();
+  await waitFor(() => expect(drawn(cropUrl(0))).toBe(true), { timeout: 8000 });
+  expect(drawn(cropUrl(2))).toBe(true);
+  // The rows still wait on her phone: nothing was written to the look.
+  expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+}, 15_000);

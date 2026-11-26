@@ -2,15 +2,19 @@ import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import {
   type Look,
   type Piece,
+  type PieceImage,
   pieceRow,
+  type ReadCrops,
   type ReadPiece,
   type Wish,
   wishRow,
 } from '@robes/contracts';
 import {
   type CaptureStage,
+  captureImage,
   captureRows,
   captureStage,
+  cropReads,
   fileRow,
   isCaptureRow,
   type RackRow,
@@ -18,7 +22,7 @@ import {
   removeRow,
   restoreRows,
 } from '@robes/core/looks';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useAllPieces } from '@/features/wardrobe/pieces';
 import { nativeAnalytics } from '@/lib/analytics';
@@ -47,6 +51,8 @@ export interface CaptureRack {
   pieceOf: (id: string) => Piece | undefined;
   // What the read saw of a found row.
   found: (row: RackRow) => ReadPiece | undefined;
+  // A found row's crop: pending (the row's loading state) until its renditions land.
+  image: (row: RackRow) => PieceImage | null;
   find: () => void;
   skip: () => void;
   match: (key: string, piece: Piece, how: 'match' | 'suggested' | 'add') => void;
@@ -105,6 +111,7 @@ export function useCaptureRack(
 
   const waiting = rows.some(isCaptureRow);
   const wardrobe = useAllPieces();
+  const crops = useReadCrops(on ? cropReads(rows, look) : []);
 
   // The read lands once: its pieces join the rack, or it says there was nothing to find.
   const handled = useRef<string | null>(null);
@@ -174,6 +181,11 @@ export function useCaptureRack(
     },
     pieceOf: (id) => filed[id],
     found: (row) => reads[row.key],
+    image: (row) => {
+      const capture = row.proposal?.capture;
+      const fromRead = capture ? crops.get(capture.readId)?.get(capture.index) : undefined;
+      return captureImage(row, look.captureImages[row.key], fromRead);
+    },
     find,
     skip: () => setSkipped(true),
     match: (key, piece, how) => {
@@ -221,4 +233,25 @@ export function useCaptureRack(
       setRemoved([]);
     },
   };
+}
+
+// The crops of each read whose found rows the look holds none for (a saved look's rows wait on
+// her phone until Update look), asked again while any is still being made. Web twin:
+// useReadCrops in app/src/lib/capture-rack.ts.
+function useReadCrops(readIds: readonly string[]): Map<string, Map<number, PieceImage>> {
+  const api = useApiClient();
+  const results = useQueries({
+    queries: readIds.map((id) => ({
+      queryKey: queryKeys.call('photoReads.crops', { params: { id } }),
+      queryFn: () => api.call('photoReads.crops', { params: { id } }),
+      refetchInterval: (q: { state: { data: ReadCrops | undefined } }) =>
+        q.state.data?.crops.some((c) => c.image.status === 'pending') ? JOB_REFRESH_MS : false,
+    })),
+  });
+  const out = new Map<string, Map<number, PieceImage>>();
+  results.forEach((r, i) => {
+    const id = readIds[i];
+    if (id && r.data) out.set(id, new Map(r.data.crops.map((c) => [c.index, c.image])));
+  });
+  return out;
 }
