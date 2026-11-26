@@ -318,7 +318,7 @@ test('Details: the caption keeps on blur, Seasons picks the four seasons, Tags p
   // Tags: a typed tag joins her namespace and the look.
   await page.getByTestId('details-tags').click();
   const tags = page.getByTestId('tags-view');
-  // The whole Wear it for list, though none of her pieces carries a tag yet (B8).
+  // Every account starts with the eight defaults as her own tags (tags cleanup, 26 Nov).
   for (const option of [
     'Everyday',
     'Work',
@@ -341,6 +341,17 @@ test('Details: the caption keeps on blur, Seasons picks the four seasons, Tags p
     .toEqual(['Weekend casual']);
   await tags.getByRole('button', { name: 'Back' }).click();
   await expect(page.getByTestId('details-tags')).toContainText('Weekend casual');
+
+  // Deleting a tag on a look asks first, then takes it off her list and the look.
+  await page.getByTestId('details-tags').click();
+  await tags.getByRole('button', { name: 'Delete Weekend casual' }).click();
+  const confirm = page.getByRole('alertdialog');
+  await expect(confirm).toContainText("It's on 1 look.");
+  await confirm.getByRole('button', { name: 'Delete' }).click();
+  await expect(tags.getByRole('button', { name: 'Tag it Weekend casual' })).toHaveCount(0);
+  await expect
+    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).tags)
+    .toEqual([]);
   expect(await seriousViolations(page)).toEqual([]);
 });
 

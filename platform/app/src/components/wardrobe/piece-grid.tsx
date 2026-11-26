@@ -3,7 +3,7 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { filters as filterCopy, wardrobe } from '@robes/copy';
-import { SEASON_OPTIONS, type SeasonOption, WEAR_FOR_ALL } from '@robes/core/filters';
+import { SEASON_OPTIONS, type SeasonOption } from '@robes/core/filters';
 import { rankCategories, type WardrobeLayout } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
 import { Button, CardSkeleton, EmptyState, ErrorText, Text } from '@robes/ui';
@@ -53,13 +53,6 @@ function pieceStatus(piece: Piece): CardStatus {
     : { text: wardrobe.card.neverWorn, warm: true };
 }
 
-// One list for the wear-it-for section: the shared list, then her own tags.
-export function wearChoicesOf(own: readonly string[]): string[] {
-  const seen = new Set(WEAR_FOR_ALL.map((w) => w.toLowerCase()));
-  const extra = own.filter((w) => !seen.has(w.toLowerCase()));
-  return [...WEAR_FOR_ALL, ...extra];
-}
-
 // The wardrobe's filter sheet (Front Door PRD rev 3 §7.1a): SEASON and WEAR IT FOR as pills with
 // no counts, COLOUR as the swatch grid, BRAND as the select. Filters apply live; the one button
 // reads what they leave. Native twin: WardrobeFilterSheet in features/wardrobe/WardrobeView.tsx.
@@ -95,14 +88,19 @@ export function WardrobeFilterSheet({
           selected: filters.state.seasons,
           onToggle: (v) => filters.toggleSeason(v as SeasonOption),
         },
-        {
-          key: 'wear',
-          title: filterCopy.wearFor,
-          counts: false,
-          options: wearChoices.map((value) => ({ value, label: value, count: 0 })),
-          selected: filters.state.wearFor,
-          onToggle: filters.toggleWear,
-        },
+        // Only the tags on her pieces (tags cleanup, 26 Nov): none, no section.
+        ...(wearChoices.length
+          ? [
+              {
+                key: 'wear',
+                title: filterCopy.wearFor,
+                counts: false,
+                options: wearChoices.map((value) => ({ value, label: value, count: 0 })),
+                selected: filters.state.wearFor,
+                onToggle: filters.toggleWear,
+              },
+            ]
+          : []),
         {
           key: 'colour',
           title: wardrobe.filter.colour,
@@ -304,7 +302,7 @@ export function PieceGrid() {
         onClose={() => setSheet(false)}
         filters={filters}
         brands={summary.data?.brands ?? []}
-        wearChoices={wearChoicesOf(summary.data?.wearFor ?? [])}
+        wearChoices={summary.data?.wearFor ?? []}
         count={total}
       />
       <AddPiecesSheet open={adding} onClose={() => setAdding(false)} />

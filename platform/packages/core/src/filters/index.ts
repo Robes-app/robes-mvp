@@ -1,7 +1,9 @@
 // The shared filter pattern (Front Door PRD rev 3 §2.5): one filter state for the Pick sheet,
 // the Lookbook and the Wardrobe, the season rule, and faceted counts. Pure, shared by both clients.
 
-import { lookMatches, lookWearFor } from '../looks';
+import { lookMatches } from '../looks';
+
+const fold = (s: string) => s.trim().toLowerCase();
 
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
 export type Season = (typeof SEASONS)[number];
@@ -12,8 +14,9 @@ export const YEAR_ROUND = 'year_round';
 export const SEASON_OPTIONS = [...SEASONS, YEAR_ROUND] as const;
 export type SeasonOption = (typeof SEASON_OPTIONS)[number];
 
-// One wear-it-for list for looks and pieces (plan R6): the seeds plus Weekend, which a filter
-// can name before any piece carries it (a tag row is minted on first use, never pre-created).
+// The defaults every account starts with as her own tags (tags cleanup, 26 Nov; seeded by the
+// her_tags migration, which lists the same labels): she may delete any of them, and they sit
+// under her own tags in the drawer, in this order.
 export const WEAR_FOR_ALL = [
   'Everyday',
   'Work',
@@ -24,8 +27,35 @@ export const WEAR_FOR_ALL = [
   'Active',
   'Lounge',
 ] as const;
-// The quick chips after All; the rest live in the sheet and join the row once picked.
-export const WEAR_FOR_QUICK = ['Everyday', 'Work', 'Weekend', 'Evening', 'Active'] as const;
+
+// How many tags one look or piece may carry. She picks as many as she likes; this only bounds a
+// request.
+export const TAGS_MAX = 40;
+
+// How many of her tags stand as quick chips; the rest live in the sheet.
+export const QUICK_TAGS = 5;
+
+// One of her tags as the Tags drawer lists it.
+export interface DrawerTag {
+  label: string;
+  isSeed: boolean;
+  createdAt: string;
+}
+
+// The Tags drawer's order: the tags she made, newest first, then the defaults in their own order.
+export function drawerOrder<T extends DrawerTag>(tags: readonly T[]): T[] {
+  const seedAt = (t: T) => {
+    const i = WEAR_FOR_ALL.findIndex((w) => fold(w) === fold(t.label));
+    return i === -1 ? WEAR_FOR_ALL.length : i;
+  };
+  const own = tags
+    .filter((t) => !t.isSeed)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+  const seeds = tags
+    .filter((t) => t.isSeed)
+    .sort((a, b) => seedAt(a) - seedAt(b) || a.label.localeCompare(b.label, 'en-GB'));
+  return [...own, ...seeds];
+}
 
 export interface LookFilterState {
   query: string;
@@ -51,8 +81,6 @@ export function matchesSeasons(
   return picked.some((p) => p !== YEAR_ROUND && seasons.includes(p));
 }
 
-const fold = (s: string) => s.trim().toLowerCase();
-
 // Values are compared without case: her tag "work" and the seed "Work" are one word.
 export function matchesWearFor(itemWearFor: readonly string[], picked: readonly string[]): boolean {
   if (picked.length === 0) return true;
@@ -66,21 +94,21 @@ export function toggleValue<T extends string>(list: readonly T[], value: T): T[]
     : [...list, value];
 }
 
-// What the Filter button counts (PRD §2.5): the seasons picked plus the wear-it-for values that
-// are not quick chips (Travel, Lounge, Occasion, her own tags). Quick chips show their own state.
+// What the Filter button counts (PRD §2.5): the seasons picked plus the tags picked that are not
+// quick chips. Quick chips show their own state.
 export function sheetFilterCount(
   state: Pick<LookFilterState, 'seasons' | 'wearFor'>,
-  quick: readonly string[] = WEAR_FOR_QUICK,
+  quick: readonly string[],
 ): number {
   const q = new Set(quick.map(fold));
   return state.seasons.length + state.wearFor.filter((w) => !q.has(fold(w))).length;
 }
 
-// The wear-it-for values picked in the sheet that are not quick chips: they join the quick-chip
-// row as active chips, so they stay visible and removable.
+// The tags picked in the sheet that are not quick chips: they join the quick-chip row as active
+// chips, so they stay visible and removable.
 export function extraActive(
   state: Pick<LookFilterState, 'wearFor'>,
-  quick: readonly string[] = WEAR_FOR_QUICK,
+  quick: readonly string[],
 ): string[] {
   const q = new Set(quick.map(fold));
   return state.wearFor.filter((w) => !q.has(fold(w)));
@@ -142,24 +170,30 @@ export function wearForCounts<T extends Filterable>(
   return counts;
 }
 
-// The WEAR IT FOR options a set of items offers: the shared list, then her own tags found on
-// them, A–Z, each spelling once.
+// The tags a set of items offers as filters: only those on at least one of them (tags cleanup,
+// 26 Nov), each spelling once, the most used first, then A–Z.
 export function wearForChoices(items: readonly { wearFor: readonly string[] }[]): string[] {
-  const seen = new Set(WEAR_FOR_ALL.map(fold));
-  const own: string[] = [];
+  const uses = new Map<string, { label: string; n: number }>();
   for (const item of items) {
-    for (const tag of item.wearFor) {
-      const key = fold(tag);
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      own.push(tag.trim());
+    for (const key of new Set(item.wearFor.map(fold))) {
+      if (!key) continue;
+      const label = item.wearFor.find((t) => fold(t) === key)?.trim() ?? key;
+      const seen = uses.get(key);
+      uses.set(key, { label: seen?.label ?? label, n: (seen?.n ?? 0) + 1 });
     }
   }
-  return [...WEAR_FOR_ALL, ...own.sort((a, b) => a.localeCompare(b, 'en-GB'))];
+  return [...uses.values()]
+    .sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'en-GB'))
+    .map((u) => u.label);
 }
 
-// A look as the filters read it: its seasons, its Wear it for (her tags, else its pieces'), and
-// a search over its name and its pieces' labels and brands.
+// The quick chips: her most used tags among these items.
+export function quickTags(choices: readonly string[], n: number = QUICK_TAGS): string[] {
+  return choices.slice(0, n);
+}
+
+// A look as the filters read it: its seasons, the tags she put on it (never its pieces'), and a
+// search over its name and its pieces' labels and brands.
 export function lookFacets<
   T extends {
     name: string;
@@ -173,7 +207,7 @@ export function lookFacets<
   return {
     ...look,
     seasons: look.seasons ?? [],
-    wearFor: lookWearFor(look),
+    wearFor: [...(look.tags ?? [])],
     matchesQuery: (q: string) => lookMatches(look, q),
   };
 }

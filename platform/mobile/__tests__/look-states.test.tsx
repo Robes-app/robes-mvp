@@ -867,6 +867,7 @@ test('a quick chip narrows the grid live; nothing left reads No looks match; a t
       saved: [
         look({ id: id(1), name: 'Office', onRobesModel: true, tags: ['Work'] }),
         look({ id: id(2), name: 'Sunday', tags: ['Weekend'] }),
+        look({ id: id(3), name: 'Lisbon', tags: ['Travel', 'Work'] }),
       ],
     }),
     'GET /plan': { from: localDate(), to: localDate(), days: [] },
@@ -876,19 +877,21 @@ test('a quick chip narrows the grid live; nothing left reads No looks match; a t
   // The tag lives on the saved look itself (Annie, 5 Nov), never on a tile standing in for it.
   expect(screen.queryByTestId('robes-model-tag')).toBeNull();
   expect(screen.queryByRole('button', { name: lookbook.deck.robesModelLabel })).toBeNull();
-  // Work 1 · Weekend 1 · Active 0 (disabled).
-  await fireEvent.press(screen.getByRole('button', { name: 'Work 1' }));
+  // The quick chips are her most used tags (tags cleanup, 26 Nov): Work 2 · Travel 1 · Weekend 1,
+  // and no default nothing carries.
+  await fireEvent.press(screen.getByRole('button', { name: 'Work 2' }));
   expect(screen.queryByText('Sunday')).toBeNull();
   expect(screen.getByText('Office')).toBeTruthy();
-  const active = screen.getByRole('button', { name: 'Active 0' });
-  expect(active.props.accessibilityState).toEqual({ selected: false, disabled: true });
-  // The sheet's option pills carry faceted counts: Travel reads 0, and picking it ORs with Work
-  // (one look still shows); Clear lets both go.
+  expect(screen.getByText('Lisbon')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^Active/ })).toBeNull();
+  // The sheet's option pills carry faceted counts: Weekend reads 1, and picking it ORs with Work
+  // (all three show); Clear lets both go.
   await fireEvent.press(screen.getByRole('button', { name: ui.filter }));
-  await fireEvent.press(await screen.findByRole('button', { name: 'Travel 0' }));
-  expect(screen.getByRole('button', { name: filters.showLooks(1) })).toBeTruthy();
+  const sheet = within(await screen.findByTestId('lookbook-filter-sheet'));
+  await fireEvent.press(sheet.getByRole('button', { name: 'Weekend 1' }));
+  expect(screen.getByRole('button', { name: filters.showLooks(3) })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: ui.clear }));
-  expect(await screen.findByRole('button', { name: filters.showLooks(2) })).toBeTruthy();
+  expect(await screen.findByRole('button', { name: filters.showLooks(3) })).toBeTruthy();
 });
 
 test('a suggestion’s menu saves it; + opens New Look; an empty Saved says so', async () => {

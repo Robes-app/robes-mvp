@@ -15,7 +15,7 @@ import { AddPiecesSheet } from './add/AddPiecesSheet';
 import { useWardrobeLayout } from './layout';
 import { CardRow, type CardStatus, CardTile, HeartButton, type RowMeta } from './PieceCard';
 import { SearchRow } from './WardrobeHeader';
-import { WardrobeFilterSheet, wearChoicesOf } from './WardrobeView';
+import { WardrobeFilterSheet } from './WardrobeView';
 import { useRemoveWish, useWishes } from './wishlist';
 
 // A wish's row says its price (or that it isn't hers yet) at the right.
@@ -208,7 +208,7 @@ export function WishlistView() {
         onClose={() => setSheet(false)}
         filters={filters}
         brands={brands}
-        wearChoices={wearChoicesOf([])}
+        wearChoices={[]}
         count={visible.length}
       />
     </View>

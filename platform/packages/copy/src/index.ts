@@ -339,12 +339,30 @@ export const ui = {
   clear: 'Clear',
 } as const;
 
+// Her tags (tags cleanup, 26 Nov): one drawer for a look and a piece alike, her own tags newest
+// first, then the defaults; a swipe (a hover's bin on the web) deletes one everywhere.
+const plural = (n: number, one: string): string => `${n} ${one}${n === 1 ? '' : 's'}`;
+export const tags = {
+  title: 'Tags',
+  done: 'Done',
+  add: 'Add a tag',
+  keep: 'Keep the tag',
+  toggle: (tag: string): string => `Tag it ${tag}`,
+  delete: 'Delete',
+  deleteLabel: (tag: string): string => `Delete ${tag}`,
+  confirmTitle: (tag: string): string => `Delete ${tag}?`,
+  // Only asked when something carries it: "It's on 4 looks and 12 pieces."
+  confirmBody: (looks: number, pieces: number): string =>
+    `It's on ${[looks ? plural(looks, 'look') : '', pieces ? plural(pieces, 'piece') : ''].filter(Boolean).join(' and ')}.`,
+  cancel: 'Cancel',
+} as const;
+
 // The shared filter pattern (Front Door PRD rev 3 §2.5): the row's chips, the sheet's sections
 // and its one button. Seasons are the four plus Year round, the empty set (D12).
 export const filters = {
   all: 'All',
   season: 'Season',
-  wearFor: 'Wear it for',
+  wearFor: 'Tags',
   seasons: {
     spring: 'Spring',
     summer: 'Summer',

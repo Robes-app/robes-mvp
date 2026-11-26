@@ -8,12 +8,12 @@ import {
   type Filterable,
   hasLookFilters,
   type LookFilterState,
+  quickTags,
   SEASON_OPTIONS,
   type SeasonOption,
   seasonCounts,
   sheetFilterCount,
   toggleValue,
-  WEAR_FOR_QUICK,
   wearForChoices,
   wearForCounts,
 } from '@robes/core/filters';
@@ -50,15 +50,17 @@ export function useLookFilters<T extends Filterable>(items: readonly T[]) {
   );
   const seasons = useMemo(() => seasonCounts(items, state), [items, state]);
 
-  // The quick chips: the defaults, then any sheet-only value she picked, so it stays visible.
+  // The quick chips: her most used tags here, then any sheet-only value she picked, so it stays
+  // visible.
+  const quickValues = useMemo(() => quickTags(wearChoices), [wearChoices]);
   const quick: FilterOption[] = useMemo(
     () =>
-      [...WEAR_FOR_QUICK, ...extraActive(state)].map((value) => ({
+      [...quickValues, ...extraActive(state, quickValues)].map((value) => ({
         value,
         label: value,
         count: wearCounts[value] ?? 0,
       })),
-    [state, wearCounts],
+    [state, wearCounts, quickValues],
   );
   const allCount = useMemo(
     () => applyFilters(items, { ...state, wearFor: [] }).length,
@@ -85,7 +87,7 @@ export function useLookFilters<T extends Filterable>(items: readonly T[]) {
     allCount,
     seasonSection,
     wearSection,
-    sheetCount: sheetFilterCount(state),
+    sheetCount: sheetFilterCount(state, quickValues),
     active: hasLookFilters(state),
     setQuery,
     toggleSeason,

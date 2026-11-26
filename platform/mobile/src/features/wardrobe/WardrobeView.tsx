@@ -1,7 +1,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { wardrobe as copy, filters as filterCopy, ui } from '@robes/copy';
-import { SEASON_OPTIONS, type SeasonOption, WEAR_FOR_ALL } from '@robes/core/filters';
+import { SEASON_OPTIONS, type SeasonOption } from '@robes/core/filters';
 import { matchesSearch, rankCategories } from '@robes/core/wardrobe';
 import { Button, CardSkeleton, EmptyState, PrimaryScope, Text } from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -77,14 +77,19 @@ export function WardrobeFilterSheet({
           selected: filters.state.seasons,
           onToggle: (v) => filters.toggleSeason(v as SeasonOption),
         },
-        {
-          key: 'wear',
-          title: filterCopy.wearFor,
-          counts: false,
-          options: wearChoices.map((value) => ({ value, label: value, count: 0 })),
-          selected: filters.state.wearFor,
-          onToggle: filters.toggleWear,
-        },
+        // Only the tags on her pieces (tags cleanup, 26 Nov): none, no section.
+        ...(wearChoices.length
+          ? [
+              {
+                key: 'wear',
+                title: filterCopy.wearFor,
+                counts: false,
+                options: wearChoices.map((value) => ({ value, label: value, count: 0 })),
+                selected: filters.state.wearFor,
+                onToggle: filters.toggleWear,
+              },
+            ]
+          : []),
         {
           key: 'colour',
           title: copy.filter.colour,
@@ -113,13 +118,6 @@ export function WardrobeFilterSheet({
       testID="wardrobe-filter-sheet"
     />
   );
-}
-
-// One list for the wear-it-for section: the shared list, then her own tags.
-export function wearChoicesOf(own: readonly string[]): string[] {
-  const seen = new Set(WEAR_FOR_ALL.map((w) => w.toLowerCase()));
-  const extra = own.filter((w) => !seen.has(w.toLowerCase()));
-  return [...WEAR_FOR_ALL, ...extra];
 }
 
 function Pieces({ onAdd }: { onAdd: () => void }) {
@@ -304,7 +302,7 @@ function Pieces({ onAdd }: { onAdd: () => void }) {
         onClose={() => setSheet(false)}
         filters={filters}
         brands={summary.data?.brands ?? []}
-        wearChoices={wearChoicesOf(summary.data?.wearFor ?? [])}
+        wearChoices={summary.data?.wearFor ?? []}
         count={total}
       />
       <DeletePieceDialog

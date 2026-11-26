@@ -129,6 +129,7 @@ import {
   UpdatePlanEntryInput,
 } from './plan';
 import { CreateShareInput, Share, SharedLook, ShareParams } from './shares';
+import { TagList, TagParams } from './tags';
 import {
   DailyItemParams,
   DailyLook,
@@ -490,6 +491,23 @@ export const routes = {
     auth: 'user',
     input: UpdateConsentsInput,
     output: Consents,
+  },
+  // Her tags, shared by her looks and pieces (tags cleanup, 26 Nov): the list with what carries
+  // each, and a delete that takes a tag off everything it was on.
+  'tags.list': {
+    method: 'GET',
+    path: '/tags',
+    auth: 'user',
+    input: EmptyInput,
+    output: TagList,
+  },
+  'tags.delete': {
+    method: 'DELETE',
+    path: '/tags/:id',
+    auth: 'user',
+    params: TagParams,
+    input: EmptyInput,
+    output: Deleted,
   },
   'wardrobe.list': {
     method: 'GET',
