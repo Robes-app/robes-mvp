@@ -430,11 +430,20 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
   // what it did: the change is seen, and it only asks.
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(screen.queryByText('Collar up.')).toBeNull();
-  // While the model wears it the dock waits as the sparkle (Annie, 18 Nov): no thumbs yet. Once
-  // the picture lands the question comes on the sparkle's dot, and a tap opens it, with its thumbs.
-  expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
+  // While the model wears it the prompt stays open on Robes at work (Annie, 26 Nov, D6: the fold
+  // on her send read as broken): no thumbs yet, no sparkle. Once the picture lands it folds to the
+  // sparkle with the redraw, the question on its dot, and a tap opens it, with its thumbs. The
+  // drawn dock's field is in the thread, so this is the thread folding by the same rule as the bar.
+  expect(await screen.findByText(lookbook.draft.dressing)).toBeTruthy();
+  expect(screen.getByTestId('draft-prompt')).toBeTruthy();
+  expect(screen.getByTestId('prompt-minimise')).toBeTruthy();
+  expect(screen.queryByTestId('prompt-spark')).toBeNull();
   expect(screen.queryByTestId('thumb-up')).toBeNull();
   expect(screen.queryByTestId('update-look')).toBeNull();
+  expect(nativeAnalytics.track).not.toHaveBeenCalledWith(
+    'dock_state_changed',
+    expect.objectContaining({ to: 'spark' }),
+  );
   expect(
     await screen.findByTestId(
       'prompt-spark-dot',
@@ -442,6 +451,11 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
       { timeout: 8000 },
     ),
   ).toBeTruthy();
+  expect(track).toHaveBeenCalledWith('dock_state_changed', {
+    from: 'thread',
+    to: 'spark',
+    context: 'saved',
+  });
   await fireEvent.press(screen.getByTestId('prompt-spark'));
   expect(await screen.findByTestId('thumb-up')).toBeTruthy();
   await openPrompt();
@@ -541,10 +555,8 @@ test('a saved look: the send asks, Robes asks about the change, reasons ride the
     text: '',
     reasons: ['dressy', 'colours'],
   });
-  // The send puts the dock away while Robes works (Annie, 18 Nov); opened again, her choice is one
-  // bubble in the thread (F17).
-  await fireEvent.press(await screen.findByTestId('prompt-spark'));
-  await fireEvent.press(await screen.findByTestId('prompt-expand'));
+  // The send keeps the prompt open while Robes works (Annie, 26 Nov, D6): her choice is one bubble
+  // in the thread (F17).
   expect(
     await screen.findByText(`${fb.reasons.dressy.label} · ${fb.reasons.colours.label}`),
   ).toBeTruthy();
@@ -636,8 +648,12 @@ test('a change that never landed is said plainly, never claimed', async () => {
   await fireEvent.press(await screen.findByTestId('prompt-spark'));
   await fireEvent.changeText(await openPrompt(), 'add a scarf');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  await openAnswer();
+  // Robes' words alone, nothing changed: the prompt stays open on them, the thread too (Annie,
+  // 26 Nov, D6).
   expect(await screen.findByText(lookbook.prompt.didNotLand)).toBeTruthy();
+  expect(screen.getByTestId('draft-prompt')).toBeTruthy();
+  expect(screen.getByTestId('prompt-minimise')).toBeTruthy();
+  expect(screen.queryByTestId('prompt-spark')).toBeNull();
   expect(screen.queryByText('Done. The scarf is on the look now.')).toBeNull();
   expect(screen.queryByTestId('thumb-up')).toBeNull();
 });
