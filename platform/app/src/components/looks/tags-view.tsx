@@ -1,8 +1,9 @@
 'use client';
 
-import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
+import { queryKeys, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook } from '@robes/copy';
+import { matchesWearFor, toggleValue, wearForChoices } from '@robes/core/filters';
 import { Icon } from '@robes/icons/web';
 import { OptionList, OptionRow, Subview, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -31,8 +32,9 @@ export function useLookTags(look: Look) {
   });
 }
 
-// Felix's TagsView: the tags picker, a subview from Details › Tags. Her tags — the ones her pieces
-// and looks wear — as rows with a check once picked; the footer field adds one. Native twin:
+// Felix's TagsView: the tags picker, a subview from Details › Tags. Every Wear it for option
+// (WEAR_FOR_ALL, in its order), then any other tag the look already carries, as rows with a check
+// once picked; the footer field adds one. Native twin:
 // mobile/src/features/looks/TagsView.tsx.
 export function TagsView({
   look,
@@ -44,18 +46,19 @@ export function TagsView({
   onBack: () => void;
 }) {
   const update = useLookTags(look);
-  // Her tag namespace, as the wardrobe's Filter reads it.
-  const summary = useApi('wardrobe.summary', {}, { enabled: open });
   const [text, setText] = useState('');
-  const options = [...new Set([...(summary.data?.wearFor ?? []), ...look.tags])];
+  // The whole list even before her pieces carry any of it (B8), so nothing is hidden.
+  const options = wearForChoices([{ wearFor: look.tags }]);
+  const on = (tag: string) => matchesWearFor(look.tags, [tag]);
   const set = (tags: string[]) => update.mutate({ params: { id: look.id }, input: { tags } });
-  const toggle = (tag: string) =>
-    set(look.tags.includes(tag) ? look.tags.filter((t) => t !== tag) : [...look.tags, tag]);
+  const toggle = (tag: string) => set(toggleValue(look.tags, tag));
   const add = () => {
-    const tag = text.trim();
-    if (!tag) return;
+    const typed = text.trim();
+    if (!typed) return;
     setText('');
-    if (!look.tags.some((t) => t.toLowerCase() === tag.toLowerCase())) set([...look.tags, tag]);
+    // "work" typed is the list's Work.
+    const tag = options.find((o) => matchesWearFor([o], [typed])) ?? typed;
+    if (!on(tag)) set([...look.tags, tag]);
   };
   return (
     <Subview
@@ -91,19 +94,17 @@ export function TagsView({
         </form>
       }
     >
-      {options.length ? (
-        <OptionList label={copy.title}>
-          {options.map((tag) => (
-            <OptionRow
-              key={tag}
-              label={tag}
-              on={look.tags.includes(tag)}
-              ariaLabel={copy.toggle(tag)}
-              onToggle={() => toggle(tag)}
-            />
-          ))}
-        </OptionList>
-      ) : null}
+      <OptionList label={copy.title}>
+        {options.map((tag) => (
+          <OptionRow
+            key={tag}
+            label={tag}
+            on={on(tag)}
+            ariaLabel={copy.toggle(tag)}
+            onToggle={() => toggle(tag)}
+          />
+        ))}
+      </OptionList>
     </Subview>
   );
 }

@@ -1,6 +1,7 @@
 import type { Look } from '@robes/contracts';
 import { lookbook, looks } from '@robes/copy';
 import { longDate, monthOf, shiftMonth } from '@robes/core/calendar';
+import { WEAR_FOR_ALL } from '@robes/core/filters';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { LookScreen } from '../src/features/looks/LookScreen';
 import { localDate, nextDays } from '../src/features/looks/saved-looks';
@@ -811,4 +812,31 @@ test('the photo strip on the look’s page keeps its back disc, so she can alway
   // Still the saved look's page: its back disc, and Schedule look at the foot.
   expect(screen.getByTestId('saved-look-back')).toBeTruthy();
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
+});
+
+// B8: the Tags drawer offers the whole Wear it for list, though none of her pieces carries a
+// tag yet, then the look's own; "work" typed is the list's Work.
+test('Details › Tags offers every Wear it for option in order, then the look’s own tags', async () => {
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look({ tags: ['Gallery'] }),
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) =>
+      look({ tags: JSON.parse(String(init.body)).tags }),
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('tab', { name: lookbook.savedLook.tabs.details }));
+  await fireEvent.press(await screen.findByTestId('details-tags'));
+  const copy = lookbook.savedLook.tagsView;
+  const view = within(await screen.findByTestId('tags-view'));
+  const rows = view
+    .getAllByLabelText(/^Tag it /)
+    .map((row) => String(row.props.accessibilityLabel).replace('Tag it ', ''));
+  expect(rows).toEqual([...WEAR_FOR_ALL, 'Gallery']);
+
+  const field = view.getByLabelText(copy.add);
+  await fireEvent.changeText(field, 'work');
+  await fireEvent(field, 'submitEditing');
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ tags: ['Gallery', 'Work'] }),
+  );
 });

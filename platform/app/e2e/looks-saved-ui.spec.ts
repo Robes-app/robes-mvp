@@ -318,6 +318,18 @@ test('Details: the caption keeps on blur, Seasons picks the four seasons, Tags p
   // Tags: a typed tag joins her namespace and the look.
   await page.getByTestId('details-tags').click();
   const tags = page.getByTestId('tags-view');
+  // The whole Wear it for list, though none of her pieces carries a tag yet (B8).
+  for (const option of [
+    'Everyday',
+    'Work',
+    'Weekend',
+    'Evening',
+    'Occasion',
+    'Travel',
+    'Active',
+    'Lounge',
+  ])
+    await expect(tags.getByRole('button', { name: `Tag it ${option}` })).toBeVisible();
   await tags.getByRole('textbox', { name: 'Add a tag' }).fill('Weekend casual');
   await tags.getByRole('button', { name: 'Keep the tag' }).click();
   await expect(tags.getByRole('button', { name: 'Tag it Weekend casual' })).toHaveAttribute(

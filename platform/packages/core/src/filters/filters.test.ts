@@ -9,6 +9,7 @@ import {
   seasonCounts,
   sheetFilterCount,
   toggleValue,
+  WEAR_FOR_ALL,
   wearForChoices,
   wearForCounts,
 } from './index';
@@ -124,6 +125,14 @@ describe('the filter button and the row', () => {
       'Active',
       'Lounge',
       'Brunch',
+      'Gallery',
+    ]);
+  });
+
+  it("offers a look's Tags drawer the whole list before any piece carries it, then its own tags (B8)", () => {
+    expect(wearForChoices([{ wearFor: [] }])).toEqual([...WEAR_FOR_ALL]);
+    expect(wearForChoices([{ wearFor: ['Gallery', 'work'] }])).toEqual([
+      ...WEAR_FOR_ALL,
       'Gallery',
     ]);
   });
