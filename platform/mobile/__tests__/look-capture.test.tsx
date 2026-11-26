@@ -374,7 +374,8 @@ test('the pieces found on a saved look are kept and drawn at once, with no Updat
   expect(await screen.findByText('Cropped sweatshirt')).toBeTruthy();
   await waitFor(() => expect(renders(calls)).toHaveLength(1));
   expect(
-    (calls.find((c) => c.method === 'PATCH')?.body as { proposals?: unknown[] }).proposals,
+    (calls.find((c) => c.method === 'PATCH')?.body as { proposals?: unknown[] } | undefined)
+      ?.proposals,
   ).toHaveLength(3);
   expect(screen.queryByText(lookbook.draftLook.update)).toBeNull();
 });
