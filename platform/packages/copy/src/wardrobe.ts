@@ -110,7 +110,7 @@ export const wardrobe = {
       material: 'Material',
       // The four seasons (D12); none filed reads Year round.
       season: 'Seasons',
-      wearFor: 'Wear it for',
+      wearFor: 'Tags',
       size: 'Size',
       price: 'Price',
       notes: 'Notes',
@@ -198,11 +198,6 @@ export const wardrobe = {
       conversion: (eu: number, us: number): string => `EU ${eu} · US ${us}`,
       notSure: 'Not sure',
     },
-    wearFor: {
-      helper: 'Pick as many as fit.',
-      own: '+ Your own',
-      ownLabel: 'Your own',
-    },
   },
   // The reveal after one photo (beta's step 3): her photo, then what Robes filed.
 
@@ -251,7 +246,7 @@ export const wardrobe = {
     season: 'Season',
     colour: 'Colour',
     seasons: SEASON_LABELS,
-    wearFor: 'Wear it for',
+    wearFor: 'Tags',
     brand: 'Brand',
     allBrands: 'All brands',
     show: (n: number): string => (n === 1 ? 'Show 1 piece' : `Show ${n} pieces`),

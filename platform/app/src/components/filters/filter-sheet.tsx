@@ -66,33 +66,36 @@ export function FilterSheet({
       }
     >
       <div className="flex flex-col gap-5" data-testid="filter-sheet">
-        {sections.map((section) => (
-          <fieldset key={section.key} className="flex flex-col gap-2.5">
-            <legend className="type-label mb-2.5 text-ink-faint">{section.title}</legend>
-            {'custom' in section ? (
-              section.custom
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {section.options.map((option) => {
-                  const on = section.selected.some(
-                    (v) => v.toLowerCase() === option.value.toLowerCase(),
-                  );
-                  return (
-                    <Pill
-                      key={option.value}
-                      tone="option"
-                      selected={on}
-                      {...(section.counts === false ? {} : { count: option.count })}
-                      onClick={() => section.onToggle(option.value)}
-                    >
-                      {option.label}
-                    </Pill>
-                  );
-                })}
-              </div>
-            )}
-          </fieldset>
-        ))}
+        {/* A section with nothing to offer is left out (no tags yet: no Tags). */}
+        {sections
+          .filter((section) => 'custom' in section || section.options.length > 0)
+          .map((section) => (
+            <fieldset key={section.key} className="flex flex-col gap-2.5">
+              <legend className="type-label mb-2.5 text-ink-faint">{section.title}</legend>
+              {'custom' in section ? (
+                section.custom
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {section.options.map((option) => {
+                    const on = section.selected.some(
+                      (v) => v.toLowerCase() === option.value.toLowerCase(),
+                    );
+                    return (
+                      <Pill
+                        key={option.value}
+                        tone="option"
+                        selected={on}
+                        {...(section.counts === false ? {} : { count: option.count })}
+                        onClick={() => section.onToggle(option.value)}
+                      >
+                        {option.label}
+                      </Pill>
+                    );
+                  })}
+                </div>
+              )}
+            </fieldset>
+          ))}
       </div>
     </GlassSheet>
   );

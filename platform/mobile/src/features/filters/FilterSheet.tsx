@@ -61,36 +61,39 @@ export function FilterSheet({
       testID={testID}
     >
       <View className="gap-5">
-        {sections.map((section) => (
-          <View key={section.key} className="gap-2.5">
-            <Text className="text-ink-faint" style={typeStyle('label')}>
-              {section.title}
-            </Text>
-            {'custom' in section ? (
-              section.custom
-            ) : (
-              <View className="flex-row flex-wrap gap-2">
-                {section.options.map((option) => {
-                  const on = section.selected.some(
-                    (v) => v.toLowerCase() === option.value.toLowerCase(),
-                  );
-                  return (
-                    <Pill
-                      key={option.value}
-                      tone="option"
-                      selected={on}
-                      {...(section.counts === false ? {} : { count: option.count })}
-                      onPress={() => section.onToggle(option.value)}
-                      testID={`filter-${section.key}-${option.value}`}
-                    >
-                      {option.label}
-                    </Pill>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        ))}
+        {/* A section with nothing to offer is left out (no tags yet: no Tags). */}
+        {sections
+          .filter((section) => 'custom' in section || section.options.length > 0)
+          .map((section) => (
+            <View key={section.key} className="gap-2.5">
+              <Text className="text-ink-faint" style={typeStyle('label')}>
+                {section.title}
+              </Text>
+              {'custom' in section ? (
+                section.custom
+              ) : (
+                <View className="flex-row flex-wrap gap-2">
+                  {section.options.map((option) => {
+                    const on = section.selected.some(
+                      (v) => v.toLowerCase() === option.value.toLowerCase(),
+                    );
+                    return (
+                      <Pill
+                        key={option.value}
+                        tone="option"
+                        selected={on}
+                        {...(section.counts === false ? {} : { count: option.count })}
+                        onPress={() => section.onToggle(option.value)}
+                        testID={`filter-${section.key}-${option.value}`}
+                      >
+                        {option.label}
+                      </Pill>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          ))}
         <Button onPress={onClose} disabled={ctaDisabled} testID="filter-cta">
           {cta}
         </Button>

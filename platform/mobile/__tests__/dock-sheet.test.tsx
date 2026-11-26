@@ -1,4 +1,4 @@
-import { lookbook, ui } from '@robes/copy';
+import { lookbook, tags as tagsCopy } from '@robes/copy';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { LookScreen } from '../src/features/looks/LookScreen';
 import { nativeAnalytics } from '../src/lib/analytics';
@@ -24,6 +24,7 @@ const routes = () => ({
   [`GET /looks/${LOOK_ID}`]: look(),
   [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
   'GET /looks': { items: [], nextCursor: null },
+  'GET /tags': { items: [] },
   'GET /plan': { days: [] },
 });
 
@@ -72,7 +73,9 @@ test('the sheet steps aside for Tags and comes back at the bar once it closes', 
   await waitFor(() => expect(screen.queryByTestId('prompt-dock')).toBeNull());
   expect(await screen.findByTestId('tags-view')).toBeTruthy();
   // Tags closed, the bar is back where she left it, not the sparkle.
-  await fireEvent.press(within(screen.getByTestId('tags-view')).getByLabelText(ui.back));
+  await fireEvent.press(
+    within(screen.getByTestId('tags-view')).getByRole('button', { name: tagsCopy.done }),
+  );
   expect(await screen.findByTestId('prompt-dock')).toBeTruthy();
   expect(screen.queryByTestId('prompt-spark')).toBeNull();
 });

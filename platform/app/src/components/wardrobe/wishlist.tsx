@@ -14,7 +14,7 @@ import { errorCopy } from '@/lib/error-copy';
 import { withoutId } from '@/lib/wardrobe';
 import { AddPiecesSheet, useAddPiecesOpen } from './add/add-pieces-sheet';
 import { CardRow, type CardStatus, CardTile, HeartButton, type RowMeta } from './piece-card';
-import { WardrobeFilterSheet, wearChoicesOf } from './piece-grid';
+import { WardrobeFilterSheet } from './piece-grid';
 import { PieceImage } from './piece-image';
 import { useWardrobeLayout } from './use-layout';
 import { AddCircle, CountRow, WardrobeHeader } from './wardrobe-header';
@@ -231,7 +231,7 @@ export function Wishlist() {
         onClose={() => setSheet(false)}
         filters={filters}
         brands={brands}
-        wearChoices={wearChoicesOf([])}
+        wearChoices={[]}
         count={visible.length}
       />
       <AddPiecesSheet open={adding} onClose={() => setAdding(false)} to="wishlist" />

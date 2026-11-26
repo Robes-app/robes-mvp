@@ -1,4 +1,5 @@
 import type { Season } from '@robes/core';
+import { TAGS_MAX } from '@robes/core/filters';
 import { type LookStatus, MAX_DRAFTS, priceFromPoint } from '@robes/core/looks';
 import { normaliseSeasons, shopName } from '@robes/core/wardrobe';
 import { sql, type Transaction } from 'kysely';
@@ -6,6 +7,7 @@ import type { Db } from '../client';
 import type { DB } from '../database.types';
 import type { UserId } from '../ids';
 import { afterCursor, createdMs, toPage } from './paging';
+import { mintTags } from './tags';
 import { PIECE_COLUMNS } from './wardrobe';
 import { insertWish } from './wishlist';
 
@@ -993,7 +995,7 @@ export function looksRepo(db: Db) {
     // same `wear_for` tags her pieces wear); a tag not in the set comes off this look only.
     // False when the look is not hers, and nothing is written.
     async setTags(userId: UserId, lookId: string, labels: readonly string[]): Promise<boolean> {
-      const clean = [...new Set(labels.map((l) => l.trim()).filter(Boolean))].slice(0, 6);
+      const clean = [...new Set(labels.map((l) => l.trim()).filter(Boolean))].slice(0, TAGS_MAX);
       return db.transaction().execute(async (tx) => {
         const owns = await tx
           .selectFrom('looks')
@@ -1003,22 +1005,7 @@ export function looksRepo(db: Db) {
           .where('deletedAt', 'is', null)
           .executeTakeFirst();
         if (!owns) return false;
-        const ids: string[] = [];
-        for (const label of clean) {
-          await tx
-            .insertInto('tags')
-            .values({ userId, kind: 'wear_for', label, isSeed: false })
-            .onConflict((oc) => oc.columns(['userId', 'kind', 'slug']).doNothing())
-            .execute();
-          const tag = await tx
-            .selectFrom('tags')
-            .select('id')
-            .where('userId', '=', userId)
-            .where('kind', '=', 'wear_for')
-            .where(sql`slug`, '=', sql`private.tag_slug(${label})`)
-            .executeTakeFirst();
-          if (tag) ids.push(tag.id);
-        }
+        const ids = await mintTags(tx, userId, clean);
         let drop = tx
           .deleteFrom('tagLooks')
           .where('userId', '=', userId)

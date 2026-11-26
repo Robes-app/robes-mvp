@@ -81,13 +81,13 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^Category.*Crew neck t-shirt/ })).toBeVisible();
 
   // What she wears it for is a styling signal, so it is hers to set and reads back on the row.
-  // Wear it for lives on the WEARING tab.
+  // Her tags live on the WEARING tab, in the one Tags drawer a look shares.
   await page.getByRole('tab', { name: 'Wearing' }).click();
-  await page.getByRole('button', { name: /^Wear it for/ }).click();
-  const wear = page.getByRole('dialog', { name: 'Wear it for' });
-  await wear.getByRole('button', { name: 'Work', exact: true }).click();
+  await page.getByRole('button', { name: /^Tags/ }).click();
+  const wear = page.getByRole('dialog', { name: 'Tags' });
+  await wear.getByRole('button', { name: 'Tag it Work', exact: true }).click();
   await wear.getByRole('button', { name: 'Done' }).click();
-  await expect(page.getByRole('button', { name: /Wear it for.*Work/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Tags.*Work/ })).toBeVisible();
 
   // Material is the fourth row of Colour & material: the read files Wool, a pick from another
   // family answers it, and "Not sure" files nothing.

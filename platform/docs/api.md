@@ -123,7 +123,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `GET /wardrobe/taxonomy` | `/api/wardrobe/taxonomy` |
 | `GET/POST/PATCH/DELETE /wishlist/items[...]` · `POST /wishlist/items/:id/promote` | client REST `wishlist_items` |
 | `GET /inbox?state=inbox\|added\|discarded` (forwarded receipts only, with the pieces in that state — the Receipts' tabs, PRD rev 3 §7.5; `count` = the pieces waiting, `counts` per state) · `GET /inbox/:id` (one held entry of any source — Review opens a pasted link here; 404 once decided or for anyone else) · `POST /inbox/:id/decide` (each piece decided on its own: the chosen ones file or discard, the rest keep waiting, the row settles once none does; a piece files with its size, category, colour and its read photo). Each line carries `size` and `image` (its product photo, signed like a piece's, once the isolated fetcher has stored and Robes has read it; never the shop's URL) · `GET /me/inbox-address` | `wardrobe_inbox` + `/api/inbox/receipt` |
-| `GET/POST/DELETE /tags[...]` | client REST `tags`, `tag_pieces` |
+| `GET /tags` → `{ items: [{ id, label, isSeed, createdAt, looks, pieces }] }` (her one tag list, shared by looks and pieces: the eight defaults, seeded per account, and any she typed; `looks`/`pieces` count what carries each; 240/min) · `DELETE /tags/:id` (the tag leaves her list and comes off every look and piece; 404 for one that isn't hers; 120/min). A tag is made by setting it on a look (`PATCH /looks/:id` `tags`) or a piece (`wearFor`) | client REST `tags`, `tag_pieces` |
 
 ### Styling engines (all Jobs)
 | New | Legacy |

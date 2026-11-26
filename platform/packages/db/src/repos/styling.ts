@@ -377,6 +377,7 @@ export function stylingRepo(db: Db) {
         .where('tagPieces.userId', '=', userId)
         .where('tagPieces.wardrobeItemId', '=', pieceId)
         .where('tags.kind', '=', 'wear_for')
+        .where('tags.deletedAt', 'is', null)
         .orderBy('tags.label')
         .execute();
       return { ...row, wearFor: tags.map((t) => t.label) };

@@ -15,6 +15,7 @@ export * from './rack';
 export * from './routes';
 export * from './seeds';
 export * from './shares';
+export * from './tags';
 export * from './today';
 export * from './travel';
 export * from './twin';

@@ -1,5 +1,6 @@
 import { resolveTaxonomy, type Season, type SeasonBand } from '@robes/core';
 import { familyShadeIds, shade, shadeByName } from '@robes/core/colour';
+import { TAGS_MAX } from '@robes/core/filters';
 import { normaliseSeasons } from '@robes/core/wardrobe';
 import {
   type ExpressionBuilder,
@@ -14,6 +15,7 @@ import type { DB, WardrobeItems } from '../database.types';
 import { HeroRackFull } from '../errors';
 import type { UserId } from '../ids';
 import { afterCursor, createdMs, toPage } from './paging';
+import { mintTags } from './tags';
 
 export const PIECE_COLUMNS = [
   'id',
@@ -184,8 +186,6 @@ export function herDetail(detail: string | null) {
   return sql<string>`item_dna || jsonb_build_object('detail_hers', true, 'structural_dna', (coalesce(item_dna -> 'structural_dna', '{}'::jsonb) - 'defining_detail') || ${hers})`;
 }
 
-const WEAR_TAG_MAX = 6;
-
 export function wardrobeRepo(db: Db) {
   const active = () => db.selectFrom('wardrobeItems').where('deletedAt', 'is', null);
 
@@ -235,6 +235,7 @@ export function wardrobeRepo(db: Db) {
             .whereRef('tagPieces.wardrobeItemId', '=', 'wardrobeItems.id')
             .where('tagPieces.userId', '=', userId)
             .where('tags.kind', '=', 'wear_for')
+            .where('tags.deletedAt', 'is', null)
             .where(sql<boolean>`lower(tags.label) = any(${sql.val(wearFor)}::text[])`),
         ),
       );
@@ -610,7 +611,7 @@ export function wardrobeRepo(db: Db) {
       return rows.flatMap((r) => (r.brand ? [r.brand] : []));
     },
 
-    // The Filter's "Wear it for" choices: the wear_for labels on her pieces.
+    // The Filter's tag choices: the tags on at least one of her pieces.
     async wearLabels(userId: UserId): Promise<string[]> {
       const rows = await db
         .selectFrom('tagPieces')
@@ -622,6 +623,7 @@ export function wardrobeRepo(db: Db) {
         .distinct()
         .where('tagPieces.userId', '=', userId)
         .where('tags.kind', '=', 'wear_for')
+        .where('tags.deletedAt', 'is', null)
         .where('wardrobeItems.deletedAt', 'is', null)
         .orderBy('tags.label')
         .execute();
@@ -653,6 +655,7 @@ export function wardrobeRepo(db: Db) {
         .select(['tagPieces.wardrobeItemId as pieceId', 'tags.label'])
         .where('tagPieces.userId', '=', userId)
         .where('tags.kind', '=', 'wear_for')
+        .where('tags.deletedAt', 'is', null)
         .where('tagPieces.wardrobeItemId', 'in', [...pieceIds])
         .orderBy('tags.label')
         .execute();
@@ -668,10 +671,7 @@ export function wardrobeRepo(db: Db) {
       pieceId: string,
       labels: readonly string[],
     ): Promise<boolean> {
-      const clean = [...new Set(labels.map((l) => l.trim()).filter(Boolean))].slice(
-        0,
-        WEAR_TAG_MAX,
-      );
+      const clean = [...new Set(labels.map((l) => l.trim()).filter(Boolean))].slice(0, TAGS_MAX);
       return db.transaction().execute(async (tx) => {
         const owns = await tx
           .selectFrom('wardrobeItems')
@@ -681,22 +681,7 @@ export function wardrobeRepo(db: Db) {
           .where('deletedAt', 'is', null)
           .executeTakeFirst();
         if (!owns) return false;
-        const ids: string[] = [];
-        for (const label of clean) {
-          await tx
-            .insertInto('tags')
-            .values({ userId, kind: 'wear_for', label, isSeed: false })
-            .onConflict((oc) => oc.columns(['userId', 'kind', 'slug']).doNothing())
-            .execute();
-          const tag = await tx
-            .selectFrom('tags')
-            .select('id')
-            .where('userId', '=', userId)
-            .where('kind', '=', 'wear_for')
-            .where(sql`slug`, '=', sql`private.tag_slug(${label})`)
-            .executeTakeFirst();
-          if (tag) ids.push(tag.id);
-        }
+        const ids = await mintTags(tx, userId, clean);
         // Everything this piece wore that she did not pick comes off, inferred or not.
         let drop = tx
           .deleteFrom('tagPieces')
