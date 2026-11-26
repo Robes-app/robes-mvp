@@ -27,6 +27,16 @@ const routes = () => ({
   'GET /plan': { days: [] },
 });
 
+// Drags iOS's sheet to a height, as iOS reports it.
+async function drag(to: unknown) {
+  const modifiers = screen.getByTestId('sheet-presentation').props.modifiers as {
+    $type: string;
+    options?: { onSelectionChange: (d: unknown) => void };
+  }[];
+  const detents = modifiers.find((m) => m.$type === 'presentationDetents');
+  await act(async () => detents?.options?.onSelectionChange(to));
+}
+
 // The sparkle presents the sheet at the bar: its field is the real one, so a tap types there,
 // with no second sheet to type in (Q4), and the drawn bar is gone.
 test('the sparkle presents iOS’s sheet at the bar, its field the real one', async () => {
@@ -148,6 +158,56 @@ test('a saved look’s change folds the sheet to the sparkle once Robes asks abo
   expect(await screen.findByText('How does the collar look?')).toBeTruthy();
 }, 20_000);
 
+// The thread folds by the same rule as the bar (Annie, 26 Nov, D6): sent from the open thread,
+// the sheet stays at the thread while Robes works; a change folds it to the sparkle once Robes
+// asks about it, and Robes' words alone keep it open on them.
+test('a saved look’s send from the thread keeps it open; a change folds it once Robes asks', async () => {
+  mockFetch(
+    asked({
+      intent: 'styled',
+      reply: 'Collar up.',
+      styled: [{ key: PIECE_ID, note: 'collar up' }],
+      followUp: 'How does the collar look?',
+    }),
+  );
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'collar up');
+  await drag('large');
+  expect(await screen.findByTestId('prompt-minimise')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  expect(
+    await screen.findByTestId(
+      'prompt-spark-dot',
+      { includeHiddenElements: true },
+      { timeout: 8000 },
+    ),
+  ).toBeTruthy();
+  expect(screen.queryByTestId('prompt-dock')).toBeNull();
+  // One move after her send: the thread straight to the sparkle, never by the bar.
+  const moves = (nativeAnalytics.track as jest.Mock).mock.calls
+    .filter(([event]) => event === 'dock_state_changed')
+    .map(([, props]) => `${props.from}>${props.to}`);
+  expect(moves).toEqual(['spark>bar', 'bar>thread', 'thread>spark']);
+}, 20_000);
+
+test('a saved look’s send from the thread stays on the thread when Robes only replies', async () => {
+  mockFetch(asked({ intent: 'clarify', reply: 'Which coat do you mean?' }));
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByTestId('prompt-spark'));
+  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'swap the coat');
+  await drag('large');
+  expect(await screen.findByTestId('prompt-minimise')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('prompt-send'));
+  expect(await screen.findByText('Which coat do you mean?')).toBeTruthy();
+  expect(screen.getByTestId('prompt-minimise')).toBeTruthy();
+  expect(screen.queryByTestId('prompt-spark')).toBeNull();
+  expect(nativeAnalytics.track).not.toHaveBeenCalledWith(
+    'dock_state_changed',
+    expect.objectContaining({ to: 'spark' }),
+  );
+});
+
 // Dragged up to full height, the thread's close still puts the prompt away to the sparkle
 // (Annie, 18 Nov: the close did nothing).
 test('the thread’s close puts the sheet away from any height', async () => {
@@ -155,14 +215,6 @@ test('the thread’s close puts the sheet away from any height', async () => {
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByTestId('prompt-spark'));
   await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'collar up');
-  const drag = async (to: unknown) => {
-    const modifiers = screen.getByTestId('sheet-presentation').props.modifiers as {
-      $type: string;
-      options?: { onSelectionChange: (d: unknown) => void };
-    }[];
-    const detents = modifiers.find((m) => m.$type === 'presentationDetents');
-    await act(async () => detents?.options?.onSelectionChange(to));
-  };
   // A bar height from before the bar resized (Robes' line arriving while the sheet stays up,
   // Annie 26 Nov, D6) is still the bar, never the full sheet.
   await drag({ height: 999 });

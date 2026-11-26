@@ -1449,10 +1449,10 @@ function DraftBody({
   useEffect(() => {
     if (firstDress) setDock('spark');
   }, [firstDress]);
-  // On a saved look her send keeps the prompt open on Robes at work, and Robes' question about the
-  // change, asked as its picture lands, folds it to the sparkle with the redraw, its dot holding
-  // the question; Robes' words alone keep it open on them (Annie, 26 Nov, D6). Put away by her
-  // while Robes works, the sparkle's dot says when Robes has answered.
+  // On a saved look her send keeps the prompt open on Robes at work, at the bar or the thread she
+  // sent from, and Robes' question about the change, asked as its picture lands, folds either to
+  // the sparkle with the redraw, its dot holding the question; Robes' words alone keep it open on
+  // them (Annie, 26 Nov, D6). Put away by her while Robes works, the dot says when it has answered.
   const question = adjust.state.question;
   useEffect(() => {
     if (question !== null) setDock((from) => dockNext(from, 'answered', dockContext));

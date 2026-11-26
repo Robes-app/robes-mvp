@@ -258,6 +258,8 @@ describe('the dock (K2, K3, K6, K8)', () => {
   // folds it to the sparkle with the redraw; a draft stays where she had it.
   it('folds a saved look to the sparkle once Robes asks about the change, never a draft', () => {
     expect(dockNext('bar', 'answered', 'saved')).toBe('spark');
+    // The full conversation folds by the same rule (Annie, 26 Nov): open while she waits, folded
+    // once the answer lands, never back to the bar first.
     expect(dockNext('thread', 'answered', 'saved')).toBe('spark');
     expect(dockNext('spark', 'answered', 'saved')).toBe('spark');
     expect(dockNext('bar', 'answered', 'draft')).toBe('bar');

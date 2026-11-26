@@ -241,8 +241,9 @@ export function followUp(sent: {
 // the bar's top edge opens the thread and the close folds it back; an empty send or a thumbs up
 // minimises it to the sparkle (K6). Her send moves nothing: the prompt stays open on Robes at
 // work. `answered`: Robes' question about the change she sent has come, its picture drawn (or
-// failed, or none to follow). On a saved look that folds it to the sparkle, so she sees the
-// redraw and the dot holds the question; a draft stays where she had it (Annie, 26 Nov, D6).
+// failed, or none to follow). On a saved look that folds it to the sparkle from the bar or the
+// thread alike, so she sees the redraw and the dot holds the question; a draft stays where she
+// had it (Annie, 26 Nov, D6).
 // Robes' words alone (nothing changed) are no move: the prompt stays open on them. Moves that do
 // not apply leave it where it is.
 export const DOCK_STATES = ['spark', 'bar', 'thread'] as const;

@@ -432,9 +432,11 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
   expect(screen.queryByText('Collar up.')).toBeNull();
   // While the model wears it the prompt stays open on Robes at work (Annie, 26 Nov, D6: the fold
   // on her send read as broken): no thumbs yet, no sparkle. Once the picture lands it folds to the
-  // sparkle with the redraw, the question on its dot, and a tap opens it, with its thumbs.
+  // sparkle with the redraw, the question on its dot, and a tap opens it, with its thumbs. The
+  // drawn dock's field is in the thread, so this is the thread folding by the same rule as the bar.
   expect(await screen.findByText(lookbook.draft.dressing)).toBeTruthy();
   expect(screen.getByTestId('draft-prompt')).toBeTruthy();
+  expect(screen.getByTestId('prompt-minimise')).toBeTruthy();
   expect(screen.queryByTestId('prompt-spark')).toBeNull();
   expect(screen.queryByTestId('thumb-up')).toBeNull();
   expect(screen.queryByTestId('update-look')).toBeNull();
@@ -449,6 +451,11 @@ test('words sent from a saved look’s prompt are answered on the rack and kept,
       { timeout: 8000 },
     ),
   ).toBeTruthy();
+  expect(track).toHaveBeenCalledWith('dock_state_changed', {
+    from: 'thread',
+    to: 'spark',
+    context: 'saved',
+  });
   await fireEvent.press(screen.getByTestId('prompt-spark'));
   expect(await screen.findByTestId('thumb-up')).toBeTruthy();
   await openPrompt();
@@ -641,9 +648,11 @@ test('a change that never landed is said plainly, never claimed', async () => {
   await fireEvent.press(await screen.findByTestId('prompt-spark'));
   await fireEvent.changeText(await openPrompt(), 'add a scarf');
   await fireEvent.press(screen.getByTestId('prompt-send'));
-  // Robes' words alone, nothing changed: the prompt stays open on them (Annie, 26 Nov, D6).
+  // Robes' words alone, nothing changed: the prompt stays open on them, the thread too (Annie,
+  // 26 Nov, D6).
   expect(await screen.findByText(lookbook.prompt.didNotLand)).toBeTruthy();
   expect(screen.getByTestId('draft-prompt')).toBeTruthy();
+  expect(screen.getByTestId('prompt-minimise')).toBeTruthy();
   expect(screen.queryByTestId('prompt-spark')).toBeNull();
   expect(screen.queryByText('Done. The scarf is on the look now.')).toBeNull();
   expect(screen.queryByTestId('thumb-up')).toBeNull();
