@@ -52,6 +52,23 @@ describe('the rack, shared by both clients', () => {
     });
   });
 
+  // Filing keeps her picture current (Annie, 26 Nov): the write says which found row became what.
+  it('names each found row filed in the write, and nothing when none was', () => {
+    const rack = rackFromLook(look as never);
+    expect(rackUpdate(rack, { keepEdits: false }).filed).toBeUndefined();
+    const rows = rack.rows.map((r) =>
+      r.pieceId === tee.id
+        ? { ...r, filedFrom: 'p-found001' }
+        : r.proposal
+          ? { ...r, filedFrom: r.key }
+          : r,
+    );
+    expect(rackUpdate({ ...rack, rows }, { keepEdits: false }).filed).toEqual([
+      { from: 'p-found001', to: tee.id },
+      { from: mules.key, to: mules.key },
+    ]);
+  });
+
   it('sends the prompt her rack by id, the anchor kept, and lands an edit with its notes', () => {
     const rack = rackFromLook(look as never);
     expect(askRack(rack, coat.id)).toEqual([

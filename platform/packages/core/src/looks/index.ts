@@ -150,6 +150,10 @@ export interface RackRow {
   brand: string | null;
   role: LookRole | null;
   proposal: Proposal | null;
+  // The found row (its rack key) this row was filed from: matched to her piece, added to her
+  // wardrobe or taken as a wish. Filing keeps the picture current (Annie, 26 Nov); the server
+  // reads it once, with the write that files it (`rackUpdate`'s `filed`).
+  filedFrom?: string;
 }
 
 // What a changed row replaced, or that the prompt put it back (dropped at Save).

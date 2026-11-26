@@ -35,6 +35,8 @@ import { invalidateWardrobe } from './wardrobe';
 interface RackEditor {
   rack: { rows: RackRow[] };
   setRows: (rows: RackRow[]) => void;
+  // The pieces a read found, joined to the rack and written at once (a saved look too).
+  addFound: (rows: RackRow[]) => void;
 }
 
 export interface CaptureRack {
@@ -68,9 +70,16 @@ export interface CaptureRack {
 // The Rack of a look from her photograph (Capture PRD 1c.3–1c.6): Find the pieces reads the
 // look's photo; each found piece is a row she matches to a piece of hers, adds to her wardrobe or
 // removes, and whatever is left unfiled stays on the look as a suggestion. The rows live on the
-// look's own rack through its editor, so a draft writes through and a saved look waits for
-// Update look. Native twin: mobile/src/features/looks/capture-rack.ts.
-export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
+// look's own rack through its editor, so a draft writes through and a saved look's changes wait
+// for Update look; the pieces a read finds are written as they land on both, and her model is
+// drawn wearing them (D1, Annie 26 Nov), filed or not. Native twin: mobile/src/features/looks/capture-rack.ts.
+// `onFound`: the read has landed its pieces on the rack. A photograph whose pieces were never
+// found is never drawn.
+export function useCaptureRack(
+  look: Look,
+  editor: RackEditor,
+  opts: { onFound?: () => void } = {},
+): CaptureRack {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const { track } = useAnalytics().analytics;
@@ -89,6 +98,8 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   const { job, connection } = useJob(jobId);
   const current = useRef(rows);
   current.current = rows;
+  const onFound = useRef(opts.onFound);
+  onFound.current = opts.onFound;
 
   const waiting = rows.some(isCaptureRow);
   const wardrobe = useApiAll(
@@ -127,7 +138,8 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       ),
     }));
     setEverFound(true);
-    editor.setRows([...current.current, ...found]);
+    editor.addFound(found);
+    onFound.current?.();
   }, [jobId, job, connection, editor]);
 
   const find = () => {

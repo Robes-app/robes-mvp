@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { type APIRequestContext, expect, test } from '@playwright/test';
+import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, signIn } from './helpers';
 
 // Capture a look (Capture PRD 1c, 10 Nov 2026; canvas frame 1c). The offline fake reads the
@@ -9,6 +9,17 @@ import { declineConsent, isolateClientIp, signIn } from './helpers';
 const PHOTO_PATH = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
 
 test.beforeEach(async ({ context }) => isolateClientIp(context));
+
+// The look's model renders asked for on this page.
+function drawsOf(page: Page): string[] {
+  const draws: string[] = [];
+  page.on('request', (req) => {
+    if (req.method() === 'POST' && /\/api\/v1\/looks\/[^/]+\/render$/.test(req.url())) {
+      draws.push(req.url());
+    }
+  });
+  return draws;
+}
 
 async function ownShoes(api: APIRequestContext): Promise<string> {
   const res = await api.post('/api/v1/wardrobe/items', {
@@ -23,6 +34,8 @@ test('capture → use photo → save: the look is in the Lookbook and on today, 
 }) => {
   await signIn(page);
   await declineConsent(page);
+  // A photograph whose pieces she never finds is never drawn on her model (D1, 26 Nov).
+  const draws = drawsOf(page);
 
   await page
     .getByTestId('add-page')
@@ -65,6 +78,7 @@ test('capture → use photo → save: the look is in the Lookbook and on today, 
   expect(look).toMatchObject({ status: 'saved', source: 'capture', record: 'photo', pieces: [] });
   expect(look.photo).not.toBeNull();
   expect(look.pinnedOn).toHaveLength(1);
+  expect(draws).toHaveLength(0);
   // The Lookbook holds it.
   const saved = await (await page.request.get('/api/v1/looks?status=saved')).json();
   expect(saved.items.map((l: { id: string }) => l.id)).toContain(id);
@@ -87,9 +101,12 @@ test('the rack: find the pieces, match in one tap, add one, remove one, save wit
   const drawer = page.getByTestId('draft-look');
   const rack = drawer.getByTestId('capture-rack');
 
+  const draws = drawsOf(page);
   await rack.getByRole('button', { name: 'Find the pieces' }).click();
   const found = rack.locator('[data-testid^="capture-row-"]');
   await expect(found).toHaveCount(3, { timeout: 30_000 });
+  // The pieces found dress her model at once, all of them, nothing filed (D1, 26 Nov).
+  await expect.poll(() => draws.length).toBe(1);
   await expect(rack).toHaveAttribute('data-stage', 'rack');
   await expect(drawer.getByTestId('draft-done')).toHaveAttribute('aria-disabled', 'false');
   // No close match on the tee; the shoes look like hers.

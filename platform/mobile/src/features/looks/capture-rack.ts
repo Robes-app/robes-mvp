@@ -32,6 +32,8 @@ import { isTerminal, JOB_REFRESH_MS } from './ideas';
 interface RackEditor {
   rack: { rows: RackRow[] };
   setRows: (rows: RackRow[]) => void;
+  // The pieces a read found, joined to the rack and written at once (a saved look too).
+  addFound: (rows: RackRow[]) => void;
 }
 
 export interface CaptureRack {
@@ -65,10 +67,17 @@ export interface CaptureRack {
 // The Rack of a look from her photograph (Capture PRD 1c.3–1c.6): Find the pieces reads the
 // look's photo; each found piece is a row she matches to a piece of hers, adds to her wardrobe or
 // removes, and whatever is left unfiled stays on the look as a suggestion. The rows live on the
-// look's own rack through its editor, so a draft writes through and a saved look waits for
-// Update look. The read is a job, polled (no SSE on native yet). Web twin:
+// look's own rack through its editor, so a draft writes through and a saved look's changes wait
+// for Update look; the pieces a read finds are written as they land on both, and her model is
+// drawn wearing them (D1, Annie 26 Nov), filed or not. The read is a job, polled (no SSE on native yet). Web twin:
 // app/src/lib/capture-rack.ts.
-export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
+// `onFound`: the read has landed its pieces on the rack. A photograph whose pieces were never
+// found is never drawn.
+export function useCaptureRack(
+  look: Look,
+  editor: RackEditor,
+  opts: { onFound?: () => void } = {},
+): CaptureRack {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const on = look.source === 'capture';
@@ -95,6 +104,10 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   current.current = rows;
   const setRows = useRef(editor.setRows);
   setRows.current = editor.setRows;
+  const addFound = useRef(editor.addFound);
+  addFound.current = editor.addFound;
+  const onFound = useRef(opts.onFound);
+  onFound.current = opts.onFound;
 
   const waiting = rows.some(isCaptureRow);
   const wardrobe = useAllPieces();
@@ -130,7 +143,8 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       ),
     }));
     setEverFound(true);
-    setRows.current([...current.current, ...found]);
+    addFound.current(found);
+    onFound.current?.();
   }, [jobId, data, lost]);
 
   const find = () => {

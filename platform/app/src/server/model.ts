@@ -40,6 +40,7 @@ import { logger } from './logger';
 import { mediaDelivery } from './media';
 import { writePictureNote } from './picture-note';
 import { rackHash } from './render-key';
+import { proposalsOf } from './stored-proposals';
 
 const DRAW_STALE_MS = 10 * 60_000;
 // Longer than any colour read runs (its budget is 90s): an older one still "running" was lost.
@@ -399,14 +400,17 @@ export async function renderOnModel(
       throw new ApiError('conflict');
     }
   }
+  // Every piece on the look is drawn, filed or not: her pieces, and the proposals — pieces found
+  // in her photograph, wishes and new pieces the prompt added (D1, Annie 26 Nov).
   const pieces = await repos.looks.piecesFor(userId, [lookId]);
-  if (pieces.length === 0) throw new ApiError('invalid_input');
+  const proposals = proposalsOf(look.proposals);
+  if (pieces.length === 0 && proposals.length === 0) throw new ApiError('invalid_input');
   // Her picture note (D21) is written first, so the job reads it and the key holds it; sent, it
   // asks for a fresh picture even when nothing else changed.
   const pictureNote = await writePictureNote(userId, lookId, input.note, look.pictureNote);
   // How each piece is worn is part of what the render shows, so a changed note re-renders once.
   const notes = look.styling && typeof look.styling === 'object' ? look.styling : {};
-  const rack = rackHash(pieces, notes as Record<string, unknown>, pictureNote);
+  const rack = rackHash(pieces, notes as Record<string, unknown>, pictureNote, proposals);
   // The key names the model it stands on, so the worker draws on exactly that one.
   const renderKey = `${model}:${rack}`;
 

@@ -215,6 +215,22 @@ describe('a stale picture', () => {
     expect((await toLooks(USER, [row()], NOW))[0]?.pictureStale).toBe(false);
   });
 
+  // D1 (Annie, 26 Nov): the proposals are drawn too, so one added or taken off is a new rack.
+  it('reads the render stale when a proposal was added or taken off since it was drawn', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    const jeans = { key: 'p-jeans', name: 'Straight jeans', category: 'Bottoms' };
+    const loafers = { key: 'p-loafers', name: 'Black loafers', category: 'Shoes' };
+    const drawn = rackHash([], {}, null, [{ key: 'p-jeans', name: 'Straight jeans', brand: '' }]);
+    const render = { renderAssetId: FRAME, renderKey: `twin:abc:${drawn}`, renderStatus: 'ready' };
+    const staleOf = async (proposals: unknown[]) =>
+      (await toLooks(USER, [row({ ...render, proposals })], NOW))[0]?.pictureStale;
+    expect(await staleOf([jeans])).toBe(false);
+    expect(await staleOf([jeans, loafers])).toBe(true);
+    expect(await staleOf([])).toBe(true);
+    // A look with no proposals keys as it always did, so its picture stays current.
+    expect(rackHash([{ id: 'p1' }], {}, null, [])).toBe(rackHash([{ id: 'p1' }], {}));
+  });
+
   it('reads its model stale when the picture stands on a model her looks no longer stand on', async () => {
     assets.set(FRAME, { id: FRAME, status: 'ready' });
     const hash = rackHash([], {});
