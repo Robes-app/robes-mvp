@@ -33,7 +33,6 @@ describe('consents', () => {
       photo_analysis: null,
       look_sharing: null,
       recordings: null,
-      full_recordings: null,
     });
   });
 
@@ -82,44 +81,6 @@ describe('consents', () => {
       consents: { recordings: true },
     });
     expect(out).toMatchObject({ analytics: true, replay: true, recordings: true });
-  });
-
-  it('keeps a yes to recordings with photos hidden apart from one with her photos', async () => {
-    const { deps, rows } = fakes();
-    const err = await updateConsents(deps, ALICE, {
-      source: 'web',
-      consents: { full_recordings: true },
-    }).catch((e: unknown) => e);
-    expect((err as ApiError).code).toBe('invalid_input');
-    expect(rows).toEqual([]);
-    // A yes to the earlier wording (an older phone build) never reads as a yes to her photos.
-    await updateConsents(deps, ALICE, {
-      source: 'ios',
-      consents: { analytics: true, recordings: true },
-    });
-    expect(await getConsents(deps, ALICE)).toMatchObject({
-      recordings: true,
-      full_recordings: null,
-    });
-    const out = await updateConsents(deps, ALICE, {
-      source: 'ios',
-      consents: { full_recordings: true },
-    });
-    expect(out).toMatchObject({ analytics: true, recordings: true, full_recordings: true });
-  });
-
-  it('withdraws every recording answer when analytics is withdrawn', async () => {
-    const { deps, rows } = fakes();
-    await updateConsents(deps, ALICE, {
-      source: 'web',
-      consents: { analytics: true, recordings: true, full_recordings: true },
-    });
-    await updateConsents(deps, ALICE, { source: 'web', consents: { analytics: false } });
-    expect(rows.at(-1)?.answers).toEqual({
-      analytics: false,
-      recordings: false,
-      full_recordings: false,
-    });
   });
 
   it('withdraws both recording answers when analytics is withdrawn', async () => {

@@ -22,16 +22,14 @@ export function Privacy() {
           sub={copy.analyticsHint}
           value={consents.analytics === true}
           // Recordings need usage counts, so turning counts off withdraws both.
-          onChange={(v) =>
-            give(v ? { analytics: true } : { analytics: false, full_recordings: false })
-          }
+          onChange={(v) => give(v ? { analytics: true } : { analytics: false, recordings: false })}
         />
         <SettingsToggleRow
           label={copy.replayLabel}
           sub={copy.replayHint}
-          value={consents.full_recordings === true}
+          value={consents.recordings === true}
           disabled={consents.analytics !== true}
-          onChange={(v) => give({ full_recordings: v })}
+          onChange={(v) => give({ recordings: v })}
         />
         {/* Its own yes, whatever usage counts say. Web twin: you/privacy/privacy-form.tsx. */}
         <SettingsToggleRow

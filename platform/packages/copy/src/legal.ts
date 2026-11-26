@@ -19,7 +19,7 @@ export interface LegalDoc {
   contactLead: string;
 }
 
-const lastUpdated = 'Last updated 26 November 2026.';
+const lastUpdated = 'Last updated 16 November 2026.';
 
 const terms: LegalDoc = {
   title: 'Terms of use',
@@ -132,7 +132,7 @@ const privacy: LegalDoc = {
     {
       heading: 'Usage counts and screen recordings',
       body: [
-        'Robes asks before measuring how the app is used in PostHog, and you can change your mind at any time under You › Privacy. PostHog counts which screens you open and what you tap. It never sees your email, and it sees your photos only if you turn on Screen recordings. It sees your words only if you turn on Share my looks with Robes or Screen recordings. With that on, what you ask Robes for and the look it styles are kept in PostHog so we can check the looks and improve them. That includes the pieces in your wardrobe by name, your Style DNA, and the facts you gave: height, size, bust, waist and age. Your photographs are never included. You can turn it off at any time under You › Privacy, and nothing new is shared from then on. If something in the app breaks, PostHog also records the error so we can fix it. Screen recordings are a separate choice: recordings of how you move through Robes, showing your screen as you see it and what you type. That includes your photos, your pieces and looks, your model and what you ask Robes for, so we can see when a picture comes out wrong. Your email and your sign-in code are always hidden, and so is your phone’s photo library when you pick a photo from it. A yes given before 26 November 2026, when your photos were hidden, does not carry over: the switch under You › Privacy stays off until you turn it on again. Recordings are stored on European servers, are visible only to us, and are never used for advertising.',
+        'Robes asks before measuring how the app is used in PostHog, and you can change your mind at any time under You › Privacy. PostHog counts which screens you open and what you tap. It never sees your photos or your email. It sees your words only if you turn on Share my looks with Robes or Screen recordings. With that on, what you ask Robes for and the look it styles are kept in PostHog so we can check the looks and improve them. That includes the pieces in your wardrobe by name, your Style DNA, and the facts you gave: height, size, bust, waist and age. Your photographs are never included. You can turn it off at any time under You › Privacy, and nothing new is shared from then on. If something in the app breaks, PostHog also records the error so we can fix it. Screen recordings are a separate choice: recordings of how you move through Robes, showing what is on your screen and what you type, including what you ask Robes for and the names of your pieces and looks. Your photos, your email and your sign-in code are always hidden. A yes given before 16 November 2026, when every word was hidden, does not carry over: the switch under You › Privacy stays off until you turn it on again. Recordings are stored on European servers, are visible only to us, and are never used for advertising.',
       ],
     },
     {

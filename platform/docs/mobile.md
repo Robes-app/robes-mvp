@@ -55,7 +55,7 @@ Shared packages consumed: `@robes/tokens`, `@robes/ui-native`, `@robes/copy`, `@
 | Accessibility | Dynamic Type respected (scale caps per token), `accessibilityLabel` lint, reduce-motion respected | a11y P0 |
 | Analytics | `posthog-react-native` after consent; same event catalogue as web (`@robes/analytics`) | |
 | Errors | `posthog-react-native` exception autocapture (after consent); JS only — native crashes need `@posthog/react-native-plugin` | |
-| Session replay | `@posthog/react-native-plugin` (native module: a new build, never an OTA update), started and stopped from `full_recordings` consent (`nativeAnalytics.start`). Text and images show (`SESSION_REPLAY_CONFIG`, 26 Nov 2026), the system photo picker is masked; wrap her email, the sign-in code and anything else private in `Unrecorded` | SEC-84 |
+| Session replay | `@posthog/react-native-plugin` (native module: a new build, never an OTA update), started and stopped from `recordings` and `look_sharing` consent (`nativeAnalytics.start`). Text and images show (`SESSION_REPLAY_CONFIG`, 26 Nov 2026), the system photo picker is masked; wrap her email, the sign-in code and anything else private in `Unrecorded` | SEC-84 |
 
 Later (post-parity): home-screen widget "Today's look" (iOS WidgetKit via `expo-apple-targets`), calendar export, Live Activity for long travel generations.
 

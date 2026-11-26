@@ -24,7 +24,6 @@ const UNANSWERED: Consents = {
   photo_analysis: null,
   look_sharing: null,
   recordings: null,
-  full_recordings: null,
 };
 
 beforeEach(() => jest.clearAllMocks());
@@ -76,7 +75,7 @@ test('asked once, nothing counted before a yes, and one yes turns on all three',
     'GET /me/consents': UNANSWERED,
     'POST /me/consents': {
       ...UNANSWERED,
-      ...{ analytics: true, full_recordings: true, look_sharing: true },
+      ...{ analytics: true, recordings: true, look_sharing: true },
     },
   });
   await renderWithApi(<AnalyticsSetup />);
@@ -87,21 +86,9 @@ test('asked once, nothing counted before a yes, and one yes turns on all three',
   await waitFor(() => expect(start).toHaveBeenCalledWith(ME.id, { recordings: true }));
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     source: 'ios',
-    consents: { analytics: true, full_recordings: true, look_sharing: true },
+    consents: { analytics: true, recordings: true, look_sharing: true },
   });
   await waitFor(() => expect(screen.queryByText(consent.askTitle)).toBeNull());
-});
-
-// Her yes to recordings with her photos hidden (before 26 Nov) starts none that show them.
-test('an earlier recordings yes counts usage but records nothing', async () => {
-  const start = jest.spyOn(nativeAnalytics, 'start').mockResolvedValue();
-  mockFetch({
-    'GET /me': ME,
-    'GET /me/consents': { ...UNANSWERED, analytics: true, replay: true, recordings: true },
-  });
-  await renderWithApi(<AnalyticsSetup />);
-  await waitFor(() => expect(start).toHaveBeenCalledWith(ME.id, { recordings: false }));
-  expect(start).not.toHaveBeenCalledWith(ME.id, { recordings: true });
 });
 
 test('a no is saved and counts nothing', async () => {
@@ -111,7 +98,7 @@ test('a no is saved and counts nothing', async () => {
     'GET /me/consents': UNANSWERED,
     'POST /me/consents': {
       ...UNANSWERED,
-      ...{ analytics: false, full_recordings: false, look_sharing: false },
+      ...{ analytics: false, recordings: false, look_sharing: false },
     },
   });
   await renderWithApi(<AnalyticsSetup />);
@@ -119,7 +106,7 @@ test('a no is saved and counts nothing', async () => {
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       source: 'ios',
-      consents: { analytics: false, full_recordings: false, look_sharing: false },
+      consents: { analytics: false, recordings: false, look_sharing: false },
     }),
   );
   await waitFor(() => expect(screen.queryByText(consent.askTitle)).toBeNull());
@@ -136,4 +123,17 @@ test('an answer already given is not asked again', async () => {
   );
   expect(screen.queryByText(consent.askTitle)).toBeNull();
   expect(start).not.toHaveBeenCalled();
+});
+
+// A recording shows her photos, so it needs Share my looks with Robes too (Annie, 26 Nov 2026).
+test.each([
+  [{ recordings: true, look_sharing: true }, true],
+  [{ recordings: true, look_sharing: false }, false],
+  [{ recordings: false, look_sharing: true }, false],
+  [{ replay: true, look_sharing: true }, false],
+])('screen recordings run only with Screen recordings and Share my looks: %o', async (yes, on) => {
+  const start = jest.spyOn(nativeAnalytics, 'start').mockResolvedValue();
+  mockFetch({ 'GET /me': ME, 'GET /me/consents': { ...UNANSWERED, analytics: true, ...yes } });
+  await renderWithApi(<AnalyticsSetup />);
+  await waitFor(() => expect(start).toHaveBeenCalledWith(ME.id, { recordings: on }));
 });

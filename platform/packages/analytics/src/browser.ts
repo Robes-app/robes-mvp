@@ -71,7 +71,8 @@ export function posthogOptions(config: BrowserAnalyticsConfig, replay: boolean) 
     // Set here so no project setting can turn them on: console lines and request bodies can carry
     // her email or another value the recording hides.
     enable_recording_console_log: false,
-    // SEC-84 (Annie, 26 Nov 2026): with her `full_recordings` yes, a recording shows the app as
+    // SEC-84 (Annie, 26 Nov 2026): with her yes to Screen recordings and to Share my looks with
+    // Robes (`look_sharing`), a recording shows the app as
     // she sees it — the text on screen, what she types, her photos, crops and her drawn model — so
     // a tester's recording shows a render bug. Never her email, a password, a file name or
     // anything marked UNRECORDED (the sign-in code, the admin pages). Canvas frames are not

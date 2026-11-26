@@ -17,8 +17,8 @@ export async function getConsents(deps: ConsentDeps, userId: UserId): Promise<Co
 }
 
 // Recordings ride on analytics: they can't be granted without it and go when analytics goes.
-// The older kinds ('replay', 'recordings'), still sent by older phone builds, keep the same rule.
-const RECORDING_KINDS = ['full_recordings', 'recordings', 'replay'] as const;
+// 'replay' (masked recordings, still sent by older phone builds) keeps the same rule.
+const RECORDING_KINDS = ['recordings', 'replay'] as const;
 
 export async function updateConsents(
   deps: ConsentDeps,

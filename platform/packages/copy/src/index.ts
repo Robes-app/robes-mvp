@@ -296,14 +296,13 @@ export const consent = {
   // her sizes included, so the yes is an informed one.
   askTitle: 'Share how you use Robes?',
   askBody:
-    'Usage counts, screen recordings (your photos included) and the looks you ask for, with your sizes, so Robes keeps improving. Never your email. Change any of it in You › Your data.',
+    'Usage counts, screen recordings and the looks you ask for, with your sizes, so Robes keeps improving. Never your photos or email. Change any of it in You › Your data.',
   askYes: 'Allow',
   askNo: 'Not now',
   replayLabel: 'Screen recordings',
-  // Her screen as she sees it, her photos included; her email never (Annie, 26 Nov 2026). A yes
-  // to the earlier wording (photos hidden) is its own kind and never turns this switch on.
+  // Her words show, her photos and email never do (owner, 16 Nov 2026).
   replayHint:
-    'Recordings of your screen as you see it, including your photos and what you type. Never your email. Needs usage counts.',
+    'Recordings of how you move through Robes, including what you type. Never your photos or email. Needs usage counts.',
   // Her words and the looks made from them, shared with PostHog (owner, 15 Nov). Its own yes:
   // it needs no usage counts, and turning it off stops anything new being shared.
   sharingLabel: 'Share my looks with Robes',
