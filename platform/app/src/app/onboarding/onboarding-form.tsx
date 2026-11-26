@@ -14,6 +14,7 @@ import { Button, ErrorText, Field, Wordmark } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
+import { useDeviceTimeZone } from '@/components/shell/device-timezone';
 import { CaptureStep } from './capture-step';
 import { Frame } from './frame';
 import { OutfitStep } from './outfit-step';
@@ -54,6 +55,8 @@ export function OnboardingForm({
   const router = useRouter();
   const api = useApiClient();
   const { track } = useAnalytics().analytics;
+  // Today's outfit pins to her browser's day, so the server's today must agree (B6).
+  useDeviceTimeZone();
   const [step, setStep] = useState<FirstRunFlowStep | 'splash'>(start.step ?? 'splash');
   const [name, setName] = useState(initialFirstName);
   const [saved, setSaved] = useState(initialFirstName);
