@@ -211,6 +211,26 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
       const edits = Object.fromEntries(Object.entries(rack.edits).filter(([k]) => keys.has(k)));
       change({ ...rack, rows, edits });
     },
+    // The pieces Find the pieces read from her photograph (D1, Annie 26 Nov): they join the rack
+    // and are written at once, on a saved look too, so her model can be drawn wearing them. A
+    // saved look's own waiting changes are not written with them: they still wait for Update look.
+    addFound: (found: RackRow[]) => {
+      if (live) {
+        change({ ...current.current, rows: [...current.current.rows, ...found] });
+        return;
+      }
+      const kept = rackFromLook(look);
+      setRack((r) => ({ ...r, rows: [...r.rows, ...found] }));
+      inFlight.current = write
+        .mutateAsync({
+          params: { id: look.id },
+          input: {
+            ...rackUpdate({ ...kept, rows: [...kept.rows, ...found] }, { keepEdits: false }),
+            ...(look.status === 'suggested' ? { keepSuggested: true } : {}),
+          },
+        })
+        .catch(() => undefined);
+    },
     // Everything she picked at once lands as ONE change: one write, one picture. Added one by
     // one, each add rebuilt the rack she opened the picker on and the last pick replaced the
     // others (21 Nov: three pieces picked, one on the look). A wish from the WISHLIST tab (PRD

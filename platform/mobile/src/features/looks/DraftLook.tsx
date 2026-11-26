@@ -1163,7 +1163,9 @@ function DraftBody({
           ? fb.placeholder
           : null;
   // A look from her photograph (Capture PRD 1c): The Rack finds, matches and adds its pieces.
-  const capture = useCaptureRack(look, editor);
+  // Her pieces found in the photograph dress her model at once, all of them in one picture and
+  // nothing filed (D1, Annie 26 Nov); a photograph whose pieces she never finds is never drawn.
+  const capture = useCaptureRack(look, editor, { onFound: () => adjustRef.current?.dress() });
   // A draft from her photograph is the photograph and its rack: no prompt card, no Generate.
   const captureDraft = capture.on && mode === 'draft';
   // The capture rack lists its pieces as they are found: the Rack's controls wait for the rack.
@@ -1316,8 +1318,9 @@ function DraftBody({
       // A draft's photographs are kept as it is saved.
       void stack.commit().then((ok) => {
         if (!ok) return;
-        // Her photograph is the picture: nothing is drawn for a look from it.
-        if (!capture.on) adjust.drawForSave();
+        // A look from her photograph is drawn only once its pieces were found (D1): then the
+        // model catches up with what she matched or removed since.
+        if (!capture.on || (look.onModel ?? null) !== null) adjust.drawForSave();
         save.mutate({ params: { id: look.id }, input: forDay ? { date: forDay } : {} });
       });
       return;
@@ -1387,8 +1390,9 @@ function DraftBody({
   // A draft's model wears the rack as she builds it (Annie, 16 Nov): pieces added, swapped or
   // taken off by hand dress it at once, the picks of one moment in one picture, and a draft that
   // has pieces but no picture yet is dressed as it opens. Not while a picture is being drawn, nor
-  // again after one failed; Robes' own photograph is the picture of a look it made, and her
-  // photograph of a captured one. A saved look's changes still wait for Update look (D17).
+  // again after one failed; Robes' own photograph is the picture of a look it made. A captured
+  // draft is dressed once, when its pieces are found (`onFound`, D1), not as each is matched.
+  // A saved look's changes still wait for Update look (D17).
   const handBuilt = mode === 'draft' && !captureDraft && !look.frame && rows.length > 0;
   const undressed = look.model === null && (look.onModel ?? null) === null;
   const toDress =

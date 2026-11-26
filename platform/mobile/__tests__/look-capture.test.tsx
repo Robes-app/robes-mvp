@@ -310,6 +310,75 @@ test('Find the pieces: a row per piece; the suggestion matches in one tap; Remov
   await waitFor(() => expect(written().proposals).toHaveLength(2));
 });
 
+// D1 (Annie, 26 Nov): finding the pieces draws her model wearing all of them, nothing filed.
+const RENDER = { [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' } };
+const renders = (calls: ReturnType<typeof mockFetch>) =>
+  calls.filter((c) => c.method === 'POST' && c.path.endsWith(`/looks/${LOOK_ID}/render`));
+
+test('the pieces found on a captured draft dress her model once, written first, nothing filed', async () => {
+  const calls = mockFetch({ ...draftRoutes(), ...RENDER });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  await waitFor(() => expect(renders(calls)).toHaveLength(1));
+  // The rack holding every found piece was written before the picture was asked for.
+  const draw = calls.indexOf(renders(calls)[0] as never);
+  const write = calls.findIndex(
+    (c) => c.method === 'PATCH' && (c.body as { proposals?: unknown[] }).proposals?.length === 3,
+  );
+  expect(write).toBeGreaterThanOrEqual(0);
+  expect(write).toBeLessThan(draw);
+  expect(calls.some((c) => c.path.includes('/wardrobe/') && c.method === 'POST')).toBe(false);
+  // Matching a found piece afterwards does not draw again by itself.
+  await fireEvent.press(screen.getByRole('button', { name: copy.row.quick }));
+  await waitFor(() =>
+    expect(calls.filter((c) => c.method === 'PATCH').at(-1)?.body).toMatchObject({
+      pieces: [{ pieceId: SHOES, role: null }],
+    }),
+  );
+  expect(renders(calls)).toHaveLength(1);
+});
+
+test('a captured photo whose pieces are never found is never drawn', async () => {
+  const calls = mockFetch({
+    ...draftRoutes(captured({ photo: PHOTO, image: PHOTO })),
+    ...RENDER,
+    [`POST /looks/${LOOK_ID}/save`]: captured({ status: 'saved', photo: PHOTO, image: PHOTO }),
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-skip'));
+  await screen.findByTestId('capture-rack-photo');
+  await fireEvent.press(screen.getByTestId('draft-done'));
+  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/save'))).toBe(true));
+  expect(renders(calls)).toHaveLength(0);
+});
+
+test('the pieces found on a saved look are kept and drawn at once, with no Update look', async () => {
+  const saved = captured({ status: 'saved', photo: PHOTO, image: PHOTO });
+  const routes = draftRoutes(saved);
+  const calls = mockFetch({
+    ...routes,
+    ...RENDER,
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...(routes[`PATCH /looks/${LOOK_ID}`] as (i: RequestInit) => object)(init),
+      status: 'saved',
+    }),
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="saved" onClose={jest.fn()} />);
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  // On a saved look the found pieces join its own rack.
+  expect(await screen.findByText('Cropped sweatshirt')).toBeTruthy();
+  await waitFor(() => expect(renders(calls)).toHaveLength(1));
+  expect(
+    (calls.find((c) => c.method === 'PATCH')?.body as { proposals?: unknown[] }).proposals,
+  ).toHaveLength(3);
+  expect(screen.queryByText(lookbook.draftLook.update)).toBeNull();
+});
+
 test('Match to piece opens the picker as Match to your wardrobe, the suggestion ticked', async () => {
   const calls = mockFetch(draftRoutes());
   await renderWithApi(
