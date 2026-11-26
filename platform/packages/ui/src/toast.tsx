@@ -28,6 +28,8 @@ export interface ToastAction {
 
 export interface ToastOptions {
   message: string;
+  // A second, quieter line under the message ("5 pieces added to your wishlist.").
+  body?: string;
   action?: ToastAction;
   duration?: number;
 }
@@ -92,10 +94,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           onOpenChange={(open) => {
             if (!open) remove(entry.id);
           }}
-          className="flex min-h-12 items-center gap-3 rounded-pill bg-ink py-1.5 pr-1.5 pl-5 text-bg shadow-lg motion-safe:data-[state=open]:animate-rise"
+          className={cn(
+            'flex min-h-12 items-center gap-3 bg-ink py-1.5 pr-1.5 pl-5 text-bg shadow-lg motion-safe:data-[state=open]:animate-rise',
+            entry.body ? 'rounded-soft' : 'rounded-pill',
+          )}
         >
-          <RadixToast.Description className="flex-1 font-sans text-sm">
-            {entry.message}
+          <RadixToast.Description className="flex flex-1 flex-col gap-0.5 py-1.5 font-sans text-sm">
+            <span>{entry.message}</span>
+            {entry.body ? <span className="text-bg/75 text-xs">{entry.body}</span> : null}
           </RadixToast.Description>
           {entry.action ? (
             <RadixToast.Action

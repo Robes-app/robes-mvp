@@ -1,5 +1,10 @@
 import { parseShots, REVIEW_MAX, reviewHref, startRead } from '../src/features/wardrobe/add/flow';
-import { UPLOAD_MAX, uploadPhoto, uploadResize } from '../src/features/wardrobe/add-pieces';
+import {
+  UPLOAD_MAX,
+  uploadPhoto,
+  uploadResize,
+  withDeadline,
+} from '../src/features/wardrobe/add-pieces';
 import { api } from '../src/lib/api';
 import { mockFetch } from './support/api';
 import { ASSET_ID, JOB_ID } from './support/fixtures';
@@ -226,4 +231,26 @@ test('a photo that already fits uploads untouched', async () => {
   mockFetch(UPLOAD);
   await uploadPhoto(api, { uri: 'file:///tmp/small.jpg', width: 1600, height: 1200 });
   expect(mockManipulate).not.toHaveBeenCalled();
+});
+
+test('an upload that never answers is aborted and fails at its deadline', async () => {
+  jest.useFakeTimers();
+  try {
+    let seen: AbortSignal | undefined;
+    const stuck = withDeadline(60_000, (signal) => {
+      seen = signal;
+      return new Promise<string>(() => {});
+    });
+    jest.advanceTimersByTime(59_999);
+    expect(seen?.aborted).toBe(false);
+    jest.advanceTimersByTime(1);
+    await expect(stuck).rejects.toThrow('upload timed out after 60000 ms');
+    expect(seen?.aborted).toBe(true);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('an upload that answers in time keeps its answer', async () => {
+  await expect(withDeadline(60_000, async () => 'asset')).resolves.toBe('asset');
 });

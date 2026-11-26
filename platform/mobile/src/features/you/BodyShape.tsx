@@ -1,18 +1,18 @@
 import { useApi } from '@robes/api-client/react';
-import type { Facts, Model, UpdateModelInput } from '@robes/contracts';
-import { twin, ui } from '@robes/copy';
-import { effectiveStops, isAdjusted, readAdj, STOPS, TWIN_SCALES } from '@robes/core/avatar';
-import { euSize } from '@robes/core/style-dna';
-import { Button, EmptyState, Eyebrow, MIN_TOUCH, Sheet, Skeleton, Text } from '@robes/ui-native';
+import type { Facts, Model, StyleDna, UpdateModelInput } from '@robes/contracts';
+import { twin } from '@robes/copy';
+import { effectiveStops, isAdjusted, readAdj, STOPS, scalesFor } from '@robes/core/avatar';
+import { factRows, measurePresenceOf } from '@robes/core/style-dna';
+import { Icon } from '@robes/icons/native';
+import { EmptyState, Eyebrow, MIN_TOUCH, Skeleton, Text, useColor } from '@robes/ui-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import {
-  bustOf,
-  FactsBody,
+  FactsSheet,
   Figure,
   type Pick,
-  Section,
+  rowValue,
   useDrawTwin,
   useModel,
   useModelPick,
@@ -21,9 +21,10 @@ import {
 const tw = twin.twinPage;
 const f = twin.facts;
 
-// Body shape (legacy redline 3c): her line drawn from the facts, her proportions and the facts
-// strip (each a door to the facts drawer), then three five-cell scales she can nudge by hand.
-// Nothing here names a shape. Leaving redraws her twin.
+// Body shape (design "The facts — redesign", 24 Nov): her line drawn from the facts, the facts
+// card in the units she reads them in (each row a door to The facts), then three five-stop scales
+// she can nudge by hand — hers end at the hips, his at the waist. Nothing here names a shape.
+// Leaving redraws her twin. Twin of web app/(app)/you/model/body/body-view.tsx.
 export function BodyShape() {
   const query = useModel();
   const dna = useApi('me.dna.get');
@@ -33,143 +34,136 @@ export function BodyShape() {
   if (query.isError) return <EmptyState title={errorMessage(query.error)} />;
   const model = query.data;
   if (!model || !dna.data) return <Skeleton width="100%" height={240} />;
-  const open = () => setFacts(true);
   return (
-    <ScrollView contentContainerClassName="gap-5 px-6 pt-6 pb-12">
-      <LineCard model={model} facts={dna.data.facts} onOpen={open} />
+    <ScrollView contentContainerClassName="gap-6 px-5 pt-4 pb-12">
+      <View className="items-center">
+        <Figure facts={dna.data.facts} adj={model.adj} presence={model.presence} />
+      </View>
+      <FactsCard dna={dna.data} onOpen={() => setFacts(true)} />
       <Scales model={model} facts={dna.data.facts} pick={pick} />
-      <Sheet open={facts} onClose={() => setFacts(false)} title={f.title} closeLabel={ui.done}>
-        <FactsBody dna={dna.data} gender={model.presence} />
-      </Sheet>
+      <FactsSheet open={facts} onClose={() => setFacts(false)} dna={dna.data} />
     </ScrollView>
   );
 }
 
-function LineCard({ model, facts, onOpen }: { model: Model; facts: Facts; onOpen: () => void }) {
-  const chest = model.presence === 'man' ? tw.chest : f.bust;
-  const rows: [string, string][] = [
-    [f.height, facts.heightCm ? f.heightValue(facts.heightCm) : ''],
-    [chest, bustOf(facts)],
-    [f.waist, facts.waistCm ? f.waistValue(facts.waistCm, 'cm') : ''],
-    [f.size, facts.sizeUk ? f.ukValue(facts.sizeUk) : ''],
-  ];
-  const strip: [string, string][] = [
-    [f.height, rows[0]?.[1] ?? ''],
-    [f.size, facts.sizeUk ? `${f.ukValue(facts.sizeUk)} · ${f.euValue(euSize(facts.sizeUk))}` : ''],
-    [chest, rows[1]?.[1] ?? ''],
-    [f.waist, rows[2]?.[1] ?? ''],
-    [f.shoes, facts.shoeUk ? f.ukValue(facts.shoeUk) : ''],
-  ];
+const card = 'overflow-hidden rounded-soft border border-rule-mid bg-surface-raised';
+
+function FactsCard({ dna, onOpen }: { dna: StyleDna; onOpen: () => void }) {
+  const muted = useColor('ink-muted');
+  const rows = factRows(dna.facts, dna.units, measurePresenceOf(dna.gender));
   return (
-    <View className="gap-4 rounded-soft border border-hairline bg-surface-raised p-5">
-      <View className="flex-row items-center justify-between">
-        <Eyebrow>{tw.yourLine}</Eyebrow>
-        <Button variant="quiet" onPress={onOpen}>
-          {`${tw.edit} →`}
-        </Button>
-      </View>
-      <View className="flex-row gap-4 rounded-soft border border-hairline p-3">
-        <Figure facts={facts} adj={model.adj} />
-        <View className="flex-1 justify-center gap-2">
-          <Eyebrow numberOfLines={1} style={{ fontSize: 9, letterSpacing: 1.8 }}>
-            {tw.proportions(model.presence)}
-          </Eyebrow>
-          {rows.map(([k, v]) => (
-            <View key={k} className="flex-row items-baseline justify-between gap-2">
-              <Text size="caption" tone="muted">
-                {k}
-              </Text>
-              <Text tone={v ? 'ink' : 'faint'} italic={!v}>
-                {v || f.add}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={f.title}
-        onPress={onOpen}
-        className="flex-row rounded-crisp border border-hairline"
-      >
-        {strip.map(([k, v], i) => (
-          <View key={k} className={`flex-1 gap-1 px-2 py-3 ${i ? 'border-l border-hairline' : ''}`}>
-            <Text size="caption" tone="muted">
-              {k}
-            </Text>
-            <Text
-              size={v ? 'small' : 'caption'}
-              tone={v ? 'ink' : 'faint'}
-              italic={!v}
-              numberOfLines={1}
+    <View className="gap-3">
+      <Eyebrow accessibilityRole="header">{f.title}</Eyebrow>
+      <View className={card}>
+        {rows.map((r, i) => {
+          const value = rowValue(r);
+          const label = f[r.field];
+          return (
+            <Pressable
+              key={r.field}
+              accessibilityRole="button"
+              accessibilityLabel={f.rowLabel(label, value)}
+              onPress={onOpen}
+              style={{ minHeight: 52 }}
+              className={`flex-row items-center gap-2.5 pr-3.5 pl-4 ${i ? 'border-t border-hairline' : ''}`}
             >
-              {v || f.add}
-            </Text>
-          </View>
-        ))}
-      </Pressable>
+              <Text size="small" tone="muted" className="flex-1">
+                {label}
+              </Text>
+              <Text
+                className="font-display"
+                tone={value ? 'ink' : 'muted'}
+                italic={!value}
+                style={value ? { fontSize: 20 } : undefined}
+              >
+                {value || f.add}
+              </Text>
+              <Icon name="forward" size={14} color={muted} />
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 function Scales({ model, facts, pick }: { model: Model; facts: Facts; pick: Pick }) {
-  const adj = readAdj(model.adj);
+  const adj = readAdj(model.adj, model.presence);
   const eff = effectiveStops(facts, adj);
   const asIs = tw.asIs(model.presence);
+  const man = model.presence === 'man';
   return (
-    <Section title={tw.adjust}>
-      {TWIN_SCALES.map((k) => {
-        const s = tw.scales[k];
-        const label = k === 'bust' && model.presence === 'man' ? tw.chest : s.label;
-        return (
-          <View key={k} className="gap-2">
-            <Text className="font-display text-lg">{label}</Text>
-            {/* Five cells in a cream track; the chosen one takes the selected edge and an ink dot. */}
+    <View className="gap-3">
+      <View className="min-h-5 flex-row items-center justify-between">
+        <Eyebrow accessibilityRole="header">{tw.adjust}</Eyebrow>
+        {isAdjusted(adj) ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => pick({ adj: {} })}
+            style={{ minHeight: MIN_TOUCH, marginVertical: -12 }}
+            className="-mr-2 justify-center px-2"
+          >
+            <Text size="caption" tone="muted" className="underline">
+              {tw.reset}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+      <View className={`${card} px-4 py-1`}>
+        {scalesFor(model.presence).map((k, i) => {
+          const s = k === 'bust' && man ? tw.chestScale : tw.scales[k];
+          return (
             <View
+              key={k}
               accessibilityRole="radiogroup"
-              accessibilityLabel={label}
-              className="flex-row overflow-hidden rounded-pill border border-rule-mid bg-surface"
+              accessibilityLabel={s.label}
+              className={`gap-1.5 pt-4 pb-3 ${i ? 'border-t border-hairline' : ''}`}
             >
-              {STOPS.map((v) => {
-                const on = eff[k] === v;
-                return (
-                  <Pressable
-                    key={v}
-                    accessibilityRole="button"
-                    accessibilityLabel={tw.stop(label, v, s.less, s.more, asIs)}
-                    accessibilityState={{ selected: on }}
-                    // A second tap on the chosen stop hands the scale back to her facts.
-                    onPress={() => pick({ adj: { [k]: on ? null : v } as UpdateModelInput['adj'] })}
-                    style={{ minHeight: MIN_TOUCH }}
-                    className={`flex-1 items-center justify-center ${v !== STOPS[0] ? 'border-l border-rule-mid' : ''}`}
-                  >
-                    {on ? (
-                      <View className="absolute inset-0 items-center justify-center rounded-pill border border-selected-line bg-selected">
-                        <View className="size-1.5 rounded-full bg-ink" />
+              <Text className="font-display" style={{ fontSize: 22 }}>
+                {s.label}
+              </Text>
+              {/* Five stops on a hairline; the chosen one takes the warm fill and an ink dot. */}
+              <View className="-mx-2.5 flex-row justify-between">
+                <View
+                  pointerEvents="none"
+                  className="absolute h-px bg-hairline"
+                  style={{ left: 32, right: 32, top: 22 }}
+                />
+                {STOPS.map((v) => {
+                  const on = eff[k] === v;
+                  return (
+                    <Pressable
+                      key={v}
+                      accessibilityRole="radio"
+                      accessibilityLabel={tw.stop(s.label, v, s.less, s.more, asIs)}
+                      accessibilityState={{ checked: on }}
+                      onPress={() => pick({ adj: { [k]: v } as UpdateModelInput['adj'] })}
+                      style={{ width: MIN_TOUCH, height: MIN_TOUCH }}
+                      className="items-center justify-center"
+                    >
+                      <View
+                        className={`size-[30px] items-center justify-center rounded-full border ${on ? 'border-selected-line bg-selected' : 'border-transparent'}`}
+                      >
+                        <View
+                          className={`rounded-full ${on ? 'size-1.5 bg-ink' : v === 0 ? 'size-[7px] bg-selected-line' : 'size-[5px] bg-rule-mid'}`}
+                        />
                       </View>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View className="flex-row justify-between">
+                <Text size="caption" tone="muted">
+                  {s.less}
+                </Text>
+                <Text size="caption" tone="muted">
+                  {s.more}
+                </Text>
+              </View>
             </View>
-            <View className="flex-row justify-between px-3">
-              <Text size="caption" tone="muted">
-                {s.less}
-              </Text>
-              <Text size="caption" tone="muted">
-                {s.more}
-              </Text>
-            </View>
-          </View>
-        );
-      })}
-      {isAdjusted(adj) ? (
-        <View className="border-t border-hairline pt-3">
-          <Button variant="quiet" className="self-start" onPress={() => pick({ adj: {} })}>
-            {tw.backToFacts}
-          </Button>
-        </View>
-      ) : null}
-    </Section>
+          );
+        })}
+      </View>
+    </View>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { Icon } from '@robes/icons/web';
+import { useToast } from '@robes/ui';
 import { useEffect, useRef, useState } from 'react';
 import { CAMERA_CONSTRAINTS } from '@/components/wardrobe/camera-capture';
 import { isPhoto } from '@/lib/add-flow';
@@ -33,11 +34,19 @@ export interface ShotCameraCopy {
   taken: (n: number) => string;
   // Set when a click on a thumbnail takes that photograph off the strip (onboarding R-5.2).
   remove?: string;
+  // Set when the caller uploads each shot and passes its `upload` state: the pill counts what has
+  // landed while any is on its way, and a thumbnail that failed says so.
+  uploaded?: (n: number, total: number) => string;
+  notUploaded?: string;
+  // Said when `onAdd` turned photos away because they were already in (onboarding: no photo twice).
+  already?: string;
 }
 
 export interface CameraShot {
   key: string;
   url: string;
+  // Still uploading (a spinner where the tick goes) or given up (left out of `done`'s count).
+  upload?: 'pending' | 'failed';
 }
 
 // The camera for several photographs (Capture PRD 3c.2; canvas frame 3c), shared by Wardrobe ›
@@ -64,7 +73,8 @@ export function ShotCamera({
   shots: readonly CameraShot[];
   max: number;
   canDone: boolean;
-  onAdd: (file: File) => void;
+  // False turns the photo away (the caller already has it); anything else takes it.
+  onAdd: (file: File) => unknown;
   onRemove?: (key: string) => void;
   onDone: () => void;
   onClose: () => void;
@@ -74,10 +84,13 @@ export function ShotCamera({
   rollFirst?: boolean;
   testId?: string;
 }) {
+  const toast = useToast();
   const library = useRef<HTMLInputElement>(null);
   const [flash, setFlash] = useState(false);
   const { video, live, refused, shoot, stop } = useCameraStream(CAMERA_CONSTRAINTS, true);
   const full = shots.length >= max;
+  const pending = shots.filter((s) => s.upload === 'pending').length;
+  const savable = shots.filter((s) => s.upload !== 'failed').length;
 
   // The stream stops as the camera goes; a close the caller asks about first keeps it running.
   const closeRef = useRef(onClose);
@@ -164,7 +177,15 @@ export function ShotCamera({
           </div>
         ) : null}
         <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+36px)] flex flex-col items-stretch gap-4">
-          <CamPill>{full ? copy.full : shots.length ? copy.next : copy.hint}</CamPill>
+          <CamPill>
+            {pending && copy.uploaded
+              ? copy.uploaded(shots.length - pending, shots.length)
+              : full
+                ? copy.full
+                : shots.length
+                  ? copy.next
+                  : copy.hint}
+          </CamPill>
           {/* The sitting so far: each shot with its sage tick, newest at the right. */}
           <ul
             aria-label={copy.taken(shots.length)}
@@ -174,9 +195,28 @@ export function ShotCamera({
               const thumb = (
                 <>
                   {/* biome-ignore lint/performance/noImgElement: a local object URL of her own photo */}
-                  <img src={shot.url} alt="" className="block size-full object-cover" />
-                  <span className="absolute right-0.5 bottom-0.5 flex size-4 items-center justify-center rounded-pill bg-sage text-white">
-                    <Icon name="check" size={10} />
+                  <img
+                    src={shot.url}
+                    alt=""
+                    className={`block size-full object-cover ${shot.upload === 'failed' ? 'opacity-50' : ''}`}
+                  />
+                  {/* The sage tick once it has landed; until then a spinner, and a rose mark if
+                      it couldn't. */}
+                  <span
+                    data-testid={shot.upload ? `piece-camera-thumb-${shot.upload}` : undefined}
+                    className={`absolute right-0.5 bottom-0.5 flex size-4 items-center justify-center rounded-pill text-white ${
+                      shot.upload === 'pending'
+                        ? 'bg-ink900'
+                        : shot.upload === 'failed'
+                          ? 'bg-accent-warm'
+                          : 'bg-sage'
+                    }`}
+                  >
+                    {shot.upload === 'pending' ? (
+                      <span className="size-2.5 rounded-pill border-[1.5px] border-white border-t-transparent motion-safe:animate-spin" />
+                    ) : (
+                      <Icon name={shot.upload === 'failed' ? 'alert' : 'check'} size={10} />
+                    )}
                   </span>
                 </>
               );
@@ -187,7 +227,11 @@ export function ShotCamera({
                   {onRemove ? (
                     <button
                       type="button"
-                      aria-label={copy.remove}
+                      aria-label={
+                        shot.upload === 'failed' && copy.notUploaded
+                          ? `${copy.notUploaded}. ${copy.remove}`
+                          : copy.remove
+                      }
                       onClick={() => onRemove(shot.key)}
                       className={`${frame} ${DARK_FOCUS}`}
                       data-testid="piece-camera-thumb"
@@ -226,7 +270,7 @@ export function ShotCamera({
                 data-testid="piece-camera-review"
                 className={`inline-flex h-12 items-center justify-self-end rounded-pill bg-ink900 px-5 font-medium font-sans text-[10px] text-cream50 uppercase tracking-[0.2em] shadow-[0_4px_14px_rgb(32_32_33/0.25)] disabled:opacity-60 ${DARK_FOCUS}`}
               >
-                {copy.done(shots.length)}
+                {copy.done(savable)}
               </button>
             ) : (
               <span />
@@ -246,7 +290,15 @@ export function ShotCamera({
         onChange={(event) => {
           const files = [...(event.target.files ?? [])].filter(isPhoto);
           event.target.value = '';
-          for (const file of files.slice(0, Math.max(0, max - shots.length))) onAdd(file);
+          // A photo turned away takes no room: the strip fills with ones that are new.
+          let room = max - shots.length;
+          let turned = 0;
+          for (const file of files) {
+            if (room <= 0) break;
+            if (onAdd(file) === false) turned++;
+            else room--;
+          }
+          if (turned && copy.already) toast({ message: copy.already });
         }}
       />
     </div>

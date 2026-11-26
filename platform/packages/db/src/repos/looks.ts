@@ -1,6 +1,6 @@
 import type { Season } from '@robes/core';
 import { type LookStatus, MAX_DRAFTS, priceFromPoint } from '@robes/core/looks';
-import { normaliseSeasons } from '@robes/core/wardrobe';
+import { normaliseSeasons, shopName } from '@robes/core/wardrobe';
 import { sql, type Transaction } from 'kysely';
 import type { Db } from '../client';
 import type { DB } from '../database.types';
@@ -36,6 +36,8 @@ const LOOK_COLUMNS = [
   'recordImage',
   'robesHidden',
   'pictureNote',
+  'seedId',
+  'seedLookId',
   'createdAt',
   'updatedAt',
 ] as const;
@@ -103,6 +105,34 @@ const json = (v: unknown) => (v == null ? null : JSON.stringify(v));
 // as they now stand, or null when nothing changed. Legacy rows (no `name`) are left as they are,
 // and so is a piece found in her own photograph (`capture`, Capture PRD 1c): it stays on the look
 // as a suggestion and reaches her wardrobe or wishlist only when she files it.
+// One proposal filed to her wishlist as a piece to find: its name, shop facts, price in her
+// currency, shop link and still (her own asset row on the shared catalog file). Save files every
+// unfiled proposal this way, and the heart files one (wishProposal), so a wish reads the same
+// whichever way it came.
+async function fileProposal(
+  trx: Transaction<DB>,
+  userId: UserId,
+  p: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  const name = typeof p.name === 'string' ? p.name.trim() : '';
+  const found = typeof p.capture === 'object' && p.capture !== null;
+  if (!name || p.wishlisted === true || found) return null;
+  const str = (k: string) => (typeof p[k] === 'string' && p[k].trim() ? p[k].trim() : null);
+  const price = priceFromPoint(str('pricePoint') ?? '');
+  const wish = await insertWish(trx, userId, {
+    label: name.slice(0, 120),
+    ...(str('category') ? { category: str('category') ?? undefined } : {}),
+    brand: str('brand'),
+    color: str('color'),
+    sourceLabel: str('retailerHint') ?? shopName(str('url')),
+    sourceUrl: str('url'),
+    imageAssetId: str('stillAssetId'),
+    price: price?.price ?? null,
+    currency: price?.currency ?? null,
+  });
+  return { ...p, wishlisted: true, wishlistItemId: wish.id };
+}
+
 async function fileProposals(
   trx: Transaction<DB>,
   userId: UserId,
@@ -114,27 +144,45 @@ async function fileProposals(
   for (const item of raw as unknown[]) {
     if (!item || typeof item !== 'object') continue;
     const p = item as Record<string, unknown>;
-    const name = typeof p.name === 'string' ? p.name.trim() : '';
-    const found = typeof p.capture === 'object' && p.capture !== null;
-    if (!name || p.wishlisted === true || found) {
-      out.push(p);
-      continue;
-    }
-    const str = (k: string) => (typeof p[k] === 'string' && p[k].trim() ? p[k].trim() : null);
-    const price = priceFromPoint(str('pricePoint') ?? '');
-    const wish = await insertWish(trx, userId, {
-      label: name.slice(0, 120),
-      ...(str('category') ? { category: str('category') ?? undefined } : {}),
-      brand: str('brand'),
-      color: str('color'),
-      sourceLabel: str('retailerHint'),
-      price: price?.price ?? null,
-      currency: price?.currency ?? null,
-    });
-    out.push({ ...p, wishlisted: true, wishlistItemId: wish.id });
-    changed = true;
+    const filed = await fileProposal(trx, userId, p);
+    out.push(filed ?? p);
+    if (filed) changed = true;
   }
   return changed ? out : null;
+}
+// A rack saved from the app keeps what only the server sets on a proposal: its still
+// (stillAssetId), always the one the look already had under that key and never one the request
+// names; and its shop link, when the request has none. A phone build from before seeded looks
+// drops both fields from every row it sends back (plan "Seeded Christmas looks"). Its anchor
+// (the wish a draft was started from) is the server's too: kept from the stored row, never taken
+// from a request.
+export function keepServerFields(
+  incoming: readonly Record<string, unknown>[] | null,
+  stored: unknown,
+): Record<string, unknown>[] | null {
+  if (!incoming) return null;
+  const byKey = new Map<string, Record<string, unknown>>();
+  if (Array.isArray(stored)) {
+    for (const p of stored as unknown[]) {
+      if (p && typeof p === 'object' && typeof (p as { key?: unknown }).key === 'string') {
+        byKey.set((p as { key: string }).key, p as Record<string, unknown>);
+      }
+    }
+  }
+  return incoming.map((p) => {
+    const { stillAssetId: _ignored, anchor: _asked, ...rest } = p;
+    const was = typeof p.key === 'string' ? byKey.get(p.key) : undefined;
+    // A piece already filed to her wishlist stays filed: a rack sent from before its heart landed
+    // never makes Save file it twice.
+    const filed = was?.wishlisted === true && typeof was.wishlistItemId === 'string';
+    return {
+      ...rest,
+      ...(was?.stillAssetId ? { stillAssetId: was.stillAssetId } : {}),
+      ...(rest.url === undefined && was?.url ? { url: was.url } : {}),
+      ...(filed ? { wishlisted: true, wishlistItemId: was.wishlistItemId } : {}),
+      ...(was?.anchor === true ? { anchor: true } : {}),
+    };
+  });
 }
 const emptyToNull = (v: Record<string, unknown> | readonly unknown[] | null | undefined) =>
   v == null || (Array.isArray(v) ? v.length === 0 : Object.keys(v).length === 0) ? null : v;
@@ -680,7 +728,7 @@ export function looksRepo(db: Db) {
             originLookId: look.originLookId ?? null,
             renderAssetId: look.renderAssetId ?? null,
             status,
-            proposals: json(emptyToNull(look.proposals ?? null)),
+            proposals: json(emptyToNull(keepServerFields(look.proposals ?? null, null))),
             styling: json(emptyToNull(look.styling ?? null)),
             edits: status === 'saved' ? null : json(emptyToNull(look.edits ?? null)),
             dateHint: look.dateHint ?? null,
@@ -722,6 +770,21 @@ export function looksRepo(db: Db) {
           fields.proposals !== undefined ||
           fields.styling !== undefined);
       return db.transaction().execute(async (trx) => {
+        const proposals =
+          fields.proposals === undefined
+            ? undefined
+            : keepServerFields(
+                fields.proposals,
+                (
+                  await trx
+                    .selectFrom('looks')
+                    .select('proposals')
+                    .where('userId', '=', userId)
+                    .where('id', '=', id)
+                    .where('deletedAt', 'is', null)
+                    .executeTakeFirst()
+                )?.proposals,
+              );
         // A suggestion becoming a draft counts against the five drafts like a new one.
         if (rackChanged) {
           const cur = await trx
@@ -742,9 +805,7 @@ export function looksRepo(db: Db) {
             ...(fields.name !== undefined ? { name: fields.name, nameProvisional: false } : {}),
             ...(fields.note !== undefined ? { note: fields.note } : {}),
             ...seasonColumns(fields),
-            ...(fields.proposals !== undefined
-              ? { proposals: json(emptyToNull(fields.proposals)) }
-              : {}),
+            ...(proposals !== undefined ? { proposals: json(emptyToNull(proposals)) } : {}),
             ...(fields.styling !== undefined ? { styling: json(emptyToNull(fields.styling)) } : {}),
             ...(fields.dateHint !== undefined ? { dateHint: fields.dateHint } : {}),
             ...(fields.record !== undefined ? { recordImage: fields.record } : {}),
@@ -838,6 +899,37 @@ export function looksRepo(db: Db) {
                 : {}),
             updatedAt: sql`now()`,
           })
+          .where('userId', '=', userId)
+          .where('id', '=', id)
+          .where('deletedAt', 'is', null)
+          .returning(LOOK_SELECT)
+          .executeTakeFirst();
+      });
+    },
+
+    // The heart on one piece to find: filed to her wishlist as Save files it, and marked on the
+    // look at once, whatever its state (a suggestion stays suggested). Her look only; a key it
+    // does not hold is not_found to the caller (undefined), one already filed changes nothing.
+    wishProposal(userId: UserId, id: string, key: string) {
+      return db.transaction().execute(async (trx) => {
+        const row = await trx
+          .selectFrom('looks')
+          .select(['proposals'])
+          .where('userId', '=', userId)
+          .where('id', '=', id)
+          .where('deletedAt', 'is', null)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!row || !Array.isArray(row.proposals)) return undefined;
+        const proposals = row.proposals as Record<string, unknown>[];
+        const at = proposals.findIndex((p) => p && typeof p === 'object' && p.key === key);
+        const target = proposals[at];
+        if (!target) return undefined;
+        const filed = await fileProposal(trx, userId, target);
+        const next = filed ? proposals.map((p, i) => (i === at ? filed : p)) : null;
+        return trx
+          .updateTable('looks')
+          .set({ ...(next ? { proposals: json(next) } : {}), updatedAt: sql`now()` })
           .where('userId', '=', userId)
           .where('id', '=', id)
           .where('deletedAt', 'is', null)

@@ -12,7 +12,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "test:db": "vitest run --config vitest.db.config.ts",
-    "setup:local": "tsx scripts/setup-local-bucket.ts"
+    "setup:local": "tsx scripts/setup-local-bucket.ts",
+    "seed:drop": "tsx scripts/build-seed-drop.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1137.0",

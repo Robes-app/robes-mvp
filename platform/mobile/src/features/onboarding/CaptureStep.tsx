@@ -3,14 +3,14 @@ import { firstRun as copy, wardrobe } from '@robes/copy';
 import { Button, ErrorText, fonts, maxFontSizeMultiplier, Text, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import { Pressable, Text as RNText, View } from 'react-native';
 import { type CameraShot, ShotCamera, type ShotCameraCopy } from '@/features/capture/ShotCamera';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
 import { useInvalidateLooks } from '@/features/looks/look-states';
 import { REVIEW_MAX } from '@/features/wardrobe/add/flow';
 import { nativeAnalytics } from '@/lib/analytics';
-import { useUploadSitting } from './use-upload-sitting';
+import { uploadState, useUploadSitting } from './use-upload-sitting';
 
 export type CaptureMode = 'looks' | 'pieces';
 
@@ -21,6 +21,7 @@ const cameraCopy = (mode: CaptureMode): ShotCameraCopy => {
     close: wardrobe.camera.close,
     shutter: wardrobe.capture.camera.shutter,
     photos: wardrobe.capture.camera.photos,
+    adding: wardrobe.capture.camera.adding,
     hint: c.hint,
     next: c.next,
     full: c.full,
@@ -31,6 +32,9 @@ const cameraCopy = (mode: CaptureMode): ShotCameraCopy => {
     done: copy.save,
     taken: wardrobe.camera.taken,
     remove: copy.removePhoto,
+    uploaded: copy.uploaded,
+    notUploaded: copy.notUploaded,
+    already: copy.already,
   };
 };
 
@@ -93,13 +97,17 @@ export function CaptureStep({
   const [view, setView] = useState<'intro' | 'camera' | 'saved'>('intro');
   const [saved, setSaved] = useState<CameraShot[]>([]);
   const [saving, setSaving] = useState(false);
+  // Held from the first tap: a quick second tap on Save N, before `saving` re-renders, would save
+  // every look twice.
+  const savingNow = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const c = copy[mode];
 
   // Save N: nothing is a look or a piece before this tap (rule: a look is saved only when she
   // saves it). A failure keeps the sitting so she can try again.
   async function save() {
-    if (saving || !sitting.ready) return;
+    if (savingNow.current || !sitting.ready) return;
+    savingNow.current = true;
     setSaving(true);
     setError(null);
     const assetIds = sitting.kept.flatMap((s) => (s.assetId ? [s.assetId] : []));
@@ -131,6 +139,7 @@ export function CaptureStep({
       setError(c.failed);
       setView('intro');
     } finally {
+      savingNow.current = false;
       setSaving(false);
     }
   }
@@ -139,7 +148,7 @@ export function CaptureStep({
     return (
       <ShotCamera
         copy={cameraCopy(mode)}
-        shots={sitting.shots}
+        shots={sitting.shots.map((s) => ({ key: s.key, uri: s.uri, upload: uploadState(s) }))}
         max={REVIEW_MAX}
         canDone={sitting.ready && !saving}
         onAdd={sitting.add}

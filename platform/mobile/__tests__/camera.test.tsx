@@ -1,6 +1,7 @@
 import { wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
+import { ShotCamera } from '../src/features/capture/ShotCamera';
 import { Camera } from '../src/features/wardrobe/Camera';
 import { CAPTURE_MAX, captureSize, downscale } from '../src/features/wardrobe/camera-capture';
 import { nativeAnalytics } from '../src/lib/analytics';
@@ -226,6 +227,64 @@ test('several of her photos join the sitting at once', async () => {
   });
   await waitFor(() => expect(screen.getByText(copy.ready(3))).toBeTruthy());
   expect(screen.getByRole('button', { name: copy.review(3) })).toBeTruthy();
+});
+
+// 25 Nov: ten chosen photos took seconds to arrive with nothing on screen; she closed the camera,
+// chose them again, and the first ten landed too, doubling the sitting.
+test('chosen photos show a waiting tile at once, and a pick that lands after the camera closed adds nothing', async () => {
+  const picker = jest.requireMock('expo-image-picker') as {
+    launchImageLibraryAsync: jest.Mock;
+  };
+  let answer: (value: unknown) => void = () => {};
+  picker.launchImageLibraryAsync.mockReturnValueOnce(
+    new Promise((resolve) => {
+      answer = resolve;
+    }),
+  );
+  const onAdd = jest.fn();
+  const view = await renderWithApi(
+    <ShotCamera
+      copy={{
+        title: old.title,
+        close: copy.close,
+        shutter: copy.shutter,
+        photos: copy.photos,
+        adding: copy.adding,
+        hint: copy.hint,
+        next: copy.next,
+        full: copy.full,
+        denied: copy.denied,
+        allow: old.allow,
+        failed: wardrobe.addFailed,
+        ready: copy.ready,
+        done: copy.review,
+        taken: old.taken,
+      }}
+      shots={[]}
+      max={12}
+      canDone={false}
+      onAdd={onAdd}
+      onDone={jest.fn()}
+      onClose={jest.fn()}
+    />,
+  );
+  await act(async () => {
+    await fireEvent.press(screen.getByRole('button', { name: copy.photos }));
+  });
+  expect(screen.getByTestId('piece-camera-adding')).toBeTruthy();
+  expect(screen.getByText(copy.adding)).toBeTruthy();
+  // A second tap while they are on their way opens nothing more.
+  await act(async () => {
+    await fireEvent.press(screen.getByRole('button', { name: copy.photos }));
+  });
+  expect(picker.launchImageLibraryAsync).toHaveBeenCalledTimes(1);
+
+  // The camera closes (its place taken by nothing) before the pick answers.
+  await view.rerender(<View />);
+  await act(async () => {
+    answer({ canceled: false, assets: [{ uri: 'file:///tmp/a.jpg', width: 800, height: 1000 }] });
+  });
+  expect(onAdd).not.toHaveBeenCalled();
 });
 
 test('where the pieces go comes from the Add pieces sheet; the camera has no toggle', async () => {

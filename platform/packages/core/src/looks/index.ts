@@ -70,6 +70,17 @@ export function anchorName(label: string, brand: string | null | undefined): str
   return nm ? nm.charAt(0).toLowerCase() + nm.slice(1) : '';
 }
 
+// Which piece? (Q6) offers the pieces the prompt can change. The look's anchor — her piece, or
+// the wish the draft was started from — is held through every change (Style a piece, Annie
+// 24 Nov), so it is never offered.
+export function changeableRows<
+  T extends { pieceId: string | null; proposal?: { anchor?: boolean } | null },
+>(rows: readonly T[], anchorPieceId: string | null | undefined): T[] {
+  return rows.filter(
+    (r) => !(anchorPieceId && r.pieceId === anchorPieceId) && r.proposal?.anchor !== true,
+  );
+}
+
 // The facts a saved look states about itself, in the shape the copy line takes:
 // its rack, its wears, when it was last worn (the date as the day says it) and the
 // piece it was styled around. One reader, so the card and the look page agree.
@@ -114,6 +125,8 @@ export interface Proposal {
   wishlistItemId?: string | null;
   // A piece found in her photograph, not filed yet (Capture PRD 1c.6); see `./capture`.
   capture?: CaptureRead | null;
+  // The wish the draft was started from: the look's anchor (Style a piece on a wish).
+  anchor?: boolean;
 }
 
 // Where a piece found in her photograph lives: its read, its crop, and her piece it looks like.
@@ -561,33 +574,6 @@ export function wearForOptions(
   return [...new Set(looks.flatMap(lookWearFor))].sort((a, b) => a.localeCompare(b, 'en-GB'));
 }
 
-// Why Robes suggested a look (Front Door PRD rev 3 §5.3), read from what the look carries: the
-// piece it was styled around, the day it was made for, a wish it works with, how much of it is
-// hers, or her own words. A stored reason from the jobs can replace this later (plan PR 2).
-export type SuggestionReason =
-  | { kind: 'anchor'; piece: string }
-  | { kind: 'day'; date: string }
-  | { kind: 'wishlist' }
-  | { kind: 'own'; pieces: number }
-  | { kind: 'wearMost' }
-  | { kind: 'prompt' };
-
-export function suggestionReason(look: {
-  anchor?: { label: string; brand: string | null } | null;
-  dateHint?: string | null;
-  pieces: readonly unknown[];
-  proposals: readonly { wishlisted?: boolean }[];
-}): SuggestionReason {
-  if (look.anchor)
-    return { kind: 'anchor', piece: anchorName(look.anchor.label, look.anchor.brand) };
-  if (look.dateHint) return { kind: 'day', date: look.dateHint };
-  if (look.proposals.some((p) => p.wishlisted)) return { kind: 'wishlist' };
-  if (look.pieces.length && look.proposals.length)
-    return { kind: 'own', pieces: look.pieces.length };
-  if (look.pieces.length) return { kind: 'wearMost' };
-  return { kind: 'prompt' };
-}
-
 // Where a new look's pieces come from. The prompt's Wardrobe and Shop toggles answer it (look
 // prompt PRD S5, `sourceBalance`): Wardrobe alone is `owned`, both is `mix` (her pieces first, her
 // wishlist and new pieces where the look needs them), Shop alone is `new`. `balanceNote` stays on
@@ -611,6 +597,13 @@ export type Source = keyof Sources;
 // At rest (S2, S3): her wardrobe alone once she owns a piece; Shop alone while she owns none.
 export function defaultSources(ownedPieces: number): Sources {
   return ownedPieces > 0 ? { wardrobe: true, shop: false } : { wardrobe: false, shop: true };
+}
+
+// The sources a piece's own box opens with (Style a piece, 24 Nov): a piece she owns, her
+// wardrobe and the shop; a wish she is thinking of buying, her wardrobe alone, so she sees it with
+// what she has (the shop while she owns nothing).
+export function styleSources(wish: boolean, ownedPieces: number): Sources {
+  return wish ? defaultSources(ownedPieces) : { wardrobe: true, shop: true };
 }
 
 // A tap on one toggle (S3, S4). One source is always on: turning off the only one turns the other
@@ -680,4 +673,17 @@ export function lookLine(look: {
 export const LOOKBOOK_SEARCH_FROM = 50;
 export function showLookbookSearch(savedCount: number, query: string): boolean {
   return savedCount >= LOOKBOOK_SEARCH_FROM || query.trim() !== '';
+}
+
+// The Lookbook tabs' counts (design "Suggested looks", 23 Nov): a tab shows its count once it
+// holds a look, and the tab in view always does, so the last suggestion gone reads Suggested 0.
+// A count still loading shows nothing.
+export function lookbookCounts(
+  tab: 'saved' | 'suggested',
+  saved: number | undefined,
+  suggested: number | undefined,
+): { saved?: number; suggested?: number } {
+  const show = (which: 'saved' | 'suggested', n: number | undefined) =>
+    n !== undefined && (n > 0 || which === tab) ? { [which]: n } : {};
+  return { ...show('saved', saved), ...show('suggested', suggested) };
 }

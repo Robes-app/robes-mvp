@@ -2,16 +2,19 @@ import { useApi } from '@robes/api-client/react';
 import { lookbook as copy } from '@robes/copy';
 import { Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { FlatList, View } from 'react-native';
+import { DeleteSuggestion } from './DeleteSuggestion';
 import { SuggestedTile } from './LookTiles';
-import { useLetGo, useRestyle } from './look-states';
+import { useSaveLook } from './look-states';
 
 // The piece page's "Robes suggested" rail (legacy F11): the looks styled around this piece,
-// with ✕ and ↻ and no corner mark (the piece is the page). Nothing renders when there are none.
+// each the suggested card (Save look · Delete look on its long press). Nothing renders when there
+// are none.
 export function SuggestedRail({ pieceId }: { pieceId: string }) {
   const router = useRouter();
-  const restyle = useRestyle();
-  const letGo = useLetGo();
+  const save = useSaveLook(undefined, 'suggested');
+  const [deleting, setDeleting] = useState<string | null>(null);
   const { data } = useApi('looks.list', {
     input: { limit: 12, status: 'suggested', anchorPieceId: pieceId },
   });
@@ -31,15 +34,14 @@ export function SuggestedRail({ pieceId }: { pieceId: string }) {
           <View style={{ width: 160 }}>
             <SuggestedTile
               look={item}
-              showMark={false}
               onPress={() => router.push(`/look/${item.id}`)}
-              onRemove={() => letGo(item.id)}
-              onSwap={() => restyle.restyle(item.id)}
-              swapping={restyle.busyId === item.id}
+              onSave={() => save.mutate({ params: { id: item.id }, input: {} })}
+              onDelete={() => setDeleting(item.id)}
             />
           </View>
         )}
       />
+      <DeleteSuggestion id={deleting} onClose={() => setDeleting(null)} />
     </View>
   );
 }

@@ -21,6 +21,7 @@
     "./trips": "./src/trips/index.ts",
     "./avatar": "./src/avatar/index.ts",
     "./looks": "./src/looks/index.ts",
+    "./seeds": "./src/seeds/index.ts",
     "./filters": "./src/filters/index.ts",
     "./photo-pieces": "./src/photo-pieces/index.ts",
     "./cutout": "./src/cutout/index.ts",

@@ -1,4 +1,5 @@
 import { AiError, createFakeProvider } from '@robes/ai';
+import { wornLine } from '@robes/ai/prompts/avatar';
 import { verifiedUserId } from '@robes/db';
 import { describe, expect, it, vi } from 'vitest';
 import { frameAnchor, modelReference } from './look-frame';
@@ -245,9 +246,15 @@ describe('look_render: Robes’ frame of a look', () => {
     expect(req?.references).toHaveLength(2);
     expect(req?.prompt).toContain('IMAGE 1 is an existing photograph of this look');
     expect(req?.prompt).toContain('- IMAGE 2: the Silk shirt (ivory Tops)');
-    expect(req?.prompt).toContain('Worn: tucked at the front.');
+    // How it is worn ends its line and overrides its photograph (avatar v10, 25 Nov).
+    expect(req?.prompt).toContain(
+      'Oversized mother-of-pearl buttons. That is the point of this piece: draw it unmistakably, never softened into a plain version.' +
+        wornLine('tucked at the front'),
+    );
     // Its shape as her photo read it, and only that garment taken from her photograph (21 Nov).
-    expect(req?.prompt).toContain('Worn: tucked at the front. Its shape: Relaxed, Point collar.');
+    expect(req?.prompt).toContain(
+      'details, never a generic version of it. Its shape: Relaxed, Point collar.',
+    );
     // …and the one detail that makes it itself, read with the piece or put in her words (v8).
     expect(req?.prompt).toContain(
       'Its shape: Relaxed, Point collar. Its defining detail: Oversized mother-of-pearl buttons.',
@@ -281,7 +288,7 @@ describe('look_render: Robes’ frame of a look', () => {
     await expect(run()).resolves.toEqual({ status: 'succeeded' });
     const prompt = generateImage.mock.calls[0]?.[0]?.prompt;
     expect(prompt).toContain(
-      '- the Oversized wool-blend coat (Outerwear by COS). Worn: worn open over the shirt.\nLAYERS, from the skin out: the Silk shirt, then the Oversized wool-blend coat as the outer layer',
+      `- the Oversized wool-blend coat (Outerwear by COS).${wornLine('worn open over the shirt')}\nLAYERS, from the skin out: the Silk shirt, then the Oversized wool-blend coat as the outer layer`,
     );
     expect(ledger.record).toHaveBeenCalledWith(
       expect.objectContaining({ feature: 'avatar.frame', status: 'ok', prompt }),

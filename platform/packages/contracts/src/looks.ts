@@ -144,6 +144,18 @@ export const Proposal = z.object({
   wishlistItemId: z.uuid().nullable().default(null),
   // Set on a piece found in her photograph (Capture PRD 1c): the row is hers to match or add.
   capture: CaptureRead.nullable().default(null),
+  // The shop's own page for the piece (a seeded look's pieces, 23 Nov): Save files it to the wish.
+  url: z
+    .url({ protocol: /^https$/ })
+    .max(2048)
+    .nullable()
+    .optional(),
+  // Her asset row for the piece's still (a seeded look's pieces): shown on the rack, and the
+  // wish's picture once Save files it.
+  stillAssetId: z.uuid().nullable().optional(),
+  // The wish the draft was started from (Style a piece on a wish): the look's anchor, held through
+  // every change the prompt makes. Set by the server only; a rack saved from the app keeps it.
+  anchor: z.boolean().optional(),
 });
 export type Proposal = z.infer<typeof Proposal>;
 
@@ -251,11 +263,15 @@ export const Look = z.object({
   // The crop of each piece found in her photograph and not filed yet, by its row's key (Capture
   // PRD 1c.6). Defaulted across version skew.
   captureImages: z.record(z.string(), PieceImage).default({}),
+  // Each proposal's still, by its key (a seeded look's pieces).
+  proposalImages: z.record(z.string(), PieceImage).optional(),
   styling: z.record(z.string(), z.string()),
   edits: z.record(z.string(), RowEdit),
   anchor: LookAnchor.nullable(),
   setId: z.uuid().nullable(),
   setIndex: z.number().int().nullable(),
+  // The seeded drop the look came from ('xmas-2026'), else null (plan "Seeded Christmas looks").
+  seedId: z.string().nullable().optional(),
   // The day her words named: offered on Save, never filed by itself.
   dateHint: wornOn.nullable(),
   timesWorn: z.number().int().min(0),
@@ -269,6 +285,8 @@ export const Look = z.object({
 export type Look = z.infer<typeof Look>;
 
 export const LookParams = z.object({ id: z.uuid() });
+// One piece to find on a look, by its proposal key (the heart, wishProposal).
+export const LookProposalParams = z.object({ id: z.uuid(), key: ProposalKey });
 export const WearParams = z.object({ id: z.uuid(), date: wornOn });
 
 export const ListLooksInput = z.object({
@@ -392,6 +410,12 @@ export type RestyleLookInput = z.infer<typeof RestyleLookInput>;
 // around, and where she is that day when it is not home. Both are ids and intent only (SEC-16).
 const PromptAround = {
   pieceIds: z.array(z.uuid()).max(8).optional(),
+  // Style a piece (handoff 24 Nov): the piece of hers the draft starts from. It is the look's
+  // anchor, so every change the prompt makes keeps it; only her own hand in Edit takes it off.
+  anchorPieceId: z.uuid().optional(),
+  // A wish she is thinking of buying (Annie, 24 Nov): the draft is styled around it, with her
+  // wardrobe, and holds it as its anchor the same way. Never with `anchorPieceId`.
+  anchorWishId: z.uuid().optional(),
   // × on the weather chip: the look is dressed for the day without its forecast.
   weather: z.boolean().optional(),
   place: z
@@ -403,15 +427,20 @@ const PromptAround = {
     })
     .optional(),
 };
-export const PromptLookInput = z.object({
-  prompt: z.string().trim().min(2).max(300),
-  date: wornOn.optional(),
-  // The diary's prompt box (plan 2026-11-03): ONE look, minted as her draft for the day, in the
-  // day's slot. Without it her words still deal three suggestions on the deck (the Create sheet).
-  draft: z.boolean().optional(),
-  ...PromptAround,
-  ...BalanceFields,
-});
+export const PromptLookInput = z
+  .object({
+    prompt: z.string().trim().min(2).max(300),
+    date: wornOn.optional(),
+    // The diary's prompt box (plan 2026-11-03): ONE look, minted as her draft for the day, in the
+    // day's slot. Without it her words still deal three suggestions on the deck (the Create sheet).
+    draft: z.boolean().optional(),
+    ...PromptAround,
+    ...BalanceFields,
+  })
+  .refine((v) => !(v.anchorPieceId && v.anchorWishId), {
+    message: 'A look starts from one piece or one wish',
+    path: ['anchorWishId'],
+  });
 export type PromptLookInput = z.infer<typeof PromptLookInput>;
 
 // The keep-or-pass deck: one generation's looks, in the order Robes wrote them.

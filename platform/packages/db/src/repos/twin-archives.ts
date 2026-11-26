@@ -30,6 +30,10 @@ export const TWIN_PROFILE_COLUMNS = [
   'bust_cup',
   'bust_cm',
   'waist_cm',
+  'chest_cm',
+  'inseam_cm',
+  'collar_cm',
+  'shoulder_width_cm',
   'avatar_prefs',
 ] as const;
 // Constant column names from the lists above, never input.

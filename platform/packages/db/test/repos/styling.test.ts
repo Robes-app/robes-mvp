@@ -46,6 +46,10 @@ describe('styling + ideas', () => {
         bust_cup: null,
         bust_cm: null,
         waist_cm: null,
+        chest_cm: null,
+        inseam_cm: null,
+        collar_cm: null,
+        shoulder_width_cm: null,
         age_band: '',
       },
       icon_tags: {},
@@ -64,6 +68,18 @@ describe('styling + ideas', () => {
         (await repos.wardrobe.list(ann, { limit: 1 })).items[0]?.id ?? '',
       ),
     ).toBeUndefined();
+  });
+
+  it('loads a wish she styles only while it is hers and still wanted', async () => {
+    const wish = await repos.wishlist.create(ann, { label: 'Silk cami', brand: 'Vince' });
+    expect(await styling.anchorWish(ann, wish.id)).toMatchObject({
+      id: wish.id,
+      label: 'Silk cami',
+      brand: 'Vince',
+    });
+    expect(await styling.anchorWish(bea, wish.id)).toBeUndefined();
+    await repos.wishlist.promote(ann, wish.id);
+    expect(await styling.anchorWish(ann, wish.id)).toBeUndefined();
   });
 
   it('creates an expiring idea that saving keeps, private to its owner', async () => {

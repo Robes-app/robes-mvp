@@ -5,7 +5,6 @@ import { pictureLanding } from '@robes/core/looks';
 import { ErrorText, Skeleton } from '@robes/ui';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DraftLook } from '@/components/looks/draft-look';
-import { WorkingLook } from '@/components/looks/look-page';
 import { usePushedView } from '@/components/shell/app-shell';
 import { errorCopy } from '@/lib/error-copy';
 
@@ -31,7 +30,7 @@ export function LookView({ id }: { id: string }) {
   if (!query.data) return <LookSkeleton />;
   return (
     <>
-      {/* One look, three states (docs/look-states-brief.md): suggested and draft are hers to work on. */}
+      {/* One look, three states (docs/look-states-brief.md). */}
       {query.data.status === 'draft' ? (
         // Every draft is the one DraftLook (D14): on its own page here, a drawer from the app's
         // screens (/looks/draft/:id).
@@ -41,16 +40,14 @@ export function LookView({ id }: { id: string }) {
           presentation="page"
           onClose={() => router.push(search.get('day') ? `/?day=${search.get('day')}` : '/looks')}
         />
-      ) : query.data.status !== 'saved' ? (
-        // Saved, it becomes the saved look here, diary closed until Schedule look (20 Nov).
-        <WorkingLook look={query.data} />
       ) : (
         // A saved look edits in place (Felix 3e, D17): the same DraftLook as Home's Edit look
-        // drawer, on its own page.
+        // drawer, on its own page. A suggestion is the same page (design "Suggested looks", 23
+        // Nov): Suggested by Robes on its photograph and Save look its one button.
         <DraftLook
           id={query.data.id}
           presentation="saved"
-          schedule={schedule}
+          schedule={schedule && query.data.status === 'saved'}
           onClose={() => router.back()}
         />
       )}

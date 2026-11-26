@@ -30,6 +30,7 @@ const ASSET_COLUMNS = [
   'bytes',
   'renditions',
   'hasCutout',
+  'catalogBase',
   'createdAt',
 ] as const;
 

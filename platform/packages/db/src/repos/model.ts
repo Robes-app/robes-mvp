@@ -24,6 +24,7 @@ export function modelRow(db: Db, userId: UserId) {
       'p.bustCup',
       'p.bustCm',
       'p.waistCm',
+      sql<number | null>`p.chest_cm::float8`.as('chestCm'),
       'p.ageBand',
       'p.modelPreset',
       'a.avatarId as filedCellId',
@@ -60,8 +61,13 @@ export interface StoredModelPicks {
   hair?: number;
   line?: 'soft' | 'straight' | null;
   frame?: 'fuller' | 'narrower' | null;
-  // The twin's three sliders; null on a scale is "from your facts".
-  adj?: { shoulders: number | null; bust: number | null; hips: number | null };
+  // The twin's sliders (hers end at the hips, his at the waist); null is "from your facts".
+  adj?: {
+    shoulders: number | null;
+    bust: number | null;
+    hips: number | null;
+    waist?: number | null;
+  };
 }
 
 // "Your model" (M6 task 1): her picks, what her photo reads say, and the model she has filed.

@@ -54,6 +54,75 @@ describe('style DNA repos', () => {
     });
   });
 
+  it('saves his fit measures to the tenth and her units key by key, hers alone (24 Nov)', async () => {
+    await repos.styleDna.setFacts(bea, {
+      chestCm: 101.6,
+      inseamCm: 81.3,
+      collarCm: 39.4,
+      shoulderWidthCm: 45.7,
+      sizeUk: 22,
+      shoeUk: 11.5,
+      bustCup: 'FF',
+    });
+    await repos.styleDna.setUnits(bea, { bust: 'us', collar: 'in' });
+    await repos.styleDna.setUnits(bea, { collar: 'cm' });
+    const got = (await repos.styleDna.get(bea)).profile;
+    expect(got).toMatchObject({
+      chestCm: 101.6,
+      inseamCm: 81.3,
+      collarCm: 39.4,
+      shoulderWidthCm: 45.7,
+      sizeUk: 22,
+      shoeUk: 11.5,
+      bustCup: 'FF',
+      unitPrefs: { bust: 'us', collar: 'cm' },
+    });
+    // A save of one field leaves the others as they were.
+    await repos.styleDna.setFacts(bea, { inseamCm: null });
+    expect((await repos.styleDna.get(bea)).profile).toMatchObject({
+      inseamCm: null,
+      chestCm: 101.6,
+    });
+    expect((await repos.styleDna.get(ann)).profile).toMatchObject({
+      chestCm: null,
+      unitPrefs: null,
+    });
+    // Only the facts her rows show reach a prompt: hers, until she is a man, then his (25 Nov).
+    expect((await styling.context(bea)).styleDna.facts).toMatchObject({
+      size_uk: 22,
+      bust_cup: 'FF',
+      chest_cm: null,
+      collar_cm: null,
+    });
+    const { genderIdentity } = await db
+      .selectFrom('profiles')
+      .select('genderIdentity')
+      .where('id', '=', bea)
+      .executeTakeFirstOrThrow();
+    await db.updateTable('profiles').set({ genderIdentity: 'man' }).where('id', '=', bea).execute();
+    expect((await styling.context(bea)).styleDna.facts).toMatchObject({
+      size_uk: null,
+      bust_cup: null,
+      chest_cm: 101.6,
+      collar_cm: 39.4,
+      shoe_uk: 11.5,
+    });
+    await db.updateTable('profiles').set({ genderIdentity }).where('id', '=', bea).execute();
+    // Hidden, never deleted: what she gave as a woman is still on file.
+    expect((await repos.styleDna.get(bea)).profile).toMatchObject({ sizeUk: 22, bustCup: 'FF' });
+    // The database holds the ranges too.
+    await expect(repos.styleDna.setFacts(bea, { chestCm: 200 })).rejects.toThrow();
+    await expect(repos.styleDna.setFacts(bea, { sizeUk: 26 })).rejects.toThrow();
+    await repos.styleDna.setFacts(bea, {
+      chestCm: null,
+      collarCm: null,
+      shoulderWidthCm: null,
+      sizeUk: null,
+      shoeUk: null,
+      bustCup: null,
+    });
+  });
+
   it('adds her own lines once, and × takes a typed line away for good', async () => {
     expect(await repos.styleDna.addLine(ann, 'avoids', 'Heels', 'Heels')).toBe(true);
     expect(await repos.styleDna.addLine(ann, 'avoids', ' heels ')).toBe(false);

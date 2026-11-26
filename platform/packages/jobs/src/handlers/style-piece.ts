@@ -24,7 +24,7 @@ import {
   type WantedPiece,
   wantedByLabel,
 } from '@robes/ai/prompts/style-piece';
-import { KeyPieceJobInput } from '@robes/contracts';
+import { KeyPieceJobInput, LEGACY_CATEGORY, wishRow } from '@robes/contracts';
 import { LANDSCAPES, type PlaceRead, readPlace } from '@robes/core/landscape';
 import {
   askDate,
@@ -135,6 +135,12 @@ export const StoredSet = z.object({
     .catch(undefined),
   // Made as her draft (Describe on Home): its picture stands on her model in the studio.
   draft: z.boolean().optional().catch(undefined),
+  // The piece of hers, or the wish, a draft started from (Style a piece): the look's anchor; ↻
+  // keeps it.
+  key: z
+    .object({ pieceId: z.uuid().optional(), wishId: z.uuid().optional(), label: z.string() })
+    .optional()
+    .catch(undefined),
 });
 
 // Where a set's look is drawn (style-piece v8): her draft, or a look made as one, on her model in
@@ -193,12 +199,48 @@ const specKey = (spec: SuggestedSpec, pictureNote?: string | null) =>
     pictureNote,
   );
 
+// The wish a draft is styled around, as the styling repo loads it (its category as stored).
+type AnchorWish = Omit<Parameters<typeof wishRow>[0], 'category'> & { category: string };
+const category = LEGACY_CATEGORY.catch('Other');
+
+// The wish on the rack as the look's anchor: the model's own row for it (its wish, or its exact
+// label), else the wish as her wishlist has it, first. Only one row carries the anchor.
+export function holdWish(proposals: Record<string, unknown>[], wish: AnchorWish): void {
+  const label = wish.label.trim().toLowerCase();
+  const at = proposals.findIndex(
+    (p) =>
+      p.wishlistItemId === wish.id ||
+      String(p.name ?? '')
+        .trim()
+        .toLowerCase() === label,
+  );
+  const made = wishRow(
+    { ...wish, category: category.parse(wish.category) },
+    newProposalKey(),
+  ).proposal;
+  if (!made) return;
+  const row = { ...made, role: 'anchor', anchor: true };
+  if (at < 0) {
+    proposals.unshift(row);
+    return;
+  }
+  const [found] = proposals.splice(at, 1);
+  proposals.unshift({ ...row, key: found?.key ?? row.key, role: found?.role ?? 'anchor' });
+}
+
 // A suggested look from one way (legacy _lkSuggSpec): her pieces with their roles, the anchor
 // always on the rack, the rest proposals; the scene line is the note under the frame.
 export function specFromWay(
   way: { title: string; scene: string; pieces: StoredPiece[] },
   setIndex: number,
-  o: { anchorPieceId: string | null; dateHint: string | null; aroundIds?: readonly string[] },
+  o: {
+    anchorPieceId: string | null;
+    dateHint: string | null;
+    aroundIds?: readonly string[];
+    // The wish a draft was started from: on the rack as the anchor, whether or not the model
+    // listed it (matched by its exact label, else added from her wishlist).
+    anchorWish?: AnchorWish | null;
+  },
 ): SuggestedSpec {
   const pieces: SuggestedSpec['pieces'][number][] = [];
   const proposals: Record<string, unknown>[] = [];
@@ -229,6 +271,7 @@ export function specFromWay(
   for (const id of o.aroundIds ?? []) {
     if (!pieces.some((x) => x.pieceId === id)) pieces.push({ pieceId: id, role: null });
   }
+  if (o.anchorWish) holdWish(proposals, o.anchorWish);
   return {
     setIndex,
     name: way.title.replace(/\.$/, '').trim() || 'A look',
@@ -581,6 +624,14 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           set.data.anchor.type === 'piece'
             ? await deps.styling.anchorPiece(ctx.userId, set.data.anchor.pieceId)
             : undefined;
+        // The piece or wish a draft started from (Style a piece) is held through a re-dress too.
+        const keyPiece = set.data.key?.pieceId
+          ? await deps.styling.anchorPiece(ctx.userId, set.data.key.pieceId)
+          : undefined;
+        const keyWish = set.data.key?.wishId
+          ? await deps.styling.anchorWish(ctx.userId, set.data.key.wishId)
+          : undefined;
+        const held = anchorPiece ?? keyPiece;
         const mode: Mode = set.data.mode === 'prompt' ? 'dress-me' : 'piece';
         const ask: Ask =
           mode === 'dress-me'
@@ -589,6 +640,10 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
                 prompt: set.data.prompt ?? set.data.anchor.label,
                 day: set.data.day,
                 ...(set.data.around?.length ? { around: set.data.around } : {}),
+                ...(keyPiece ? { key: { label: keyPiece.label, wearFor: keyPiece.wearFor } } : {}),
+                ...(keyWish
+                  ? { key: { label: keyWish.label, wish: { brand: keyWish.brand } } }
+                  : {}),
               }
             : {
                 mode,
@@ -606,14 +661,14 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         const refine: Refine = {
           adjustment: said
             ? said
-            : `A different look entirely — change the whole direction, not one piece${anchorPiece ? ', built around the same key piece' : ''}${others.length ? ', unlike the other looks' : ''}.`,
+            : `A different look entirely — change the whole direction, not one piece${held || keyWish ? ', built around the same key piece' : ''}${others.length ? ', unlike the other looks' : ''}.`,
           title: found.look.name,
           pieces: [
             ...found.pieces.map((p) => ({
               name: p.label,
               category: p.category ?? '',
               owned: true,
-              keep: p.id === anchorPiece?.id,
+              keep: p.id === held?.id,
             })),
             ...proposals.map((p) => ({
               name: p.name,
@@ -624,7 +679,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           ],
           others,
         };
-        const photo = await piecePhoto(ctx.userId, anchorPiece?.imageAssetId);
+        const photo = await piecePhoto(ctx.userId, (held ?? keyWish)?.imageAssetId);
         // ↻ honours the answer the set was made with.
         const steer: Steer = {
           balance: set.data.balance ?? null,
@@ -648,7 +703,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           pieces: markWants(normalisePieces(raw.pieces, styleCtx.closet), styleCtx, steer),
         };
         const spec = specFromWay(way, found.look.setIndex ?? 0, {
-          anchorPieceId: anchorPiece?.id ?? null,
+          anchorPieceId: held?.id ?? null,
+          anchorWish: keyWish ?? null,
           dateHint: found.look.dateHint,
           // The pieces she chose to build the day around stay on the rack through a re-dress.
           aroundIds: (set.data.around ?? []).map((p) => p.pieceId),
@@ -669,7 +725,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           mode,
           fallback: false,
           pieceLabel: anchorPiece?.label ?? null,
-          piecePhoto: photo,
+          // A key piece is drawn from its own rack row; only the piece door's photo leads.
+          piecePhoto: anchorPiece ? photo : null,
           brief: set.data.prompt,
           way,
           rack: rackOf(way.pieces, styleCtx.closet),
@@ -696,6 +753,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       let dateHint: string | null = null;
       let brief: string | null = null;
       let around: { pieceId: string; label: string }[] = [];
+      let key: { pieceId?: string; wishId?: string; label: string } | null = null;
+      let anchorWish: AnchorWish | null = null;
       const steer: Steer = {
         balance: 'balance' in input ? (input.balance ?? null) : null,
         balanceNote: 'balanceNote' in input ? (input.balanceNote ?? null) : null,
@@ -718,11 +777,32 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
             (input.pieceIds ?? []).map((id) => deps.styling.anchorPiece(ctx.userId, id)),
           )
         ).flatMap((p) => (p ? [{ pieceId: p.id, label: p.label }] : []));
+        // The piece she started from (Style a piece): hers, by id; its photo rides the styling
+        // call, and it is the draft's anchor.
+        let keyAsk: { label: string; wearFor?: string[]; wish?: { brand: string | null } } | null =
+          null;
+        if (input.anchorPieceId) {
+          const piece = await deps.styling.anchorPiece(ctx.userId, input.anchorPieceId);
+          if (!piece) throw new JobError('not_found');
+          photo = await piecePhoto(ctx.userId, piece.imageAssetId);
+          anchorPieceId = piece.id;
+          key = { pieceId: piece.id, label: piece.label };
+          keyAsk = { label: piece.label, wearFor: piece.wearFor };
+        } else if (input.anchorWishId) {
+          // A wish she is thinking of buying (Annie, 24 Nov): hers and still wanted, by id.
+          const wish = await deps.styling.anchorWish(ctx.userId, input.anchorWishId);
+          if (!wish) throw new JobError('not_found');
+          photo = await piecePhoto(ctx.userId, wish.imageAssetId);
+          anchorWish = wish;
+          key = { wishId: wish.id, label: wish.label };
+          keyAsk = { label: wish.label, wish: { brand: wish.brand } };
+        }
         ask = {
           mode,
           prompt: input.prompt,
           day,
           ...(around.length ? { around: around.map((p) => ({ label: p.label })) } : {}),
+          ...(keyAsk ? { key: keyAsk } : {}),
         };
         anchor = { type: 'text', label: input.prompt };
         brief = input.prompt;
@@ -754,6 +834,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         (o) => audit(o.ways.slice(0, count), styleCtx, steer),
       );
       const { fallback } = out;
+      // A draft from a piece always holds it: words too vague to style still leave the piece.
+      const dropPieces = fallback && !key;
       // Her profile decides the wearer; the model's judgement stands only when it is silent.
       const wearer =
         styleCtx.gender === 'man' || styleCtx.gender === 'woman'
@@ -782,6 +864,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           balance: steer.balance,
           balanceNote: steer.balanceNote,
           ...(around.length ? { around } : {}),
+          ...(key ? { key } : {}),
           ...(draft ? { draft: true } : {}),
           images: [],
           promptVersion: VERSION,
@@ -789,9 +872,10 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       });
       const specs = ways.map((w, i) =>
         specFromWay(w, i, {
-          anchorPieceId: fallback ? null : anchorPieceId,
+          anchorPieceId: dropPieces ? null : anchorPieceId,
           dateHint,
-          aroundIds: fallback ? [] : around.map((p) => p.pieceId),
+          aroundIds: dropPieces ? [] : around.map((p) => p.pieceId),
+          anchorWish,
         }),
       );
       // The hero's frame is claimed with the mint, before the set is exposed (no second draw).
@@ -827,7 +911,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         mode,
         fallback,
         pieceLabel: fallback ? null : anchor.label,
-        piecePhoto: photo,
+        // A key piece is drawn from its own rack row; only the piece door's photo leads.
+        piecePhoto: key ? null : photo,
         brief,
         way: hero,
         rack: rackOf(hero.pieces, styleCtx.closet),

@@ -4,11 +4,11 @@ import { queryKeys, useApiClient } from '@robes/api-client/react';
 import { firstRun as copy, wardrobe } from '@robes/copy';
 import { Button, ErrorText } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 import { type CameraShot, ShotCamera, type ShotCameraCopy } from '@/components/capture/shot-camera';
 import { REVIEW_MAX } from '@/lib/add-flow';
-import { useUploadSitting } from '@/lib/use-upload-sitting';
+import { uploadState, useUploadSitting } from '@/lib/use-upload-sitting';
 import { Frame, QuietLink } from './frame';
 
 export type CaptureMode = 'looks' | 'pieces';
@@ -29,6 +29,9 @@ const cameraCopy = (mode: CaptureMode): ShotCameraCopy => {
     done: copy.save,
     taken: wardrobe.camera.taken,
     remove: copy.removePhoto,
+    uploaded: copy.uploaded,
+    notUploaded: copy.notUploaded,
+    already: copy.already,
   };
 };
 
@@ -74,12 +77,16 @@ export function CaptureStep({
   const [view, setView] = useState<'intro' | 'camera' | 'saved'>('intro');
   const [saved, setSaved] = useState<CameraShot[]>([]);
   const [saving, setSaving] = useState(false);
+  // Held from the first click: a quick second click on Save N, before `saving` re-renders, would
+  // save every look twice.
+  const savingNow = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const c = copy[mode];
 
   // Save N: nothing is a look or a piece before this click. A failure keeps nothing.
   async function save() {
-    if (saving || !sitting.ready) return;
+    if (savingNow.current || !sitting.ready) return;
+    savingNow.current = true;
     setSaving(true);
     setError(null);
     const assetIds = sitting.kept.flatMap((s) => (s.assetId ? [s.assetId] : []));
@@ -106,6 +113,7 @@ export function CaptureStep({
       setError(c.failed);
       setView('intro');
     } finally {
+      savingNow.current = false;
       setSaving(false);
     }
   }
@@ -114,7 +122,7 @@ export function CaptureStep({
     return (
       <ShotCamera
         copy={cameraCopy(mode)}
-        shots={sitting.shots}
+        shots={sitting.shots.map((s) => ({ key: s.key, url: s.url, upload: uploadState(s) }))}
         max={REVIEW_MAX}
         canDone={sitting.ready && !saving}
         onAdd={sitting.add}

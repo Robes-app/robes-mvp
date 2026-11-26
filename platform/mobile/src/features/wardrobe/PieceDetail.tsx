@@ -31,6 +31,7 @@ import { NoPhoto, StarButton } from './PieceCard';
 import { type PieceField, PieceFieldSheet } from './PieceFieldSheet';
 import { PieceHeader } from './PieceHeader';
 import { PieceRow, RecordRows, type RecordTab } from './PieceRows';
+import { PieceStyle } from './PieceStyle';
 import { READING_REFRESH_MS, useDeletePiece, usePiecePhoto, useStarPiece } from './pieces';
 import { useReread } from './reread';
 
@@ -258,6 +259,10 @@ export function PieceDetail({ id }: { id: string }) {
           />
         ) : null}
       </Modal>
+      {/* Style a piece (handoff 24 Nov): once Robes has read it, and never over another sheet. */}
+      {ready ? (
+        <PieceStyle piece={piece} hidden={field !== null || open !== null || confirm || camera} />
+      ) : null}
     </View>
   );
 }

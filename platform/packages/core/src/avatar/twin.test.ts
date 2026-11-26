@@ -7,7 +7,10 @@ import {
   hasTwinInputs,
   isTwinCurrent,
   NO_ADJ,
-  stepTwinFact,
+  readAdj,
+  resetScales,
+  scalesFor,
+  storedScales,
   type TwinFacts,
   type TwinInputs,
   twinAge,
@@ -68,9 +71,9 @@ describe('the twin', () => {
   });
 
   it('seeds the sliders once from a legacy line read, then keeps hers', () => {
-    expect(adjFor(undefined, 'Inverted Triangle')).toEqual({ shoulders: 1, bust: null, hips: -1 });
+    expect(adjFor(undefined, 'Inverted Triangle')).toEqual({ ...NO_ADJ, shoulders: 1, hips: -1 });
     expect(adjFor(undefined, null)).toEqual(NO_ADJ);
-    expect(adjFor({ hips: 2, bust: 7 }, 'Pear')).toEqual({ shoulders: null, bust: null, hips: 2 });
+    expect(adjFor({ hips: 2, bust: 7 }, 'Pear')).toEqual({ ...NO_ADJ, hips: 2 });
     expect(adjFor({}, 'Pear')).toEqual(NO_ADJ);
   });
 
@@ -156,6 +159,7 @@ describe('the twin', () => {
       genderIdentity: 'unspecified',
       avatarPrefs: { skin: 6, adj: { hips: 1 } },
       ...none,
+      chestCm: null,
       bodyType: 'Pear',
       headshotAssetId: 'asset-1',
       skinHex: null,
@@ -171,10 +175,72 @@ describe('the twin', () => {
     expect(await twinKey(i)).toBe(await twinKey(twinInputsOf(row)));
   });
 
-  it('steps the new facts within their ranges', () => {
-    expect(stepTwinFact('bustBand', null, 1)).toBe(34);
-    expect(stepTwinFact('bustBand', 46, 1)).toBe(46);
-    expect(stepTwinFact('waistCm', 70, -1)).toBe(69);
+  it('gives him a waist scale in place of her hips (24 Nov)', () => {
+    expect(scalesFor('man')).toEqual(['shoulders', 'bust', 'waist']);
+    expect(scalesFor('non_binary')).toEqual(['shoulders', 'bust', 'hips']);
+    // A scale he is not offered reads as unset; hers is untouched.
+    expect(readAdj({ hips: 2, waist: 1 }, 'man')).toEqual({ ...NO_ADJ, waist: 1 });
+    expect(readAdj({ hips: 2, waist: 1 }, 'woman')).toEqual({ ...NO_ADJ, hips: 2 });
+    expect(twinFigure(none, { ...NO_ADJ, waist: 2 }).d).not.toBe(twinFigure(none, NO_ADJ).d);
+    const man = inputs({ gender: 'man' });
+    expect(twinKeyMaterial({ ...man, adj: { ...NO_ADJ, waist: 1 } })).not.toBe(
+      twinKeyMaterial(man),
+    );
+    expect(twinSpec({ ...man, adj: { ...NO_ADJ, waist: -1 } }, false).stops.waist).toBe(-1);
+  });
+
+  it('keeps every scale on file across a switch of gender; Reset clears only the ones shown', () => {
+    const onFile = storedScales({ hips: 2, waist: 1, bust: 7 }, null);
+    expect(onFile).toEqual({ ...NO_ADJ, hips: 2, waist: 1 });
+    // No sliders on file: the legacy seed, every scale of it.
+    expect(storedScales(undefined, 'Inverted Triangle')).toEqual({
+      ...NO_ADJ,
+      shoulders: 1,
+      hips: -1,
+    });
+    expect(resetScales(onFile, 'man')).toEqual({ ...NO_ADJ, hips: 2 });
+    expect(resetScales(onFile, 'woman')).toEqual({ ...NO_ADJ, waist: 1 });
+  });
+
+  it('keeps her key as it was before his waist scale', () => {
+    const adj = { shoulders: 1, bust: -1, hips: 2 } as const;
+    expect(twinKeyMaterial(inputs({ adj: { ...NO_ADJ, ...adj } }))).toBe(
+      JSON.stringify([
+        'v1',
+        'woman',
+        [null, null, null, null, null, null, null],
+        [1, -1, 2],
+        3,
+        1,
+        false,
+        false,
+        null,
+      ]),
+    );
+  });
+
+  it('draws his chest from chest_cm, and from the tape he saved before it', () => {
+    const row = {
+      genderIdentity: 'man',
+      avatarPrefs: null,
+      ...none,
+      chestCm: null,
+      bodyType: null,
+      headshotAssetId: null,
+      skinHex: null,
+      hairHex: null,
+    };
+    expect(twinInputsOf({ ...row, bustCm: 100 }).facts.bustCm).toBe(100);
+    expect(twinInputsOf({ ...row, bustCm: 100, chestCm: 104.1 }).facts.bustCm).toBe(104.1);
+    expect(
+      twinInputsOf({ ...row, genderIdentity: 'woman', bustCm: 90, chestCm: 104 }).facts.bustCm,
+    ).toBe(90);
+  });
+
+  it('reads a G+ cup as G', () => {
+    expect(bustCmOf({ bustBand: 34, bustCup: 'G+', bustCm: null })).toBe(
+      bustCmOf({ bustBand: 34, bustCup: 'G', bustCm: null }),
+    );
   });
 });
 

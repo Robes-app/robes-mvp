@@ -17,8 +17,9 @@ import type {
 } from '@robes/contracts';
 import { lookbook as copy, errors, ui } from '@robes/copy';
 import { pictureLanding } from '@robes/core/looks';
-import { haptic, useToast } from '@robes/ui-native';
+import { haptic, type ToastOptions, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { nativeAnalytics } from '@/lib/analytics';
 import { api as appApi } from '@/lib/api';
@@ -115,6 +116,19 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
   };
 }
 
+const WISHLIST = '/wardrobe?segment=wishlist';
+
+// A suggestion saved (design "Suggested looks", 04): its pieces to find are on her wishlist now,
+// and View opens it. Web twin: app/src/lib/look-states.ts.
+export function savedSuggestionToast(look: Look, onView: () => void): ToastOptions {
+  const wished = look.proposals.filter((p) => p.wishlistItemId).length;
+  return {
+    message: copy.savedSuggestion.title,
+    ...(wished ? { body: copy.savedSuggestion.body(wished) } : {}),
+    action: { label: copy.savedSuggestion.view, onPress: onView },
+  };
+}
+
 // `from` picks beta's toast: a suggestion saved as it stands, or a look she worked on, by name.
 // The web twin is app/src/lib/look-states.ts.
 // `changes`: how many changes she sent through the prompt before saving, for the event.
@@ -122,9 +136,12 @@ export function useSaveLook(
   onSaved?: (look: Look) => void,
   from: 'suggested' | 'draft' = 'draft',
   changes: () => number = () => 0,
+  // `plain`: "Saved to your lookbook.", a draft going back to where it began (a piece).
+  says: 'named' | 'plain' = 'named',
 ) {
   const toast = useToast();
   const refresh = useInvalidateLooks();
+  const router = useRouter();
   return useApiMutation('looks.save', {
     onSuccess: (look) => {
       nativeAnalytics.track('look_created', {
@@ -137,7 +154,11 @@ export function useSaveLook(
       haptic.success();
       refresh(look);
       onSaved?.(look);
-      toast.show({ message: from === 'suggested' ? copy.saved : copy.savedAs(look.name) });
+      toast.show(
+        from === 'suggested'
+          ? savedSuggestionToast(look, () => router.push(WISHLIST))
+          : { message: says === 'plain' ? copy.savedSuggestion.title : copy.savedAs(look.name) },
+      );
       // Push is asked for after her first saved look, never on launch (7-day brief).
       void askForPushOnce(appApi).catch(() => undefined);
     },
@@ -167,27 +188,6 @@ export function useJobResult(
     }
   }, [data, onDone]);
   return data;
-}
-
-// ↻ on a suggestion: the look re-writes in place; the tile shows it changing meanwhile.
-export function useRestyle() {
-  const toast = useToast();
-  const refresh = useInvalidateLooks();
-  const [busy, setBusy] = useState<{ lookId: string; jobId: string } | null>(null);
-  const start = useApiMutation('looks.restyle', {
-    onSuccess: ({ jobId }, { params }) => setBusy({ lookId: params.id, jobId }),
-    onError: () => toast.show({ message: copy.swapFailed }),
-  });
-  useJobResult(busy?.jobId ?? null, (job) => {
-    setBusy(null);
-    refresh();
-    if (job.status === 'failed' || job.status === 'cancelled')
-      toast.show({ message: copy.swapFailed });
-  });
-  return {
-    restyle: (id: string) => start.mutate({ params: { id } }),
-    busyId: busy?.lookId ?? (start.isPending ? (start.variables?.params.id ?? null) : null),
-  };
 }
 
 // Robes' frame for the rack as it stands; the look refreshes until it lands.

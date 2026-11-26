@@ -18,6 +18,7 @@ import { type PieceField, PieceFieldSheet } from '@/components/wardrobe/piece-fi
 import { PieceHeader } from '@/components/wardrobe/piece-header';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { PieceRow, RecordRows, type RecordTab } from '@/components/wardrobe/piece-rows';
+import { PieceStyle } from '@/components/wardrobe/piece-style';
 import { usePiecePhoto } from '@/components/wardrobe/use-piece-photo';
 import { useRemovePiece } from '@/components/wardrobe/use-remove-piece';
 import { useStarPiece } from '@/components/wardrobe/use-star-piece';
@@ -199,6 +200,10 @@ export function PieceDetail({ id }: { id: string }) {
           onSave={save}
           saving={update.isPending}
         />
+        {/* Style a piece (handoff 24 Nov): once Robes has read it, and never over another sheet. */}
+        {ready ? (
+          <PieceStyle piece={piece} hidden={field !== null || open !== null || confirm} />
+        ) : null}
       </article>
     </div>
   );
