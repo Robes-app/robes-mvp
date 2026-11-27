@@ -42,7 +42,7 @@ describe('Drawer', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  // Safari on a phone draws the keyboard over the page: the drawer's foot (Style it, Update look)
+  // Safari on a phone draws the keyboard over the page: the drawer's foot (Style it)
   // stands on it, never under it (Annie, 10 Nov).
   it('lifts its foot above the on-screen keyboard, and lets it down when the keyboard goes', () => {
     const vv = Object.assign(new EventTarget(), { height: 844, offsetTop: 0 });

@@ -38,7 +38,7 @@ export const StartPhotoReadInput = z.object({ assetId: z.uuid() });
 export const PhotoReadParams = z.object({ id: z.uuid() });
 
 // Each piece's crop of a read, by the piece's index, signed for her: a found row on a saved look
-// waits on her phone until Update look, so the look itself has no crop to hand it (tester trial
+// is on her phone before the look comes back with it, so the look itself has no crop to hand it (tester trial
 // 25 Nov). `pending` until its renditions exist.
 export const ReadCrops = z.object({
   crops: z.array(z.object({ index: pieceIndex, image: PieceImage })),

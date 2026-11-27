@@ -29,7 +29,7 @@ export interface DrawerProps {
   children: ReactNode;
   // Anything floating over the body inside the drawer's frame: the AdjustSheet.
   over?: ReactNode;
-  // Held under the scrolling body: the Edit look drawer's Update look (Felix 3k).
+  // Held under the scrolling body (Felix 3k).
   footer?: ReactNode;
   testId?: string;
 }
@@ -77,7 +77,7 @@ export function DrawerHeader({
 
 // How much of the page the on-screen keyboard covers. Safari on a phone draws the keyboard over
 // the page without resizing it, so a drawer held at the page's foot would keep its action (Style
-// it, Update look) under the keyboard; the visual viewport says where the visible page ends.
+// it) under the keyboard; the visual viewport says where the visible page ends.
 // Native twin: mobile/src/lib/keyboard.ts.
 export function useKeyboardInset(): number {
   const [inset, setInset] = useState(0);

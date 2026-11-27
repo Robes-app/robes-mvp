@@ -129,7 +129,8 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await picker.getByRole('button', { name: 'Include White wide-leg trouser' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
-  // The draft carries on in the same drawer: the piece on the rack, the model dressed in it and,
+  // The draft carries on in the same drawer: the piece on the rack, its model drawn when she asks
+  // from the pill on the picture (Annie, 27 Nov) and,
   // built by hand, the prompt resting as its sparkle so the bar never covers the rack (Annie,
   // 18 Nov); one tap opens the bar.
   await expect(page.getByText('Draft look')).toBeVisible();

@@ -34,7 +34,7 @@ test('capture → use photo → save: the look is in the Lookbook and on today, 
 }) => {
   await signIn(page);
   await declineConsent(page);
-  // A photograph whose pieces she never finds is never drawn on her model (D1, 26 Nov).
+  // A photograph whose pieces she never finds is never drawn on her model.
   const draws = drawsOf(page);
 
   await page
@@ -105,9 +105,15 @@ test('the rack: find the pieces, match in one tap, add one, remove one, save wit
   await rack.getByRole('button', { name: 'Find the pieces' }).click();
   const found = rack.locator('[data-testid^="capture-row-"]');
   await expect(found).toHaveCount(3, { timeout: 30_000 });
-  // The pieces found dress her model at once, all of them, nothing filed (D1, 26 Nov).
-  await expect.poll(() => draws.length).toBe(1);
+  // Finding the pieces draws nothing (Annie, 27 Nov): the pill on her photograph dresses her
+  // model in all of them at once, nothing filed.
   await expect(rack).toHaveAttribute('data-stage', 'rack');
+  const pill = drawer.getByTestId('model-pill');
+  await expect(pill).toBeVisible();
+  expect(draws).toHaveLength(0);
+  await pill.click();
+  await expect.poll(() => draws.length).toBe(1);
+  await expect(pill).toHaveCount(0);
   await expect(drawer.getByTestId('draft-done')).toHaveAttribute('aria-disabled', 'false');
   // No close match on the tee; the shoes look like hers.
   await expect(found.nth(0)).toContainText('No close match in your wardrobe');
@@ -231,7 +237,7 @@ test('a draft from her photograph, its read and its pieces are hers alone', asyn
   expect((await api.post(pieceUrl, { data: { index: 7 } })).status()).toBe(404);
 
   // Her read's crops, each by its piece, signed for her (B2: a saved look's found rows need them
-  // before Update look).
+  // before the look comes back with them).
   const cropsUrl = `/api/v1/wardrobe/photo-reads/${jobId}/crops`;
   const crops = await api.get(cropsUrl);
   expect(crops.status()).toBe(200);
