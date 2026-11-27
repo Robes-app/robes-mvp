@@ -33,8 +33,10 @@ list of paths, never an old sync branch (it rolls `main` back).
 `.github/workflows/platform-sync-pr.yml` keeps it: after every beta merge that touches
 `platform/` it rebuilds `sync/platform` from `beta`, opens or refreshes the PR into `main`, lists
 the PRs going over and starts its checks. Merge it once the checks are green; nothing else to
-rebuild. It needs, once **[Niall]**: Settings → Actions → General → *Allow GitHub Actions to
-create and approve pull requests*. By hand (the action is off, or `.github/` changed, which its
+rebuild. It needs, once: *Allow GitHub Actions to create and approve pull requests*, turned on
+by a Robes-app **organisation owner** (Organisation settings → Actions → General) and then in
+the repo (Settings → Actions → General); until then the run keeps the branch current and the PR
+is opened by hand. By hand (the action is off, or `.github/` changed, which its
 token can't push), from the main checkout:
 
 ```bash
