@@ -374,9 +374,8 @@ test('a change by hand on a saved look her model wears is kept, then the pill as
   });
   // Home's Edit look sheet (D18): the rack is worked there, each change kept as she makes it.
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
-  await fireEvent.press(await screen.findByTestId('rack-pencil'));
   await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
+    await screen.findByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
   // The piece taken off leaves the picture behind: nothing is drawn until she asks (Annie,
   // 27 Nov), from the strip's ✓ back on the picture and its pill.

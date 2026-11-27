@@ -11,16 +11,14 @@ import {
   rowChanges,
   withTagDefaults,
 } from '@robes/core/add-flow';
-import { captureEyebrow, type RackRow } from '@robes/core/looks';
-import { Icon, type IconName } from '@robes/icons/web';
-import { Button, ErrorText, Image, Skeleton, Subview, Tabs, Text } from '@robes/ui';
+import type { RackRow } from '@robes/core/looks';
+import { Button, ErrorText, Image, Sheet, Skeleton, Subview, Tabs, Text } from '@robes/ui';
 import { type ReactNode, useState } from 'react';
 import { CropThumb } from '@/components/photo-pieces/photo-frame';
-import { CardRow } from '@/components/wardrobe/piece-card';
 import { type PieceField, PieceFieldSheet } from '@/components/wardrobe/piece-field-sheet';
 import { PieceRow, RecordRows, type RecordTab } from '@/components/wardrobe/piece-rows';
 import type { CaptureRack } from '@/lib/capture-rack';
-import { imageSources, pieceSources } from '@/lib/image';
+import { imageSources } from '@/lib/image';
 import { localPreview } from '@/lib/local-previews';
 import { DashedCard } from './rack-card';
 
@@ -38,44 +36,6 @@ const photoSrc = (look: Look): string | null =>
 const sheetOf = (row: Pick<RackRow, 'category' | 'categoryL2'>) =>
   (row.categoryL2 && sheetL1For(row.categoryL2)) || row.category;
 
-// A found row's action: a 32px cream disc in a 44px target, its name on a dark pill above it on
-// hover and focus (the canvas's tooltips; touch reads the label through the control itself).
-function RowDisc({
-  icon,
-  label,
-  faint = false,
-  onClick,
-  testId,
-}: {
-  icon: IconName;
-  label: string;
-  faint?: boolean;
-  onClick: () => void;
-  testId?: string;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      data-testid={testId}
-      className={`group relative flex h-11 w-[38px] items-center justify-center rounded-pill ${focus}`}
-    >
-      <span
-        className={`flex size-8 items-center justify-center rounded-pill bg-surface-sunk ${faint ? 'text-ink-faint' : 'text-ink'}`}
-      >
-        <Icon name={icon} size={14} />
-      </span>
-      <span
-        aria-hidden
-        className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-0.5 hidden -translate-x-1/2 whitespace-nowrap rounded-pill bg-ink px-2.5 py-1.5 font-sans text-[11px] text-bg group-hover:block group-focus-visible:block"
-      >
-        {label}
-      </span>
-    </button>
-  );
-}
-
 // The Rack's heading on a look from her photograph: the serif title, and what Robes is doing.
 function Head({ status }: { status?: string }) {
   return (
@@ -92,122 +52,80 @@ function Head({ status }: { status?: string }) {
   );
 }
 
-// A piece found in her photograph, not filed yet (Capture PRD 1c.6): the shared piece row with
-// the crop, CATEGORY · COLOUR · MATERIAL, the name, and Match to piece · Add piece · Remove. When
-// Robes sees one of hers in it, "Looks like your …" sits under a hairline with its one-tap Match;
-// otherwise the row says there is no close match. Native twin: features/looks/CaptureRack.tsx.
-export function CaptureRow({
+// A found row's photograph: its crop, else the same box drawn from her photo while the crop is
+// made, else the row's loading state, never "no photo".
+export function CaptureThumb({
   row,
   look,
   capture,
-  onMatch,
-  onAdd,
 }: {
   row: RackRow;
   look: Look;
   capture: CaptureRack;
-  onMatch: () => void;
-  onAdd: () => void;
 }) {
   const crop = capture.image(row);
   const sources = crop ? imageSources(crop.renditions) : null;
   const read = capture.found(row);
   const photo = photoSrc(look);
-  const hers = capture.suggested(row);
-  const hersImage = pieceSources(hers?.image);
-  const [, ...said] = captureEyebrow(row, '').split(' · ').filter(Boolean);
+  if (sources) {
+    return <Image src={sources.src} srcSet={sources.srcSet} sizes="52px" alt="" aspect="4:5" />;
+  }
+  if (read && photo) {
+    return <CropThumb src={photo} box={read.box} natural={null} className="size-full" />;
+  }
+  if (crop?.status === 'pending') return <Skeleton className="aspect-[4/5] w-full" />;
   return (
-    <li data-testid={`capture-row-${row.key}`}>
-      <CardRow
-        piece={{
-          label: row.name,
-          category: row.category,
-          categoryL2: row.categoryL2 ?? null,
-          brand: null,
-        }}
-        {...(said.length ? { role: said.join(' · ') } : {})}
-        maker={hers ? '' : copy.row.noMatch}
-        thumb={
-          sources ? (
-            <Image src={sources.src} srcSet={sources.srcSet} sizes="52px" alt="" aspect="4:5" />
-          ) : read && photo ? (
-            <CropThumb src={photo} box={read.box} natural={null} className="size-full" />
-          ) : crop?.status === 'pending' ? (
-            // Its crop is still being made: the row's loading state, never "no photo".
-            <Skeleton className="aspect-[4/5] w-full" />
-          ) : (
-            <div aria-hidden className="flex aspect-[4/5] items-center justify-center">
-              <Text size="small" tone="muted">
-                {row.name.charAt(0)}
-              </Text>
-            </div>
-          )
-        }
-        action={
-          <div className="-mr-1.5 flex items-center">
-            <RowDisc
-              icon="wardrobe"
-              label={copy.row.match}
-              onClick={onMatch}
-              testId="capture-match"
-            />
-            <RowDisc icon="plus" label={copy.row.add} onClick={onAdd} testId="capture-add" />
-            <RowDisc
-              icon="close"
-              label={copy.row.remove}
-              faint
-              onClick={() => capture.remove(row.key)}
-              testId="capture-remove"
-            />
-          </div>
-        }
-        below={
-          hers ? (
-            <div className="flex items-center gap-2.5">
-              <span className="h-[35px] w-7 shrink-0 overflow-hidden rounded-[2px] bg-surface-sunk">
-                {hersImage ? <Image sizes="28px" alt="" aspect="4:5" {...hersImage} /> : null}
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="font-sans text-[10.5px] text-ink-faint">{copy.row.looksLike}</span>
-                <span className="truncate font-sans text-[12.5px] text-ink">{hers.label}</span>
-              </span>
-              <span className="-mr-1.5">
-                <RowDisc
-                  icon="check"
-                  label={copy.row.quick}
-                  onClick={() => capture.match(row.key, hers, 'suggested')}
-                  testId="capture-quick-match"
-                />
-              </span>
-            </div>
-          ) : null
-        }
-      />
-    </li>
+    <div aria-hidden className="flex aspect-[4/5] items-center justify-center">
+      <Text size="small" tone="muted">
+        {row.name.charAt(0)}
+      </Text>
+    </div>
   );
 }
 
-// "2 pieces removed · Undo" under the list: Undo puts every removed row back (1c.6).
-export function RemovedLine({ capture }: { capture: CaptureRack }) {
-  if (!capture.removed) return null;
+// A found piece's options, from the hanger + on its row (Annie, 27 Nov; artboard 03a): a bottom
+// sheet with Add to wardrobe (the new-piece review), Add to wishlist and Match to piece (the
+// picker in match mode). Native twin: features/looks/CaptureRack.tsx FoundPieceSheet.
+export function FoundPieceSheet({
+  row,
+  onClose,
+  onAdd,
+  onWish,
+  onMatch,
+}: {
+  // The found row the sheet is about; null closes it.
+  row: RackRow | null;
+  onClose: () => void;
+  onAdd: (row: RackRow) => void;
+  onWish: (row: RackRow) => void;
+  onMatch: (row: RackRow) => void;
+}) {
+  const pick = (then: (row: RackRow) => void) => () => {
+    if (!row) return;
+    onClose();
+    then(row);
+  };
   return (
-    <p className="flex items-center justify-center gap-2 font-sans text-ink-faint text-xs">
-      <span role="status">{copy.removed(capture.removed)}</span>
-      <button
-        type="button"
-        onClick={capture.undo}
-        data-testid="capture-undo"
-        className={`min-h-11 text-ink-muted underline underline-offset-[3px] hover:text-ink ${focus}`}
-      >
-        {copy.undo}
-      </button>
-    </p>
+    <Sheet
+      open={row !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      title={row?.name ?? ''}
+      eyebrow={copy.card.eyebrow}
+      rows={[
+        { icon: 'wardrobe', label: copy.review.cta, onClick: pick(onAdd) },
+        { icon: 'heart', label: lookbook.pieceToFind.add, onClick: pick(onWish) },
+        { icon: 'swap', label: copy.row.match, onClick: pick(onMatch) },
+      ]}
+    />
   );
 }
 
 // The Pieces tab of a look from her photograph (Capture PRD 1c.3–1c.6; canvas 1c): the dashed
 // Find the pieces card with "Skip, keep just the photo", the skeleton rows while Robes reads, the
-// rack once it has, and the photo kept when there is nothing left on it. `children` are the rows.
+// rack once it has, and the photo kept when there is nothing left on it. `children` is the list
+// of rows.
 export function CapturePieces({
   look,
   capture,
@@ -270,13 +188,12 @@ export function CapturePieces({
           {card(copy.card.later)}
         </>
       ) : null}
-      {stage === 'rack' ? <ul className="flex flex-col gap-2.5">{children}</ul> : null}
+      {stage === 'rack' ? children : null}
       {stage === 'clear' ? (
         <p className="rounded-card border-[0.5px] border-rule-mid bg-surface-raised px-5 py-[18px] font-sans text-[13px] text-ink-muted leading-normal">
           {copy.clear}
         </p>
       ) : null}
-      <RemovedLine capture={capture} />
     </div>
   );
 }

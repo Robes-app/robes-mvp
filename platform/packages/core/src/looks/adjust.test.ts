@@ -50,6 +50,9 @@ describe('the adjust thread', () => {
     s = adjustReduce(s, { type: 'changed', n: 2 });
     expect(s.pending).toBe(3);
     expect(adjustReduce(s, { type: 'drawn' }).pending).toBe(0);
+    // Undo takes one change back, never below none.
+    expect(adjustReduce(s, { type: 'undone' }).pending).toBe(2);
+    expect(adjustReduce(EMPTY_ADJUST, { type: 'undone' }).pending).toBe(0);
   });
 
   it('holds the Dress it again question until she answers', () => {

@@ -9,19 +9,22 @@ import {
   type Wish,
   wishRow,
 } from '@robes/contracts';
+import { errors, lookbook, ui, wardrobe as wardrobeCopy } from '@robes/copy';
 import {
   type CaptureStage,
   captureImage,
   captureRows,
   captureStage,
   cropReads,
+  dismissSuggestion,
   fileRow,
   isCaptureRow,
+  putBack,
   type RackRow,
-  type RemovedRow,
-  removeRow,
-  restoreRows,
+  rekeyed,
+  suggestedIds,
 } from '@robes/core/looks';
+import { useToast } from '@robes/ui-native';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useAllPieces } from '@/features/wardrobe/pieces';
@@ -31,7 +34,9 @@ import { isTerminal, JOB_REFRESH_MS } from './ideas';
 // What the capture rack needs of the look's editor (look-editor.ts).
 interface RackEditor {
   rack: { rows: RackRow[] };
-  setRows: (rows: RackRow[]) => void;
+  setRows: (rows: RackRow[], how?: 'quiet' | 'undo') => void;
+  remove: (key: string, found?: boolean) => void;
+  written: () => Promise<void>;
 }
 
 export interface CaptureRack {
@@ -40,11 +45,13 @@ export interface CaptureRack {
   stage: CaptureStage;
   // The read found nothing to wear in the photo (said in place of "Couldn't find the pieces").
   nothing: boolean;
-  removed: number;
   // She found, filed or removed something in this sitting (a draft's Discard asks first, PRD 1c.10).
   touched: boolean;
-  // Her piece a found row looks like, when it is still in her wardrobe.
+  // Her piece a found row looks like, when it is still in her wardrobe: the likeliest she has
+  // not said no to.
   suggested: (row: RackRow) => Piece | null;
+  // "Looks like your …" is not it: the suggestion leaves the row, on this look.
+  dismiss: (key: string) => void;
   // A filed piece, before the look comes back from the server with it.
   pieceOf: (id: string) => Piece | undefined;
   // What the read saw of a found row.
@@ -59,12 +66,13 @@ export interface CaptureRack {
   matchWish: (key: string, wish: Wish) => void;
   saveWish: (key: string) => Promise<boolean>;
   remove: (key: string) => void;
-  undo: () => void;
 }
 
 // The Rack of a look from her photograph (Capture PRD 1c.3–1c.6): Find the pieces reads the
 // look's photo; each found piece is a row she matches to a piece of hers, adds to her wardrobe or
-// removes, and whatever is left unfiled stays on the look as a suggestion. The rows live on the
+// removes, and whatever is left unfiled stays on the look as a suggestion. Each filing stands
+// behind a 6 s Undo that puts the found row back and takes the piece or wish it made out of her
+// wardrobe or wishlist again (Annie, 27 Nov). The rows live on the
 // look's own rack through its editor, which writes every change as it is made, the pieces a read
 // finds among them. Nothing is drawn for it: her model wears the look when she asks, from the
 // pill on its picture (Annie, 27 Nov; supersedes D1's draw as the read lands).
@@ -72,6 +80,7 @@ export interface CaptureRack {
 export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   const api = useApiClient();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const on = look.source === 'capture';
   const rows = editor.rack.rows;
   const [jobId, setJobId] = useState<string | null>(null);
@@ -81,7 +90,6 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   const [skipped, setSkipped] = useState(false);
   const [touched, setTouched] = useState(false);
   const [everFound, setEverFound] = useState(false);
-  const [removed, setRemoved] = useState<RemovedRow[]>([]);
   const [filed, setFiled] = useState<Record<string, Piece>>({});
   const [reads, setReads] = useState<Record<string, ReadPiece>>({});
   const job = useApi(
@@ -96,6 +104,8 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   current.current = rows;
   const setRows = useRef(editor.setRows);
   setRows.current = editor.setRows;
+  const written = useRef(editor.written);
+  written.current = editor.written;
 
   const waiting = rows.some(isCaptureRow);
   const wardrobe = useAllPieces();
@@ -134,6 +144,42 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
     setRows.current([...current.current, ...found]);
   }, [jobId, data, lost]);
 
+  // A filing's toast. Undo puts the found row back where it stood on the rack as it is now,
+  // takes off the row it became, and then `unfile` takes back what the filing made. `how`: what the picture
+  // makes of the Undo. `fresh`: the row comes back under a new key (it was a wish; `rekeyed`).
+  const filedToast = (
+    message: string,
+    key: string,
+    undo: { became: string | null; how: 'quiet' | 'undo'; fresh?: boolean },
+    unfile?: () => Promise<unknown>,
+  ) => {
+    const at = rows.findIndex((r) => r.key === key);
+    const was = rows[at];
+    if (!was) return;
+    toast.show({
+      message,
+      action: {
+        label: ui.undo,
+        onPress: () => {
+          const back = undo.fresh ? rekeyed(was) : was;
+          const read = reads[key];
+          if (read && back.key !== key) setReads((r) => ({ ...r, [back.key]: read }));
+          setRows.current(putBack(current.current, back, at, undo.became), undo.how);
+          if (!unfile) return;
+          // The look lets go of the piece first, then her wardrobe or wishlist does.
+          void written
+            .current()
+            .then(unfile)
+            .catch(() => toast.show({ message: errors.internal }));
+        },
+      },
+    });
+  };
+  const refreshWardrobe = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.summary') });
+  };
+
   const find = () => {
     if (starting || jobId) return;
     setStarting(true);
@@ -159,13 +205,13 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       cleared: everFound && rows.length === 0,
     }),
     nothing,
-    removed: removed.length,
     touched,
-    suggested: (row) => {
-      const id = row.proposal?.capture?.suggestedPieceId;
-      const piece = id ? byId.get(id) : undefined;
-      return piece && !rows.some((r) => r.pieceId === piece.id) ? piece : null;
-    },
+    suggested: (row) =>
+      suggestedIds(row)
+        .map((id) => byId.get(id))
+        .find((piece) => piece && !rows.some((r) => r.pieceId === piece.id)) ?? null,
+    // Nothing the picture wears changes.
+    dismiss: (key) => editor.setRows(dismissSuggestion(rows, key), 'quiet'),
     pieceOf: (id) => filed[id],
     found: (row) => reads[row.key],
     image: (row) => {
@@ -182,20 +228,31 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       // Added from the photo, or the piece Robes saw in it, it is the piece the picture wears;
       // any other piece of hers is a change the picture is behind on (Annie, 27 Nov).
       const seen = rows.find((r) => r.key === key)?.proposal?.capture?.suggestedPieceId;
-      editor.setRows(
-        fileRow(rows, key, pieceRow(piece, null), how !== 'match' || seen === piece.id),
-      );
-      // A piece added from the photo is new in her wardrobe: its grid and its count move.
-      if (how === 'add') {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.summary') });
+      const worn = how !== 'match' || seen === piece.id;
+      const next = fileRow(rows, key, pieceRow(piece, null), worn);
+      editor.setRows(next);
+      // The row the found one became, unless her piece hung there already.
+      const became = next.find((r) => !rows.includes(r))?.key ?? null;
+      if (how !== 'add') {
+        filedToast(lookbook.swap.swapped(piece.label), key, {
+          became,
+          how: worn ? 'quiet' : 'undo',
+        });
+        return;
       }
+      // A piece added from the photo is new in her wardrobe: its grid and its count move, and
+      // Undo takes it out again (a soft delete, as her own Delete is).
+      refreshWardrobe();
+      filedToast(wardrobeCopy.receipts.added, key, { became, how: 'quiet' }, () =>
+        api.call('wardrobe.delete', { params: { id: piece.id } }).then(refreshWardrobe),
+      );
     },
     matchWish: (key, wish) => {
       nativeAnalytics.track('look_piece_filed', { how: 'wish' });
       setTouched(true);
       // A wish she already had is another piece than the one photographed.
       editor.setRows(fileRow(rows, key, wishRow(wish, key), false));
+      filedToast(lookbook.swap.swapped(wish.label), key, { became: key, how: 'undo', fresh: true });
     },
     saveWish: async (key) => {
       const capture = rows.find((r) => r.key === key)?.proposal?.capture;
@@ -208,7 +265,15 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
         nativeAnalytics.track('look_piece_filed', { how: 'new_wish' });
         setTouched(true);
         setRows.current(fileRow(current.current, key, wishRow(wish, key)));
-        void queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') });
+        const refreshWishes = () =>
+          queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') });
+        void refreshWishes();
+        filedToast(
+          lookbook.savedSuggestion.body(1),
+          key,
+          { became: key, how: 'quiet', fresh: true },
+          () => api.call('wishlist.delete', { params: { id: wish.id } }).then(refreshWishes),
+        );
         return true;
       } catch {
         return false;
@@ -217,13 +282,7 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
     remove: (key) => {
       nativeAnalytics.track('look_piece_filed', { how: 'remove' });
       setTouched(true);
-      const next = removeRow(rows, removed, key);
-      setRemoved(next.removed);
-      editor.setRows(next.rows);
-    },
-    undo: () => {
-      editor.setRows(restoreRows(rows, removed));
-      setRemoved([]);
+      editor.remove(key, true);
     },
   };
 }

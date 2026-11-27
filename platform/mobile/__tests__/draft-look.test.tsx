@@ -265,10 +265,9 @@ test('a swap from the picker waits for the pill on the picture, which updates th
   expect(renders()).toHaveLength(0);
   // The picture wears the rack: no pill.
   expect(screen.queryByTestId('model-pill')).toBeNull();
-  // The pencil shows the hanger; it opens the picker on the row's category; Swap it in lands it.
-  await fireEvent.press(await screen.findByTestId('rack-pencil'));
+  // The hanger on her piece opens the picker on the row's category; Swap it in lands it.
   await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
+    await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );
   await fireEvent.press(
     await screen.findByRole('checkbox', { name: diary.flyout.pick('Navy silk top') }),
@@ -496,7 +495,6 @@ test('the Edit look sheet keeps each change as she makes it: a Saved tick, no Up
   // Its picture is the photo strip, on the Add a photo card (Capture PRD 3.1).
   expect(screen.getByTestId('image-manager')).toBeTruthy();
   // A change is written there and then, without working notes, and the tick says so.
-  await fireEvent.press(screen.getByTestId('rack-pencil'));
   await fireEvent.press(
     screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
@@ -1183,7 +1181,7 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   expect(await screen.findByTestId('the-rack')).toBeTruthy();
-  // With a piece on the rack, the add slot is the small + hanger chip, not the big card (Annie,
+  // With a piece on the rack, the add slot is the pill under the rows, not the big card (Annie,
   // 15 Nov); the card is only for an empty rack.
   expect(screen.queryByTestId('rack-card-add')).toBeNull();
   // The + opens the picker once her wardrobe's count is in (before it, Add pieces): wait for it.
@@ -1214,11 +1212,13 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
       ],
     }),
   );
-  // A wish reads as a piece to find: the bag and its price at the row's right.
+  // A wish reads as a piece to find: its heart and its price at the row's right.
   expect(await screen.findByLabelText(`${lookbook.rack.wishlist} · €390`)).toBeTruthy();
   // It is the wish itself: tapped, it opens the wish's page (Annie, 15 Nov: it couldn't be opened).
   mockRouter.push.mockClear();
-  await fireEvent.press(screen.getByRole('button', { name: /Black leather loafers/ }));
+  await fireEvent.press(
+    screen.getByRole('button', { name: lookbook.rack.open('Black leather loafers') }),
+  );
   expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/wish/[id]', params: { id: WISH_ID } });
 });
 
@@ -1233,7 +1233,12 @@ test('once a piece hangs, the toggle on the tabs line turns the rows to small ph
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   expect(await screen.findByTestId(`rack-row-${PIECE_ID}`)).toBeTruthy();
   const tabs = within(screen.getByTestId('draft-tabs'));
-  expect(tabs.getByTestId('rack-pencil')).toBeTruthy();
+  // No pencil (Annie, 27 Nov): the row carries its own control, and a swipe takes it off.
+  expect(screen.queryByTestId('rack-pencil')).toBeNull();
+  expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: lookbook.rack.remove('Camel wool coat') }),
+  ).toBeTruthy();
   expect(screen.queryByRole('header', { name: copy.rack })).toBeNull();
   await fireEvent.press(tabs.getByRole('radio', { name: wardrobe.header.grid }));
   expect(screen.queryByTestId(`rack-row-${PIECE_ID}`)).toBeNull();
@@ -1243,12 +1248,11 @@ test('once a piece hangs, the toggle on the tabs line turns the rows to small ph
   expect(screen.getAllByTestId('rack-grid-tile')).toHaveLength(1);
   expect(screen.getByLabelText('Camel wool coat')).toBeTruthy();
   expect(screen.queryByText('Camel wool coat')).toBeNull();
-  // The pencil puts the tiles in edit mode (Robes MVP 2b): × on the corner, swap at the foot.
-  await fireEvent.press(screen.getByTestId('rack-pencil'));
+  // A tile is a quick view (Annie, 27 Nov): nothing on it swaps or removes.
   expect(
-    screen.getByRole('button', { name: lookbook.rack.remove('Camel wool coat') }),
-  ).toBeTruthy();
-  expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
+    screen.queryByRole('button', { name: lookbook.rack.remove('Camel wool coat') }),
+  ).toBeNull();
+  expect(screen.queryByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeNull();
 });
 
 // A look Robes made from her words opens on its pieces' photographs (Annie, 16 Nov).

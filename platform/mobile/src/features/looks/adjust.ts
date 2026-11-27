@@ -454,6 +454,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       dispatch({ type: 'robes', text: `${d.first(line)}${find ? ` ${find}` : ''}` });
     },
     changed: () => dispatch({ type: 'changed' }),
+    // Undo wrote the rack back: one change less for the picture to catch up with.
+    undone: () => dispatch({ type: 'undone' }),
     // Her words as sent from home's box, before the draft exists to ask about.
     her: (text: string) => dispatch({ type: 'her', text }),
     work: (text: string) => dispatch({ type: 'work', text }),

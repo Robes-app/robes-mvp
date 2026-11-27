@@ -4,7 +4,6 @@
 const pieces = (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`);
 const TO_FIND_WORDS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'] as const;
 const KEPT_WORDS = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
-const ROLE = { canvas: 'Canvas', anchor: 'Anchor', texture: 'Texture', exclamation: 'Exclamation' };
 const line = (parts: (string | null)[]): string => parts.filter(Boolean).join(' · ');
 
 // What a saved look says about itself: its rack, its wears, when it was last worn
@@ -348,9 +347,6 @@ export const lookbook = {
     // The Rack card before the first piece (PRD §4.6): with a wardrobe it opens the picker; empty
     // it opens Add your pieces. The heading shows once a piece hangs.
     rack: 'The Rack',
-    // The pencil on The Rack (PRD §6.1, plan R2): edit-pieces mode shows each row's swap and ×;
-    // at rest a row opens its piece.
-    editPieces: 'Edit pieces',
     rackCard: {
       pick: 'Pick from your wardrobe',
       // With an empty wardrobe (docked prompt PRD W5).
@@ -389,16 +385,17 @@ export const lookbook = {
       nothing: 'No pieces found in this photo',
       retry: 'Retry',
       clear: 'The rack is clear. The look keeps its photo.',
+      // A found piece's row (Annie, 27 Nov): `add` names the hanger + that opens its sheet, whose
+      // rows are Add to wardrobe (`review.cta`), Add to wishlist and `match`; `quick` is the tick
+      // on "Looks like your …".
       row: {
         match: 'Match to piece',
         add: 'Add piece',
-        remove: 'Remove',
         looksLike: 'Looks like your',
         quick: 'Match',
-        noMatch: 'No close match in your wardrobe',
       },
+      // The toast when a piece is taken off a look, behind Undo.
       removed: (n: number): string => (n === 1 ? '1 piece removed' : `${n} pieces removed`),
-      undo: 'Undo',
       match: {
         title: 'Match to your wardrobe',
         cta: 'Match piece',
@@ -562,18 +559,10 @@ export const lookbook = {
   // The one wardrobe sheet behind every + and every swap (legacy 2026-10-15, design 2 / 4a).
   rack: {
     title: (n: number): string => `The rack · ${pieces(n)}`,
-    addPiece: '+ Add a piece',
     notYours: 'Not yours yet',
     wishlist: 'Wishlist',
-    // The pill under a piece the last change swapped (docked prompt PRD T3); the full line is
-    // its label. `the` as in feedback.notThe.
-    swapped: 'Swapped',
-    swappedFor: (the: string): string => `Swapped in for ${the}`,
     // A Shop piece's row, in every context (W6).
     shop: (brand: string): string => `${brand} · Shop`,
-    backIn: 'Back in · from the prompt',
-    added: 'Added',
-    roles: ROLE,
     open: (name: string): string => `Open ${name}`,
     swap: (name: string): string => `Swap ${name}`,
     save: (name: string): string => `Save ${name} to your wishlist`,

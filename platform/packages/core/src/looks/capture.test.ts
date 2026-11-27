@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
-  captureEyebrow,
   captureImage,
   captureRows,
   captureStage,
   cropReads,
   cropsLanding,
+  dismissSuggestion,
   type FoundPiece,
   filedCount,
   fileRow,
   filesOnly,
   isCaptureRow,
-  removeRow,
-  restoreRows,
+  putBack,
+  rekeyed,
+  rowKind,
+  suggestedIds,
 } from './capture';
 import type { RackRow } from './index';
 
@@ -69,14 +71,14 @@ describe('captureRows', () => {
     expect(none?.proposal?.capture?.suggestedPieceId).toBeNull();
   });
 
-  it('reads category, colour and material in the small caps, skipping what was not seen', () => {
+  it('keeps the colour and material the read saw, and nothing it did not', () => {
     const [full, bare] = captureRows(
       READ,
       [found(0, { colourShade: 'lime', material: 'cotton' }), found(1)],
       keys(),
     );
-    expect(captureEyebrow(full as RackRow, 'Tops')).toBe('Tops · Lime · Cotton');
-    expect(captureEyebrow(bare as RackRow, 'Bottoms')).toBe('Bottoms');
+    expect(full?.proposal).toMatchObject({ color: 'Lime', capture: { material: 'cotton' } });
+    expect(bare?.proposal).toMatchObject({ color: '', capture: { material: null } });
   });
 });
 
@@ -99,7 +101,12 @@ describe('the rack', () => {
     expect(filesOnly(next, fileRow(next, bottom.key, hers('x')))).toBe(true);
     // Nothing filed, a row taken off, or a filed row swapped for another piece: a change.
     expect(filesOnly(rows, rows)).toBe(false);
-    expect(filesOnly(next, removeRow(next, [], bottom.key).rows)).toBe(false);
+    expect(
+      filesOnly(
+        next,
+        next.filter((r) => r.key !== bottom.key),
+      ),
+    ).toBe(false);
     expect(filesOnly(next, [hers('y'), bottom, shoes])).toBe(false);
     // Matched to another piece of hers than the one photographed: a change like any swap.
     const other = fileRow(rows, top.key, hers('z'), false);
@@ -150,20 +157,59 @@ describe('the rack', () => {
     expect(isCaptureRow(once[0] as RackRow)).toBe(false);
     const twice = fileRow(once, bottom.key, wish(bottom.key));
     expect(twice.map((r) => r.key)).toEqual([top.key, shoes.key]);
+    // The row's one control goes by what it is (Annie, 27 Nov).
+    expect(rowKind(once[0] as RackRow)).toBe('wish');
   });
 
-  it('removes a row and Undo restores every removed row where it stood', () => {
-    const a = removeRow(rows, [], top.key);
-    const b = removeRow(a.rows, a.removed, shoes.key);
-    expect(b.rows.map((r) => r.key)).toEqual([bottom.key]);
-    expect(b.removed).toHaveLength(2);
-    expect(restoreRows(b.rows, b.removed).map((r) => r.key)).toEqual(rows.map((r) => r.key));
+  it('says what a row is: hers, found, a wish, or a piece Robes proposes', () => {
+    expect(rowKind(hers())).toBe('owned');
+    expect(rowKind(top)).toBe('found');
+    const proposal = top.proposal as NonNullable<RackRow['proposal']>;
+    expect(rowKind({ ...top, proposal: { ...proposal, capture: null } })).toBe('shop');
   });
 
-  it('ignores a key that is not on the rack', () => {
-    const out = removeRow(rows, [], 'p-nothere0');
-    expect(out.rows).toHaveLength(3);
-    expect(out.removed).toHaveLength(0);
+  it('a suggestion dismissed leaves the row, which stays found', () => {
+    const seen = captureRows(
+      READ,
+      [found(0, { match: { pieceId: HERS, confidence: 0.99 } }), found(1)],
+      keys(),
+    );
+    const [first, second] = seen as [RackRow, RackRow];
+    expect(suggestedIds(first)).toEqual([HERS]);
+    expect(suggestedIds(second)).toEqual([]);
+    const next = dismissSuggestion(seen, first.key);
+    expect(suggestedIds(next[0] as RackRow)).toEqual([]);
+    expect(rowKind(next[0] as RackRow)).toBe('found');
+    expect(next[1]).toBe(second);
+    // Nothing the picture wears changed.
+    expect(next.map((r) => r.key)).toEqual(seen.map((r) => r.key));
+  });
+
+  it('Undo puts one row back where it stood, and takes off what it became', () => {
+    // Taken off: back at its place, whatever else changed since.
+    const without = rows.filter((r) => r.key !== bottom.key);
+    expect(putBack(without, bottom, 1).map((r) => r.key)).toEqual(rows.map((r) => r.key));
+    expect(putBack([shoes], bottom, 1).map((r) => r.key)).toEqual([shoes.key, bottom.key]);
+    expect(putBack([], bottom, 5)).toEqual([bottom]);
+    // Filed: the piece it became goes, and the found row is back where it stood, wherever the
+    // look has since put her piece (the server lists her pieces first).
+    const filed = fileRow(rows, shoes.key, hers());
+    expect(putBack(filed, shoes, 2, HERS).map((r) => r.key)).toEqual(rows.map((r) => r.key));
+    const reread = [hers(), top, bottom];
+    expect(putBack(reread, shoes, 2, HERS).map((r) => r.key)).toEqual(rows.map((r) => r.key));
+    // The filing only dropped it (her piece was on the rack already): back, her piece kept.
+    const twice = fileRow(filed, bottom.key, hers());
+    expect(putBack(twice, bottom, 1).map((r) => r.key)).toEqual([top.key, bottom.key, HERS]);
+    // Already back: nothing is hung twice.
+    expect(putBack(rows, bottom, 1)).toEqual(rows);
+  });
+
+  it('a found row put back after a wish takes a new key', () => {
+    const next = rekeyed(bottom, 'p-new00000');
+    expect(next.key).toBe('p-new00000');
+    expect(next.proposal?.key).toBe('p-new00000');
+    expect(next.proposal?.capture).toEqual(bottom.proposal?.capture);
+    expect(rekeyed(hers())).toEqual(hers());
   });
 });
 

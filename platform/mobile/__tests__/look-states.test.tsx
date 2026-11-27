@@ -234,8 +234,7 @@ test('a swap on a suggestion is kept on it as she makes it, still suggested unti
     'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  // At rest a piece to find carries its heart (design "Suggested looks" 03); the pencil is a
-  // saved look's edit, swap and × with no heart (03b).
+  // A piece to find carries its heart (design "Suggested looks" 03); a piece of hers its hanger.
   expect(
     await screen.findByRole('button', { name: lookbook.rack.save('Black pointed mules') }),
   ).toBeTruthy();
@@ -247,10 +246,7 @@ test('a swap on a suggestion is kept on it as she makes it, still suggested unti
     pathname: '/look-piece/[id]/[key]',
     params: { id: LOOK_ID, key: mules.key },
   });
-  await fireEvent.press(screen.getByTestId('rack-pencil'));
-  expect(
-    screen.queryByRole('button', { name: lookbook.rack.save('Black pointed mules') }),
-  ).toBeNull();
+  expect(screen.queryByTestId('rack-pencil')).toBeNull();
   await fireEvent.press(
     screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );
@@ -311,9 +307,8 @@ test('a swap can take a wish: the WISHLIST tab stays open, and the wish lands as
     'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByTestId('rack-pencil'));
   await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
+    await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );
   const tab = await screen.findByRole('tab', { name: wardrobe.segments.wishlist });
   expect(tab.props.accessibilityState?.disabled).not.toBe(true);
@@ -552,9 +547,8 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
   expect(patch.edits).toEqual({
     [JEAN]: { was: expect.objectContaining({ name: 'Black pointed mules' }) },
   });
-  // The swapped row carries the Swapped pill, its full line the label (docked prompt T3).
-  expect(screen.getByLabelText(lookbook.rack.swappedFor('the black pointed mules'))).toBeTruthy();
-  expect(screen.getByTestId('swapped-pill')).toHaveTextContent(lookbook.rack.swapped);
+  // The row carries no Swapped pill (Annie, 27 Nov: the row marks are gone).
+  expect(screen.queryByTestId('swapped-pill')).toBeNull();
   // Sent from the drawer, the picture is drawn once the rack is answered and written (D14).
   await waitFor(() =>
     expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBe(true),

@@ -76,7 +76,7 @@ import { pieceStart } from '@/lib/piece-start';
 import { useJob } from '@/lib/use-job';
 import { useWishOf } from '@/lib/wish-of';
 import { Answers, Feedback, FeedbackTokens, ThreadLines, Thumbs } from './adjust-dock';
-import { CapturePieces, CaptureRow, NewPieceSheet, RemovedLine } from './capture-rack';
+import { CapturePieces, CaptureThumb, FoundPieceSheet, NewPieceSheet } from './capture-rack';
 import { DayContext, DayMeta } from './day-context';
 import { DiarySheet } from './diary-sheet';
 import { CardPicture, ImageManager } from './image-manager';
@@ -194,94 +194,52 @@ function useAskContext(date: string | null, weatherOff: boolean): LookAskInput['
   return { weather: `${shortRange(wx.tempRange)}${city ? ` in ${city}` : ''}`.slice(0, 60) };
 }
 
-// The Rack's controls, at the end of the Pieces · Details line (Annie, 16 Nov): the grid | list
-// toggle and the pencil that turns on Edit pieces (PRD §6.2, plan R2), ink-filled while it is on.
-// Native twin: DraftLook.tsx RackControls.
-function RackControls({
-  layout,
-  onLayout,
-  editing,
-  onEditing,
-}: {
-  layout: WardrobeLayout;
-  onLayout: (next: WardrobeLayout) => void;
-  editing: boolean;
-  onEditing: (next: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <LayoutToggle layout={layout} onLayout={onLayout} />
-      <button
-        type="button"
-        aria-label={copy.editPieces}
-        title={copy.editPieces}
-        aria-pressed={editing}
-        onClick={() => onEditing(!editing)}
-        data-testid="rack-pencil"
-        className={`relative flex size-8 shrink-0 items-center justify-center rounded-pill border after:absolute after:-inset-1.5 after:content-[''] ${
-          editing
-            ? 'border-ink bg-ink text-bg'
-            : 'border-rule-mid bg-surface-raised text-ink hover:border-border-control'
-        } ${focus}`}
-      >
-        <Icon name="pencil" size={14} />
-      </button>
-    </div>
-  );
-}
-
-// The Rack (PRD §4.6): the rows or the tiles, and the add slot under them; its controls sit on the
-// Pieces · Details line. Before the first piece the Rack card stands alone.
+// The Rack (PRD §4.6): the rows or the tiles, and the add pill under them; the grid | list toggle
+// sits on the Pieces · Details line. The tiles are a quick view; the rows carry every control
+// (Annie, 27 Nov). Before the first piece the Rack card stands alone.
 function Rack({
   rows,
   imageOf,
   layout,
-  editing,
   hasWardrobe,
   onAdd,
   hrefOf,
-  onSwap,
-  onRemove,
   children,
 }: {
   rows: readonly RackRow[];
   imageOf: Parameters<typeof RackGrid>[0]['imageOf'];
   layout: WardrobeLayout;
-  // Edit-pieces mode (PRD §6.2, plan R2): the rows' swap and × out.
-  editing: boolean;
   hasWardrobe: boolean;
   onAdd: () => void;
-  // Where a tile opens at rest (a piece's page, a wish's).
+  // Where a tile opens (a piece's page, a wish's).
   hrefOf?: (row: RackRow) => string | undefined;
-  // Edit mode on the grid side: each tile's swap and ×.
-  onSwap?: (row: RackRow) => void;
-  onRemove?: (row: RackRow) => void;
   // The rows, as RackRowCards.
   children: ReactNode;
 }) {
   if (rows.length === 0) return <RackCard hasWardrobe={hasWardrobe} onClick={onAdd} />;
+  const add = { label: addLabel(hasWardrobe), onClick: onAdd };
   return (
     <div className="flex flex-col gap-2.5" data-testid="the-rack">
-      {/* Once a piece hangs, the add slot is the small + hanger chip under the rows, on a draft as
-          on a saved look; the big card is only for an empty rack (Annie, 15 Nov). */}
+      {/* Once a piece hangs, the add slot is the pill under the rows, on a draft as on a saved
+          look; the big card is only for an empty rack (Annie, 15 Nov). */}
       {layout === 'grid' ? (
         <>
-          <RackGrid
-            rows={rows}
-            imageOf={imageOf}
-            {...(hrefOf ? { hrefOf } : {})}
-            {...(editing && onSwap && onRemove ? { editing: { onSwap, onRemove } } : {})}
-          />
-          <PieceList onAdd={onAdd}>{null}</PieceList>
+          <RackGrid rows={rows} imageOf={imageOf} {...(hrefOf ? { hrefOf } : {})} />
+          <PieceList add={add}>{null}</PieceList>
         </>
       ) : (
-        <PieceList label={lookbook.rack.title(rows.length)} onAdd={onAdd}>
+        <PieceList label={lookbook.rack.title(rows.length)} add={add}>
           {children}
         </PieceList>
       )}
     </div>
   );
 }
+
+// The pill under a look's pieces says what the empty Rack's card says: it opens the piece picker,
+// or Add your pieces while her wardrobe is empty.
+const addLabel = (hasWardrobe: boolean): string =>
+  hasWardrobe ? copy.rackCard.pick : copy.rackCard.add;
 
 // The draft look (Felix DraftLook; plan 2026-11-06 D14, D17, D18): ONE component for every draft
 // — from Describe, built by hand, started from a piece — and for a saved look, which edits in
@@ -1021,7 +979,6 @@ function DraftBody({
   const [emptyWardrobe, setEmptyWardrobe] = useState(false);
   // Her pick on the toggle; until she makes one the Rack opens as `rackLayoutFor` says.
   const [pickedLayout, setRackLayout] = useState<WardrobeLayout | null>(null);
-  const [editingPieces, setEditingPieces] = useState(false);
   const [adding, setAdding] = useState(false);
   // Left out on New look, the weather stays out of the draft it made (look prompt improvements B4).
   const [weatherOff, setWeatherOff] = useState(brief?.weatherOff === true);
@@ -1029,7 +986,10 @@ function DraftBody({
   // belong to the day, never to the look.
   const askContext = useAskContext(mode === 'edit' ? null : forDay, weatherOff);
   const adjustRef = useRef<Adjust | null>(null);
-  const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
+  const editor = useLookEditor(look, {
+    onChange: () => adjustRef.current?.changed(),
+    onUndo: () => adjustRef.current?.undone(),
+  });
   const adjust = useAdjust(
     look,
     editor,
@@ -1080,6 +1040,8 @@ function DraftBody({
   // The capture rack lists its pieces as they are found: the Rack's controls wait for the rack.
   const capturePieces = capture.on && (captureDraft || capture.stage !== 'rack');
   const [newPiece, setNewPiece] = useState<string | null>(null);
+  // The found row whose sheet is up (the hanger + on its row).
+  const [filing, setFiling] = useState<string | null>(null);
   useDressOnOpen(look);
   const save = useSaveLook(
     (saved) => {
@@ -1129,21 +1091,19 @@ function DraftBody({
   const pieceOf = (id: string) => piecesById.get(id) ?? capture.pieceOf(id);
   const wishOf = useWishOf();
   const wishFor = (row: RackRow) => wishOf(row.proposal?.wishlistItemId);
+  // A found piece's picture is its crop from her photograph, never a cutout.
   const imageOf = (row: RackRow) =>
     row.pieceId
       ? pieceOf(row.pieceId)?.image
-      : (wishFor(row)?.image ?? look.proposalImages?.[row.key] ?? null);
+      : isCaptureRow(row)
+        ? capture.image(row)
+        : (wishFor(row)?.image ?? look.proposalImages?.[row.key] ?? null);
   // Robes' look opens on the tiles and hers on the list; either opens on the list once more than
   // two in five of its pieces have no photograph to tile (Annie, 18 Nov). Read on every render, so
   // wishes that load after the look still count. Native twin: DraftLook.tsx.
   const rackLayout = pickedLayout ?? rackLayoutFor(look.composedByRobes, rows.map(imageOf));
-  // The photograph of the piece a change swapped out of a row, for its Swapped pill (T3).
-  const wasImageOf = (key: string) => {
-    const was = editor.rack.edits[key]?.was;
-    return was ? (imageOf(was) ?? null) : null;
-  };
-  // A wish on the rack opens its own page (Annie, 15 Nov); a piece Robes picked that the look
-  // holds opens as a piece to find until she adds it (ProposalDetail, Annie 24 Nov).
+  // A row opens its own page (Annie, 27 Nov): her piece, her wish (Annie, 15 Nov), or the piece as
+  // the look holds it (ProposalDetail, Annie 24 Nov), one found in her photograph included.
   const hrefOf = (row: RackRow) =>
     row.pieceId
       ? `/piece/${row.pieceId}`
@@ -1295,57 +1255,54 @@ function DraftBody({
             ],
           }
         : null;
-  // The rows: a piece found in her photograph and not filed yet is a CaptureRow; every other is
-  // the look's own row (a filed piece of a captured draft opens its piece and shows its wears).
-  const rackRows = rows.map((row) =>
-    isCaptureRow(row) ? (
-      <CaptureRow
-        key={row.key}
-        row={row}
-        look={look}
-        capture={capture}
-        onMatch={() =>
-          setPicker({
-            match: {
-              key: row.key,
-              name: row.name,
-              category: row.category,
-              suggestedId: capture.suggested(row)?.id ?? null,
-            },
-          })
-        }
-        onAdd={() => setNewPiece(row.key)}
-      />
-    ) : (
+  const matchMode = (row: RackRow): PickerMode => ({
+    match: {
+      key: row.key,
+      name: row.name,
+      category: row.category,
+      suggestedId: capture.suggested(row)?.id ?? null,
+    },
+  });
+  // The heart on a found piece, and its sheet's Add to wishlist: one tap, no review.
+  const wishFound = (key: string) =>
+    void capture.saveWish(key).then((ok) => {
+      if (!ok) toast({ message: lookbook.draftLook.picker.wishFailed });
+    });
+  const openAdd = () => {
+    addingFor.current = { add: true };
+    if (hasWardrobe) setPicker({ add: true });
+    else setAdding(true);
+  };
+  // The rows (Annie, 27 Nov): every one opens its page and swipes off this look; the control at
+  // its right goes by what it is (RackRowCard).
+  const rackRows = rows.map((row) => {
+    const found = isCaptureRow(row);
+    const hers = found ? capture.suggested(row) : null;
+    const href = hrefOf(row);
+    return (
       <RackRowCard
         key={row.key}
         row={row}
         image={imageOf(row)}
-        mark={captureDraft ? null : editor.mark(row.key)}
-        wasImage={wasImageOf(row.key)}
-        styled={editor.rack.styling[row.key]}
-        {...((mode === 'edit' || captureDraft) && row.pieceId
-          ? { wears: pieceOf(row.pieceId)?.wearCount ?? 0 }
-          : {})}
-        // A suggestion's heart is at rest and its edit is a saved look's, swap and × alone; a
-        // saved or draft look hearts a piece to find in edit (design "Suggested looks" 03, 03b).
-        {...(row.proposal && (suggested ? !editingPieces : editingPieces)
-          ? { onWish: () => editor.wish(row.key) }
-          : {})}
-        editing={editingPieces}
-        {...(!row.pieceId && hrefOf(row) ? { wishHref: hrefOf(row) as string } : {})}
-        {...(editingPieces
-          ? {
-              onSwap: () =>
-                setPicker({
-                  swap: { key: row.key, name: row.name, category: row.category },
-                }),
-              onRemove: () => editor.remove(row.key),
-            }
-          : {})}
+        {...(found ? { thumb: <CaptureThumb row={row} look={look} capture={capture} /> } : {})}
+        highlight={!captureDraft && editor.mark(row.key) !== null}
+        {...(href ? { href } : {})}
+        onSwap={() => setPicker({ swap: { key: row.key, name: row.name, category: row.category } })}
+        onFile={() => setFiling(row.key)}
+        onWish={() => (found ? wishFound(row.key) : editor.wish(row.key))}
+        onRemove={() => (found ? capture.remove(row.key) : editor.remove(row.key))}
+        suggestion={
+          hers
+            ? {
+                piece: hers,
+                onMatch: () => capture.match(row.key, hers, 'suggested'),
+                onDismiss: () => capture.dismiss(row.key),
+              }
+            : null
+        }
       />
-    ),
-  );
+    );
+  });
   // The docked prompt (docked prompt PRD K1–K9): the sparkle, the bar or the open thread. A draft
   // waiting for her words opens at the bar (K2); one she is building by hand (no set and no brief:
   // Robes made none of it) rests as the sparkle,
@@ -1539,16 +1496,11 @@ function DraftBody({
         {lookbook.savedLook.schedule}
       </Button>
     ) : undefined;
-  // At the end of the Pieces · Details line: a saved look's Saved tick, then the Rack's controls.
+  // At the end of the Pieces · Details line: a saved look's Saved tick, then the grid | list toggle.
   const savedTick = mode === 'edit' && !suggested ? <SavedTick saves={editor.saves} /> : null;
   const rackControls =
     tab === TABS[0] && rows.length > 0 && !capturePieces ? (
-      <RackControls
-        layout={rackLayout}
-        onLayout={setRackLayout}
-        editing={editingPieces}
-        onEditing={setEditingPieces}
-      />
+      <LayoutToggle layout={rackLayout} onLayout={setRackLayout} />
     ) : null;
   return (
     <Shell
@@ -1606,11 +1558,7 @@ function DraftBody({
         <Tabs
           items={TABS}
           value={tab}
-          onChange={(next) => {
-            setTab(next);
-            // Edit lives on the Pieces tab only: switching to Details ends it (docked prompt E1).
-            if (next !== TABS[0]) setEditingPieces(false);
-          }}
+          onChange={setTab}
           label={lookbook.savedLook.tabs.pieces}
           trailing={
             savedTick || rackControls ? (
@@ -1625,31 +1573,21 @@ function DraftBody({
           <div className="flex flex-col gap-3" data-testid="pieces-tab">
             {capturePieces ? (
               <CapturePieces look={look} capture={capture}>
-                {rackRows}
+                <PieceList add={{ label: addLabel(hasWardrobe), onClick: openAdd }}>
+                  {rackRows}
+                </PieceList>
               </CapturePieces>
             ) : (
-              <>
-                <Rack
-                  rows={rows}
-                  imageOf={imageOf}
-                  layout={rackLayout}
-                  editing={editingPieces}
-                  hasWardrobe={hasWardrobe}
-                  onAdd={() => {
-                    addingFor.current = { add: true };
-                    if (hasWardrobe) setPicker({ add: true });
-                    else setAdding(true);
-                  }}
-                  hrefOf={hrefOf}
-                  onSwap={(row) =>
-                    setPicker({ swap: { key: row.key, name: row.name, category: row.category } })
-                  }
-                  onRemove={(row) => editor.remove(row.key)}
-                >
-                  {rackRows}
-                </Rack>
-                <RemovedLine capture={capture} />
-              </>
+              <Rack
+                rows={rows}
+                imageOf={imageOf}
+                layout={rackLayout}
+                hasWardrobe={hasWardrobe}
+                onAdd={openAdd}
+                hrefOf={hrefOf}
+              >
+                {rackRows}
+              </Rack>
             )}
             {/* How was this look? (Annie, 24 Nov): her verdict on what Robes suggested is kept in
                 her style memory; Not quite asks why, then lets the look go. */}
@@ -1725,14 +1663,16 @@ function DraftBody({
                 addingFor.current = picker;
                 setAdding(true);
               },
-              onSaveWish: () => {
-                const key = picker.match.key;
-                void capture.saveWish(key).then((ok) => {
-                  if (!ok) toast({ message: lookbook.draftLook.picker.wishFailed });
-                });
-              },
+              onSaveWish: () => wishFound(picker.match.key),
             }
           : {})}
+      />
+      <FoundPieceSheet
+        row={rows.find((r) => r.key === filing) ?? null}
+        onClose={() => setFiling(null)}
+        onAdd={(row) => setNewPiece(row.key)}
+        onWish={(row) => wishFound(row.key)}
+        onMatch={(row) => setPicker(matchMode(row))}
       />
       <NewPieceSheet
         row={rows.find((r) => r.key === newPiece) ?? null}

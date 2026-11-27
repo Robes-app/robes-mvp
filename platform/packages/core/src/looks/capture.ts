@@ -1,9 +1,8 @@
 // The capture rack (Capture PRD 1c, 10 Nov 2026): the pieces found in her photograph of a look,
-// each a row she matches to a piece of hers, adds to her wardrobe, or removes. An unfiled row is a
+// each a row she matches to a piece of hers, adds to her wardrobe or wishlist, or removes. An unfiled row is a
 // proposal that carries its read (`capture`); a filed one is an ordinary piece row. Pure, shared
 // by web and native.
 import { shade } from '../colour';
-import { material } from '../material';
 import { MATCH_THRESHOLD } from '../photo-pieces';
 import { newProposalKey, type RackRow } from './index';
 
@@ -22,7 +21,7 @@ export interface FoundPiece {
 }
 
 // The read's pieces as rack rows, in the read's order. A match below the threshold is no
-// suggestion: the row reads "No close match in your wardrobe" instead.
+// suggestion.
 export function captureRows(
   readId: string,
   pieces: readonly FoundPiece[],
@@ -68,37 +67,52 @@ export function captureRows(
 
 export const isCaptureRow = (row: RackRow): boolean => !!row.proposal?.capture;
 
-// The unfiled row's small caps: CATEGORY · COLOUR · MATERIAL, each only when the read saw it.
-export function captureEyebrow(row: RackRow, category: string): string {
-  const colour = row.proposal?.color?.trim() ?? '';
-  const made = material(row.proposal?.capture?.material)?.name ?? '';
-  return [category, colour, made].filter(Boolean).join(' · ');
+// What a row of a look is, which decides the one control at its right (Annie, 27 Nov): a piece
+// she owns swaps, a piece found in her photograph files, a wish opens, and a piece Robes
+// proposes carries its price and a heart.
+export type RowKind = 'owned' | 'found' | 'wish' | 'shop';
+
+export function rowKind(row: RackRow): RowKind {
+  if (row.pieceId !== null || !row.proposal) return 'owned';
+  if (row.proposal.capture) return 'found';
+  return row.proposal.wishlisted ? 'wish' : 'shop';
 }
 
-// Rows she removed, each with where it stood, so Undo puts every one back in place (1c.6).
-export interface RemovedRow {
-  row: RackRow;
-  at: number;
+// Her pieces a found row may be, likeliest first. The read keeps one today.
+export function suggestedIds(row: RackRow): string[] {
+  const id = row.proposal?.capture?.suggestedPieceId;
+  return id ? [id] : [];
 }
 
-export function removeRow(
+// "Looks like your …" dismissed for this look: the likeliest piece goes from the row, and the
+// next one, when the read has one, stands in its place.
+export function dismissSuggestion(rows: readonly RackRow[], key: string): RackRow[] {
+  return rows.map((r) => {
+    const capture = r.proposal?.capture;
+    if (r.key !== key || !r.proposal || !capture) return r;
+    const [, next = null] = suggestedIds(r);
+    return { ...r, proposal: { ...r.proposal, capture: { ...capture, suggestedPieceId: next } } };
+  });
+}
+
+// A proposal row under a new key. A found row that was filed as a wish and is put back by Undo
+// takes one: the server keeps a key's wish once filed (`keepServerFields`), so under its old key
+// the row would come back still marked as that wish.
+export function rekeyed(row: RackRow, key: string = newProposalKey()): RackRow {
+  return row.proposal ? { ...row, key, proposal: { ...row.proposal, key } } : row;
+}
+
+// Undo for one row: back on the rack as it stands now, where it stood (`at`), and the row it
+// became in a filing (`became`) taken off. Whatever else she changed since stays.
+export function putBack(
   rows: readonly RackRow[],
-  removed: readonly RemovedRow[],
-  key: string,
-): { rows: RackRow[]; removed: RemovedRow[] } {
-  const at = rows.findIndex((r) => r.key === key);
-  const row = rows[at];
-  if (!row) return { rows: [...rows], removed: [...removed] };
-  return { rows: rows.filter((r) => r.key !== key), removed: [...removed, { row, at }] };
-}
-
-// Undo: every removed row back where it stood, last removed first so the places still hold.
-export function restoreRows(rows: readonly RackRow[], removed: readonly RemovedRow[]): RackRow[] {
-  const out = [...rows];
-  for (const { row, at } of [...removed].reverse()) {
-    if (out.some((r) => r.key === row.key)) continue;
-    out.splice(Math.min(at, out.length), 0, row);
-  }
+  row: RackRow,
+  at: number,
+  became: string | null = null,
+): RackRow[] {
+  if (rows.some((r) => r.key === row.key)) return [...rows];
+  const out = rows.filter((r) => r.key !== became);
+  out.splice(Math.min(Math.max(at, 0), out.length), 0, row);
   return out;
 }
 

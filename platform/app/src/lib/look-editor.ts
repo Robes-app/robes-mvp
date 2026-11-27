@@ -15,13 +15,20 @@ import {
   wishRow,
 } from '@robes/contracts';
 import { errors, lookbook, wardrobe } from '@robes/copy';
-import { applyAsk, filesOnly, type RackRow, type RackState, rowNote } from '@robes/core/looks';
+import {
+  applyAsk,
+  filesOnly,
+  putBack,
+  type RackRow,
+  type RackState,
+  type RowNote,
+  rowNote,
+} from '@robes/core/looks';
 import { useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import type { z } from 'zod';
 import { useAnalytics } from '@/components/analytics-provider';
-import type { RowMark } from '@/components/looks/rack-row';
 import { isDraftsFull, useRefreshLooks as useInvalidateLooks } from './look-states';
 
 // One look's rack while she works on it. Every change is written as she makes it (Annie, 27 Nov):
@@ -40,7 +47,10 @@ export const onRackIds = (rows: readonly RackRow[]): string[] =>
 // twin: mobile/src/features/looks/look-editor.ts.
 export type SwapIn = { piece: Piece } | { wish: Wish };
 
-export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) {
+export function useLookEditor(
+  look: Look,
+  opts: { onChange?: () => void; onUndo?: () => void } = {},
+) {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -48,6 +58,8 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
   const { track } = useAnalytics().analytics;
   const onChange = useRef(opts.onChange);
   onChange.current = opts.onChange;
+  const onUndo = useRef(opts.onUndo);
+  onUndo.current = opts.onUndo;
   const [rack, setRack] = useState<RackState>(() => rackFromLook(look));
   // Changes to a saved look that have been kept, for its Saved tick.
   const [saves, setSaves] = useState(0);
@@ -84,11 +96,13 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     oldest: string | null;
   } | null>(null);
 
-  // `drawn`: the picture already wears `next` (a found piece filed, Annie 26 Nov), so it is not
-  // counted as a change the picture is behind on.
-  const change = (next: RackState, drawn = false) => {
+  // `quiet`: the picture already wears `next` (a found piece filed, Annie 26 Nov), so it is not
+  // counted as a change the picture is behind on. `undo`: Undo wrote the rack back as it stood,
+  // one change less for the picture to catch up with.
+  const change = (next: RackState, how: 'change' | 'quiet' | 'undo' = 'change') => {
     setRack(next);
-    if (!drawn) onChange.current?.();
+    if (how === 'change') onChange.current?.();
+    if (how === 'undo') onUndo.current?.();
     const { status } = look;
     inFlight.current = write
       .mutateAsync({
@@ -145,7 +159,7 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     });
   };
 
-  const mark = (key: string): RowMark | null => rowNote(rack, key);
+  const mark = (key: string): RowNote => rowNote(rack, key);
 
   return {
     // Five drafts wait: the page asks; letGo retries with the oldest let go, keep undoes the edit.
@@ -201,16 +215,21 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
         message: lookbook.swap.swapped(piece.label),
         action: {
           label: wardrobe.undo,
-          onAction: () => change(before),
+          onAction: () => change(before, 'undo'),
         },
       });
     },
     // The rows of a look from her photograph (Capture PRD 1c.6): found rows land, one files as her
     // piece, one leaves or comes back. The rack reducer in @robes/core/looks decides the rows.
-    setRows: (rows: RackRow[]) => {
+    // `how` says what the picture makes of it when the rows alone cannot: an Undo, or a change
+    // to nothing it wears.
+    setRows: (rows: RackRow[], how?: 'quiet' | 'undo') => {
       const keys = new Set(rows.map((r) => r.key));
       const edits = Object.fromEntries(Object.entries(rack.edits).filter(([k]) => keys.has(k)));
-      change({ ...rack, rows, edits }, filesOnly(current.current.rows, rows));
+      change(
+        { ...rack, rows, edits },
+        how ?? (filesOnly(current.current.rows, rows) ? 'quiet' : 'change'),
+      );
     },
     // Everything she picked at once lands as ONE change: one write, one picture. Added one by
     // one, each add rebuilt the rack she opened the picker on and the last pick replaced the
@@ -230,10 +249,33 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
       }
       if (rows.length !== rack.rows.length) change({ ...rack, rows });
     },
-    remove: (key: string) => {
-      track('look_piece_removed', { surface: look.status });
-      const { [key]: _gone, ...edits } = rack.edits;
+    // A swipe takes a piece off this look, never out of her wardrobe, behind the same Undo
+    // (Annie, 27 Nov). `found`: a piece from her photograph, whose removal the capture rack logs.
+    remove: (key: string, found = false) => {
+      if (!found) track('look_piece_removed', { surface: look.status });
+      const at = rack.rows.findIndex((r) => r.key === key);
+      const row = rack.rows[at];
+      if (!row) return;
+      const { [key]: note, ...edits } = rack.edits;
       change({ ...rack, rows: rack.rows.filter((r) => r.key !== key), edits });
+      toast({
+        message: lookbook.draftLook.capture.removed(1),
+        action: {
+          label: wardrobe.undo,
+          // Back where it stood on the rack as it is now: whatever else she changed since stays.
+          onAction: () => {
+            const now = current.current;
+            change(
+              {
+                ...now,
+                rows: putBack(now.rows, row, at),
+                edits: note ? { ...now.edits, [key]: note } : now.edits,
+              },
+              'undo',
+            );
+          },
+        },
+      });
     },
     // ♡ a proposal: it joins her wishlist and the row reads Wishlist.
     wish: (key: string) => {
