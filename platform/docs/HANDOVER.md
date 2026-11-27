@@ -41,7 +41,7 @@ Locally, the AI is a stand-in that gives the same answers every time, so you can
 
 - **Web:** https://staging.byrobes.com. Sign in with your email; the code arrives by email. Until Amazon approves the sending account for production, only email addresses verified in AWS can receive codes. Ask for an address to be added.
 - **Phone, day to day:** Expo Go, as above ([`runbooks/mobile-founder-setup.md`](runbooks/mobile-founder-setup.md)).
-- **Phone, a proper test build (TestFlight):** [`runbooks/mobile-test-builds.md`](runbooks/mobile-test-builds.md). Test builds use the id `com.byrobes.app.staging`, so the real App Store id `com.byrobes.app` stays reserved for launch.
+- **Phone, a TestFlight build:** every build is the real app (`com.byrobes.app`) talking to production, cut from `main` after the sync ([`runbooks/ios-release.md`](runbooks/ios-release.md)). There is no staging iPhone app.
 - **Updating staging:** merging a pull request that changes `platform/` into `beta` redeploys staging automatically. Changes to the current app alone don't trigger it.
 
 ## The rules that keep it safe (plain English)
@@ -61,7 +61,7 @@ Claude knows these in full ([`api-security.md`](api-security.md)). What they pro
 | Web hosting (staging) | Vercel, team Codú, project `robes-app` | Root folder `platform/app` |
 | Database (staging) | Supabase, EU | Changed only through migrations, never by hand in the dashboard |
 | Email, photos, background AI | AWS account 259887029472, Ireland | Set up from code in `platform/infra`; [`runbooks/environments.md`](runbooks/environments.md) |
-| Phone builds | Expo (EAS) | [`runbooks/mobile-test-builds.md`](runbooks/mobile-test-builds.md) |
-| Production | Not set up yet | Same steps as staging, in its own accounts |
+| Phone builds | Expo (EAS) → TestFlight | [`runbooks/ios-release.md`](runbooks/ios-release.md) |
+| Production | Vercel `robes-prod` (https://app.byrobes.com, from `main`), the same AWS account | Released by [`runbooks/ios-release.md`](runbooks/ios-release.md) |
 
 Hosting, AWS and Expo should end up in Robes-owned accounts before launch. Moving them is a settings job, not a code change.

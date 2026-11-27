@@ -9,7 +9,7 @@ Versions: `reference/stack-versions.md` — Expo SDK 58 (RN 0.88.0, React 19.3.0
 
 1. **Same API, same rules.** The app is a client of `/api/v1` through `@robes/api-client`; it never implements business rules the web app doesn't also get from the server. If a rule is needed on both, it lives in `packages/core` (pure, tested) or on the server.
 2. **Native where it matters.** Camera capture, share sheet, push, haptics, background upload, offline reading, widgets (later). Everything else mirrors web behaviour.
-3. **Old versions keep working.** Installed builds live for months; API versioning (`api.md` §2) and `X-Robes-App-Version` + `426 upgrade_required` handle it. OTA updates via EAS Update for JS-only changes; native changes bump `runtimeVersion` (policy: `fingerprint`).
+3. **Old versions keep working.** Installed builds live for months: production serves every supported app version and breaking changes ship in two steps (ADR-022, `platform/CLAUDE.md` → Releases and compatibility); below the minimum app version the server answers `426` and the app asks for the update. No over-the-air updates yet.
 
 ## 2. Project layout (`platform/mobile`)
 
@@ -72,7 +72,6 @@ Later (post-parity): home-screen widget "Today's look" (iOS WidgetKit via `expo-
 
 ## 5. Build & release
 
-- EAS Build profiles: `development` (dev client), `preview` (internal distribution, staging API), `production` (store, prod API). EAS env vars hold **public** config only (API base URL, Supabase URL + publishable key, PostHog key).
-- EAS Update channels `preview` / `production`; `runtimeVersion.policy = fingerprint`.
-- E2E: Maestro flows in `mobile/e2e/` (sign-in, add piece via library, generate look, save, share) run on EAS Workflows nightly and on release PRs.
+- EAS Build profiles: `development` (dev client), `staging` (no App Store Connect app yet), `production` (TestFlight, prod API). EAS env vars hold **public** config only. Releasing: `runbooks/ios-release.md`.
+- E2E: `mobile/e2e/` runs locally (`mobile/README.md`).
 - Unit/component tests: jest-expo + React Native Testing Library; shared pure packages tested with Vitest.

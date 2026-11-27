@@ -92,7 +92,7 @@ Sign-in codes arrive in Mailpit at http://localhost:58025. Before pushing, run `
 | | Web + API | Database | AWS (jobs, email, media) | Mobile build |
 |---|---|---|---|---|
 | Local | `pnpm dev:web` | Postgres in Docker | Fakes: MinIO, Mailpit, in-process jobs | `com.byrobes.app.dev` via Expo |
-| Staging | Vercel `codu/robes-app` production → https://staging.byrobes.com (also robes-app-two.vercel.app) | Supabase (EU) | Sandbox account, eu-west-1, `Staging/*` stacks | `com.byrobes.app.staging` via EAS → TestFlight |
-| Production | Not set up yet | — | `Production/*` stacks (not deployed) | `com.byrobes.app` |
+| Staging | Vercel `codu/robes-app`, environment `staging`, from `beta` → https://staging.byrobes.com | Supabase (EU) | 259887029472, eu-west-1, `Staging/*` stacks | Expo Go only (no staging app) |
+| Production | Vercel `codu/robes-prod`, from `main` → https://app.byrobes.com | Robes_p0, schema `app` | 259887029472, eu-west-1, `Production/*` stacks | `com.byrobes.app` via EAS → TestFlight ([`docs/runbooks/ios-release.md`](docs/runbooks/ios-release.md)) |
 
 How to set up and operate each environment: [`docs/runbooks/environments.md`](docs/runbooks/environments.md).

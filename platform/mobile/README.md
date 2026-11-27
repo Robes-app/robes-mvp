@@ -7,7 +7,7 @@ React Native app on Expo SDK 58 (RN 0.88.0, React 19.3.0) with Expo Router and U
 
 ## Running it (Expo, ADR 018)
 
-**Against the deployed staging API, no local stack:** `pnpm setup:mobile` once, then `pnpm dev:mobile:staging` (or `:tunnel` across networks) and scan with Expo Go. Step by step for non-engineers: `../docs/runbooks/mobile-founder-setup.md`. Getting builds to testers: `../docs/runbooks/mobile-test-builds.md`.
+**Against the deployed staging API, no local stack:** `pnpm setup:mobile` once, then `pnpm dev:mobile:staging` (or `:tunnel` across networks) and scan with Expo Go. Step by step for non-engineers: `../docs/runbooks/mobile-founder-setup.md`. Getting builds to testers: `../docs/runbooks/ios-release.md`.
 
 Everything runs through Expo. There is no Xcode/Android Studio project to open, and `ios/`/`android/` are generated when needed, never edited by hand.
 
@@ -50,13 +50,7 @@ profile in `eas.json`):
 | `staging` | Robes Staging | `com.byrobes.app.staging` | `robes-staging` | `https://staging.byrobes.com` |
 | `production` | Robes | `com.byrobes.app` (store) | `robes` | `https://app.byrobes.com` |
 
-Each variant needs its own App Store Connect app (put its Apple id in `eas.json` → `submit.<profile>.ios.ascAppId`).
-Share a staging build through TestFlight internal testing on the "Robes Staging" app:
-
-```bash
-npx eas-cli build --profile staging --platform ios
-npx eas-cli submit --profile staging --platform ios --latest
-```
+Only `production` ships: TestFlight builds are cut from `main` after the sync, by the steps in [`docs/runbooks/ios-release.md`](../docs/runbooks/ios-release.md). The `staging` profile has no App Store Connect app yet (a follow-up there).
 
 The API trusts each variant's scheme via `AUTH_TRUSTED_ORIGINS` (e.g. `robes://,robes-staging://`).
 Expo Go ignores the variant (it always uses `exp://`), so `pnpm dev:mobile` is unchanged.

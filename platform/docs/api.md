@@ -34,7 +34,7 @@ export const POST = route({
 | Jobs | Long work returns `202 { jobId, status: 'queued' }`. Progress streams as Server-Sent Events from `GET /api/v1/jobs/:id/events` (a full job snapshot on connect and on each change; the stream ends when the job is terminal or after 5 min, and clients reconnect). One-off status via `GET /api/v1/jobs/:id`; never poll it. Cancellation `POST /api/v1/jobs/:id/cancel`. |
 | Pagination | Cursor-based: `?cursor=<opaque>&limit=≤100` → `{ items, nextCursor }`. |
 | Sync | `GET /api/v1/sync?since=<cursor>` returns changed rows (incl. tombstones) across user-content tables for offline caches (native). |
-| Versioning | Additive changes only within v1. Breaking change → `/api/v2` route alongside; v1 supported ≥ 6 months after the last app build that uses it. Native sends `X-Robes-App-Version`; server can return `426 upgrade_required`. |
+| Versioning | Additive changes only within v1; a change an installed app can't handle is a two-step change under ADR-022, never a `/api/v2`. Native sends `X-Robes-App-Version`; below the minimum app version the server answers `426 upgrade_required`. Rules: `platform/CLAUDE.md` → Releases and compatibility. |
 | Limits | JSON body ≤ 32 KB (SEC-32). No binary in JSON. Strings capped in schemas. |
 | Headers | `X-Request-Id` echoed; `traceparent` propagated. |
 | Caching | User data: `Cache-Control: private, no-store`. Public share snapshots: `s-maxage=300, stale-while-revalidate=86400`. |

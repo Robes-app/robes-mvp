@@ -74,3 +74,31 @@ _Avoid_: beta user (after cutover), migrated user
 The one account that signs in with a password instead of an emailed code, for store reviewers and
 the founders' testing. It holds demo data, never a real person's.
 _Avoid_: test user, demo user, Apple account
+
+## Releases
+
+**App version**:
+The version an iPhone build carries (0.8.0), which it sends with every request. Builds of one
+version differ only in their build number.
+_Avoid_: build (for the version), release number
+
+**Minimum app version**:
+The oldest app version production still serves. Below it, the app stops and asks for an update.
+_Avoid_: forced version, MIN version, kill version
+
+**Latest app version**:
+The newest app version testers can install. Below it, the app suggests an update she can dismiss.
+_Avoid_: current version, newest build
+
+**Supported app version**:
+Any app version at or above the minimum app version. Production must work for every one of them.
+_Avoid_: compatible app, live version
+
+**Two-step change**:
+A change an installed app can't handle, shipped as two releases: first production accepts old
+and new and the new app ships, then the minimum app version rises to retire the old one.
+_Avoid_: breaking change (as a single release), expand/contract (in product talk)
+
+**Sync**:
+Bringing `platform/` from `beta` onto `main` whole, so production runs what staging ran.
+_Avoid_: merge to main, promote, deploy (for the sync itself)
