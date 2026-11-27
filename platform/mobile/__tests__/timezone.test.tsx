@@ -1,4 +1,5 @@
 import { queryKeys } from '@robes/api-client/react';
+import { QueryClient } from '@tanstack/react-query';
 import { act, waitFor } from '@testing-library/react-native';
 import { AppState } from 'react-native';
 import { TimeZoneSync } from '../src/lib/timezone';
@@ -31,8 +32,9 @@ test('sends the phone zone once signed in, then refetches today', async () => {
     'GET /me': ME,
     'PATCH /me': (init: RequestInit) => ({ ...ME, ...JSON.parse(String(init.body)) }),
   });
+  // Watched before render: on a slow runner the refetch can land before render returns.
+  const invalidate = jest.spyOn(QueryClient.prototype, 'invalidateQueries');
   const { queryClient } = await renderWithApi(<TimeZoneSync client={api} />);
-  const invalidate = jest.spyOn(queryClient, 'invalidateQueries');
   await waitFor(() => expect(updates(calls)).toHaveLength(1));
   expect(updates(calls)[0]?.body).toEqual({ timezone: SYDNEY });
   await waitFor(() =>
