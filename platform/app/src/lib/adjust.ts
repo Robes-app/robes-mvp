@@ -90,7 +90,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const draw = useRef<() => void>(() => {});
 
   // Her ask: an edit comes back keyed by the rack she sent.
+  // The ask in hand came back with an answer, whose own lines stand (a draw's work line among them).
+  const answered = useRef(false);
   const ask = useLookAsk(look.id, (result) => {
+    answered.current = true;
     // A note about the whole picture (look-ask v5, docked prompt PRD M5): it becomes the look's
     // picture note and the model is drawn again with it. Nothing on the rack changes; Robes asks
     // "Closer?" once the picture lands.
@@ -141,7 +144,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const askFailed = useRef(ask.reading);
   useEffect(() => {
     // The ask ended without an answer (the hook toasts): the work line goes.
-    if (askFailed.current && !ask.reading && isWorking(state)) dispatch({ type: 'settle' });
+    if (askFailed.current && !ask.reading) {
+      if (!answered.current && isWorking(state)) dispatch({ type: 'settle' });
+      answered.current = false;
+    }
     askFailed.current = ask.reading;
   }, [ask.reading, state]);
 
@@ -171,11 +177,18 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const picturePending = pictureLanding(look);
   // Robes' question about a change, waiting for the picture to wear it: asked once the draw has
   // landed (or timed out), or straight away when no draw follows the change.
-  const [heldQuestion, setHeldQuestion] = useState<string | null>(null);
+  // Kept in a ref beside the state: a draw that ends before the next render (nothing new to draw)
+  // still finds the question its answer just set.
+  const [heldQuestion, setHeld] = useState<string | null>(null);
+  const held = useRef<string | null>(null);
+  const setHeldQuestion = (text: string | null) => {
+    held.current = text;
+    setHeld(text);
+  };
   const askHeld = useRef(() => {});
   askHeld.current = () => {
-    if (heldQuestion === null) return;
-    dispatch({ type: 'question', text: heldQuestion });
+    if (held.current === null) return;
+    dispatch({ type: 'question', text: held.current });
     setHeldQuestion(null);
   };
   useEffect(() => {
@@ -229,11 +242,13 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
 
   // The model asked to wear the rack as it stands; `quiet` (Save) says nothing in the thread.
   // `hush`: drawn on Robes' own account after a change, so no line asks for it or reports it.
-  const updateModel = (quiet = false, hush = false) => {
+  // `line`: Robes' work line stands in the thread while it draws; the pill's draw has none, the
+  // picture showing its own progress.
+  const updateModel = (quiet = false, hush = false, line = true) => {
     track('draft_model_updated', { surface, pending: badge });
     if (!quiet) {
       if (!hush) dispatch({ type: 'her', text: d.modelAsked });
-      dispatch({ type: 'work', text: d.dressing });
+      if (line) dispatch({ type: 'work', text: d.dressing });
       hushed.current = hush;
       sawPending.current = false;
       setDrawing(true);
@@ -277,8 +292,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       : state.thread.some((l) => l.who === 'her')
         ? d.adjustAfter
         : d.adjust,
-    // `draw`: the picture is drawn once the answer lands (the drawer's Send and Generate); only a
-    // live look writes its rack as it goes, so a saved look's edit still draws on Update.
+    // `draw`: the picture is drawn once the answer lands, on the rack as the answer left it (a
+    // change made through the prompt never waits; one message, one redraw).
     // True when the send went to Robes (an ask or a restyle is now in hand).
     send: (
       words: string,
@@ -292,7 +307,7 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       const now = Date.now();
       if (lastSend.current.key === key && now - lastSend.current.at < 1500) return false;
       lastSend.current = { key, at: now };
-      drawAfter.current = opts.draw === true && look.status === 'draft';
+      drawAfter.current = opts.draw === true;
       const labels = afresh
         ? [fb.restyle.label]
         : reasons.map((r) => (r === 'piece' && notThe ? notThe : fb.reasons[r].label));
@@ -444,13 +459,12 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     drawForSave: () => {
       if (stale) updateModel(true);
     },
-    // A saved look's prompt change, once kept: the model wears it at once, with nothing said.
-    drawNow: () => {
-      if (stale) updateModel(false, true);
+    // The pill on the picture (Annie, 27 Nov): her model drawn wearing the rack as it stands,
+    // its first picture or the one that catches up with her changes. Nothing is said in the
+    // thread; the picture shows its own progress.
+    drawModel: () => {
+      if (!busy) updateModel(false, true, false);
     },
-    // A draft's rack, as she builds it by hand: the model wears it with nothing said and nothing
-    // in the thread; the picture shows its own progress (Annie, 16 Nov).
-    dress: () => updateModel(true),
     // Robes' first line once a draft lands (home's box): its note, and the pieces to find.
     landed: (fresh: Look) => {
       const line = noteShort(fresh.note, 1) || fresh.name;

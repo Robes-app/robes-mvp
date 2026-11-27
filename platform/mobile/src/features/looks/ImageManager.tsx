@@ -48,7 +48,7 @@ const STEP = CARD_W + GAP;
 // the dashed Add a photo card, which opens the camera that only adds an image — it never reads the
 // pieces. Add to look uploads the photograph and it settles into the strip, in focus; every card
 // has its × but the last one left. ✓ hands the card in view to the owner as the cover: a saved
-// look keeps the strip there and then (never waiting for Update look), a draft as it is saved. Opened from the Edit look sheet or Home's stack,
+// look keeps the strip there and then, a draft as it is saved. Opened from the Edit look sheet or Home's stack,
 // the Add a photo card is in focus. Web twin: app/src/components/looks/image-manager.tsx.
 export function ImageManager({
   look,

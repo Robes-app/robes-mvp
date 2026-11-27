@@ -212,11 +212,8 @@ export const lookbook = {
     editTitle: 'Edit look',
     newName: 'New look',
     close: 'Close',
-    // The done disc: Save on a draft; on a saved look's edit it only closes, once nothing waits
-    // for Update look (D18).
+    // The done disc: Save on a draft. A saved look has none: each change is kept as she makes it.
     done: 'Save look',
-    // A saved look's one accept (3e's pill, the Edit look drawer's footer; D17, D18).
-    update: 'Update look',
     doneForDay: 'Save and schedule for this day',
     // The prompt box (look prompt PRD P, D4, L3): the draft's placeholders turn while the field is
     // empty, the board's line first; a saved look's row asks for the change instead.
@@ -454,19 +451,9 @@ export const lookbook = {
       // The quiet third way: the draft waits in the Lookbook's In progress row.
       later: 'Keep for later',
     },
-    discardEdit: {
-      title: 'Discard your changes?',
-      body: 'The look stays as it was.',
-      discard: 'Discard',
-      keep: 'Keep editing',
-    },
   },
   // Beta's save toast: a look she worked on, by name (a suggestion's is savedSuggestion).
   savedAs: (name: string): string => `${name} saved to your Lookbook ✓`,
-  // Update look landed (Capture PRD 3.5).
-  updated: 'Look updated',
-  // Under it on a saved look (docked prompt PRD V2): each change is written as she makes it.
-  updatedBody: 'Your changes replace the saved look.',
   // A draft saved onto a day (docked prompt PRD, Draft saved).
   savedToDay: (day: string): string => `Saved to ${day}`,
   savedToDayBody: 'The look and its pieces are on your week.',
@@ -567,7 +554,7 @@ export const lookbook = {
     tileBar: 'Draft look',
     tileDressing: 'Dressing…',
     open: 'Open the draft',
-    // The bar.
+    // The bar; `saved` is also the saved look's tick, each time a change she made is kept.
     saving: 'Saving…',
     saved: 'Saved',
     discardChanges: 'Discard changes',

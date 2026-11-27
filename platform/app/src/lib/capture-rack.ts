@@ -35,8 +35,6 @@ import { invalidateWardrobe } from './wardrobe';
 interface RackEditor {
   rack: { rows: RackRow[] };
   setRows: (rows: RackRow[]) => void;
-  // The pieces a read found, joined to the rack and written at once (a saved look too).
-  addFound: (rows: RackRow[]) => void;
 }
 
 export interface CaptureRack {
@@ -46,7 +44,7 @@ export interface CaptureRack {
   // The read found nothing to wear in the photo (said in place of "Couldn't find the pieces").
   nothing: boolean;
   removed: number;
-  // She found, filed or removed something in this sitting (Discard asks first, PRD 1c.10).
+  // She found, filed or removed something in this sitting (a draft's Discard asks first, PRD 1c.10).
   touched: boolean;
   // Her piece a found row looks like, when it is still in her wardrobe.
   suggested: (row: RackRow) => Piece | null;
@@ -70,16 +68,11 @@ export interface CaptureRack {
 // The Rack of a look from her photograph (Capture PRD 1c.3–1c.6): Find the pieces reads the
 // look's photo; each found piece is a row she matches to a piece of hers, adds to her wardrobe or
 // removes, and whatever is left unfiled stays on the look as a suggestion. The rows live on the
-// look's own rack through its editor, so a draft writes through and a saved look's changes wait
-// for Update look; the pieces a read finds are written as they land on both, and her model is
-// drawn wearing them (D1, Annie 26 Nov), filed or not. Native twin: mobile/src/features/looks/capture-rack.ts.
-// `onFound`: the read has landed its pieces on the rack. A photograph whose pieces were never
-// found is never drawn.
-export function useCaptureRack(
-  look: Look,
-  editor: RackEditor,
-  opts: { onFound?: () => void } = {},
-): CaptureRack {
+// look's own rack through its editor, which writes every change as it is made, the pieces a read
+// finds among them. Nothing is drawn for it: her model wears the look when she asks, from the
+// pill on its picture (Annie, 27 Nov; supersedes D1's draw as the read lands).
+// Native twin: mobile/src/features/looks/capture-rack.ts.
+export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const { track } = useAnalytics().analytics;
@@ -98,8 +91,6 @@ export function useCaptureRack(
   const { job, connection } = useJob(jobId);
   const current = useRef(rows);
   current.current = rows;
-  const onFound = useRef(opts.onFound);
-  onFound.current = opts.onFound;
 
   const waiting = rows.some(isCaptureRow);
   const wardrobe = useApiAll(
@@ -138,8 +129,7 @@ export function useCaptureRack(
       ),
     }));
     setEverFound(true);
-    editor.addFound(found);
-    onFound.current?.();
+    editor.setRows([...current.current, ...found]);
   }, [jobId, job, connection, editor]);
 
   const find = () => {
@@ -187,14 +177,20 @@ export function useCaptureRack(
       track('look_piece_filed', { how });
       setTouched(true);
       setFiled((f) => ({ ...f, [piece.id]: piece }));
-      editor.setRows(fileRow(rows, key, pieceRow(piece, null)));
+      // Added from the photo, or the piece Robes saw in it, it is the piece the picture wears;
+      // any other piece of hers is a change the picture is behind on (Annie, 27 Nov).
+      const seen = rows.find((r) => r.key === key)?.proposal?.capture?.suggestedPieceId;
+      editor.setRows(
+        fileRow(rows, key, pieceRow(piece, null), how !== 'match' || seen === piece.id),
+      );
       // A piece added from the photo is new in her wardrobe: its grid and its count move.
       if (how === 'add') void invalidateWardrobe(queryClient);
     },
     matchWish: (key, wish) => {
       track('look_piece_filed', { how: 'wish' });
       setTouched(true);
-      editor.setRows(fileRow(rows, key, wishRow(wish, key)));
+      // A wish she already had is another piece than the one photographed.
+      editor.setRows(fileRow(rows, key, wishRow(wish, key), false));
     },
     saveWish: async (key) => {
       const capture = rows.find((r) => r.key === key)?.proposal?.capture;
@@ -229,8 +225,8 @@ export function useCaptureRack(
 
 const CROP_REFRESH_MS = 3_000;
 
-// The crops of each read whose found rows the look holds none for (a saved look's rows wait in
-// the editor until Update look), asked again while any is still being made. Native twin:
+// The crops of each read whose found rows the look holds none for (a row just written, before
+// the look comes back with it), asked again while any is still being made. Native twin:
 // useReadCrops in mobile/src/features/looks/capture-rack.ts.
 function useReadCrops(readIds: readonly string[]): Map<string, Map<number, PieceImage>> {
   const api = useApiClient();

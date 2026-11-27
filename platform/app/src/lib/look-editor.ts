@@ -15,25 +15,18 @@ import {
   wishRow,
 } from '@robes/contracts';
 import { errors, lookbook, wardrobe } from '@robes/copy';
-import {
-  applyAsk,
-  changedKeys,
-  filesOnly,
-  type RackRow,
-  type RackState,
-  rowNote,
-} from '@robes/core/looks';
+import { applyAsk, filesOnly, type RackRow, type RackState, rowNote } from '@robes/core/looks';
 import { useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { z } from 'zod';
 import { useAnalytics } from '@/components/analytics-provider';
 import type { RowMark } from '@/components/looks/rack-row';
 import { isDraftsFull, useRefreshLooks as useInvalidateLooks } from './look-states';
 
-// One look's rack while she works on it. A draft writes through on every change; a saved look
-// edits in place until Update, and a suggestion until Save look, staying suggested as it is kept
-// (design "Suggested looks", 23 Nov). The picture is drawn again only when she asks — Update the
+// One look's rack while she works on it. Every change is written as she makes it (Annie, 27 Nov):
+// a draft keeps its working notes, a saved look drops them, and a suggestion stays suggested as it
+// is kept (design "Suggested looks", 23 Nov). The picture is drawn again only when she asks — Update the
 // model, Save (plan 2026-11-03 D3) — through `redraw`: Robes' frame for a look it framed, else her
 // model. `onChange` fires on every change to the rack, so the thread can count what the picture
 // is behind.
@@ -55,20 +48,18 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
   const { track } = useAnalytics().analytics;
   const onChange = useRef(opts.onChange);
   onChange.current = opts.onChange;
-  const live = look.status === 'draft';
-  const [editing, setEditing] = useState(live);
   const [rack, setRack] = useState<RackState>(() => rackFromLook(look));
-  const [dirty, setDirty] = useState(false);
-  // The rack write in flight for a live look, so a picture asked for right after a change is
-  // drawn on the rack as written (the drawer sends, then draws).
+  // Changes to a saved look that have been kept, for its Saved tick.
+  const [saves, setSaves] = useState(0);
+  // The rack write in flight, so a picture asked for right after a change is drawn on the rack
+  // as written (the drawer sends, then draws).
   const inFlight = useRef<Promise<unknown> | null>(null);
   // The rack as it stands now, for an Undo that fires after later renders.
   const current = useRef(rack);
   current.current = rack;
-  const original = useMemo(() => new Set(rackFromLook(look).rows.map((r) => r.key)), [look]);
-  // A fresh look from the server replaces the local rack unless she has unsaved edits.
+  // A fresh look from the server replaces the local rack.
   const [seen, setSeen] = useState(look.updatedAt);
-  if (seen !== look.updatedAt && !dirty) {
+  if (seen !== look.updatedAt) {
     setSeen(look.updatedAt);
     setRack(rackFromLook(look));
   }
@@ -98,14 +89,22 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
   const change = (next: RackState, drawn = false) => {
     setRack(next);
     if (!drawn) onChange.current?.();
-    if (live) {
-      inFlight.current = write
-        .mutateAsync({ params: { id: look.id }, input: rackUpdate(next, { keepEdits: true }) })
-        .catch(() => undefined);
-    } else {
-      setEditing(true);
-      setDirty(true);
-    }
+    const { status } = look;
+    inFlight.current = write
+      .mutateAsync({
+        params: { id: look.id },
+        input: {
+          // A saved look never carries working notes.
+          ...rackUpdate(next, { keepEdits: status === 'draft' }),
+          ...(status === 'suggested' ? { keepSuggested: true } : {}),
+        },
+      })
+      .then((updated) => {
+        if (status === 'draft') return;
+        track('look_updated', { pieces: updated.pieces.length });
+        if (status === 'saved') setSaves((n) => n + 1);
+      })
+      .catch(() => undefined);
   };
 
   // A swap is something she told Robes: it lands in her memory (style memory slice B). What comes
@@ -146,11 +145,7 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     });
   };
 
-  const mark = (key: string): RowMark | null => {
-    const note = rowNote(rack, key);
-    if (note) return note;
-    return !live && editing && !original.has(key) ? { kind: 'added' } : null;
-  };
+  const mark = (key: string): RowMark | null => rowNote(rack, key);
 
   return {
     // Five drafts wait: the page asks; letGo retries with the oldest let go, keep undoes the edit.
@@ -165,12 +160,14 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
       setRack(rackFromLook(look));
     },
     rack,
-    editing,
-    dirty,
     saving: write.isPending,
-    changed: changedKeys(rack).length > 0,
+    // How many of her changes to a saved look have been kept: each raises its Saved tick.
+    saves,
+    // Resolves once the rack is on the look as she left it.
+    written: async (): Promise<void> => {
+      await inFlight.current;
+    },
     mark,
-    startEditing: () => setEditing(true),
     rename: (name: string) => write.mutate({ params: { id: look.id }, input: { name } }),
     // The picture drawn again for the rack as it stands: Robes' frame, else her model. Resolves
     // once the job is started; the look then reads pending until it lands.
@@ -192,14 +189,11 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     answer: (result: LookAskResult) => {
       if (askChanges(result)) change(applyAsk(rack, result));
     },
-    // A swap lands at once behind a 6 s Undo that puts the rack back (beta's swap pill). A draft
-    // writes the rack back (its rack is re-read from the server after each write); a saved look
-    // being edited goes back to how it stood, unsaved changes and all, unless she has changed it
-    // again since (L5, L10).
+    // A swap lands at once behind a 6 s Undo that writes the rack back as it stood (beta's swap
+    // pill; the rack is re-read from the server after each write).
     swap: (key: string, into: SwapIn) => {
       const piece = 'piece' in into ? into.piece : into.wish;
       const before = rack;
-      const wasDirty = dirty;
       const next = swapped(key, into);
       track('piece_swapped', { surface: look.status, cat: piece.category });
       change(next);
@@ -207,15 +201,7 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
         message: lookbook.swap.swapped(piece.label),
         action: {
           label: wardrobe.undo,
-          onAction: () => {
-            if (live) {
-              change(before);
-              return;
-            }
-            if (current.current !== next) return;
-            setRack(before);
-            setDirty(wasDirty);
-          },
+          onAction: () => change(before),
         },
       });
     },
@@ -225,26 +211,6 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
       const keys = new Set(rows.map((r) => r.key));
       const edits = Object.fromEntries(Object.entries(rack.edits).filter(([k]) => keys.has(k)));
       change({ ...rack, rows, edits }, filesOnly(current.current.rows, rows));
-    },
-    // The pieces Find the pieces read from her photograph (D1, Annie 26 Nov): they join the rack
-    // and are written at once, on a saved look too, so her model can be drawn wearing them. A
-    // saved look's own waiting changes are not written with them: they still wait for Update look.
-    addFound: (found: RackRow[]) => {
-      if (live) {
-        change({ ...current.current, rows: [...current.current.rows, ...found] });
-        return;
-      }
-      const kept = rackFromLook(look);
-      setRack((r) => ({ ...r, rows: [...r.rows, ...found] }));
-      inFlight.current = write
-        .mutateAsync({
-          params: { id: look.id },
-          input: {
-            ...rackUpdate({ ...kept, rows: [...kept.rows, ...found] }, { keepEdits: false }),
-            ...(look.status === 'suggested' ? { keepSuggested: true } : {}),
-          },
-        })
-        .catch(() => undefined);
     },
     // Everything she picked at once lands as ONE change: one write, one picture. Added one by
     // one, each add rebuilt the rack she opened the picker on and the last pick replaced the
@@ -283,7 +249,7 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
       });
       // A piece the look already holds is filed on the server as Save files it — its photo,
       // price and shop link — and marked there at once, so the rack waits on nothing and Save
-      // never files it twice. Only a row she has not kept yet (a change waiting for Update look)
+      // never files it twice. Only a row the look does not hold yet (its write still on the way)
       // is filed from what the rack knows.
       if (look.proposals.some((p) => p.key === key)) {
         void api
@@ -308,30 +274,6 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
         })
         .then((wish) => change(mark(rack, wish.id)))
         .catch(() => toast({ message: errors.internal }));
-    },
-    // Saved look: Update commits the rack (working notes drop); Done/Discard leaves it as it was.
-    // `quiet`: kept on Robes' own account after a prompt change, so no toast says so.
-    update: (quiet = false): Promise<boolean> =>
-      write
-        .mutateAsync({
-          params: { id: look.id },
-          input: {
-            ...rackUpdate(rack, { keepEdits: false }),
-            ...(look.status === 'suggested' ? { keepSuggested: true } : {}),
-          },
-        })
-        .then((updated) => {
-          track('look_updated', { pieces: updated.pieces.length });
-          setDirty(false);
-          setEditing(false);
-          if (!quiet) toast({ message: lookbook.updated, duration: 2600 });
-          return true;
-        })
-        .catch(() => false),
-    discard: () => {
-      setRack(rackFromLook(look));
-      setDirty(false);
-      setEditing(false);
     },
   };
 }

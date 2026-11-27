@@ -226,8 +226,8 @@ test('the saved look says the day it is pinned for, each piece its wears, each w
   expect(await screen.findByText('Tue 8 Sep')).toBeTruthy();
 });
 
-// Felix 3e (D17): a saved look edits in place. Its changes wait for Update look; leaving with any
-// asks first.
+// Felix 3e (D17): a saved look edits in place. What she changes by hand is kept as she makes it,
+// under a Saved tick; nothing waits and leaving never asks (Annie, 27 Nov).
 const JEANS = '99999999-9999-4999-8999-999999999999';
 const ASK_JOB = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const twoPieces = () =>
@@ -240,7 +240,7 @@ const twoPieces = () =>
         role: null,
       },
     ],
-    // Already on her model, so opening it draws nothing; only Update look does.
+    // Already on her model, so opening it draws nothing; only the pill on its picture does.
     model: piece().image,
     onModel: 'ready',
   });
@@ -253,9 +253,12 @@ const editRoutes = (mine: Look) => ({
   }),
   [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => {
     const body = JSON.parse(String(init.body)) as { pieces: { pieceId: string }[] };
+    const pieces = mine.pieces.filter((p) => body.pieces.some((b) => b.pieceId === p.piece.id));
     return {
       ...mine,
-      pieces: mine.pieces.filter((p) => body.pieces.some((b) => b.pieceId === p.piece.id)),
+      pieces,
+      // The picture is behind once the rack's pieces differ from the ones it was drawn wearing.
+      pictureStale: pieces.length !== mine.pieces.length,
       updatedAt: new Date().toISOString(),
     };
   },
@@ -329,57 +332,42 @@ test('3e edits in place: no Edit chip, the pencil reveals swap and ×, and no st
   expect(mockRouter.push).not.toHaveBeenCalled();
 });
 
-test('a change turns the foot to Update look: back asks Discard your changes?, Update applies it in place', async () => {
+test('a change by hand is kept as she makes it: a Saved tick, Schedule look stays, the pill updates the model', async () => {
   const calls = mockFetch(editRoutes(twoPieces()));
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByTestId('rack-pencil'));
+  expect(screen.queryByTestId('saved-tick')).toBeNull();
+  expect(screen.queryByTestId('model-pill')).toBeNull();
   await fireEvent.press(
     screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
-  // One button at the foot (PRD §6.1): Update look takes Schedule look's place while it waits.
-  expect(screen.getByTestId('update-look')).toBeTruthy();
-  expect(screen.getAllByRole('button', { name: lookbook.draftLook.update })).toHaveLength(1);
-  expect(screen.queryByTestId('schedule-look')).toBeNull();
-  expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
-  // Leaving with the change unapplied asks first; Keep editing stays.
-  await fireEvent.press(screen.getByTestId('saved-look-back'));
-  expect(await screen.findByText(lookbook.draftLook.discardEdit.title)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: lookbook.draftLook.discard.keep }));
-  expect(mockRouter.back).not.toHaveBeenCalled();
-  // Update writes the rack, then draws the picture for it; she stays on the look.
-  await fireEvent.press(screen.getByTestId('update-look'));
-  await waitFor(() =>
-    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBe(true),
-  );
-  const patch = calls.find((c) => c.method === 'PATCH')?.body as { pieces: unknown[] };
-  expect(patch.pieces).toEqual([{ pieceId: PIECE_ID, role: null }]);
-  expect(calls.findIndex((c) => c.method === 'PATCH')).toBeLessThan(
-    calls.findIndex((c) => c.method === 'POST' && c.path.endsWith('/render')),
-  );
-  expect(await screen.findByText(lookbook.updated)).toBeTruthy();
-  await waitFor(() => expect(screen.queryByTestId('update-look')).toBeNull());
+  // Written there and then, with no button pressed and no working notes; the tick says so.
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
+    pieces: [{ pieceId: PIECE_ID, role: null }],
+    proposals: [],
+    styling: {},
+  });
+  expect(
+    within(await screen.findByTestId('saved-tick')).getByText(lookbook.draft.saved),
+  ).toBeTruthy();
+  expect(track).toHaveBeenCalledWith('look_updated', { pieces: 1 });
+  // One ink button at the foot, always Schedule look: no Update look, no toast.
   expect(screen.getByTestId('schedule-look')).toBeTruthy();
-  expect(mockRouter.back).not.toHaveBeenCalled();
-  // Nothing waits now: back leaves without a question.
+  expect(screen.queryByTestId('update-look')).toBeNull();
+  // Nothing is drawn for a change made by hand: the pill on the picture draws it when she asks.
+  const renders = () => calls.filter((c) => c.method === 'POST' && c.path.endsWith('/render'));
+  const pill = await screen.findByTestId('model-pill');
+  expect(within(pill).getByText(lookbook.draft.updateModel(1))).toBeTruthy();
+  await act(() => new Promise((r) => setTimeout(r, 1200)));
+  expect(renders()).toHaveLength(0);
+  await fireEvent.press(pill);
+  await waitFor(() => expect(renders()).toHaveLength(1));
+  expect(screen.queryByTestId('model-pill')).toBeNull();
+  // Nothing waits: back leaves without a question.
   await fireEvent.press(screen.getByTestId('saved-look-back'));
+  expect(screen.queryByRole('button', { name: lookbook.draftLook.discard.discard })).toBeNull();
   expect(mockRouter.back).toHaveBeenCalledTimes(1);
-});
-
-test('Discard drops the unapplied change and leaves; nothing is written', async () => {
-  const calls = mockFetch(editRoutes(twoPieces()));
-  await renderWithApi(<LookScreen id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByTestId('rack-pencil'));
-  await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
-  );
-  await fireEvent.press(screen.getByTestId('saved-look-back'));
-  await fireEvent.press(
-    await screen.findByRole('button', { name: lookbook.draftLook.discard.discard }),
-  );
-  expect(mockRouter.back).toHaveBeenCalledTimes(1);
-  // The rack stands as it was saved.
-  expect(screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') })).toBeTruthy();
-  expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
 });
 
 test('words sent from a saved look’s prompt are answered on the rack and kept, with no Update look', async () => {

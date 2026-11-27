@@ -35,7 +35,7 @@ export type StageUpdate = (update: (stage: ImageStage) => ImageStage) => void;
 // the dashed Add a photo card, which opens the camera that only adds an image — it never reads the
 // pieces. Add to look uploads the photograph and it settles into the strip, in focus; every card
 // has its × but the last one left. ✓ hands the card in view to the owner as the cover: a saved
-// look keeps the strip there and then (never waiting for Update look), a draft as it is saved. Opened from the Edit look drawer or Home's stack,
+// look keeps the strip there and then, a draft as it is saved. Opened from the Edit look drawer or Home's stack,
 // the Add a photo card is in focus. Native twin: mobile/src/features/looks/ImageManager.tsx.
 export function ImageManager({
   look,

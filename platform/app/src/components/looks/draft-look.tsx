@@ -26,6 +26,7 @@ import {
   dockStart,
   type ImageStage,
   isCaptureRow,
+  modelPill,
   nameNoBrand,
   pictureLanding,
   type RackRow,
@@ -97,18 +98,15 @@ import { WornView } from './worn-view';
 
 const copy = lookbook.draftLook;
 const d = lookbook.draft;
-// Picks made together dress the model once: the wait after the last before it is drawn.
-const DRESS_SETTLE_MS = 800;
 const focus =
   'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const TABS = [lookbook.savedLook.tabs.pieces, lookbook.savedLook.tabs.details] as const;
-// How long "Look updated" stands (Capture PRD 3.5).
-const UPDATED_MS = 2600;
+// How long the saved look's Saved tick stands after a change is kept.
+const SAVED_MS = 2600;
 type Tab = (typeof TABS)[number];
 
 // `drawer` over the screen that opened it; `page` on a deep link; `saved` is a saved look's own
-// page (Felix 3e: the back disc on the photo, Schedule look at the foot — Update look in its place
-// while a change waits, PRD §6.1; D17).
+// page (Felix 3e: the back disc on the photo, Schedule look at the foot; D17).
 export type DraftPresentation = 'drawer' | 'page' | 'saved';
 
 const pronoun = (m: Model | undefined) =>
@@ -137,13 +135,9 @@ function useSources(
   empty: boolean;
   toggle: (which: Source) => void;
   balance: Balance;
-  // Changed since the look was last applied (a saved look's Update, PRD §6.1).
-  changed: boolean;
-  settle: () => void;
 } {
   // `initial`: what she had chosen in the box her brief was sent from; the draft keeps it.
   const [chosen, setChosen] = useState<Sources | null>(initial);
-  const [applied, setApplied] = useState<Balance | null>(null);
   const count = owned ?? 1;
   const rest = defaultSources(count);
   const sources = chosen ?? rest;
@@ -153,8 +147,6 @@ function useSources(
     empty: owned === 0,
     toggle: (which) => setChosen(toggleSource(sources, which, count)),
     balance,
-    changed: chosen !== null && balance !== (applied ?? sourceBalance(rest)),
-    settle: () => setApplied(balance),
   };
 }
 
@@ -539,7 +531,7 @@ function Shell({
 }
 
 // A saved look's own page (3e): no header, the back disc rides the photo; the body runs to the
-// look's one bar, held at the foot (Schedule look, or Update look while a hand edit waits) above
+// look's one bar, held at the foot (Schedule look) above
 // the tab bar on a phone. The prompt floats over it: closed, the sparkle or its bar just above
 // the look's bar; opened, a sheet from the foot over a scrim, standing on the keyboard, and the
 // look's bar steps away (redline 14 Nov, pins 23 and 25).
@@ -1013,9 +1005,10 @@ function DraftBody({
       : router.replace(fromWish ? `/wardrobe/wishlist/${piece}` : `/piece/${piece}`);
   const queryClient = useQueryClient();
   const toast = useToast();
-  // A saved look is always in edit mode (D17): its changes wait for Update look. A suggestion is
-  // too (design "Suggested looks", 23 Nov): the saved look's anatomy, its changes kept by Save
-  // look, which saves it.
+  // A saved look is always in edit mode (D17): what she changes by hand is kept as she makes it,
+  // under a Saved tick, with no Update look and nothing to discard (Annie, 27 Nov). A suggestion is
+  // the saved look's anatomy (design "Suggested looks", 23 Nov): its changes are kept on it as it
+  // stays suggested, and Save look saves it. Native twin: DraftLook.tsx.
   const suggested = look.status === 'suggested';
   const mode: 'draft' | 'edit' = look.status === 'draft' ? 'draft' : 'edit';
   const letGo = useLetGo(lookbook.discarded);
@@ -1080,9 +1073,8 @@ function DraftBody({
           ? fb.placeholder
           : null;
   // A look from her photograph (Capture PRD 1c): The Rack finds, matches and adds its pieces.
-  // Her pieces found in the photograph dress her model at once, all of them in one picture and
-  // nothing filed (D1, Annie 26 Nov); a photograph whose pieces she never finds is never drawn.
-  const capture = useCaptureRack(look, editor, { onFound: () => adjustRef.current?.dress() });
+  // Finding them draws nothing (Annie, 27 Nov): the pill on the picture dresses her model.
+  const capture = useCaptureRack(look, editor);
   // A draft from her photograph is the photograph and its rack: no prompt card, no Generate.
   const captureDraft = capture.on && mode === 'draft';
   // The capture rack lists its pieces as they are found: the Rack's controls wait for the rack.
@@ -1183,79 +1175,29 @@ function DraftBody({
   const busy =
     adjust.busy || save.isPending || keepSuggestion.isPending || editor.saving || stack.committing;
   const words = prompt.trim();
-  // A saved look's edit: anything not yet applied with Update look (D17, D18). Her photographs
-  // and the cover are not among them: the strip's ✓ keeps them (keepStrip).
-  // Words in the prompt are not among them: the prompt sends and keeps its own changes.
-  const pending = mode === 'edit' && (editor.dirty || adjust.stale);
   // A look from her photograph saves at any point but while its pieces are being found (1c.10).
   const finding = capture.on && capture.stage === 'finding';
-  // A saved look's ✓ is Update look by another name: both wait, greyed, until something changes
-  // (Capture PRD 3.1, 3.5); × leaves.
-  const canDone =
-    mode === 'draft'
-      ? (rows.length > 0 || look.image !== null) && !busy && !finding
-      : pending && !busy;
-  // Update look keeps what she changed by hand: her photographs and the cover first, then the
-  // rack and a redraw for changed pieces. The cover she chose stays in front; a hidden Robes'
-  // picture comes back as the cover (D19).
-  const commit = async () => {
-    if (!(await stack.commit())) return;
-    if (editor.dirty) {
-      if (!(await editor.update())) return;
-    } else toast({ message: lookbook.updated, duration: UPDATED_MS });
-    src.settle();
-    adjust.drawForSave();
-  };
-  const apply = () => {
-    if (mode !== 'edit' || busy || !pending) return;
-    void commit();
-  };
+  const canDone = mode === 'draft' && (rows.length > 0 || look.image !== null) && !busy && !finding;
   const saveSuggestion = async () => {
     if (!suggested || busy) return;
-    if (editor.dirty && !(await editor.update(true))) return;
+    await editor.written();
     adjust.drawForSave();
     keepSuggestion.mutate({ params: { id: look.id }, input: {} });
   };
-  // A saved look's prompt keeps its own change (redline 14 Nov, pin 25): once Robes has answered
-  // on the rack, the rack is written and the model wears it, with no button and nothing said.
-  // `keeping`: the change is being written, between Robes' answer and the redraw it starts, so
-  // Robes is still at work there (25 Nov: Robes' work dropped for that moment and the dock folded
-  // twice on one send). Native twin: DraftLook.tsx.
-  const [applying, setApplying] = useState<'asked' | 'reading' | 'keeping' | null>(null);
-  const keep = async () => {
-    if (!(await editor.update(true))) return;
-    src.settle();
-    adjust.drawNow();
-  };
-  useEffect(() => {
-    if (applying === 'asked' && adjust.busy) setApplying('reading');
-    if (applying === 'reading' && !adjust.busy) {
-      if (!editor.dirty) {
-        setApplying(null);
-        return;
-      }
-      setApplying('keeping');
-      void keep().finally(() => setApplying(null));
-    }
-  });
+  // A draft's ✓: Save look.
   const done = () => {
     if (!canDone) return;
-    if (mode === 'draft') {
-      // A draft's photographs are kept as it is saved.
-      void stack.commit().then((ok) => {
-        if (!ok) return;
-        // A look from her photograph is drawn only once its pieces were found (D1); after
-        // that, Save draws what is behind as it does for any draft.
-        if (!capture.on || (look.onModel ?? null) !== null) adjust.drawForSave();
-        save.mutate({ params: { id: look.id }, input: forDay ? { date: forDay } : {} });
-      });
-      return;
-    }
-    apply();
+    // A draft's photographs are kept as it is saved.
+    void stack.commit().then((ok) => {
+      if (!ok) return;
+      // A look from her photograph that was never dressed is saved as her photograph; a picture
+      // already drawn is brought up to the rack as the look is saved, as for any draft.
+      if (!capture.on || (look.onModel ?? null) !== null) adjust.drawForSave();
+      save.mutate({ params: { id: look.id }, input: forDay ? { date: forDay } : {} });
+    });
   };
   // The strip's ✓ (design "Add a photo to a look"): the card in focus goes in front. A saved
-  // look keeps its photographs and cover there and then, never waiting for Update look; a
-  // draft's are kept as it is saved.
+  // look keeps its photographs and cover there and then; a draft's are kept as it is saved.
   const keepStrip = (front: StageCard | null) => {
     const next = front ? stageInFront(stack.stage, front) : stack.stage;
     if (mode === 'draft') {
@@ -1268,9 +1210,14 @@ function DraftBody({
     });
   };
   const close = () => {
-    // A strip left open without its ✓ still asks, so a photo she added is never lost unasked.
-    if (mode === 'edit' && !pending && !stack.changed) {
-      onClose();
+    // A saved look has nothing waiting: its pieces are kept as she changes them, and a strip left
+    // open without its ✓ is kept as she leaves, so a photo she added is never lost.
+    if (mode === 'edit') {
+      if (!stack.changed) onClose();
+      else
+        void stack.commit().then((ok) => {
+          if (ok) onClose();
+        });
       return;
     }
     // A photograph she has done nothing with yet is let go without a question (PRD 1c.10).
@@ -1282,13 +1229,6 @@ function DraftBody({
   };
   const discard = () => {
     setConfirm(null);
-    if (mode === 'edit') {
-      setPrompt('');
-      editor.discard();
-      stack.reset();
-      onClose();
-      return;
-    }
     letGo(look.id);
     if (forDay) router.replace(dayReturn(forDay));
     else if (from) toPiece(from);
@@ -1300,42 +1240,32 @@ function DraftBody({
     router.replace(suggested ? '/looks?tab=suggested' : '/looks');
   };
   // The box's send (look prompt PRD P2): her words go through the thread and the picture is drawn
-  // once the rack is answered. The drawer stays open on the conversation, capped so the look shows
-  // above it (look prompt improvements B6, Annie 16 Nov).
-  const generate = () => {
-    if (busy || (!words && !picked)) return;
+  // once the rack is answered, on a draft and a saved look alike: a change made through the prompt
+  // never waits, one message one redraw. The drawer stays open on the conversation, capped so the
+  // look shows above it (look prompt improvements B6, Annie 16 Nov).
+  const send = () => {
+    if (busy || (!words && !picked) || (mode === 'edit' && rows.length === 0)) return;
     adjust.send(words, { ...sendOpts, draw: true });
     setPrompt('');
   };
-  // A saved look's send asks, and what Robes changes is kept and drawn as it lands.
-  const ask = () => {
-    if (busy || (!words && !picked) || rows.length === 0) return;
-    if (adjust.send(words, sendOpts)) setApplying('asked');
-    setPrompt('');
-  };
-  // A draft's model wears the rack as she builds it (Annie, 16 Nov): pieces added, swapped or
-  // taken off by hand dress it at once, the picks of one moment in one picture, and a draft that
-  // has pieces but no picture yet is dressed as it opens. Not while a picture is being drawn, nor
-  // again after one failed; Robes' own photograph is the picture of a look it made. A captured
-  // draft is first dressed when its pieces are found (`onFound`, D1); from then on it is dressed
-  // exactly as a hand-built one, each piece matched, added or taken off drawn as it lands (Annie,
-  // 26 Nov). Filing a found piece changes nothing it wears, so it draws nothing. Before its first
-  // picture her photograph is its only one. A saved look's changes still wait for Update look (D17).
+  // Her model is drawn when she asks (Annie, 27 Nov; supersedes "wears the rack as she builds
+  // it", 16 Nov): a piece added, swapped, matched or taken off by hand draws nothing, on any
+  // look, and the pill on the picture draws everything at once, its first picture or the one
+  // that catches up with her changes (`modelPill`). Filing a found piece changes nothing the
+  // picture wears, so it never raises the pill. Robes made none of a look she builds by hand.
   // Native twin: DraftLook.tsx.
   const handBuilt = mode === 'draft' && !captureDraft && !look.frame && rows.length > 0;
-  const undressed = look.model === null && (look.onModel ?? null) === null;
-  const drawnCapture = captureDraft && rows.length > 0 && (look.onModel ?? null) !== null;
-  const toDress =
-    (handBuilt || drawnCapture) &&
-    !adjust.busy &&
-    look.onModel !== 'pending' &&
-    (adjust.stale || undressed);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: another pick restarts the wait
-  useEffect(() => {
-    if (!toDress) return;
-    const t = setTimeout(() => adjustRef.current?.dress(), DRESS_SETTLE_MS);
-    return () => clearTimeout(t);
-  }, [toDress, adjust.badge]);
+  const pillKind = modelPill(look, {
+    rows: rows.length,
+    stale: adjust.stale,
+    drawing: adjust.busy,
+  });
+  const pill = pillKind
+    ? {
+        label: pillKind === 'dress' ? d.modelAsked : d.updateModel(adjust.badge || 1),
+        onClick: adjust.drawModel,
+      }
+    : null;
   const dialog =
     confirm === 'delete'
       ? {
@@ -1352,18 +1282,8 @@ function DraftBody({
         }
       : confirm === 'discard'
         ? {
-            title:
-              mode === 'edit'
-                ? copy.discardEdit.title
-                : captureDraft
-                  ? copy.capture.discard.title
-                  : copy.discard.title,
-            message:
-              mode === 'edit'
-                ? copy.discardEdit.body
-                : captureDraft
-                  ? copy.capture.discard.body
-                  : copy.discard.body,
+            title: captureDraft ? copy.capture.discard.title : copy.discard.title,
+            message: captureDraft ? copy.capture.discard.body : copy.discard.body,
             actions: [
               { label: copy.discard.discard, variant: 'primary' as const, onClick: discard },
               {
@@ -1371,9 +1291,7 @@ function DraftBody({
                 variant: 'outline' as const,
                 onClick: () => setConfirm(null),
               },
-              ...(mode === 'draft'
-                ? [{ label: copy.discard.later, variant: 'quiet' as const, onClick: onClose }]
-                : []),
+              { label: copy.discard.later, variant: 'quiet' as const, onClick: onClose },
             ],
           }
         : null;
@@ -1490,9 +1408,7 @@ function DraftBody({
   }, [verdict]);
   const hasThread = adjust.state.thread.length > 0 || adjust.state.question !== null;
   const lastLine = adjust.state.thread.at(-1);
-  // While her change is written, before its redraw starts, Robes is still dressing it.
-  const keeping = applying === 'keeping' && lastLine?.who !== 'work';
-  const working = lastLine?.who === 'work' || keeping;
+  const working = lastLine?.who === 'work';
   const said =
     (lastLine?.who === 'robes' || lastLine?.who === 'filed') && lastLine.text !== d.modelDone
       ? lastLine
@@ -1507,21 +1423,18 @@ function DraftBody({
     name: nameNoBrand(r.name, r.brand),
     image: imageOf(r) ?? null,
   }));
-  // On the saved look's page the resting sparkle stands beside its one button (design 2c), while
-  // that button stands (not while a prompt change is being kept).
-  const besideButton = presentation === 'saved' && dock === 'spark' && applying === null;
+  // On the saved look's page the resting sparkle stands beside its one button (design 2c).
+  const besideButton = presentation === 'saved' && dock === 'spark';
   const dockNode = captureDraft ? null : (
     <PromptDock
       state={dock}
       first={!hasThread}
       line={
-        keeping
-          ? d.dressing
-          : working
-            ? (lastLine?.text ?? null)
-            : verdict === 'down'
-              ? fb.change
-              : (adjust.state.question ?? said?.text ?? null)
+        working
+          ? (lastLine?.text ?? null)
+          : verdict === 'down'
+            ? fb.change
+            : (adjust.state.question ?? said?.text ?? null)
       }
       working={working}
       thumbs={verdict === 'ask' ? <Thumbs adjust={adjust} /> : null}
@@ -1590,7 +1503,7 @@ function DraftBody({
         onEmpty={() => move('minimise')}
         value={prompt}
         onChange={setPrompt}
-        onSend={mode === 'edit' ? ask : generate}
+        onSend={send}
         busy={busy}
       />
     </PromptDock>
@@ -1605,13 +1518,9 @@ function DraftBody({
       }
     : null;
   const footButton =
-    // While the prompt is open or keeping its change there is no button at all (pin 25).
-    mode === 'edit' &&
-    (dock !== 'spark' ||
-      applying !==
-        null) ? undefined : // A saved look's one button (PRD rev 3 §6.1): Schedule look at rest, Update look while a
-    // hand edit waits — never both. Native twin: DraftLook.tsx's footer.
-    suggested ? (
+    // While the prompt is open there is no button at all (pin 25). Native twin: DraftLook.tsx's
+    // footer.
+    mode === 'edit' && dock !== 'spark' ? undefined : suggested ? (
       // A suggestion's one button (design "Suggested looks" 03): Save look, her changes and all.
       <Button
         variant="primary"
@@ -1624,32 +1533,31 @@ function DraftBody({
         <Icon name="bookmark" size={13} />
         {lookbook.suggestedLook.save}
       </Button>
-    ) : presentation === 'saved' && !pending ? (
+    ) : presentation === 'saved' ? (
+      // A saved look's one ink button (PRD rev 3 §6.1): Schedule look. A draft has none.
       <Button variant="primary" block onClick={() => setDiary(true)} data-testid="schedule-look">
         {lookbook.savedLook.schedule}
       </Button>
-    ) : mode === 'edit' ? (
-      // The Edit look drawer's one accept (3k): she stays to see it land.
-      <Button
-        variant="primary"
-        block
-        onClick={apply}
-        aria-disabled={!pending || busy}
-        className={!pending || busy ? 'opacity-40' : undefined}
-        data-testid="update-look"
-      >
-        {copy.update}
-        <Icon name="undo" size={12} className="-scale-x-100" />
-      </Button>
     ) : undefined;
+  // At the end of the Pieces · Details line: a saved look's Saved tick, then the Rack's controls.
+  const savedTick = mode === 'edit' && !suggested ? <SavedTick saves={editor.saves} /> : null;
+  const rackControls =
+    tab === TABS[0] && rows.length > 0 && !capturePieces ? (
+      <RackControls
+        layout={rackLayout}
+        onLayout={setRackLayout}
+        editing={editingPieces}
+        onEditing={setEditingPieces}
+      />
+    ) : null;
   return (
     <Shell
       presentation={presentation}
       title={mode === 'edit' ? copy.editTitle : copy.title}
       h1={look.name}
       onClose={close}
-      // One confirm per screen (audit P1): Edit look's accept is Update look at the foot, so its
-      // header carries no ✓; a draft keeps the header ✓ that saves it.
+      // A saved look keeps each change as she makes it, so its header carries no ✓; a draft keeps
+      // the header ✓ that saves it.
       done={
         mode === 'edit'
           ? null
@@ -1689,6 +1597,7 @@ function DraftBody({
             ? { signed: lookbook.suggestedTile.by }
             : { onImages: () => setManaging(true) })}
           onRetry={adjust.updateModel}
+          pill={pill}
           stage={stack.stage}
           {...(presentation === 'saved' ? { onBack: close } : {})}
         />
@@ -1704,13 +1613,11 @@ function DraftBody({
           }}
           label={lookbook.savedLook.tabs.pieces}
           trailing={
-            tab === TABS[0] && rows.length > 0 && !capturePieces ? (
-              <RackControls
-                layout={rackLayout}
-                onLayout={setRackLayout}
-                editing={editingPieces}
-                onEditing={setEditingPieces}
-              />
+            savedTick || rackControls ? (
+              <span className="flex items-center gap-3">
+                {savedTick}
+                {rackControls}
+              </span>
             ) : undefined
           }
         />
@@ -1883,6 +1790,30 @@ function DraftBody({
   );
 }
 
+// A saved look's Saved tick (Annie, 27 Nov): it stands for a moment each time a change she made
+// is kept, in place of Update look and its toast. Native twin: DraftLook.tsx SavedTick.
+function SavedTick({ saves }: { saves: number }) {
+  const [shown, setShown] = useState(false);
+  const seen = useRef(saves);
+  useEffect(() => {
+    if (saves === seen.current) return;
+    seen.current = saves;
+    setShown(true);
+    const t = setTimeout(() => setShown(false), SAVED_MS);
+    return () => clearTimeout(t);
+  }, [saves]);
+  return (
+    <span role="status" className="inline-flex items-center gap-1 font-sans text-ink-muted text-xs">
+      {shown ? (
+        <span className="inline-flex items-center gap-1" data-testid="saved-tick">
+          <Icon name="check" size={12} />
+          {d.saved}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function ReadingChip() {
   return (
     <span
@@ -1895,8 +1826,9 @@ function ReadingChip() {
 }
 
 // The picture: Robes' frame or her model wearing the rack — the model's base layer before
-// anything is drawn — full-bleed at 4:5 on `cream-100`. Stale (dimmed, with the count it is
-// behind) until she asks; scanned while it is drawn; the image stack bottom-right opens the
+// anything is drawn — full-bleed at 4:5 on `cream-100`. Stale (dimmed) until she asks through
+// its pill, which draws her model's first picture or brings it up to the rack (`modelPill`);
+// scanned while it is drawn; the image stack bottom-right opens the
 // ImageManager. It carries no styling control: changes go through the prompt (docked prompt M1).
 function DraftPhoto({
   look,
@@ -1909,6 +1841,7 @@ function DraftPhoto({
   onImages,
   signed,
   onRetry,
+  pill,
   stage,
   onBack,
 }: {
@@ -1924,6 +1857,9 @@ function DraftPhoto({
   // A suggestion's pill bottom-left: Suggested by Robes.
   signed?: string;
   onRetry: () => void;
+  // The pill that draws her model wearing the rack as it stands; null while the picture is
+  // current or being drawn.
+  pill: { label: string; onClick: () => void } | null;
   // What she has done in image mode and not yet applied: its front card shows here.
   stage: ImageStage;
   // The saved look's page (3e): the back disc top-left is the way out.
@@ -2018,6 +1954,18 @@ function DraftPhoto({
           className={`absolute top-3 right-3 z-10 min-h-11 rounded-pill border border-hairline bg-bg/90 px-3 font-sans text-ink text-xs ${focus}`}
         >
           {lookbook.figure.undressed(pronoun)}
+        </button>
+      ) : null}
+      {pill ? (
+        // Bottom centre; clear of a suggestion's own pill, bottom left.
+        <button
+          type="button"
+          onClick={pill.onClick}
+          data-testid="model-pill"
+          className={`absolute left-1/2 z-10 inline-flex h-9 -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-pill bg-surface-raised pr-4 pl-3 font-medium font-sans text-[9px] text-ink uppercase leading-none tracking-[0.22em] shadow-float after:absolute after:-inset-1 after:content-[''] ${signed ? 'bottom-14' : 'bottom-2.5'} ${focus}`}
+        >
+          <Icon name="looks" size={14} className="text-accent-warm" />
+          {pill.label}
         </button>
       ) : null}
       {signed ? (
