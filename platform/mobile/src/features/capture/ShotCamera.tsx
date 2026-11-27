@@ -4,7 +4,7 @@ import { fonts, MIN_TOUCH, maxFontSizeMultiplier, useToast } from '@robes/ui-nat
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { pickFromRoll } from '@/features/wardrobe/add/flow';
 import { downscale } from '@/features/wardrobe/camera-capture';
@@ -24,6 +24,7 @@ export interface ShotCameraCopy {
   close: string;
   shutter: string;
   photos: string;
+  adding: string;
   hint: string;
   next: string;
   full: string;
@@ -35,14 +36,23 @@ export interface ShotCameraCopy {
   taken: (n: number) => string;
   // Set when a tap on a thumbnail takes that photograph off the strip (onboarding R-5.2).
   remove?: string;
+  // Set when the caller uploads each shot and passes its `upload` state: the pill counts what has
+  // landed while any is on its way, and a thumbnail that failed says so.
+  uploaded?: (n: number, total: number) => string;
+  notUploaded?: string;
+  // Said when `onAdd` turned photos away because they were already in (onboarding: no photo twice).
+  already?: string;
 }
 
 export interface CameraShot {
   key: string;
   uri: string;
+  // Still uploading (a spinner where the tick goes) or given up (left out of `done`'s count).
+  upload?: 'pending' | 'failed';
 }
 
-export type CameraPhoto = { uri: string; width: number; height: number };
+// `source`: which library photo it is, when it came from her photos (a camera shot has none).
+export type CameraPhoto = { uri: string; width: number; height: number; source?: string };
 
 // The camera for several photographs (Capture PRD 3c.2; canvas frame 3c), shared by Wardrobe ›
 // Photo and Getting to know you's Saved looks and Pieces you love: the viewfinder stays open
@@ -68,7 +78,8 @@ export function ShotCamera({
   shots: readonly CameraShot[];
   max: number;
   canDone: boolean;
-  onAdd: (photo: CameraPhoto) => void;
+  // False turns the photo away (the caller already has it); anything else takes it.
+  onAdd: (photo: CameraPhoto) => unknown;
   onRemove?: (key: string) => void;
   onDone: () => void;
   onClose: () => void;
@@ -81,6 +92,17 @@ export function ShotCamera({
   const [shooting, setShooting] = useState(false);
   const [flash, setFlash] = useState(0);
   const asked = useRef(false);
+  // Her photos chosen and on their way: iOS prepares every one before the picker answers, which
+  // for ten takes seconds, so a waiting tile shows at once. A pick that answers after the camera
+  // has closed is dropped: closing and choosing again doubled the sitting (25 Nov).
+  const [adding, setAdding] = useState(false);
+  const open = useRef(true);
+  useEffect(() => {
+    open.current = true;
+    return () => {
+      open.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain && !asked.current) {
@@ -90,6 +112,8 @@ export function ShotCamera({
   }, [permission, requestPermission]);
 
   const full = shots.length >= max;
+  const pending = shots.filter((s) => s.upload === 'pending').length;
+  const savable = shots.filter((s) => s.upload !== 'failed').length;
   const rolled = useRef(false);
   useEffect(() => {
     if (!rollFirst || rolled.current) return;
@@ -114,8 +138,25 @@ export function ShotCamera({
   }
 
   async function roll() {
-    const picked = await pickFromRoll();
-    for (const photo of (picked ?? []).slice(0, Math.max(0, max - shots.length))) onAdd(photo);
+    if (adding) return;
+    setAdding(true);
+    try {
+      const picked = await pickFromRoll();
+      if (!open.current) return;
+      // A photo turned away takes no room: the strip fills with ones that are new.
+      let room = max - shots.length;
+      let turned = 0;
+      for (const photo of picked ?? []) {
+        if (room <= 0) break;
+        if (onAdd(photo) === false) turned++;
+        else room--;
+      }
+      if (turned && copy.already) toast.show({ message: copy.already });
+    } catch {
+      if (open.current) toast.show({ message: copy.failed });
+    } finally {
+      if (open.current) setAdding(false);
+    }
   }
 
   const refused = !!permission && !permission.granted && !permission.canAskAgain;
@@ -195,13 +236,25 @@ export function ShotCamera({
         style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 36 }}
         className="gap-4"
       >
-        <CamPill text={full ? copy.full : shots.length ? copy.next : copy.hint} />
+        <CamPill
+          text={
+            adding
+              ? copy.adding
+              : pending && copy.uploaded
+                ? copy.uploaded(shots.length - pending, shots.length)
+                : full
+                  ? copy.full
+                  : shots.length
+                    ? copy.next
+                    : copy.hint
+          }
+        />
         {/* The sitting so far: each shot with its sage tick, newest at the right. */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           accessibilityLabel={copy.taken(shots.length)}
-          style={{ height: 60, opacity: shots.length ? 1 : 0 }}
+          style={{ height: 60, opacity: shots.length || adding ? 1 : 0 }}
           contentContainerStyle={{ gap: 8, paddingHorizontal: 28 }}
         >
           {shots.map((shot) => (
@@ -210,7 +263,13 @@ export function ShotCamera({
               testID="piece-camera-thumb"
               accessible={!!onRemove}
               accessibilityRole={onRemove ? 'button' : undefined}
-              accessibilityLabel={onRemove ? copy.remove : undefined}
+              accessibilityLabel={
+                onRemove
+                  ? shot.upload === 'failed' && copy.notUploaded
+                    ? `${copy.notUploaded}. ${copy.remove}`
+                    : copy.remove
+                  : undefined
+              }
               disabled={!onRemove}
               onPress={() => onRemove?.(shot.key)}
               style={{
@@ -226,23 +285,64 @@ export function ShotCamera({
                 source={{ uri: shot.uri }}
                 contentFit="cover"
                 accessible={false}
-                style={{ width: '100%', height: '100%' }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  opacity: shot.upload === 'failed' ? 0.5 : 1,
+                }}
               />
+              {/* The sage tick once it has landed; until then a spinner, and a rose mark if it
+                  couldn't. */}
               <View
+                testID={shot.upload ? `piece-camera-thumb-${shot.upload}` : undefined}
                 style={{
                   position: 'absolute',
                   right: 2,
                   bottom: 2,
                   width: 16,
                   height: 16,
-                  backgroundColor: palette.sage,
+                  backgroundColor:
+                    shot.upload === 'pending'
+                      ? CAM_INK
+                      : shot.upload === 'failed'
+                        ? palette.rose
+                        : palette.sage,
                 }}
                 className="items-center justify-center rounded-pill"
               >
-                <Icon name="check" size={10} color={palette.white} />
+                {shot.upload === 'pending' ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={palette.white}
+                    style={{ transform: [{ scale: 0.55 }] }}
+                  />
+                ) : (
+                  <Icon
+                    name={shot.upload === 'failed' ? 'alert' : 'check'}
+                    size={10}
+                    color={palette.white}
+                  />
+                )}
               </View>
             </Pressable>
           ))}
+          {adding ? (
+            <View
+              accessibilityLabel={copy.adding}
+              testID="piece-camera-adding"
+              style={{
+                width: 48,
+                height: 60,
+                borderRadius: 4,
+                borderWidth: 1.5,
+                borderColor: palette.white,
+                backgroundColor: `${palette.cream50}26`,
+              }}
+              className="items-center justify-center"
+            >
+              <ActivityIndicator size="small" color={palette.white} />
+            </View>
+          ) : null}
         </ScrollView>
         <View
           pointerEvents="box-none"
@@ -254,6 +354,7 @@ export function ShotCamera({
               icon="image"
               label={copy.photos}
               onPress={() => void roll()}
+              disabled={adding}
               size={48}
               testID="piece-camera-photos"
             />
@@ -268,7 +369,7 @@ export function ShotCamera({
             {shots.length ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={copy.done(shots.length)}
+                accessibilityLabel={copy.done(savable)}
                 accessibilityState={{ disabled: !canDone }}
                 disabled={!canDone}
                 onPress={onDone}
@@ -289,7 +390,7 @@ export function ShotCamera({
                   maxFontSizeMultiplier={maxFontSizeMultiplier.control}
                   style={{ ...LABEL, color: CAM_CREAM }}
                 >
-                  {copy.done(shots.length)}
+                  {copy.done(savable)}
                 </Text>
               </Pressable>
             ) : null}

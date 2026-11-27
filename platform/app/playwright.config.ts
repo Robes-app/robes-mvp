@@ -28,6 +28,8 @@ export default defineConfig({
       MEDIA_S3_ENDPOINT: E2E_MEDIA_ENDPOINT,
       // Dev-only SEC-40 escape hatch so inbox.spec can import from its local fixture page.
       ALLOW_PRIVATE_FETCH: '1',
+      // Specs start from an empty Lookbook whatever the date; seeding has its own tests.
+      SEEDS_OFF: '1',
       // location.spec's stand-in geocoder; never Nominatim from a test.
       REVERSE_GEOCODE_URL: E2E_GEOCODE_URL,
       // Dummy key: consent.spec intercepts the PostHog host and proves nothing loads before consent.

@@ -49,6 +49,17 @@ export const wardrobe = {
     saved: 'Saved.',
     remove: 'Remove from wardrobe',
     stylePiece: 'Style this piece',
+    // The sparkle's box on her piece (Style a piece → draft look, handoff 24 Nov): the piece as a
+    // chip over the sources and her words; sent empty, the piece is the request.
+    style: {
+      placeholder: 'Style it for…',
+      // "{Category} · {Brand}", or the category alone.
+      sub: (category: string, brand: string | null | undefined): string =>
+        brand?.trim() ? `${category} · ${brand.trim()}` : category,
+      // Her line in the thread when she sends nothing; the name as `anchorName` gives it.
+      prompt: (name: string): string => `Style my ${name}`,
+      close: 'Close',
+    },
     // The record door leads with the photograph (legacy bc56305): the name carries a pencil
     // and the brand is its own tappable line, empty or not.
     addBrand: 'Add the brand',
@@ -387,6 +398,9 @@ export const wardrobe = {
       review: (n: number): string => `Review ${n}`,
       close: 'Close',
       photos: 'Choose from your photos',
+      // The strip's waiting tile, from the moment her photos are chosen until they arrive (the
+      // phone prepares them all before handing any over).
+      adding: 'Adding your photos…',
       shutter: 'Take photo',
       denied: 'Allow the camera in your settings to take a photo here.',
       // The sitting's limit (twelve photographs; each is read on its own).

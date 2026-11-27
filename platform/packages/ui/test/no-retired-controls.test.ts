@@ -11,11 +11,9 @@ import { describe, expect, it } from 'vitest';
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 
 const SEGMENTED_CALLERS = [
-  'app/src/app/(app)/you/model/twin-parts.tsx',
   'app/src/components/route-segments.tsx',
   'app/src/components/wardrobe/wardrobe-header.tsx',
   'mobile/src/features/wardrobe/WardrobeHeader.tsx',
-  'mobile/src/features/you/twin.tsx',
 ];
 
 const ALERT_CALLERS = [

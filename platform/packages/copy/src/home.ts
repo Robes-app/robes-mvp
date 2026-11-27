@@ -169,6 +169,12 @@ export const firstRun = {
   photosNote: 'Your photos are read by Google Gemini.',
   addMore: 'Add more',
   removePhoto: 'Remove this photo',
+  // The camera's pill while her photos are still on their way (Save N waits on the last of them).
+  uploaded: (n: number, total: number): string => `${n} of ${total} photos uploaded`,
+  // On a thumbnail whose photo couldn't upload: Save N leaves it out.
+  notUploaded: 'This photo couldn’t upload',
+  // When she chooses a photo that is already in this step: it isn't added twice.
+  already: 'Already added, so left out.',
   // 05 Saved looks: each photo saves as its own look.
   looks: {
     title: 'Saved looks',

@@ -32,6 +32,7 @@ function row(overrides: Partial<Row> = {}): Row {
     bytes: 1000,
     renditions: {},
     hasCutout: false,
+    catalogBase: null,
     createdAt: new Date(),
     ...overrides,
   };

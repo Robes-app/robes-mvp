@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mediaKeys, parseCutKey, parseOriginalKey } from './keys';
-import { renditionKeys } from './manifest';
+import { catalogRenditionKeys, renditionKeys } from './manifest';
 
 const USER = '11111111-1111-4111-8111-111111111111';
 const ASSET = '22222222-2222-4222-8222-222222222222';
@@ -16,6 +16,27 @@ describe('media key layout (infrastructure.md §5)', () => {
     expect(mediaKeys.generated(USER, ASSET, 2)).toBe(`generated/${USER}/${ASSET}/2.png`);
     expect(mediaKeys.userMediaPrefix(USER)).toBe(`media/${USER}/`);
     expect(mediaKeys.assetMediaPrefix(USER, ASSET)).toBe(`media/${USER}/${ASSET}/`);
+  });
+
+  it('keys a shared seed picture under its catalog base, and nowhere else', () => {
+    const manifest = { v: 1 as const, master: { width: 1500, height: 2000 }, widths: [320, 640] };
+    expect(catalogRenditionKeys('catalog/seeds/xmas-2026/xmas-01', manifest)).toEqual({
+      master: 'catalog/seeds/xmas-2026/xmas-01/master.jpg',
+      renditions: [
+        {
+          width: 320,
+          avif: 'catalog/seeds/xmas-2026/xmas-01/320.avif',
+          webp: 'catalog/seeds/xmas-2026/xmas-01/320.webp',
+        },
+        {
+          width: 640,
+          avif: 'catalog/seeds/xmas-2026/xmas-01/640.avif',
+          webp: 'catalog/seeds/xmas-2026/xmas-01/640.webp',
+        },
+      ],
+    });
+    expect(() => catalogRenditionKeys(`media/${USER}/${ASSET}`, manifest)).toThrow(/catalog/);
+    expect(() => catalogRenditionKeys('catalog/seeds/xmas-2026/../x', manifest)).toThrow();
   });
 
   it('refuses ids that could escape the prefix', () => {

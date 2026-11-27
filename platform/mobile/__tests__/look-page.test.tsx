@@ -34,7 +34,6 @@ test('a suggested name is renamed in Details › Caption, never a "Keep this nam
   // No title, no pencil, no facts line, no suggestion line, no eyebrow over the picture.
   expect(screen.queryByRole('button', { name: looks.page.rename })).toBeNull();
   expect(screen.queryByText(/pinned for/)).toBeNull();
-  expect(screen.queryByText(lookbook.eyebrow.saved)).toBeNull();
   expect(screen.queryByText('Robes’ suggestion')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Keep this name' })).toBeNull();
 
@@ -175,7 +174,7 @@ test('a re-draw that failed says so on the picture, and Try again asks once more
       swatches: { skin: [], hair: [] },
       skinSet: false,
       hairSet: false,
-      adj: { shoulders: null, bust: null, hips: null },
+      adj: { shoulders: null, bust: null, hips: null, waist: null },
       closeUpUrl: null,
       twin: { status: 'none', current: false, imageUrl: null },
       stand: { imageUrl: 'https://m.test/w-s4-h1-nt.png', generic: true },

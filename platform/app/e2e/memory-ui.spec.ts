@@ -126,14 +126,31 @@ test('Style DNA: her types, a brand, the investment level, a hard no and a fact'
   await expect(page.getByRole('button', { name: /^Your style rules.*2 lines/ })).toBeVisible();
 
   await page.goto('/you/model/body');
-  await page.getByRole('button', { name: 'The facts' }).click();
+  await page.getByRole('button', { name: 'Size, not set' }).click();
   const facts = page.getByRole('dialog', { name: 'The facts' });
-  await facts.getByRole('button', { name: 'More: Size' }).click();
-  await expect(facts.getByLabel('Size', { exact: true })).toHaveText('UK 10');
+  // A row opens its wheel in the same drawer, on the middle when she has given nothing.
+  await facts.getByRole('button', { name: 'Size, not set' }).click();
+  const size = page.getByRole('dialog', { name: 'Size' });
+  // The wheel scrolls (Annie, 25 Nov): two rows down from the middle settles on UK 14 and saves it.
+  await size.getByRole('listbox', { name: 'Size' }).evaluate((el) => el.scrollBy({ top: 88 }));
+  await expect
+    .poll(async () => (await (await page.request.get('/api/v1/me/dna')).json()).facts.sizeUk)
+    .toBe(14);
+  // A tap scrolls a value into the band and saves it.
+  await size.getByRole('option', { name: 'UK 10' }).click();
+  await size.getByRole('button', { name: 'Done' }).click();
+  await expect(facts.getByRole('button', { name: 'Size, UK 10' })).toBeVisible();
+  // A unit changes how it reads, never what is saved (handoff 24 Nov).
+  await facts
+    .getByRole('group', { name: 'Size units' })
+    .getByRole('button', { name: 'US' })
+    .click();
+  await expect(facts.getByRole('button', { name: 'Size, US 6' })).toBeVisible();
   // Title and fields only: age and gender live in Style DNA's You group (Annie, 7 Nov), never
   // behind Body shape.
   await expect(facts.getByRole('button', { name: '45–54' })).toHaveCount(0);
-  await page.keyboard.press('Escape');
+  await facts.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('button', { name: 'Size, US 6' })).toBeVisible();
   await page.goto('/you/style');
   await page.getByRole('button', { name: /^Age/ }).click();
   await page.getByRole('dialog', { name: 'Age' }).getByRole('radio', { name: '45–54' }).click();
@@ -146,6 +163,7 @@ test('Style DNA: her types, a brand, the investment level, a hard no and a fact'
     brands: ['Lemaire', 'Atelier Nouveau'],
     investment: '500_1500',
     facts: { sizeUk: 10, ageBand: '45_54' },
+    units: { size: 'us' },
   });
   expect(
     dna.brief.avoids.map((l: { text: string; chip: string | null }) => [l.text, l.chip]),

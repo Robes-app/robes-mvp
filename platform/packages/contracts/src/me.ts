@@ -260,7 +260,8 @@ const hair = z
   .max(HAIR_SWATCHES.length - 1);
 // Which of the five Robes models (plan 2026-11-05); null = never chosen, the first stands.
 export const RobesModelN = z.number().int().min(1).max(5);
-export const TwinAdj = z.object({ shoulders: stop, bust: stop, hips: stop });
+// His third scale is the waist (24 Nov); hers the hips. Each reads null where it is not offered.
+export const TwinAdj = z.object({ shoulders: stop, bust: stop, hips: stop, waist: stop });
 export type TwinAdj = z.infer<typeof TwinAdj>;
 
 export const Model = z.object({

@@ -5,6 +5,7 @@ import { repos } from '@/server/db';
 import { draftsFull } from '@/server/look-states';
 import { suggestedName, toLook, toLooks, withOwnedPieces } from '@/server/looks-entity';
 import { route } from '@/server/route';
+import { landSeeds } from '@/server/seeds';
 
 export const GET = route({
   auth: 'user',
@@ -13,6 +14,8 @@ export const GET = route({
   rateLimit: { key: 'looks.list', limit: 240, windowSeconds: 60 },
   handler: async ({ user, input }) => {
     const userId = verifiedUserId(user.id);
+    // A live seeded drop reaches her Lookbook on its first read; an ended one's unsaved looks leave.
+    if (!input.cursor) await landSeeds(userId);
     const page = await repos.looks.list(userId, input);
     return { items: await toLooks(userId, page.items), nextCursor: page.nextCursor };
   },

@@ -1,6 +1,6 @@
 # Stack versions & compatibility — verified 2026-09-24
 
-All versions below come from `npm view <pkg> version` / `dist-tags` / `peerDependencies` / `engines` run on 2026-09-24, unless a URL is cited. Re-run before pinning; this is a snapshot.
+All versions below come from `npm view <pkg> version` / `dist-tags` / `peerDependencies` / `engines` run on 2026-09-24, unless a URL is cited or a row is dated later. Re-run before pinning; this is a snapshot.
 
 ## Versions
 
@@ -10,7 +10,7 @@ All versions below come from `npm view <pkg> version` / `dist-tags` / `peerDepen
 | pnpm | 12.6.0 | 12.0.0 shipped 2026-08-26 (Rust rewrite, keeps pnpm 11 formats and commands). Known Turbo issue: `turbo gen` fails with `ERR_PNPM_IGNORED_BUILDS`, fixed by `pnpm approve-builds` (vercel/turborepo#14096). Fall back to `pnpm@11` (latest-11 tag) if CI breaks. https://www.infoq.com/news/2026/09/pnpm-12-rust/ |
 | turbo | 2.11.3 | Turborepo 2.x is the current major (2.11.0 on 2026-09-18). |
 | typescript | 7.0.2 (6.0.3 on the 6.x line) | TS 7 is the native (Go) compiler, released July 2026. Next, Expo and Vitest don't declare a TS peer. Pin **6.0.3** until every tool (Storybook, typed ESLint, CDK's jsii-free TS path) is confirmed on 7. |
-| next | 16.3.6 | Peer `react ^18.2 \|\| ^19`, engines `node >=20.9`. In Next 16, `middleware.ts` became `proxy.ts` and Turbopack is the default bundler. App Router uses the React canary vendored inside Next, so the app-level `react` pin only affects the Pages Router and tooling. |
+| next | **16.4.5 (pinned, 2026-11-25)** | Security pin: 16.4.5 is the lowest release that fixes the seven moderate advisories against `>=16.0.0 <=16.4.4` (GHSA-mfr8-8qww-v76h, GHSA-vc7v-qv4w-wrv8, GHSA-7qx7-33qx-rqx2, GHSA-f3mh-rxg3-f5g2, GHSA-pc58-hwjq-p385, GHSA-rhh4-g77r-r9qj, GHSA-vvgp-ww4w-46vf). CI's `pnpm audit --prod --audit-level high` doesn't fail on moderates, so `next`'s own build-time nudge (`SecurityFatalError`) was the first signal; run plain `pnpm audit` before a release. `app` and `packages/ui` (Storybook) pin the same version. 16.4.6 is `latest`; Renovate's weekly group brings it. Peer `react ^18.2 \|\| ^19`, engines `node >=20.9`. In Next 16, `middleware.ts` became `proxy.ts` and Turbopack is the default bundler. App Router uses the React canary vendored inside Next, so the app-level `react` pin only affects the Pages Router and tooling. |
 | react / react-dom (web) | 19.3.0 | Fine for Next 16. |
 | react / react-dom (native) | **19.3.0 (pinned by Expo SDK 58)** | Same minor as web since the SDK 58 upgrade (2026-10-24). |
 | expo | 58.0.17 (SDK 58) | SDK 58 released 2026-09-29; adopted 2026-10-24 when the App Store Expo Go moved to 58 (iOS offers no older Expo Go). Pins `react-native 0.88.0`, `react 19.3.0`, `react-native-web ~0.21.4`, `react-native-reanimated 4.7.1`, `react-native-worklets 0.13.0`, `react-native-gesture-handler ~3.3.0`, `react-native-screens ~4.30.0`, `react-native-safe-area-context ~5.10.1` (from `expo/bundledNativeModules.json`). 58.0.19 was under pnpm's release-age window on the day, so 58.0.17 rather than release-age exclusions. https://expo.dev/changelog/sdk-58 |
@@ -56,7 +56,7 @@ All versions below come from `npm view <pkg> version` / `dist-tags` / `peerDepen
 
 | Layer | Pick | Pinned to | Why |
 |---|---|---|---|
-| Web | Next 16.3.x + React 19.3 | Node 24, Tailwind 4.3 | Current major. `proxy.ts` replaces middleware. |
+| Web | Next 16.4.x + React 19.3 | Node 24, Tailwind 4.3 | Current major. `proxy.ts` replaces middleware. |
 | Native | **Expo SDK 58** | RN 0.88.0, React **19.3.0**, Reanimated 4.7.1 | Use `pnpm exec expo install` for every native dependency; never pin a React Native or React version the SDK doesn't bundle. |
 | React split | Allow different React minors per app | pnpm catalog or per-app pins | Shared packages (`ui-tokens`, `schemas`, `api-client`) declare `react` as a **peerDependency `^19.2`** and never as a dependency, to avoid duplicate-React errors in Metro. |
 | Native styling | **Uniwind 1.12** (free/MIT) | Tailwind 4.3 | Stable today on Tailwind v4, with the same `@theme` CSS vocabulary as web. NativeWind 4.x is stuck on Tailwind v3, and NativeWind 5 is still RC. Revisit NativeWind 5 once it hits `latest` (API-compatible className model, easy swap). Unistyles is excellent but not className/Tailwind-based, so it can't share the web's utility vocabulary. |

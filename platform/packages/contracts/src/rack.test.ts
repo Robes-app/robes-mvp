@@ -73,6 +73,12 @@ describe('the rack, shared by both clients', () => {
         styled: null,
       },
     ]);
+    // A wish the draft was started from is kept as the anchor is.
+    const wished = rackFromLook({
+      ...look,
+      proposals: [{ ...mules, anchor: true }],
+    } as never);
+    expect(askRack(wished, null).find((r) => r.key === 'p-aaaa1111')?.keep).toBe(true);
     const result = {
       swaps: [
         {

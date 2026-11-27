@@ -2,16 +2,18 @@
 
 import { lookbook as copy, filters as filterCopy, nav } from '@robes/copy';
 import { lookFacets } from '@robes/core/filters';
-import { showLookbookSearch } from '@robes/core/looks';
+import { lookbookCounts, showLookbookSearch } from '@robes/core/looks';
+import { waitingSeed } from '@robes/core/seeds';
 import { Icon } from '@robes/icons/web';
 import { Button, CardSkeleton, EmptyState, ErrorText, Eyebrow, IconButton, Tabs } from '@robes/ui';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FilterRow } from '@/components/filters/filter-row';
 import { FilterSheet } from '@/components/filters/filter-sheet';
 import { useLookFilters } from '@/components/filters/use-look-filters';
 import { errorCopy } from '@/lib/error-copy';
-import { useLetGo, useLooksByStatus, useRestyle, useSaveLook } from '@/lib/look-states';
+import { useLetGo, useLooksByStatus, useSaveLook } from '@/lib/look-states';
+import { DeleteSuggestion } from './delete-suggestion';
 import { DraftTile, SavedTile, SuggestedTile } from './look-tiles';
 import { NewLookSheet } from './new-look-sheet';
 
@@ -32,11 +34,16 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   const saved = useLooksByStatus('saved');
   const drafts = useLooksByStatus('draft');
   const suggested = useLooksByStatus('suggested');
-  const restyle = useRestyle();
   const letGo = useLetGo();
   const save = useSaveLook(undefined, 'suggested');
   const [newLook, setNewLook] = useState(false);
   const [sheet, setSheet] = useState(false);
+  // A suggestion's Delete look (its card's menu) asks first (design "Suggested looks" 07).
+  const [deleting, setDeleting] = useState<string | null>(null);
+  // Each tab's count once it holds a look, and the tab in view's always (design "Suggested
+  // looks": Saved 1 · Suggested 9, and Suggested 0 when the last has gone). Native twin: LooksView.
+  const counted = lookbookCounts(tab, saved.data?.items.length, suggested.data?.items.length);
+  const tabCounts = { [copy.tabs.saved]: counted.saved, [copy.tabs.suggested]: counted.suggested };
 
   const current = tab === 'saved' ? saved : suggested;
   const all = useMemo(() => (current.data?.items ?? []).map(lookFacets), [current.data]);
@@ -44,6 +51,21 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   const filters = useLookFilters(all);
   const items = filters.filtered;
   const draftItems = drafts.data?.items ?? [];
+  // A seeded drop waiting in Suggested (the Christmas trial): the Lookbook opens there once, on
+  // arrival; a tap on Saved then stays on Saved.
+  const seed = waitingSeed(suggested.data?.items ?? []);
+  const drop = seed ? copy.seedDrops[seed] : undefined;
+  const landed = useRef(false);
+  useEffect(() => {
+    if (landed.current || !suggested.data) return;
+    landed.current = true;
+    // Only while she is still on the Lookbook with no tab chosen: never pull her back from a
+    // screen she tapped through to while the looks were loading.
+    const here = window.location;
+    if (tab === 'saved' && seed && here.pathname === '/looks' && !here.search.includes('tab=')) {
+      router.replace('/looks?tab=suggested');
+    }
+  }, [suggested.data, seed, tab, router]);
   return (
     <div className="flex flex-col gap-5">
       {/* The dock names the place; the page title is read to assistive tech (as Diary, Wardrobe). */}
@@ -59,6 +81,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           }
           label={copy.title}
           icons={{ [copy.tabs.saved]: 'bookmark', [copy.tabs.suggested]: 'looks' }}
+          counts={tabCounts}
           // New look only on Saved: Suggested is what Robes brings (Annie, P2 15 Nov).
           trailing={
             tab === 'saved' ? (
@@ -98,6 +121,14 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
             className="min-w-0 flex-1 bg-transparent font-sans text-ink text-xs placeholder:text-ink-faint focus:outline-none"
           />
         </label>
+      ) : null}
+      {tab === 'suggested' && drop ? (
+        <header className="flex flex-col gap-2.5 pt-2" data-testid="seed-header">
+          <Eyebrow tone="warm">{drop.title}</Eyebrow>
+          <p className="font-display font-light text-2xl text-ink leading-[1.15]">
+            {drop.line} <em className="text-ink-muted">{copy.seedKeep}</em>
+          </p>
+        </header>
       ) : null}
       {tab === 'saved' && draftItems.length ? (
         <section aria-labelledby="in-progress" className="flex flex-col gap-2.5">
@@ -148,9 +179,20 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
             />
           )
         ) : (
-          // No + New look here: Robes fills blank days with suggested looks (still to be
-          // designed; Annie, P2 15 Nov).
-          <EmptyState title={copy.suggestedEmpty.title} body={copy.suggestedEmpty.body} />
+          // All done (design "Suggested looks" 08): the sparkle, one line, back to Saved.
+          <EmptyState
+            icon={
+              <span className="flex size-16 items-center justify-center rounded-pill bg-surface-raised text-accent-warm shadow-sm">
+                <Icon name="looks" size={22} />
+              </span>
+            }
+            title={copy.suggestedEmpty.title}
+            action={
+              <Button variant="primary" onClick={() => router.replace('/looks')}>
+                {copy.suggestedEmpty.action}
+              </Button>
+            }
+          />
         )
       ) : (
         <ul aria-label={copy.tabs[tab]} className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
@@ -168,11 +210,8 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
                 <SuggestedTile
                   look={look}
                   aspect="3:4"
-                  onRemove={() => letGo(look.id)}
-                  onSwap={() => restyle.restyle(look.id)}
-                  swapping={restyle.busyId === look.id}
                   onSave={() => save.mutate({ params: { id: look.id }, input: {} })}
-                  saving={save.isPending && save.variables?.params.id === look.id}
+                  onDelete={() => setDeleting(look.id)}
                 />
               )}
             </li>
@@ -204,6 +243,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
         ctaDisabled={items.length === 0}
       />
       <NewLookSheet open={newLook} onClose={() => setNewLook(false)} />
+      <DeleteSuggestion id={deleting} onClose={() => setDeleting(null)} />
     </div>
   );
 }

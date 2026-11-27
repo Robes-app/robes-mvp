@@ -101,7 +101,7 @@ export function twinFigureLine(s: TwinSpec): string {
 
 // The whole descriptor: with a close-up the face, skin and hair come from the photograph (a hand
 // pick names the tone to follow instead); without one, the catalog words stand in.
-export function twinDescriptor(s: TwinSpec): string {
+export function twinDescriptor(s: TwinSpec, figureLine = twinFigureLine): string {
   const man = s.gender === 'man';
   const She = man ? 'He' : 'She';
   const her = man ? 'his' : 'her';
@@ -121,16 +121,16 @@ export function twinDescriptor(s: TwinSpec): string {
   } else {
     look = `${She} has ${skinWord} skin and ${man ? `short ${hairWord} hair` : `long ${hairWord} hair worn down`}.`;
   }
-  return `${look} ${age} ${She} has ${twinFigureLine(s)}`;
+  return `${look} ${age} ${She} has ${figureLine(s)}`;
 }
 
 // Her reference portrait on the seamless base layer, so garments later read against it.
-export function buildTwinPrompt(s: TwinSpec): string {
+export function buildTwinPrompt(s: TwinSpec, figureLine = twinFigureLine): string {
   const man = s.gender === 'man';
   const base = man
     ? 'He wears a minimal fitted base layer in one soft neutral tone close to his skin — a plain fitted crew-neck T-shirt and plain fitted knee-length shorts — barefoot, no accessories, no jewellery, no logos, no patterns.'
     : 'She wears a minimal seamless base layer in one soft neutral tone close to her skin — a fitted scoop-neck stretch tank top and matching fitted mid-thigh shorts, like a seamless shapewear set — barefoot, no accessories, no jewellery, no logos, no patterns.';
-  return `Full-length editorial fashion photograph of one ${man ? 'man' : 'woman'}, alone — a recurring model, and this is ${man ? 'his' : 'her'} reference portrait. ${twinDescriptor(s)} ${base} Standing relaxed, facing the camera directly, arms at ${man ? 'his' : 'her'} sides, calm expression. ${FULL_BODY_FRAME} ${STUDIO}`;
+  return `Full-length editorial fashion photograph of one ${man ? 'man' : 'woman'}, alone — a recurring model, and this is ${man ? 'his' : 'her'} reference portrait. ${twinDescriptor(s, figureLine)} ${base} Standing relaxed, facing the camera directly, arms at ${man ? 'his' : 'her'} sides, calm expression. ${FULL_BODY_FRAME} ${STUDIO}`;
 }
 
 // Her look on her model. On a twin, IMAGE 2 is her close-up (pieces follow from IMAGE 3) and the

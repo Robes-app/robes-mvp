@@ -1,6 +1,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { UpdateWishInput, Wish } from '@robes/contracts';
 import { wardrobe as copy, ui } from '@robes/copy';
+import { shopName } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
@@ -18,12 +19,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
+import { nativeAnalytics } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
 import { cutoutUri, renditionUri } from '@/lib/images';
 import { DeletePieceDialog } from './DeletePieceDialog';
 import { type FieldInput, type PieceField, PieceFieldSheet } from './PieceFieldSheet';
 import { PieceHeader } from './PieceHeader';
 import { PieceRow, RecordRows, type RecordTab, type RecordValues } from './PieceRows';
+import { PieceStyle } from './PieceStyle';
 import { useRemoveWish } from './wishlist';
 
 const TABS = [copy.piece.tabs.piece, copy.piece.tabs.colour, copy.piece.tabs.wearing] as const;
@@ -52,7 +55,8 @@ export function wishValues(wish: Wish): RecordValues & { category: string } {
     price: wish.price,
     currency: wish.currency,
     seasonBand: null,
-    sourceLabel: wish.sourceLabel,
+    // The shop her link goes to when she named none (a piece Robes picked, filed with its link).
+    sourceLabel: wish.sourceLabel ?? shopName(wish.sourceUrl),
   };
 }
 
@@ -74,7 +78,8 @@ export function wishInput(input: FieldInput): UpdateWishInput {
 // for it, the photograph edge to edge, PIECE · COLOUR · WEARING over the record's rows with Brand
 // and Shop (the retailer) — then Bought, and Delete piece asked first. A wish carries no wears yet
 // ("New"), and its In looks, Seasons and Wear it for are drawn but wait for their data (Annie,
-// 9 Nov). Web twin: app/src/components/wardrobe/wish-detail.tsx.
+// 9 Nov). The sparkle styles it with her wardrobe (PieceStyle). Web twin:
+// app/src/components/wardrobe/wish-detail.tsx.
 export function WishDetail({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -165,7 +170,10 @@ export function WishDetail({ id }: { id: string }) {
             <Pressable
               accessibilityRole="link"
               accessibilityLabel={copy.piece.openShop}
-              onPress={() => void Linking.openURL(wish.sourceUrl ?? '')}
+              onPress={() => {
+                nativeAnalytics.track('shop_opened', { from: 'wish' });
+                void Linking.openURL(wish.sourceUrl ?? '');
+              }}
               className="min-h-11 justify-center self-start"
             >
               <Text size="small" tone="muted" style={{ textDecorationLine: 'underline' }}>
@@ -207,6 +215,8 @@ export function WishDetail({ id }: { id: string }) {
         onSave={(input) => update.mutate({ params: { id: wish.id }, input: wishInput(input) })}
         saving={update.isPending}
       />
+      {/* Style a piece on a wish (Annie, 24 Nov): see it with her wardrobe before buying it. */}
+      <PieceStyle piece={wish} wish hidden={field !== null || confirm} />
     </View>
   );
 }

@@ -42,6 +42,18 @@ describe('Toast', () => {
     expect(toastDuration({})).toBeLessThan(ACTION_MIN_DURATION);
   });
 
+  it('carries a quieter second line under the message', async () => {
+    const user = setup({
+      message: 'Saved to your lookbook.',
+      body: '5 pieces added to your wishlist.',
+      action: { label: 'View', onAction: () => {} },
+    });
+    await user.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(await screen.findByText('Saved to your lookbook.')).toBeInTheDocument();
+    expect(screen.getByText('5 pieces added to your wishlist.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'View' })).toBeInTheDocument();
+  });
+
   it('runs Undo from the action and closes', async () => {
     const onAction = vi.fn();
     const user = setup({ message: 'Piece removed.', action: { label: ui.undo, onAction } });

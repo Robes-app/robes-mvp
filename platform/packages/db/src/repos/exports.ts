@@ -119,6 +119,7 @@ export function dataExportRepo(db: Db) {
         wears,
         plan,
         dayNames,
+        seeds,
         dayPlaces,
         ideas,
         shares,
@@ -222,6 +223,12 @@ export function dataExportRepo(db: Db) {
           .select(['name', 'createdAt', 'updatedAt', sql<string>`day_date::text`.as('dayDate')])
           .where('userId', '=', userId)
           .orderBy('dayDate')
+          .execute(),
+        db
+          .selectFrom('userSeeds')
+          .select(['seedId', 'seededAt'])
+          .where('userId', '=', userId)
+          .orderBy('seededAt')
           .execute(),
         db
           .selectFrom('dayPlaces')
@@ -332,6 +339,8 @@ export function dataExportRepo(db: Db) {
         plan,
         dayNames,
         dayPlaces,
+        // The seeded drops her account has had (plan "Seeded Christmas looks").
+        seeds,
         ideas,
         shares,
         assets,

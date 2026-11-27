@@ -22,7 +22,14 @@ export const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.u
 export async function answerUsageAsk(page: Page, answer: 'Allow' | 'Not now'): Promise<void> {
   const ask = page.getByRole('alertdialog', { name: 'Share how you use Robes?' });
   await expect(ask).toBeVisible();
+  // The ask closes on the tap, before her answer is saved: wait for the save itself, so a read of
+  // her consents straight after never races it.
+  const saved = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/v1/me/consents',
+  );
   await ask.getByRole('button', { name: answer }).click();
+  expect((await saved).ok(), 'her answer was not saved').toBe(true);
   await expect(ask).toBeHidden();
 }
 

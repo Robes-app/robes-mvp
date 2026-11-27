@@ -81,6 +81,7 @@ export interface Assets {
   blurhash: string | null;
   bucketKey: string | null;
   bytes: number | null;
+  catalogBase: string | null;
   contentType: string | null;
   createdAt: Generated<Timestamp>;
   crop: Json | null;
@@ -351,6 +352,8 @@ export interface Looks {
   renderStatus: string | null;
   robesHidden: Generated<boolean>;
   seasons: Generated<string[]>;
+  seedId: string | null;
+  seedLookId: string | null;
   setId: string | null;
   setIndex: number | null;
   source: Generated<string>;
@@ -414,6 +417,8 @@ export interface Profiles {
   bustBand: number | null;
   bustCm: number | null;
   bustCup: string | null;
+  chestCm: Numeric | null;
+  collarCm: Numeric | null;
   createdAt: Generated<Timestamp>;
   currency: Generated<string>;
   firstName: string | null;
@@ -427,6 +432,7 @@ export interface Profiles {
   homeLon: Numeric | null;
   homeSnoozes: Generated<Json>;
   id: string;
+  inseamCm: Numeric | null;
   instagramHandle: string | null;
   investmentLevel: string | null;
   lastName: string | null;
@@ -436,6 +442,7 @@ export interface Profiles {
   notificationPrefs: Generated<Json>;
   onboardedAt: Timestamp | null;
   shoeUk: Numeric | null;
+  shoulderWidthCm: Numeric | null;
   sizeUk: number | null;
   splurgeCategories: Generated<string[]>;
   styleArchetypes: Generated<string[]>;
@@ -443,6 +450,7 @@ export interface Profiles {
   styleConfirmedAt: Timestamp | null;
   styleIcons: Generated<string[]>;
   timezone: Generated<string>;
+  unitPrefs: Json | null;
   updatedAt: Generated<Timestamp>;
   waistCm: number | null;
   wardrobeDescription: string | null;
@@ -601,6 +609,14 @@ export interface Users {
   image: string | null;
   name: Generated<string>;
   updatedAt: Generated<Timestamp>;
+}
+
+export interface UserSeeds {
+  createdAt: Generated<Timestamp>;
+  seededAt: Generated<Timestamp>;
+  seedId: string;
+  updatedAt: Generated<Timestamp>;
+  userId: string;
 }
 
 export interface UserUiState {
@@ -804,6 +820,7 @@ export interface DB {
   twinArchives: TwinArchives;
   usageCounters: UsageCounters;
   users: Users;
+  userSeeds: UserSeeds;
   userUiState: UserUiState;
   verifications: Verifications;
   waitlist: Waitlist;

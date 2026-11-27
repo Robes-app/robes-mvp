@@ -16,13 +16,15 @@ import {
   hasTwinInputs,
   isTwinCurrent,
   type ModelPicks,
-  NO_ADJ,
   presenceOf,
+  resetScales,
   resolveModel,
   robesModelIds,
   SKIN_SWATCHES,
   standKey,
   standOf,
+  storedScales,
+  type TwinAdj,
   type TwinInputs,
   twinInputsOf,
   twinKey,
@@ -250,14 +252,19 @@ export async function updateModel(
     await ensureRobesModels(userId);
     return loadModel(userId);
   }
-  // A scale moved merges over the sliders as they stand (a legacy seed included); {} is "back to
-  // your facts".
-  const sliders =
-    adj === undefined
-      ? undefined
-      : Object.keys(adj).length === 0
-        ? NO_ADJ
-        : { ...twinInputsOf((await current(userId)).row).adj, ...adj };
+  // A scale moved merges over every slider on file (a legacy seed included); {} is "back to your
+  // facts" for the scales this gender is offered. A scale the other gender uses (her hips while he
+  // is a man) is kept either way, so switching back finds it (25 Nov).
+  let sliders: Record<keyof TwinAdj, number | null> | undefined;
+  if (adj !== undefined) {
+    const { row } = await current(userId);
+    const prefs = row.avatarPrefs as { adj?: unknown } | null;
+    const onFile = storedScales(prefs?.adj, row.bodyType);
+    sliders =
+      Object.keys(adj).length === 0
+        ? resetScales(onFile, presence ?? row.genderIdentity)
+        : { ...onFile, ...adj };
+  }
   await repos.model.savePicks(userId, sliders ? { ...picks, adj: sliders } : picks, presence);
   const { resolved } = await current(userId);
   await repos.model.file(userId, resolved.cellId, { source: resolved.source });

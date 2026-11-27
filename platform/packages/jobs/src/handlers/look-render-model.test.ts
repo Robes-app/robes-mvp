@@ -1,4 +1,5 @@
 import { createFakeProvider } from '@robes/ai';
+import { wornLine } from '@robes/ai/prompts/avatar';
 import { verifiedUserId } from '@robes/db';
 import { describe, expect, it, vi } from 'vitest';
 import { JobError } from '../runtime';
@@ -144,7 +145,7 @@ describe('look_render on her model: how a piece is worn', () => {
   it('rides the garment line', async () => {
     const { run, generateImage } = setup();
     await run();
-    expect(generateImage.mock.calls[0]?.[0].prompt).toContain('Worn: worn open.');
+    expect(generateImage.mock.calls[0]?.[0].prompt).toContain(wornLine('worn open'));
   });
 });
 

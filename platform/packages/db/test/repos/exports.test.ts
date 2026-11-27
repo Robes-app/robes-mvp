@@ -84,6 +84,7 @@ describe('data export (SEC-81)', () => {
     expect(doc.dayNames).toEqual([
       expect.objectContaining({ dayDate: '2026-10-02', name: 'Ann’s gallery night' }),
     ]);
+    expect(doc.seeds).toEqual([]);
     expect(doc.user?.email).toBe(`${ann}@test.dev`);
     expect(doc.pieces.map((p) => [p.label, p.material])).toEqual([['Niall coat', 'tweed']]);
     expect(doc.wears[0]?.wornOn).toBe('2026-09-24');

@@ -12,7 +12,13 @@ import {
   type StyleProfile,
   type UpdateStyleDnaInput,
 } from '@robes/contracts';
-import { chooseSeason, iconTag, type SeasonName } from '@robes/core/style-dna';
+import {
+  chooseSeason,
+  cupOf,
+  iconTag,
+  readUnitPrefs,
+  type SeasonName,
+} from '@robes/core/style-dna';
 import { BriefListFull, type UserId } from '@robes/db';
 import { z } from 'zod';
 import { toImage } from './asset-urls';
@@ -99,10 +105,16 @@ async function toStyleDna(userId: UserId, snap: Snapshot, last: LastRead): Promi
       shoeUk: profile?.shoeUk ?? null,
       ageBand: profile?.ageBand ?? null,
       bustBand: profile?.bustBand ?? null,
-      bustCup: profile?.bustCup ?? null,
+      // A cup saved as G+ before 24 Nov reads as G.
+      bustCup: cupOf(profile?.bustCup),
       bustCm: profile?.bustCm ?? null,
       waistCm: profile?.waistCm ?? null,
+      chestCm: profile?.chestCm ?? null,
+      inseamCm: profile?.inseamCm ?? null,
+      collarCm: profile?.collarCm ?? null,
+      shoulderWidthCm: profile?.shoulderWidthCm ?? null,
     },
+    units: readUnitPrefs(profile?.unitPrefs),
     gender: profile?.genderIdentity ?? 'woman',
     pieces,
     brief: {
@@ -144,6 +156,7 @@ export async function updateStyleDna(
     investmentLevel: input.investment,
   });
   if (input.facts) await repos.styleDna.setFacts(userId, input.facts);
+  if (input.units) await repos.styleDna.setUnits(userId, readUnitPrefs(input.units));
   return loadStyleDna(userId);
 }
 

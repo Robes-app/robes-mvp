@@ -76,7 +76,7 @@ export function robesModelSpec(cellId: string): TwinSpec | null {
     gender: parsed.gender,
     heightCm: null,
     sizeUk: m.sizeUk,
-    stops: m.stops,
+    stops: { ...m.stops, waist: 0 },
     waistDiff: null,
     age: m.age,
     skin: m.skin,

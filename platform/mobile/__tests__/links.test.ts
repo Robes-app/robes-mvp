@@ -20,6 +20,7 @@ test.each([
   [`/plan/${DAY}`, `/day/${DAY}`],
   ['/wardrobe/wishlist', '/wardrobe?segment=wishlist'],
   [`/wardrobe/wishlist/${ID}`, `/wish/${ID}`],
+  [`/look/${ID}/piece/p-aaaa1111`, `/look-piece/${ID}/p-aaaa1111`],
   ['/soon/trips', '/soon'],
   ['/auth/sign-in', '/sign-in'],
   ['/auth/sign-up', '/sign-up'],

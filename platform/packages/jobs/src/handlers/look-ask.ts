@@ -46,6 +46,15 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
       if (!found) throw new JobError('not_found');
       const her = await deps.styling.context(ctx.userId);
       const byId = new Map(her.closet.map((c) => [c.id, c]));
+      // The wish a draft was started from is held like the anchor (Style a piece on a wish).
+      const heldKeys = new Set(
+        (Array.isArray(found.look.proposals) ? (found.look.proposals as unknown[]) : []).flatMap(
+          (p) => {
+            const row = p as { key?: unknown; anchor?: unknown } | null;
+            return row && row.anchor === true && typeof row.key === 'string' ? [row.key] : [];
+          },
+        ),
+      );
       // A piece she sent that isn't in her wardrobe drops off the rack the model sees.
       type Row = { key: string; pieceId: string | null; row: AskContext['rack'][number] };
       const rows = input.rack.flatMap((r): Row[] => {
@@ -60,7 +69,8 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
                 name: piece.label,
                 category: piece.category ?? '',
                 owned: true,
-                keep: r.keep,
+                // The look's anchor is held whatever the request says (Style a piece, 24 Nov).
+                keep: r.keep || r.pieceId === found.look.anchorPieceId,
                 was: r.was,
                 styled: r.styled,
               },
@@ -76,7 +86,7 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
               name: r.proposal.name,
               category: r.proposal.category,
               owned: false,
-              keep: r.keep,
+              keep: r.keep || heldKeys.has(r.key),
               was: r.was,
               styled: r.styled,
             },

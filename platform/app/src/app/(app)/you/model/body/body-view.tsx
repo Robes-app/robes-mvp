@@ -1,19 +1,19 @@
 'use client';
 
 import { useApi } from '@robes/api-client/react';
-import type { Facts, Model, UpdateModelInput } from '@robes/contracts';
-import { twin, ui } from '@robes/copy';
-import { effectiveStops, isAdjusted, readAdj, STOPS, TWIN_SCALES } from '@robes/core/avatar';
-import { euSize } from '@robes/core/style-dna';
-import { Button, ErrorText, Sheet, Skeleton } from '@robes/ui';
+import type { Facts, Model, StyleDna, UpdateModelInput } from '@robes/contracts';
+import { twin } from '@robes/copy';
+import { effectiveStops, isAdjusted, readAdj, STOPS, scalesFor } from '@robes/core/avatar';
+import { factRows, measurePresenceOf } from '@robes/core/style-dna';
+import { Icon } from '@robes/icons/web';
+import { ErrorText, Eyebrow, Skeleton } from '@robes/ui';
 import { useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import {
-  bustOf,
-  FactsBody,
+  FactsSheet,
   Figure,
   type Pick,
-  Section,
+  rowValue,
   useDrawTwin,
   useModel,
   useModelPick,
@@ -22,9 +22,10 @@ import {
 const tw = twin.twinPage;
 const f = twin.facts;
 
-// Body shape (legacy redline 3c): her line drawn from the facts, her proportions and the facts
-// strip (each a door to the facts drawer), then three five-cell scales she can nudge by hand.
-// Nothing here names a shape. Leaving redraws her twin.
+// Body shape (design "The facts — redesign", 24 Nov): her line drawn from the facts, the facts
+// card in the units she reads them in (each row a door to The facts), then three five-stop scales
+// she can nudge by hand — hers end at the hips, his at the waist. Nothing here names a shape.
+// Leaving redraws her twin. Native twin: mobile/src/features/you/BodyShape.tsx.
 export function BodyView() {
   const query = useModel();
   const dna = useApi('me.dna.get');
@@ -34,138 +35,119 @@ export function BodyView() {
   if (query.isError) return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   const model = query.data;
   if (!model || !dna.data) return <Skeleton className="h-64 w-full" />;
-  const open = () => setFacts(true);
   return (
-    <div className="flex flex-col gap-5">
-      <Line model={model} facts={dna.data.facts} onOpen={open} />
+    <div className="flex flex-col gap-6">
+      <div className="flex justify-center">
+        <Figure facts={dna.data.facts} adj={readAdj(model.adj, model.presence)} />
+      </div>
+      <FactsCard dna={dna.data} onOpen={() => setFacts(true)} />
       <Scales model={model} facts={dna.data.facts} pick={pick} />
-      <Sheet open={facts} onOpenChange={setFacts} title={f.title} closeLabel={ui.done}>
-        <FactsBody dna={dna.data} gender={model.presence} />
-      </Sheet>
+      <FactsSheet open={facts} onOpenChange={setFacts} dna={dna.data} />
     </div>
   );
 }
 
-function Line({ model, facts, onOpen }: { model: Model; facts: Facts; onOpen: () => void }) {
-  const chest = model.presence === 'man' ? tw.chest : f.bust;
-  const rows: [string, string][] = [
-    [f.height, facts.heightCm ? f.heightValue(facts.heightCm) : ''],
-    [chest, bustOf(facts)],
-    [f.waist, facts.waistCm ? f.waistValue(facts.waistCm, 'cm') : ''],
-    [f.size, facts.sizeUk ? f.ukValue(facts.sizeUk) : ''],
-  ];
-  const strip: [string, string][] = [
-    [f.height, rows[0]?.[1] ?? ''],
-    [f.size, facts.sizeUk ? `${f.ukValue(facts.sizeUk)} · ${f.euValue(euSize(facts.sizeUk))}` : ''],
-    [chest, rows[1]?.[1] ?? ''],
-    [f.waist, rows[2]?.[1] ?? ''],
-    [f.shoes, facts.shoeUk ? f.ukValue(facts.shoeUk) : ''],
-  ];
+const card = 'overflow-hidden rounded-soft border border-rule-mid bg-surface-raised';
+
+function FactsCard({ dna, onOpen }: { dna: StyleDna; onOpen: () => void }) {
+  const rows = factRows(dna.facts, dna.units, measurePresenceOf(dna.gender));
   return (
-    <section
-      aria-label={tw.yourLine}
-      className="flex flex-col gap-4 rounded-soft border border-hairline bg-surface-raised p-5"
-    >
-      <div className="flex items-center justify-between">
-        <span className="font-sans text-ink-muted text-xs uppercase tracking-[0.2em]">
-          {tw.yourLine}
-        </span>
-        <button
-          type="button"
-          onClick={onOpen}
-          className="-mr-2 inline-flex min-h-11 items-center px-2 font-sans text-[11px] text-ink-faint hover:text-ink focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
-        >
-          {`${tw.edit} →`}
-        </button>
-      </div>
-      <div className="grid grid-cols-[150px_minmax(0,1fr)] gap-4 rounded-soft border border-hairline p-3">
-        <Figure facts={facts} adj={readAdj(model.adj)} />
-        <dl className="flex min-w-0 flex-col gap-2 self-center">
-          <dt className="whitespace-nowrap font-sans text-[9px] text-ink-muted uppercase tracking-[0.2em]">
-            {tw.proportions(model.presence)}
-          </dt>
-          {rows.map(([k, v]) => (
-            <dd key={k} className="flex items-baseline justify-between gap-2">
-              <span className="font-sans text-xs text-ink-muted">{k}</span>
-              <span
-                className={`font-display text-base ${v ? 'text-ink' : 'text-ink-faint italic'}`}
-              >
-                {v || f.add}
-              </span>
-            </dd>
-          ))}
-        </dl>
-      </div>
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={f.title}
-        className="grid grid-cols-5 rounded-crisp border border-hairline text-left hover:border-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-      >
-        {strip.map(([k, v], i) => (
-          <span
-            key={k}
-            className={`flex flex-col gap-1 px-2 py-3 ${i ? 'border-hairline border-l' : ''}`}
-          >
-            <span className="font-sans text-ink-muted text-xs">{k}</span>
-            <span
-              className={`truncate ${v ? 'font-sans text-ink text-sm' : 'font-display text-ink-faint text-lg italic'}`}
+    <section aria-labelledby="facts-h" className="flex flex-col gap-3">
+      <Eyebrow id="facts-h">{f.title}</Eyebrow>
+      <div className={card}>
+        {rows.map((r, i) => {
+          const value = rowValue(r);
+          const label = f[r.field];
+          return (
+            <button
+              key={r.field}
+              type="button"
+              onClick={onOpen}
+              aria-label={f.rowLabel(label, value)}
+              className={`flex min-h-[52px] w-full items-center gap-2.5 pr-3.5 pl-4 text-left hover:bg-surface-sunk focus-visible:outline-[1.5px] focus-visible:-outline-offset-2 focus-visible:outline-focus-ring ${i ? 'border-hairline border-t' : ''}`}
             >
-              {v || f.add}
-            </span>
-          </span>
-        ))}
-      </button>
+              <span className="flex-1 font-sans text-ink-muted text-sm">{label}</span>
+              <span
+                className={`font-display text-xl leading-none ${value ? 'text-ink' : 'text-ink-muted italic'}`}
+              >
+                {value || f.add}
+              </span>
+              <Icon name="forward" size={14} className="text-ink-muted" />
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }
 
 function Scales({ model, facts, pick }: { model: Model; facts: Facts; pick: Pick }) {
-  const adj = readAdj(model.adj);
+  const adj = readAdj(model.adj, model.presence);
   const eff = effectiveStops(facts, adj);
   const asIs = tw.asIs(model.presence);
+  const man = model.presence === 'man';
   return (
-    <Section title={tw.adjust}>
-      {TWIN_SCALES.map((k) => {
-        const s = tw.scales[k];
-        const label = k === 'bust' && model.presence === 'man' ? tw.chest : s.label;
-        const cur = eff[k];
-        return (
-          <fieldset key={k} className="flex flex-col gap-2">
-            <legend className="pb-2 font-display text-lg text-ink">{label}</legend>
-            {/* Five cells in a cream track; the chosen one takes the selected edge and an ink dot. */}
-            <div className="grid grid-cols-5 divide-x divide-rule-mid overflow-hidden rounded-pill border border-rule-mid bg-surface">
-              {STOPS.map((v) => {
-                const on = cur === v;
-                return (
-                  <button
-                    key={v}
-                    type="button"
-                    aria-pressed={on}
-                    aria-label={tw.stop(label, v, s.less, s.more, asIs)}
-                    // A second tap on the chosen stop hands the scale back to her facts.
-                    onClick={() => pick({ adj: { [k]: on ? null : v } as UpdateModelInput['adj'] })}
-                    className={`flex h-11 items-center justify-center focus-visible:outline-[1.5px] focus-visible:-outline-offset-2 focus-visible:outline-focus-ring ${on ? 'rounded-pill bg-selected ring-1 ring-selected-line ring-inset' : 'hover:bg-surface-sunk'}`}
-                  >
-                    {on ? <span aria-hidden className="size-1.5 rounded-full bg-ink" /> : null}
-                  </button>
-                );
-              })}
+    <section aria-labelledby="adjust-h" className="flex flex-col gap-3">
+      <div className="flex min-h-5 items-center justify-between">
+        <Eyebrow id="adjust-h">{tw.adjust}</Eyebrow>
+        {isAdjusted(adj) ? (
+          <button
+            type="button"
+            onClick={() => pick({ adj: {} })}
+            className="-my-3 -mr-2 min-h-11 px-2 font-sans text-[11px] text-ink-muted underline decoration-[0.5px] underline-offset-[3px] hover:text-ink focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
+          >
+            {tw.reset}
+          </button>
+        ) : null}
+      </div>
+      <div className={`${card} px-4 py-1`}>
+        {scalesFor(model.presence).map((k, i) => {
+          const s = k === 'bust' && man ? tw.chestScale : tw.scales[k];
+          const cur = eff[k];
+          return (
+            <div
+              key={k}
+              role="radiogroup"
+              aria-label={s.label}
+              className={`flex flex-col gap-1.5 pt-4 pb-3 ${i ? 'border-hairline border-t' : ''}`}
+            >
+              <span className="font-display text-[22px] text-ink leading-tight">{s.label}</span>
+              {/* Five stops on a hairline; the chosen one takes the warm fill and an ink dot. */}
+              <div className="relative -mx-2.5 flex justify-between">
+                <span aria-hidden className="absolute inset-x-8 top-[22px] h-px bg-hairline" />
+                {STOPS.map((v) => {
+                  const on = cur === v;
+                  return (
+                    // biome-ignore lint/a11y/useSemanticElements: a radio group of stops; native radios can't take the ring styling.
+                    <button
+                      key={v}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      aria-label={tw.stop(s.label, v, s.less, s.more, asIs)}
+                      onClick={() => pick({ adj: { [k]: v } as UpdateModelInput['adj'] })}
+                      className="relative flex size-11 items-center justify-center rounded-full focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
+                    >
+                      <span
+                        className={`flex size-[30px] items-center justify-center rounded-full border ${on ? 'border-selected-line bg-selected' : 'border-transparent'}`}
+                      >
+                        <span
+                          aria-hidden
+                          className={`rounded-full ${on ? 'size-1.5 bg-ink' : v === 0 ? 'size-[7px] bg-selected-line' : 'size-[5px] bg-rule-mid'}`}
+                        />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex justify-between font-sans text-[11px] text-ink-muted">
+                <span>{s.less}</span>
+                <span>{s.more}</span>
+              </div>
             </div>
-            <div className="flex justify-between px-3 font-sans text-ink-muted text-xs">
-              <span>{s.less}</span>
-              <span>{s.more}</span>
-            </div>
-          </fieldset>
-        );
-      })}
-      {isAdjusted(adj) ? (
-        <div className="border-hairline border-t pt-3">
-          <Button variant="quiet" onClick={() => pick({ adj: {} })}>
-            {tw.backToFacts}
-          </Button>
-        </div>
-      ) : null}
-    </Section>
+          );
+        })}
+      </div>
+    </section>
   );
 }

@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
-const DEV_ONLY_FLAGS = ['ALLOW_PRIVATE_FETCH', 'NOTIFY_DEBUG', 'JOBS_TRANSPORT_INLINE'] as const;
+const DEV_ONLY_FLAGS = [
+  'ALLOW_PRIVATE_FETCH',
+  'NOTIFY_DEBUG',
+  'JOBS_TRANSPORT_INLINE',
+  'SEEDS_OFF',
+] as const;
 
 const optionalSecret = z.string().min(1).optional();
 
@@ -206,6 +211,8 @@ export const appServerEnv = z
     ALLOW_PRIVATE_FETCH: z.string().optional(),
     NOTIFY_DEBUG: z.string().optional(),
     JOBS_TRANSPORT_INLINE: z.string().optional(),
+    // Dev/e2e only: no seeded drop lands, so specs start from an empty Lookbook whatever the date.
+    SEEDS_OFF: z.string().optional(),
     // Dev/e2e only: a stand-in for Nominatim's reverse geocoder, so tests never send coordinates out.
     REVERSE_GEOCODE_URL: z.url().optional(),
     // Only the dev inline worker calls Gemini from the web process; without it the fake is used.

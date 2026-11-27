@@ -22,6 +22,9 @@ export default async function DraftDrawer({
       {...(search.day ? { day: search.day } : {})}
       {...(search.images ? { images: search.images } : {})}
       {...(search.pick ? { pick: true } : {})}
+      {...(search.job ? { job: search.job } : {})}
+      {...(search.from ? { from: search.from } : {})}
+      {...(search.back ? { fromWish: true } : {})}
       presentation="drawer"
     />
   );

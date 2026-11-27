@@ -27,6 +27,9 @@ export interface ToastAction {
 
 export interface ToastOptions {
   message: string;
+  // A second, quieter line under the message ("5 pieces added to your wishlist."). Web twin:
+  // @robes/ui toast.tsx.
+  body?: string;
   action?: ToastAction;
   duration?: number;
 }
@@ -57,24 +60,40 @@ export function useToast(): ToastApi {
 
 export interface ToastProps {
   message: string;
+  body?: string;
   action?: ToastAction;
   onDismiss?: () => void;
   className?: string;
 }
 
-export function Toast({ message, action, onDismiss, className }: ToastProps) {
+export function Toast({ message, body, action, onDismiss, className }: ToastProps) {
   return (
     <View
       accessibilityLiveRegion="polite"
-      className={cx('flex-row items-center gap-3 rounded-pill bg-ink py-2 pl-5 pr-2', className)}
+      className={cx(
+        'flex-row items-center gap-3 bg-ink py-2 pl-5 pr-2',
+        body ? 'rounded-soft' : 'rounded-pill',
+        className,
+      )}
     >
-      <Text
-        maxFontSizeMultiplier={maxFontSizeMultiplier.body}
-        className="flex-1 text-sm text-bg"
-        style={{ fontFamily: fonts.sans }}
-      >
-        {message}
-      </Text>
+      <View className="flex-1 gap-0.5">
+        <Text
+          maxFontSizeMultiplier={maxFontSizeMultiplier.body}
+          className="text-sm text-bg"
+          style={{ fontFamily: fonts.sans }}
+        >
+          {message}
+        </Text>
+        {body ? (
+          <Text
+            maxFontSizeMultiplier={maxFontSizeMultiplier.body}
+            className="text-xs text-bg/75"
+            style={{ fontFamily: fonts.sans }}
+          >
+            {body}
+          </Text>
+        ) : null}
+      </View>
       {action ? (
         <Pressable
           accessibilityRole="button"
@@ -123,7 +142,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     nextId.current += 1;
     setToast({ ...options, id: nextId.current });
     AccessibilityInfo.announceForAccessibility(
-      options.action ? `${options.message} ${options.action.label}` : options.message,
+      [options.message, options.body, options.action?.label].filter(Boolean).join(' '),
     );
   }, []);
 
@@ -167,7 +186,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           style={{ opacity, bottom: lift > 0 ? lift + TOAST_GAP : TOAST_BOTTOM }}
           testID="toast-frame"
         >
-          <Toast key={toast.id} message={toast.message} action={toast.action} onDismiss={dismiss} />
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            {...(toast.body ? { body: toast.body } : {})}
+            {...(toast.action ? { action: toast.action } : {})}
+            onDismiss={dismiss}
+          />
         </Animated.View>
       ) : null}
     </ToastContext.Provider>

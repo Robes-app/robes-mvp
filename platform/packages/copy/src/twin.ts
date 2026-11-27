@@ -113,41 +113,41 @@ export const twin = {
     skinAndHair: 'Skin and hair',
     skinAndHairRead: 'Read from your close-up. Change by hand.',
     skinAndHairHand: 'Chosen by hand until a close-up reads.',
-    yourLine: 'Your line',
-    edit: 'Edit',
-    proportions: (presence: Presence): string =>
-      `${presence === 'man' ? 'His' : asThey(presence) ? 'Their' : 'Her'} proportions`,
     adjust: 'Adjust by hand',
     scales: {
       shoulders: { label: 'Shoulders', less: 'Narrower', more: 'Broader' },
       bust: { label: 'Bust', less: 'Smaller', more: 'Fuller' },
       hips: { label: 'Hips', less: 'Narrower', more: 'Fuller' },
+      waist: { label: 'Waist', less: 'Narrower', more: 'Fuller' },
     },
-    chest: 'Chest',
+    // His chest scale (design 24 Nov): narrower to broader, where hers is smaller to fuller.
+    chestScale: { label: 'Chest', less: 'Narrower', more: 'Broader' },
+    reset: 'Reset',
     asIs: (presence: Presence): string =>
       `As ${presence === 'man' ? 'he is' : asThey(presence) ? 'they are' : 'she is'}`,
     // A cell's spoken name: "Hips: much fuller".
     stop: (label: string, stop: number, less: string, more: string, asIs: string): string =>
       `${label}: ${stop === 0 ? asIs : `${Math.abs(stop) === 2 ? 'much ' : ''}${String(stop < 0 ? less : more).toLowerCase()}`}`,
-    backToFacts: 'Back to your facts',
     gender: 'Gender',
     age: 'Age',
     // The stage with nothing on it (legacy #mv-fig-empty), over the ghost figure.
     stageEmpty: 'Your model starts here.',
   },
+  // The facts (design "The facts — redesign", 24 Nov): a row per measurement, its unit beside it.
   facts: {
     title: 'The facts',
     height: 'Height',
     size: 'Size',
+    bust: 'Bust',
+    chest: 'Chest',
+    waist: 'Waist',
+    inseam: 'Inseam',
+    collar: 'Collar',
     shoes: 'Shoes',
+    shoulders: 'Shoulders',
     age: 'Age',
     gender: 'Gender',
     add: 'Add',
-    less: 'Less',
-    more: 'More',
-    cm: 'cm',
-    ftIn: 'ft / in',
-    clear: 'Clear the facts',
     genderOptions: {
       woman: 'Woman',
       man: 'Man',
@@ -155,20 +155,29 @@ export const twin = {
       unspecified: 'Prefer not to say',
     },
     unspecified: '—',
-    bust: 'Bust',
-    waist: 'Waist',
-    braSize: 'Bra size',
-    tape: 'Tape',
     band: 'Band',
     cup: 'Cup',
-    inches: 'in',
-    bustValue: (band: number | null, cup: string | null, cm: number | null): string =>
-      band && cup ? `${band}${cup}` : cm ? `${cm} cm` : '',
-    waistValue: (cm: number, unit: 'cm' | 'in'): string =>
-      unit === 'cm' ? `${cm} cm` : `${Math.round(cm / 2.54)} in`,
-    heightValue: (cm: number): string => `${cm} cm`,
-    ukValue: (uk: number | string): string => `UK ${uk}`,
-    euValue: (eu: number | string): string => `EU ${eu}`,
+    units: { cm: 'cm', in: 'in', uk: 'UK', eu: 'EU', us: 'US' } as Record<string, string>,
+    // The unit toggle's spoken name: "Height units".
+    unitsOf: (label: string): string => `${label} units`,
+    // A row's spoken name: "Height, 166 cm" or "Height, not set".
+    rowLabel: (label: string, value: string): string => `${label}, ${value || 'not set'}`,
+    // "166 cm", "5′6″", "UK 12", "UK 7½", "15½ in": every value in the unit she reads it in.
+    value: (field: string, unit: string, n: number): string => {
+      const whole = Math.floor(n);
+      const half = n - whole ? `${whole}½` : String(whole);
+      if (unit === 'uk' || unit === 'eu' || unit === 'us') return `${unit.toUpperCase()} ${half}`;
+      if (field === 'height' && unit === 'in') return `${Math.floor(n / 12)}′${n % 12}″`;
+      return `${half} ${unit}`;
+    },
+    bustValue: (band: number, cup: string): string => `${band}${cup}`,
+    clear: 'Clear the facts',
+    clearAsk: {
+      title: 'Clear the facts?',
+      body: 'Every measurement is emptied.',
+      confirm: 'Clear',
+      cancel: 'Keep them',
+    },
   },
   dnaPage: {
     title: 'Style DNA',

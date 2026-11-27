@@ -2,26 +2,13 @@
 // three sliders. These are the numbers both clients draw the figure from and the server keys and
 // describes the twin from; the words live in the prompt module.
 
+import { BUST_CUPS, cupOf } from '../style-dna/measures';
 import { DEFAULT_HAIR, DEFAULT_SKIN, HAIR_SWATCHES, nearestIndex, SKIN_SWATCHES } from './index';
 
 // Bumping this redraws every twin: the key carries it.
 export const TWIN_STYLE = 'v1';
 
-export const BUST_CUPS = ['AA', 'A', 'B', 'C', 'D', 'DD', 'E', 'F', 'G+'] as const;
-export type BustCup = (typeof BUST_CUPS)[number];
-
-export const TWIN_RANGES = {
-  bustBand: { min: 28, max: 46, step: 2, start: 34 },
-  bustCm: { min: 70, max: 140, step: 1, start: 88 },
-  waistCm: { min: 50, max: 130, step: 1, start: 70 },
-} as const;
-export type TwinStep = keyof typeof TWIN_RANGES;
-
-export function stepTwinFact(kind: TwinStep, value: number | null, dir: 1 | -1): number {
-  const r = TWIN_RANGES[kind];
-  const next = value === null ? r.start : value + dir * r.step;
-  return Math.min(r.max, Math.max(r.min, next));
-}
+export { BUST_CUPS, type BustCup } from '../style-dna/measures';
 
 // An unfilled model is a woman, size 10, 35; an age band resolves to its youngest year.
 export const TWIN_DEFAULTS = { sizeUk: 10, age: 35, heightCm: 165 } as const;
@@ -36,13 +23,17 @@ const AGE_YEARS: Record<string, number> = {
 export const twinAge = (band: string | null | undefined): number =>
   (band && AGE_YEARS[band]) || TWIN_DEFAULTS.age;
 
-export const TWIN_SCALES = ['shoulders', 'bust', 'hips'] as const;
+export const TWIN_SCALES = ['shoulders', 'bust', 'hips', 'waist'] as const;
 export type TwinScale = (typeof TWIN_SCALES)[number];
+// The three a person adjusts by hand: hers end at the hips, his at the waist (design "The facts —
+// redesign", 24 Nov). 'unspecified' and non-binary take hers, as the catalog does.
+export const scalesFor = (gender: string | null | undefined): readonly TwinScale[] =>
+  gender === 'man' ? ['shoulders', 'bust', 'waist'] : ['shoulders', 'bust', 'hips'];
 export type Stop = -2 | -1 | 0 | 1 | 2;
 export const STOPS: readonly Stop[] = [-2, -1, 0, 1, 2];
 // null on a scale is "from your facts".
 export type TwinAdj = Record<TwinScale, Stop | null>;
-export const NO_ADJ: TwinAdj = { shoulders: null, bust: null, hips: null };
+export const NO_ADJ: TwinAdj = { shoulders: null, bust: null, hips: null, waist: null };
 
 export interface TwinFacts {
   heightCm: number | null;
@@ -56,14 +47,24 @@ export interface TwinFacts {
 
 const isStop = (v: unknown): v is Stop => Number.isInteger(v) && Math.abs(v as number) <= 2;
 
-// Stored sliders read defensively: anything but a stop is "from your facts".
-export function readAdj(v: unknown): TwinAdj {
+// Stored sliders read defensively: anything but a stop is "from your facts". Given who the model
+// is, a scale they are not offered reads as unset (a man's hips set before his waist scale).
+export function readAdj(v: unknown, gender?: string | null): TwinAdj {
   const o = v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
-  return {
+  const adj: TwinAdj = {
     shoulders: isStop(o.shoulders) ? o.shoulders : null,
     bust: isStop(o.bust) ? o.bust : null,
     hips: isStop(o.hips) ? o.hips : null,
+    waist: isStop(o.waist) ? o.waist : null,
   };
+  return gender === undefined ? adj : onlyScales(adj, gender);
+}
+
+function onlyScales(adj: TwinAdj, gender: string | null): TwinAdj {
+  const keep = scalesFor(gender);
+  return Object.fromEntries(
+    TWIN_SCALES.map((k) => [k, keep.includes(k) ? adj[k] : null]),
+  ) as TwinAdj;
 }
 
 // A legacy full-length read seeds the sliders once, so nobody's line regresses when the
@@ -75,14 +76,33 @@ const LEGACY_SEED: Record<string, Partial<TwinAdj>> = {
   'Inverted Triangle': { shoulders: 1, hips: -1 },
   Apple: { bust: 1 },
 };
-export function adjFor(stored: unknown, bodyType: string | null | undefined): TwinAdj {
+export function adjFor(
+  stored: unknown,
+  bodyType: string | null | undefined,
+  gender: string | null = null,
+): TwinAdj {
+  return onlyScales(storedScales(stored, bodyType), gender);
+}
+
+// Every scale on file, the ones this gender is not offered included (her hips while he is a man):
+// a switch of gender hides a scale, and a slider moved or Reset never wipes it (25 Nov).
+export function storedScales(stored: unknown, bodyType: string | null | undefined): TwinAdj {
   if (stored !== undefined && stored !== null) return readAdj(stored);
   return { ...NO_ADJ, ...(bodyType ? (LEGACY_SEED[bodyType] ?? {}) : {}) };
 }
 
+// Reset on Body shape: the scales this gender is offered go back to the facts; the others stay.
+export function resetScales(stored: TwinAdj, gender: string | null): TwinAdj {
+  const shown = scalesFor(gender);
+  return Object.fromEntries(
+    TWIN_SCALES.map((k) => [k, shown.includes(k) ? null : stored[k]]),
+  ) as TwinAdj;
+}
+
 export function bustCmOf(f: Pick<TwinFacts, 'bustBand' | 'bustCup' | 'bustCm'>): number | null {
   if (f.bustCm) return f.bustCm;
-  const cup = BUST_CUPS.indexOf(f.bustCup as BustCup);
+  const c = cupOf(f.bustCup);
+  const cup = c ? BUST_CUPS.indexOf(c) : -1;
   if (f.bustBand && cup >= 0) return Math.round(f.bustBand * 2.54 + (cup + 0.5) * 2.54);
   return null;
 }
@@ -98,6 +118,7 @@ export function effectiveStops(facts: TwinFacts, adj: TwinAdj) {
     shoulders: adj.shoulders ?? 0,
     bust: adj.bust ?? seed,
     hips: adj.hips ?? 0,
+    waist: adj.waist ?? 0,
     seedBust: seed,
     waistDiff,
   };
@@ -126,7 +147,7 @@ export function twinFigure(facts: TwinFacts, adj: TwinAdj): TwinFigure {
   const ws = 25 * sf + e.shoulders * 3;
   const wbBase = bustCm ? (24 * bustCm) / 88 : 24 * sf;
   const wb = wbBase + (e.bust - e.seedBust) * 2.6 + (bustCm ? 0 : e.bust * 2.6);
-  const ww = facts.waistCm ? (18 * facts.waistCm) / 70 : 18 * sf;
+  const ww = (facts.waistCm ? (18 * facts.waistCm) / 70 : 18 * sf) + e.waist * 2.6;
   const wh = 26 * sf + e.hips * 3.2;
   const P = (x: number, y: number): [number, number] => [75 + x, top + y * u];
   const outer = (
@@ -207,7 +228,8 @@ function materialOf(i: TwinInputs, skin: number | null, hair: number | null): st
     TWIN_STYLE,
     i.gender,
     [f.heightCm, f.sizeUk, f.bustBand, f.bustCup, f.bustCm, f.waistCm, f.ageBand],
-    [i.adj.shoulders, i.adj.bust, i.adj.hips],
+    // His third scale is the waist, hers the hips: her key is as it was before his waist scale.
+    [i.adj.shoulders, i.adj.bust, i.gender === 'man' ? i.adj.waist : i.adj.hips],
     skin,
     hair,
     i.skinSet,
@@ -221,7 +243,7 @@ export interface TwinSpec {
   gender: 'woman' | 'man';
   heightCm: number | null;
   sizeUk: number;
-  stops: { shoulders: Stop; bust: Stop; hips: Stop };
+  stops: { shoulders: Stop; bust: Stop; hips: Stop; waist: Stop };
   waistDiff: number | null;
   age: number;
   skin: number;
@@ -237,7 +259,7 @@ export function twinSpec(i: TwinInputs, hasFace: boolean): TwinSpec {
     gender: i.gender,
     heightCm: i.facts.heightCm,
     sizeUk: i.facts.sizeUk ?? TWIN_DEFAULTS.sizeUk,
-    stops: { shoulders: e.shoulders, bust: e.bust, hips: e.hips },
+    stops: { shoulders: e.shoulders, bust: e.bust, hips: e.hips, waist: e.waist },
     waistDiff: e.waistDiff,
     age: twinAge(i.facts.ageBand),
     skin: i.skin,
@@ -258,6 +280,8 @@ export interface TwinSource {
   bustCup: string | null;
   bustCm: number | null;
   waistCm: number | null;
+  // His chest (24 Nov): drawn where her bust is.
+  chestCm: number | null;
   ageBand: string | null;
   bodyType: string | null;
   headshotAssetId: string | null;
@@ -278,19 +302,21 @@ export function twinInputsOf(row: TwinSource): TwinInputs {
   const hair = pick(prefs, 'hair', HAIR_SWATCHES.length - 1);
   const adj =
     prefs && typeof prefs === 'object' ? (prefs as Record<string, unknown>).adj : undefined;
+  const man = row.genderIdentity === 'man';
   return {
     // 'unspecified' rides the woman's catalog, as the cells do.
-    gender: row.genderIdentity === 'man' ? 'man' : 'woman',
+    gender: man ? 'man' : 'woman',
     facts: {
       heightCm: row.heightCm,
       sizeUk: row.sizeUk,
-      bustBand: row.bustBand,
-      bustCup: row.bustCup,
-      bustCm: row.bustCm,
+      bustBand: man ? null : row.bustBand,
+      bustCup: man ? null : row.bustCup,
+      // His chest was saved as the tape before 24 Nov, and copied to chest_cm then.
+      bustCm: man ? (row.chestCm ?? row.bustCm) : row.bustCm,
       waistCm: row.waistCm,
       ageBand: row.ageBand,
     },
-    adj: adjFor(adj, row.bodyType),
+    adj: adjFor(adj, row.bodyType, row.genderIdentity),
     skin: skin ?? nearestIndex(row.skinHex, SKIN_SWATCHES, DEFAULT_SKIN),
     hair: hair ?? nearestIndex(row.hairHex, HAIR_SWATCHES, DEFAULT_HAIR),
     skinSet: skin !== undefined,
