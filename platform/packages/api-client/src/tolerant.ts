@@ -3,8 +3,9 @@ import type { z } from 'zod';
 // ADR-022: an installed app outlives the API it was built against, so a response this build's
 // schema rejects is mended rather than thrown away. A number out of range is clamped, a string or
 // list too long is cut, and any other bad value is dropped: a nullable field reads null, an
-// optional or defaulted one falls back, and a required one takes its list item with it. A response
-// with nothing left to drop still fails. `drift` is the original error, for reporting.
+// optional or defaulted one falls back, and a required one takes what holds it with it (a nullable
+// or optional object, or its list item). A response with nothing left to drop still fails. `drift`
+// is the original error, for reporting.
 export type TolerantResult<T> =
   | { success: true; data: T; drift: z.ZodError | null }
   | { success: false; error: z.ZodError };
@@ -56,7 +57,7 @@ function mend(root: unknown, issue: z.core.$ZodIssue): { changed: boolean; value
     }
   }
   // A ladder, one rung per round: a list loses the item; a field tries null (nullable), then
-  // nothing (optional or defaulted); a required field then takes its list item with it.
+  // nothing (optional or defaulted); a required field then climbs to what holds it.
   if (Array.isArray(parent) && current !== undefined) {
     parent.splice(Number(key), 1);
     return { changed: true, value: root };
@@ -66,14 +67,9 @@ function mend(root: unknown, issue: z.core.$ZodIssue): { changed: boolean; value
     else parent[key] = null;
     return { changed: true, value: root };
   }
-  // Already gone and still required: drop the nearest list item that holds it.
-  for (let i = path.length - 2; i >= 0; i--) {
-    const list = at(root, path.slice(0, i));
-    if (Array.isArray(list)) {
-      list.splice(Number(path[i]), 1);
-      return { changed: true, value: root };
-    }
-  }
+  // Already gone and still required: the ladder climbs to what holds it (null, absent, or the
+  // list item), up to the response itself, which is never dropped.
+  if (path.length > 1) return mend(root, { ...issue, code: 'custom', path: path.slice(0, -1) });
   return { changed: false, value: root };
 }
 

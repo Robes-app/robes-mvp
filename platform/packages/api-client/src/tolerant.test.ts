@@ -11,6 +11,7 @@ const Schema = z.object({
   colour: z.enum(['ink', 'cream']).nullable(),
   mood: z.enum(['calm', 'bold']).default('calm'),
   pieces: z.array(Piece),
+  cover: z.object({ url: z.string(), fit: z.enum(['crop', 'pad']) }).nullable(),
 });
 const good = {
   id: 'a',
@@ -19,6 +20,7 @@ const good = {
   colour: 'ink',
   mood: 'bold',
   pieces: [{ id: 'p', kind: 'top' }],
+  cover: { url: 'u', fit: 'crop' },
 };
 
 describe('parseTolerantly (ADR-022)', () => {
@@ -48,6 +50,11 @@ describe('parseTolerantly (ADR-022)', () => {
     const r = parseTolerantly(Schema, body);
     expect(r).toMatchObject({ success: true, data: { pieces: [{ id: 'p2', kind: 'shoe' }] } });
     expect(body.pieces).toHaveLength(3);
+  });
+
+  it('a required field that can only be dropped takes its nullable object with it', () => {
+    const r = parseTolerantly(Schema, { ...good, cover: { url: 'u', fit: 'stretch' } });
+    expect(r).toMatchObject({ success: true, data: { cover: null } });
   });
 
   it('still fails when a required field outside any list is unreadable', () => {
