@@ -126,6 +126,9 @@ export const CaptureRead = z.object({
   material: z.string().max(60).nullable().default(null),
   // Her piece it very likely is ("Looks like your …"), when the read saw one.
   suggestedPieceId: z.uuid().nullable().default(null),
+  // Her next likeliest pieces, offered one at a time once she says the one above is not it
+  // (Annie, 27 Nov). Defaulted: an older app sends none and reads none.
+  alsoSuggestedIds: z.array(z.uuid()).max(4).default([]),
 });
 export type CaptureRead = z.infer<typeof CaptureRead>;
 
@@ -251,8 +254,9 @@ export const Look = z.object({
   // the draft reads stale until she asks for the model again, or saves. Defaulted for older servers.
   pictureStale: z.boolean().default(false),
   // Robes' picture was drawn on a model other than the one her looks stand on now (her twin
-  // created, redrawn or deleted, or another Robes model chosen): opening the look draws it again
-  // on her model (useDressOnOpen). Defaulted for older servers.
+  // created, redrawn or deleted, or another Robes model chosen). Builds before 27 Nov 2026 draw it
+  // again on her model when the look is opened; later ones draw only from the pill. Defaulted for
+  // older servers.
   modelStale: z.boolean().default(false),
   // Robes' picture stands on a Robes model, not on her (plan 2026-11-05 §2.4): the look wears the
   // `Robes model` tag. Read from what the picture was drawn on, never from her account.

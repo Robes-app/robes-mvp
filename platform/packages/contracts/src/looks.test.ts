@@ -1,6 +1,7 @@
 import { PICTURE_NOTE_MAX } from '@robes/core/looks';
 import { describe, expect, it } from 'vitest';
-import { Look, LookRobesInput, PromptLookInput, RedrawLookInput } from './looks';
+import { CaptureRead, Look, LookRobesInput, PromptLookInput, RedrawLookInput } from './looks';
+import { ReadPiece } from './photo-reads';
 
 const olderServerLook = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -68,6 +69,42 @@ describe('look contracts (D19, D21)', () => {
     expect(LookRobesInput.parse({ hidden: true })).toEqual({ hidden: true });
     expect(LookRobesInput.safeParse({}).success).toBe(false);
     expect(LookRobesInput.safeParse({ hidden: 'yes' }).success).toBe(false);
+  });
+});
+
+describe('her other likely pieces on a found row (27 Nov)', () => {
+  const read = {
+    readId: '11111111-1111-4111-8111-111111111111',
+    index: 0,
+    cropAssetId: '22222222-2222-4222-8222-222222222222',
+  };
+  const other = '33333333-3333-4333-8333-333333333333';
+
+  it('reads a found row from an app or a look before the list, and carries it after', () => {
+    expect(CaptureRead.parse(read)).toMatchObject({ suggestedPieceId: null, alsoSuggestedIds: [] });
+    expect(
+      CaptureRead.parse({ ...read, suggestedPieceId: other, alsoSuggestedIds: [other] })
+        .alsoSuggestedIds,
+    ).toEqual([other]);
+    expect(CaptureRead.safeParse({ ...read, alsoSuggestedIds: ['shoes'] }).success).toBe(false);
+  });
+
+  it('reads a photo read stored before wardrobe-pieces v5', () => {
+    const piece = {
+      index: 0,
+      label: 'Trainers',
+      category: 'Shoes',
+      categoryL2: null,
+      categoryL3: null,
+      color: null,
+      brand: null,
+      notes: null,
+      box: { x: 0, y: 0, w: 1, h: 1 },
+      match: null,
+      cropAssetId: read.cropAssetId,
+    };
+    expect(ReadPiece.parse(piece).alsoMatches).toEqual([]);
+    expect(ReadPiece.parse({ ...piece, alsoMatches: [other] }).alsoMatches).toEqual([other]);
   });
 });
 

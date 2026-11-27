@@ -123,7 +123,13 @@ describe('wardrobe_pieces handler', () => {
     );
     const out = writeStage.mock.calls[0]?.[1] as {
       assetId: string;
-      readPieces: Array<{ label: string; match: unknown; cropAssetId: string; itemDna: object }>;
+      readPieces: Array<{
+        label: string;
+        match: unknown;
+        alsoMatches: string[];
+        cropAssetId: string;
+        itemDna: object;
+      }>;
     };
     expect(out.assetId).toBe(ASSET);
     expect(out.readPieces.map((p) => p.label)).toEqual([
@@ -133,6 +139,8 @@ describe('wardrobe_pieces handler', () => {
     ]);
     expect(out.readPieces[2]?.match).toEqual({ pieceId: SHOES, confidence: 0.8 });
     expect(out.readPieces[0]?.match).toBeNull();
+    // Her other pieces it may be ride beside the match (wardrobe-pieces v5): none here.
+    expect(out.readPieces.map((p) => p.alsoMatches)).toEqual([[], [], []]);
     expect(out.readPieces[0]?.itemDna).toBeDefined();
   });
 

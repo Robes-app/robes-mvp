@@ -29,6 +29,9 @@ export const ReadPiece = z.object({
   box: PieceBox,
   // Her piece it very likely is, read against her wardrobe; null when Robes sees a new one.
   match: z.object({ pieceId: z.uuid(), confidence: fraction }).nullable(),
+  // Her other pieces it may be, likeliest first (wardrobe-pieces v5). Defaulted: a read stored
+  // before v5, or by an older worker, has none.
+  alsoMatches: z.array(z.uuid()).max(4).default([]),
   // The piece's own crop of the photo (renders a moment after the read).
   cropAssetId: z.uuid(),
 });

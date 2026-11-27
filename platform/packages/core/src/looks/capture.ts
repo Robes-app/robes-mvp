@@ -18,10 +18,12 @@ export interface FoundPiece {
   material: string | null;
   cropAssetId: string;
   match: { pieceId: string; confidence: number } | null;
+  // Her other pieces it may be, likeliest first (absent on a read from before wardrobe-pieces v5).
+  alsoMatches?: readonly string[];
 }
 
 // The read's pieces as rack rows, in the read's order. A match below the threshold is no
-// suggestion.
+// suggestion, and then her other pieces are none either.
 export function captureRows(
   readId: string,
   pieces: readonly FoundPiece[],
@@ -33,6 +35,7 @@ export function captureRows(
       const key = newKey();
       const name = p.label.trim().slice(0, 120) || p.category;
       const brand = (p.brand ?? '').trim().slice(0, 60);
+      const suggested = p.match && p.match.confidence >= MATCH_THRESHOLD ? p.match.pieceId : null;
       return {
         key,
         pieceId: null,
@@ -57,8 +60,10 @@ export function captureRows(
             index: p.index,
             cropAssetId: p.cropAssetId,
             material: p.material,
-            suggestedPieceId:
-              p.match && p.match.confidence >= MATCH_THRESHOLD ? p.match.pieceId : null,
+            suggestedPieceId: suggested,
+            alsoSuggestedIds: suggested
+              ? [...new Set(p.alsoMatches ?? [])].filter((id) => id !== suggested).slice(0, 4)
+              : [],
           },
         },
       };
@@ -78,20 +83,35 @@ export function rowKind(row: RackRow): RowKind {
   return row.proposal.wishlisted ? 'wish' : 'shop';
 }
 
-// Her pieces a found row may be, likeliest first. The read keeps one today.
+// Her pieces a found row may be, likeliest first.
 export function suggestedIds(row: RackRow): string[] {
-  const id = row.proposal?.capture?.suggestedPieceId;
-  return id ? [id] : [];
+  const capture = row.proposal?.capture;
+  return capture?.suggestedPieceId
+    ? [capture.suggestedPieceId, ...(capture.alsoSuggestedIds ?? [])]
+    : [];
 }
 
 // "Looks like your …" dismissed for this look: the likeliest piece goes from the row, and the
-// next one, when the read has one, stands in its place.
-export function dismissSuggestion(rows: readonly RackRow[], key: string): RackRow[] {
+// next one, when the read has one, stands in its place. `shown`: the piece the strip named, when
+// it was not the likeliest (that one is on the rack already, or gone from her wardrobe); it goes
+// with every piece before it.
+export function dismissSuggestion(
+  rows: readonly RackRow[],
+  key: string,
+  shown?: string,
+): RackRow[] {
   return rows.map((r) => {
     const capture = r.proposal?.capture;
     if (r.key !== key || !r.proposal || !capture) return r;
-    const [, next = null] = suggestedIds(r);
-    return { ...r, proposal: { ...r.proposal, capture: { ...capture, suggestedPieceId: next } } };
+    const ids = suggestedIds(r);
+    const [next = null, ...rest] = ids.slice(Math.max(shown ? ids.indexOf(shown) : 0, 0) + 1);
+    return {
+      ...r,
+      proposal: {
+        ...r.proposal,
+        capture: { ...capture, suggestedPieceId: next, alsoSuggestedIds: rest },
+      },
+    };
   });
 }
 

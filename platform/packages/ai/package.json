@@ -13,7 +13,7 @@
     "./prompts/receipt-photo": "./src/prompts/receipt-photo/v2.ts",
     "./prompts/avatar": "./src/prompts/avatar/v11.ts",
     "./prompts/style-brief": "./src/prompts/style-brief/v2.ts",
-    "./prompts/wardrobe-pieces": "./src/prompts/wardrobe-pieces/v4.ts",
+    "./prompts/wardrobe-pieces": "./src/prompts/wardrobe-pieces/v5.ts",
     "./prompts/wardrobe-detail": "./src/prompts/wardrobe-detail/v1.ts",
     "./prompts/style-piece/v2": "./src/prompts/style-piece/v2.ts",
     "./prompts/look-ask": "./src/prompts/look-ask/v5.ts"

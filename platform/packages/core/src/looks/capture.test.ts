@@ -16,10 +16,12 @@ import {
   rowKind,
   suggestedIds,
 } from './capture';
-import type { RackRow } from './index';
+import type { CaptureRead, RackRow } from './index';
 
 const READ = '11111111-1111-4111-8111-111111111111';
 const HERS = '22222222-2222-4222-8222-222222222222';
+const OTHER = '44444444-4444-4444-8444-444444444444';
+const THIRD = '55555555-5555-4555-8555-555555555555';
 const found = (index: number, over: Partial<FoundPiece> = {}): FoundPiece => ({
   index,
   label: ['Cropped sweatshirt', 'Leggings', 'Running trainers'][index] ?? 'Piece',
@@ -69,6 +71,20 @@ describe('captureRows', () => {
     expect(close?.proposal?.capture?.suggestedPieceId).toBe(HERS);
     expect(far?.proposal?.capture?.suggestedPieceId).toBeNull();
     expect(none?.proposal?.capture?.suggestedPieceId).toBeNull();
+  });
+
+  it('keeps her other likely pieces behind the likeliest, and none without it', () => {
+    const [close, far] = captureRows(
+      READ,
+      [
+        found(0, { match: { pieceId: HERS, confidence: 0.8 }, alsoMatches: [HERS, OTHER, OTHER] }),
+        found(1, { match: { pieceId: HERS, confidence: 0.2 }, alsoMatches: [OTHER] }),
+      ],
+      keys(),
+    );
+    expect(suggestedIds(close as RackRow)).toEqual([HERS, OTHER]);
+    expect(suggestedIds(far as RackRow)).toEqual([]);
+    expect(far?.proposal?.capture?.alsoSuggestedIds).toEqual([]);
   });
 
   it('keeps the colour and material the read saw, and nothing it did not', () => {
@@ -183,6 +199,37 @@ describe('the rack', () => {
     expect(next[1]).toBe(second);
     // Nothing the picture wears changed.
     expect(next.map((r) => r.key)).toEqual(seen.map((r) => r.key));
+  });
+
+  it('a suggestion dismissed offers her next likeliest piece, then none', () => {
+    const seen = captureRows(
+      READ,
+      [found(0, { match: { pieceId: HERS, confidence: 0.9 }, alsoMatches: [OTHER] })],
+      keys(),
+    );
+    const key = (seen[0] as RackRow).key;
+    const once = dismissSuggestion(seen, key);
+    expect(suggestedIds(once[0] as RackRow)).toEqual([OTHER]);
+    expect(once[0]?.proposal?.capture).toMatchObject({
+      suggestedPieceId: OTHER,
+      alsoSuggestedIds: [],
+    });
+    const twice = dismissSuggestion(once, key);
+    expect(suggestedIds(twice[0] as RackRow)).toEqual([]);
+    // The strip named her second piece (the first is on the rack already): both go.
+    const three = captureRows(
+      READ,
+      [found(0, { match: { pieceId: HERS, confidence: 0.9 }, alsoMatches: [OTHER, THIRD] })],
+      () => key,
+    );
+    expect(suggestedIds(dismissSuggestion(three, key, OTHER)[0] as RackRow)).toEqual([THIRD]);
+    // A row kept by an app from before the list reads as it always did.
+    const first = seen[0] as RackRow;
+    const proposal = first.proposal as NonNullable<RackRow['proposal']>;
+    const { alsoSuggestedIds: _, ...capture } = proposal.capture as CaptureRead;
+    const old: RackRow = { ...first, proposal: { ...proposal, capture } };
+    expect(suggestedIds(old)).toEqual([HERS]);
+    expect(suggestedIds(dismissSuggestion([old], key)[0] as RackRow)).toEqual([]);
   });
 
   it('Undo puts one row back where it stood, and takes off what it became', () => {
