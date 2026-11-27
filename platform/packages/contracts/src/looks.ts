@@ -1,3 +1,4 @@
+import { TAGS_MAX } from '@robes/core/filters';
 import {
   ASK_MAX_CHARS,
   ASK_RACK_MAX,
@@ -335,8 +336,8 @@ export const UpdateLookInput = z
     // Either spelling of the season: `seasons` wins when both are sent (D12).
     climateBand: SeasonBand,
     seasons: Seasons,
-    // Details › Tags: the whole set, replaced; at most six, like a piece's.
-    tags: z.array(z.string().trim().min(1).max(40)).max(6),
+    // Details › Tags: the whole set, replaced; as many as she likes (TAGS_MAX bounds a request).
+    tags: z.array(z.string().trim().min(1).max(40)).max(TAGS_MAX),
     pieces: z.array(LookPieceInput).max(50),
     ...rackFields,
     // Editing a suggestion makes it a draft: at five drafts, she lets the oldest go.
@@ -345,6 +346,10 @@ export const UpdateLookInput = z
     keepSuggested: z.boolean(),
     // You / Model: which picture is the record.
     record: z.enum(['photo', 'model']),
+    // Found rows filed in this write (`fileRow`): each found row's key, and the row it became
+    // (her piece's id, or the wish's key). Her picture wore the found piece, so filing keeps it
+    // current (Annie, 26 Nov); the server checks each against the look before it counts.
+    filed: z.array(z.object({ from: ProposalKey, to: RackKey })).max(MAX_ROWS),
   })
   .partial();
 export type UpdateLookInput = z.infer<typeof UpdateLookInput>;

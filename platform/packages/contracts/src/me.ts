@@ -1,6 +1,7 @@
 import { GENDER_IDENTITIES, HAIR_SWATCHES } from '@robes/core/avatar';
 import { COLOUR_FAMILY_IDS, PATTERNS, SHADE_IDS } from '@robes/core/colour';
 import { STYLE_TYPES } from '@robes/core/style-dna';
+import { isTimeZone, TIMEZONE_MAX } from '@robes/core/timezone';
 import { z } from 'zod';
 
 const name = z.string().trim().max(60);
@@ -70,7 +71,8 @@ export const UpdateMeInput = z
     lastName: name,
     instagramHandle: z.string().regex(/^[A-Za-z0-9._]{1,30}$/),
     locale: z.string().max(20),
-    timezone: z.string().max(64),
+    // An IANA name Intl can read: a bad one would break every "today" she loads.
+    timezone: z.string().max(TIMEZONE_MAX).refine(isTimeZone),
     currency: z.string().regex(/^[A-Z]{3}$/),
     homeCity: z.string().trim().max(120),
     notifications: z.object(NotificationPrefs.shape).partial().strict(),

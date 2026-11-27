@@ -202,10 +202,6 @@ export const appServerEnv = z
       .optional(),
     ROBES_AWS_ACCESS_KEY_ID: optionalSecret,
     ROBES_AWS_SECRET_ACCESS_KEY: optionalSecret,
-    MIN_APP_VERSION: z
-      .string()
-      .regex(/^\d+(\.\d+)*$/)
-      .optional(),
     UPSTASH_REDIS_REST_URL: z.url().optional(),
     UPSTASH_REDIS_REST_TOKEN: optionalSecret,
     ALLOW_PRIVATE_FETCH: z.string().optional(),

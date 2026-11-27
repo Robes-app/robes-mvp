@@ -224,6 +224,69 @@ describe('look rendered on her model', () => {
     expect(await system.modelRender.look(bea, look.id)).toBeUndefined();
   });
 
+  // Filing a found piece keeps the picture (Annie, 26 Nov): a ready render's key moves, nothing else.
+  it('carries a ready render to its new key, only on her own look and only from its own key', async () => {
+    const look = await repos.looks.create(niall, {
+      name: 'Filed',
+      nameProvisional: false,
+      pieces: [],
+    });
+    expect(await repos.looks.claimRender(niall, look.id, 'm:k1')).toBe(true);
+    // Still drawing: nothing to carry.
+    expect(await repos.looks.carryRender(niall, look.id, 'm:k1', 'm:k2')).toBe(false);
+    const asset = await system.styling.createGeneratedAsset(niall);
+    await system.modelRender.setRender(niall, look.id, 'm:k1', asset);
+    expect(await repos.looks.carryRender(bea, look.id, 'm:k1', 'm:k2')).toBe(false);
+    expect(await repos.looks.carryRender(niall, look.id, 'm:k0', 'm:k2')).toBe(false);
+    expect(await repos.looks.carryRender(niall, look.id, 'm:k1', 'm:k2')).toBe(true);
+    expect(await repos.looks.renderState(niall, look.id)).toMatchObject({
+      renderKey: 'm:k2',
+      renderStatus: 'ready',
+      renderAssetId: asset,
+    });
+    // The carried key is current: asking for it again draws nothing.
+    expect(await repos.looks.claimRender(niall, look.id, 'm:k2')).toBe(false);
+  });
+
+  // D1: the render reads the look's proposals, and only her own ready photos of them.
+  it('reads the proposals with the look, and only her own ready assets for their photos', async () => {
+    const proposals = [{ key: 'p-jeans', name: 'Straight jeans', category: 'Bottoms' }];
+    const look = await repos.looks.create(niall, {
+      name: 'Found',
+      nameProvisional: false,
+      pieces: [],
+    });
+    await db
+      .updateTable('looks')
+      .set({ proposals: JSON.stringify(proposals) })
+      .where('id', '=', look.id)
+      .execute();
+    expect((await system.modelRender.look(niall, look.id))?.look.proposals).toEqual(proposals);
+    const mine = await repos.assets.createPending(niall, {
+      kind: 'look_photo',
+      contentType: 'image/jpeg',
+      bytes: 1000,
+    });
+    const pending = await repos.assets.createPending(niall, {
+      kind: 'look_photo',
+      contentType: 'image/jpeg',
+      bytes: 1000,
+    });
+    const hers = await repos.assets.createPending(bea, {
+      kind: 'look_photo',
+      contentType: 'image/jpeg',
+      bytes: 1000,
+    });
+    await db
+      .updateTable('assets')
+      .set({ status: 'ready' })
+      .where('id', 'in', [mine.id, hers.id])
+      .execute();
+    const ready = await system.modelRender.readyAssets(niall, [mine.id, pending.id, hers.id]);
+    expect([...ready]).toEqual([mine.id]);
+    expect(await system.modelRender.readyAssets(niall, [])).toEqual(new Set());
+  });
+
   // D21: her picture note sent asks for a fresh picture even when the key is the same.
   it('draws again when forced, but never twice at once, and only for her own look', async () => {
     const look = await repos.looks.create(niall, {

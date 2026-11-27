@@ -12,7 +12,14 @@ import {
   wishRow,
 } from '@robes/contracts';
 import { errors, lookbook, ui } from '@robes/copy';
-import { applyAsk, changedKeys, type RackRow, type RackState, rowNote } from '@robes/core/looks';
+import {
+  applyAsk,
+  changedKeys,
+  filesOnly,
+  type RackRow,
+  type RackState,
+  rowNote,
+} from '@robes/core/looks';
 import { useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
@@ -92,9 +99,11 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     },
   });
 
-  const change = (next: RackState) => {
+  // `drawn`: the picture already wears `next` (a found piece filed, Annie 26 Nov), so it is not
+  // counted as a change the picture is behind on.
+  const change = (next: RackState, drawn = false) => {
     setRack(next);
-    onChange.current?.();
+    if (!drawn) onChange.current?.();
     if (live) {
       inFlight.current = write
         .mutateAsync({ params: { id: look.id }, input: rackUpdate(next, { keepEdits: true }) })
@@ -209,7 +218,27 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     setRows: (rows: RackRow[]) => {
       const keys = new Set(rows.map((r) => r.key));
       const edits = Object.fromEntries(Object.entries(rack.edits).filter(([k]) => keys.has(k)));
-      change({ ...rack, rows, edits });
+      change({ ...rack, rows, edits }, filesOnly(current.current.rows, rows));
+    },
+    // The pieces Find the pieces read from her photograph (D1, Annie 26 Nov): they join the rack
+    // and are written at once, on a saved look too, so her model can be drawn wearing them. A
+    // saved look's own waiting changes are not written with them: they still wait for Update look.
+    addFound: (found: RackRow[]) => {
+      if (live) {
+        change({ ...current.current, rows: [...current.current.rows, ...found] });
+        return;
+      }
+      const kept = rackFromLook(look);
+      setRack((r) => ({ ...r, rows: [...r.rows, ...found] }));
+      inFlight.current = write
+        .mutateAsync({
+          params: { id: look.id },
+          input: {
+            ...rackUpdate({ ...kept, rows: [...kept.rows, ...found] }, { keepEdits: false }),
+            ...(look.status === 'suggested' ? { keepSuggested: true } : {}),
+          },
+        })
+        .catch(() => undefined);
     },
     // Everything she picked at once lands as ONE change: one write, one picture. Added one by
     // one, each add rebuilt the rack she opened the picker on and the last pick replaced the

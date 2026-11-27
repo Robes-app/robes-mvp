@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyFilters,
+  drawerOrder,
   EMPTY_LOOK_FILTERS,
   extraActive,
   type Filterable,
   hasLookFilters,
+  lookFacets,
   matchesSeasons,
+  quickTags,
   seasonCounts,
   sheetFilterCount,
   toggleValue,
@@ -100,8 +103,8 @@ describe('faceted counts', () => {
 describe('the filter button and the row', () => {
   it('counts seasons and sheet-only values, and appends those values to the row', () => {
     const state = { query: '', seasons: ['autumn' as const], wearFor: ['Work', 'Travel'] };
-    expect(sheetFilterCount(state)).toBe(2);
-    expect(extraActive(state)).toEqual(['Travel']);
+    expect(sheetFilterCount(state, ['Work'])).toBe(2);
+    expect(extraActive(state, ['work'])).toEqual(['Travel']);
     expect(hasLookFilters(EMPTY_LOOK_FILTERS)).toBe(false);
     expect(hasLookFilters({ ...EMPTY_LOOK_FILTERS, query: ' a ' })).toBe(true);
   });
@@ -111,20 +114,49 @@ describe('the filter button and the row', () => {
     expect(toggleValue(['Work'], 'Travel')).toEqual(['Work', 'Travel']);
   });
 
-  it('offers the shared list, then her own tags once each, A–Z', () => {
+  it('offers only the tags in use, once each, the most used first, then A–Z', () => {
     expect(
-      wearForChoices([{ wearFor: ['Gallery', 'work'] }, { wearFor: ['gallery', 'Brunch'] }]),
-    ).toEqual([
-      'Everyday',
-      'Work',
-      'Weekend',
-      'Evening',
-      'Occasion',
-      'Travel',
-      'Active',
-      'Lounge',
-      'Brunch',
-      'Gallery',
-    ]);
+      wearForChoices([
+        { wearFor: ['Gallery', 'work'] },
+        { wearFor: ['gallery', 'Brunch'] },
+        { wearFor: ['Work', 'Gallery'] },
+      ]),
+    ).toEqual(['Gallery', 'work', 'Brunch']);
+  });
+
+  it('offers nothing when nothing is tagged, and no default she never used', () => {
+    expect(wearForChoices([{ wearFor: [] }])).toEqual([]);
+    expect(wearForChoices([{ wearFor: ['Beach'] }])).toEqual(['Beach']);
+  });
+
+  it('makes her most used tags the quick chips', () => {
+    expect(quickTags(['a', 'b', 'c', 'd', 'e', 'f'])).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(quickTags(['Beach'])).toEqual(['Beach']);
+  });
+});
+
+describe('a look as the filters read it', () => {
+  it("carries only the tags she put on it, never its pieces'", () => {
+    const look = {
+      name: 'Gallery night',
+      tags: [] as string[],
+      pieces: [{ piece: { label: 'Blazer', wearFor: ['Work'] } }],
+    };
+    expect(lookFacets(look).wearFor).toEqual([]);
+    expect(lookFacets({ ...look, tags: ['City'] }).wearFor).toEqual(['City']);
+  });
+});
+
+describe('the Tags drawer', () => {
+  const tag = (label: string, isSeed: boolean, createdAt: string) => ({ label, isSeed, createdAt });
+  it('lists her own tags newest first, then the defaults in their order', () => {
+    const order = drawerOrder([
+      tag('Work', true, '2026-01-01'),
+      tag('Beach', false, '2026-03-01'),
+      tag('Everyday', true, '2026-01-01'),
+      tag('City', false, '2026-04-01'),
+      tag('Lounge', true, '2026-01-01'),
+    ]).map((t) => t.label);
+    expect(order).toEqual(['City', 'Beach', 'Everyday', 'Work', 'Lounge']);
   });
 });

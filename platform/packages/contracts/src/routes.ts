@@ -23,7 +23,7 @@ import {
   ListAuditInput,
   SetAdminFlagInput,
 } from './admin';
-import { AuthProviders, EmptyInput, HealthOutput } from './common';
+import { AppVersions, AuthProviders, EmptyInput, HealthOutput } from './common';
 import { Consents, DeleteTwinInput, UpdateConsentsInput } from './consents';
 import {
   DecideInboxInput,
@@ -108,6 +108,7 @@ import {
   FileReadOutput,
   LookFromPhotoInput,
   PhotoReadParams,
+  ReadCrops,
   StartPhotoReadInput,
 } from './photo-reads';
 import {
@@ -128,6 +129,7 @@ import {
   UpdatePlanEntryInput,
 } from './plan';
 import { CreateShareInput, Share, SharedLook, ShareParams } from './shares';
+import { TagList, TagParams } from './tags';
 import {
   DailyItemParams,
   DailyLook,
@@ -490,6 +492,23 @@ export const routes = {
     input: UpdateConsentsInput,
     output: Consents,
   },
+  // Her tags, shared by her looks and pieces (tags cleanup, 26 Nov): the list with what carries
+  // each, and a delete that takes a tag off everything it was on.
+  'tags.list': {
+    method: 'GET',
+    path: '/tags',
+    auth: 'user',
+    input: EmptyInput,
+    output: TagList,
+  },
+  'tags.delete': {
+    method: 'DELETE',
+    path: '/tags/:id',
+    auth: 'user',
+    params: TagParams,
+    input: EmptyInput,
+    output: Deleted,
+  },
   'wardrobe.list': {
     method: 'GET',
     path: '/wardrobe/items',
@@ -620,6 +639,14 @@ export const routes = {
     params: PhotoReadParams,
     input: LookFromPhotoInput,
     output: Look,
+  },
+  'photoReads.crops': {
+    method: 'GET',
+    path: '/wardrobe/photo-reads/:id/crops',
+    auth: 'user',
+    params: PhotoReadParams,
+    input: EmptyInput,
+    output: ReadCrops,
   },
   'wishlist.list': {
     method: 'GET',
@@ -1132,6 +1159,13 @@ export const routes = {
     input: EmptyInput,
     output: AuthProviders,
   },
+  'public.appVersions': {
+    method: 'GET',
+    path: '/public/app-versions',
+    auth: 'public',
+    input: EmptyInput,
+    output: AppVersions,
+  },
   'public.waitlist.join': {
     method: 'POST',
     path: '/public/waitlist',
@@ -1386,3 +1420,14 @@ export type QueryRouteKey = {
   [K in JsonRouteKey]: Routes[K]['method'] extends 'GET' ? K : never;
 }[JsonRouteKey];
 export type MutationRouteKey = Exclude<JsonRouteKey, QueryRouteKey>;
+
+// Reads the server works out from "today" in her timezone (todayIn): refetched when her device
+// moves her to another zone (B6; web shell/device-timezone.tsx, native lib/timezone.tsx).
+export const DATED_ROUTES = [
+  'today.get',
+  'today.weather',
+  'plan.get',
+  'plan.day',
+  'notifications.list',
+  'wardrobe.list',
+] as const satisfies readonly QueryRouteKey[];

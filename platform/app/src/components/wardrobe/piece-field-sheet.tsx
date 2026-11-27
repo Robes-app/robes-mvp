@@ -19,7 +19,6 @@ import {
   sheetCategories,
   sheetL1For,
   subcategoriesOf,
-  WEAR_SEEDS,
 } from '@robes/core/taxonomy';
 import {
   currencyForLocale,
@@ -40,6 +39,7 @@ import {
   OptionRow as ToggleRow,
 } from '@robes/ui';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { useTagsPicker } from '@/components/tags/tags-picker';
 import { ColourPicker, OptionRow, PrintPicker } from './colour-field';
 import { MaterialPicker } from './material-field';
 
@@ -261,7 +261,7 @@ export function PieceFieldSheet({
       }
     >
       {field === 'wearFor' ? (
-        <WearForPicker piece={piece} onPick={onSave} />
+        <PieceTags piece={piece} onPick={onSave} />
       ) : field === 'category' ? (
         <CategoryList piece={piece} drill={drill} onDrill={setDrill} onPick={commit} />
       ) : TYPED.has(field) ? (
@@ -562,86 +562,20 @@ function CategoryList({
   );
 }
 
-const WEAR_MAX = 6;
-
-// What she wears it for: the seven seeds, then her own in the order she made them, multi-select.
-// Each tap is the answer, so the drawer writes as she goes; "+ Your own" turns into a field where
-// Return adds the tag and picks it.
-function WearForPicker({
+// Her tags on the piece, in the one Tags picker a look shares (tags cleanup, 26 Nov): each tap is
+// the answer, so the drawer writes as she goes. Native twin: TagsSheet.
+function PieceTags({
   piece,
   onPick,
 }: {
   piece: PieceValues;
   onPick: (input: UpdatePieceInput) => void;
 }) {
-  const seeds: string[] = WEAR_SEEDS.map((s) => s.label);
-  const chosen = piece.wearFor;
-  // Her own tags stay listed while the drawer is open, picked or not.
-  const [own, setOwn] = useState<string[]>(() => chosen.filter((c) => !seeds.includes(c)));
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState('');
-  const options = [...seeds, ...own.filter((o) => !seeds.includes(o))];
-  const toggle = (label: string) => {
-    if (chosen.includes(label)) onPick({ wearFor: chosen.filter((c) => c !== label) });
-    else if (chosen.length < WEAR_MAX) onPick({ wearFor: [...chosen, label] });
-  };
-  const add = (e: FormEvent) => {
-    e.preventDefault();
-    const typed = draft.trim();
-    setDraft('');
-    setAdding(false);
-    if (!typed) return;
-    const label = options.find((o) => o.toLowerCase() === typed.toLowerCase()) ?? typed;
-    if (!options.includes(label)) setOwn((o) => [...o, label]);
-    if (!chosen.includes(label) && chosen.length < WEAR_MAX)
-      onPick({ wearFor: [...chosen, label] });
-  };
+  const picker = useTagsPicker(piece.wearFor, (wearFor) => onPick({ wearFor }));
   return (
     <div className="flex flex-col gap-4">
-      <Text size="small" tone="muted">
-        {fields.wearFor.helper}
-      </Text>
-      <ul className="flex flex-wrap gap-2">
-        {options.map((label) => (
-          <li key={label}>
-            <Pill selected={chosen.includes(label)} onClick={() => toggle(label)}>
-              {label}
-            </Pill>
-          </li>
-        ))}
-        <li>
-          {adding ? (
-            <form onSubmit={add}>
-              <input
-                // biome-ignore lint/a11y/noAutofocus: she tapped "+ Your own" to type here
-                autoFocus
-                aria-label={fields.wearFor.ownLabel}
-                value={draft}
-                maxLength={40}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    e.stopPropagation();
-                    setAdding(false);
-                  }
-                }}
-                onBlur={() => {
-                  if (!draft.trim()) setAdding(false);
-                }}
-                className="min-h-11 w-40 rounded-pill border border-border-control bg-surface-raised px-4 font-sans text-base text-ink focus-visible:border-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink focus-visible:ring-inset sm:text-sm"
-              />
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              className="inline-flex min-h-11 items-center rounded-pill border border-border-control border-dashed px-4 font-sans text-ink-muted text-sm hover:text-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >
-              {fields.wearFor.own}
-            </button>
-          )}
-        </li>
-      </ul>
+      {picker.list}
+      {picker.addField}
     </div>
   );
 }

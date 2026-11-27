@@ -19,6 +19,7 @@ import {
   fonts,
   Image,
   PrimaryScope,
+  Skeleton,
   Subview,
   Tabs,
   Text,
@@ -103,13 +104,11 @@ function Head({ status }: { status?: string }) {
 // otherwise the row says there is no close match. Web twin: components/looks/capture-rack.tsx.
 export function CaptureRow({
   row,
-  look,
   capture,
   onMatch,
   onAdd,
 }: {
   row: RackRow;
-  look: Look;
   capture: CaptureRack;
   onMatch: () => void;
   onAdd: () => void;
@@ -126,7 +125,7 @@ export function CaptureRow({
         category: row.category,
         categoryL2: row.categoryL2 ?? null,
         brand: null,
-        image: look.captureImages[row.key] ?? null,
+        image: capture.image(row),
       }}
       {...(said.length ? { role: said.join(' · ') } : {})}
       maker={hers ? '' : copy.row.noMatch}
@@ -355,14 +354,12 @@ const TAB_OF: Record<TabLabel, RecordTab> = {
 // rack. Web twin: components/looks/capture-rack.tsx NewPieceSheet.
 export function NewPieceSheet({
   row,
-  look,
   capture,
   onClose,
   onAdded,
 }: {
   // The found row being added; null closes the sheet.
   row: RackRow | null;
-  look: Look;
   capture: CaptureRack;
   onClose: () => void;
   onAdded: (piece: Piece) => void;
@@ -395,7 +392,7 @@ export function NewPieceSheet({
     ? ({ ...readDraft(piece), category: piece.category } as PieceValues)
     : null;
   const values = base ? withTagDefaults({ ...base, ...changes } as PieceValues) : null;
-  const crop = row ? look.captureImages[row.key] : undefined;
+  const crop = row ? capture.image(row) : null;
   const uri = renditionUri(crop, 390);
   const gone = read !== null && !held && job.isError;
 
@@ -451,6 +448,9 @@ export function NewPieceSheet({
         >
           {uri ? (
             <Image source={uri} alt="" aspect="4:5" contentFit="contain" className="w-full" />
+          ) : crop?.status === 'pending' ? (
+            // Its crop is still being made (web twin: NewPieceSheet in capture-rack.tsx).
+            <Skeleton width="100%" aspectRatio={4 / 5} />
           ) : null}
         </View>
         <Tabs items={TABS} value={tab} onChange={setTab} testID="capture-piece-tabs" />

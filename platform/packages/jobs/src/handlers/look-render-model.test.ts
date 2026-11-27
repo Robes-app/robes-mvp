@@ -20,6 +20,8 @@ function setup(
     pieces?: object[];
     twin?: object;
     pictureNote?: string | null;
+    proposals?: object[];
+    ready?: string[];
   } = {},
 ) {
   const model = {
@@ -31,6 +33,7 @@ function setup(
         renderStatus: 'pending',
         styling: { 'piece-coat': 'worn open' },
         pictureNote: opts.pictureNote ?? null,
+        proposals: opts.proposals ?? [],
       },
       pieces: opts.pieces ?? [
         {
@@ -61,6 +64,10 @@ function setup(
     setRender: vi.fn(async () => true),
     failRender: vi.fn(async () => {}),
     model: vi.fn(async () => opts.twin),
+    readyAssets: vi.fn(async (_u: string, ids: readonly string[]) => {
+      const ready = new Set(opts.ready ?? []);
+      return new Set(ids.filter((id) => ready.has(id)));
+    }),
   };
   const storage = {
     getObject: vi.fn(async () => new Uint8Array([1])),
@@ -94,6 +101,65 @@ function setup(
 }
 
 describe('look_render on her model', () => {
+  // D1 (Annie, 26 Nov): every piece on the look is drawn, filed or not.
+  it('draws the proposals too: a found piece from its crop, a prompt-added piece from its name', async () => {
+    const CROP = '77777777-7777-4777-8777-777777777777';
+    const ELSE = '88888888-8888-4888-8888-888888888888';
+    const { run, model, storage, generateImage } = setup({
+      pieces: [
+        {
+          id: 'piece-coat',
+          label: 'Camel coat',
+          category: 'Outerwear',
+          color: 'Camel',
+          brand: null,
+          imageAssetId: ASSET,
+          assetStatus: 'ready',
+        },
+      ],
+      proposals: [
+        {
+          key: 'p-jeans',
+          name: 'Straight blue jeans',
+          category: 'Bottoms',
+          color: 'Blue',
+          brand: '',
+          capture: { readId: ELSE, index: 1, cropAssetId: CROP },
+        },
+        { key: 'p-loafers', name: 'Black loafers', category: 'Other', brand: 'Sézane' },
+        // A photo that is not a ready asset of hers is drawn from its words.
+        { key: 'p-scarf', name: 'Silk scarf', category: 'Accessories', stillAssetId: ELSE },
+      ],
+      ready: [CROP],
+    });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(model.readyAssets).toHaveBeenCalledWith(USER, [CROP, ELSE]);
+    expect(storage.getObject).toHaveBeenCalledWith(`media/${USER}/${CROP}/cutout.jpg`);
+    expect(storage.getObject).not.toHaveBeenCalledWith(`media/${USER}/${ELSE}/cutout.jpg`);
+    const req = generateImage.mock.calls[0]?.[0];
+    expect(req?.references).toHaveLength(3);
+    expect(req?.prompt).toContain('- IMAGE 2: the Camel coat');
+    expect(req?.prompt).toContain('- IMAGE 3: the Straight blue jeans');
+    expect(req?.prompt).toContain('- the Black loafers (Shoes by Sézane)');
+    expect(req?.prompt).toContain('- the Silk scarf');
+  });
+
+  it('draws a look whose pieces are all found in her photograph, none filed', async () => {
+    const { run, generateImage } = setup({
+      pieces: [],
+      proposals: [{ key: 'p-stripe', name: 'Striped top', category: 'Tops' }],
+    });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(generateImage.mock.calls[0]?.[0]?.prompt).toContain('- the Striped top');
+  });
+
+  it('draws nothing for a look with no pieces and no proposals', async () => {
+    const { run, model, generateImage } = setup({ pieces: [] });
+    await expect(run()).rejects.toEqual(new JobError('empty_look'));
+    expect(model.failRender).toHaveBeenCalledWith(USER, LOOK, KEY);
+    expect(generateImage).not.toHaveBeenCalled();
+  });
+
   it('re-feeds her model cell first, then her piece photos, and lands the render on the look', async () => {
     const { run, model, storage, generateImage } = setup();
     await expect(run()).resolves.toEqual({ status: 'succeeded' });

@@ -1,4 +1,5 @@
 import { COLOUR_EXTRA_MAX, COLOUR_FAMILY_IDS, PATTERN_IDS, SHADE_IDS } from '@robes/core/colour';
+import { TAGS_MAX } from '@robes/core/filters';
 import { MATERIAL_IDS } from '@robes/core/material';
 import { DETAIL_MAX, detailOf } from '@robes/core/taxonomy';
 import { z } from 'zod';
@@ -191,7 +192,8 @@ const editable = {
   // client) still lands, and the database spells it as seasons.
   seasonBand: SeasonBand,
   seasons: Seasons,
-  wearFor: z.array(z.string().trim().min(1).max(40)).max(6),
+  // Her tags on the piece, as many as she likes (TAGS_MAX bounds a request).
+  wearFor: z.array(z.string().trim().min(1).max(40)).max(TAGS_MAX),
   price: z.number().min(0).max(10_000_000).nullable(),
   currency: z
     .string()

@@ -111,6 +111,8 @@ export function seedsRepo(db: Db) {
               .where('userId', '=', userId)
               .where('kind', '=', 'wear_for')
               .where(sql`slug`, '=', sql`private.tag_slug(${label})`)
+              // A tag she deleted stays deleted: the look lands without it.
+              .where('deletedAt', 'is', null)
               .executeTakeFirst();
             if (!tag) continue;
             await trx

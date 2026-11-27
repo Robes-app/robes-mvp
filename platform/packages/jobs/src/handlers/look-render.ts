@@ -54,7 +54,7 @@ export interface LookRenderDeps {
   // "See it on me": her look on her model. Absent where the runtime doesn't render on models.
   model?: Pick<
     SystemRepositories['modelRender'],
-    'look' | 'cell' | 'setRender' | 'failRender' | 'model'
+    'look' | 'cell' | 'setRender' | 'failRender' | 'model' | 'readyAssets'
   >;
   // Frames are stored as uploads; AWS renders them from the S3 event, dev renders here.
   onGenerated?(key: string): Promise<void>;
@@ -92,6 +92,22 @@ const StoredProposals = z
     }),
   )
   .catch([]);
+// A proposal as the model render reads it: its words, and the photograph it has, if any — the
+// crop of a piece found in her photograph, or a seeded piece's still. Read leniently: a malformed
+// photo id is drawn from its words, never fails the render.
+const StoredRenderProposals = z
+  .array(
+    z.looseObject({
+      key: z.string().default(''),
+      name: z.string().trim().min(1),
+      category: z.string().default(''),
+      color: z.string().default(''),
+      brand: z.string().default(''),
+      stillAssetId: z.uuid().nullable().optional().catch(null),
+      capture: z.looseObject({ cropAssetId: z.uuid() }).nullable().optional().catch(null),
+    }),
+  )
+  .catch([]);
 const StoredStyling = z.record(z.string(), z.string()).catch({});
 const isStoodOn = (v: string | null): v is StoodOn => v === 'twin' || v === 'cell' || v === 'robes';
 const StoredDaily = z.object({
@@ -106,6 +122,19 @@ const StoredDaily = z.object({
   }),
   weather: z.object({ city: z.string().nullable() }).nullable().optional(),
 });
+
+// The look's proposals as garments for the model render, in rack order.
+export function renderProposals(raw: unknown) {
+  return StoredRenderProposals.parse(raw ?? []).map((p) => ({
+    key: p.key,
+    name: p.name,
+    // A proposal filed as Other before it was read from its name (19 Nov) draws as what it is.
+    category: categoryFromWords(p.category, p.name),
+    color: p.color,
+    brand: p.brand,
+    photoAssetId: p.capture?.cropAssetId ?? p.stillAssetId ?? null,
+  }));
+}
 
 interface Plan {
   type: 'idea' | 'daily_look';
@@ -250,6 +279,14 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       throw new JobError('model_not_ready');
     }
     const lookStyling = StoredStyling.parse(found.look.styling ?? {});
+    // Every piece on the look is drawn, filed or not (D1, Annie 26 Nov): her pieces, then the
+    // proposals — found in her photograph (its crop as the photo), or added by the prompt (a
+    // wish, a new piece to shop: drawn from its name, as the frame draws them).
+    const proposals = renderProposals(found.look.proposals);
+    const ready = await model.readyAssets(
+      ctx.userId,
+      proposals.flatMap((p) => (p.photoAssetId ? [p.photoAssetId] : [])),
+    );
     const pieces = [];
     for (const p of found.pieces) {
       let photo: Uint8Array | null = null;
@@ -271,6 +308,25 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         styled: lookStyling[p.id] ?? null,
         shape: shapeOf(p.shape),
         detail: detailOf(p.detail),
+      });
+    }
+    for (const p of proposals) {
+      let photo: Uint8Array | null = null;
+      if (
+        references.length <= MAX_PIECE_REFERENCES &&
+        p.photoAssetId &&
+        ready.has(p.photoAssetId)
+      ) {
+        photo = await pieceReference(deps.storage, ctx.userId, p.photoAssetId).catch(() => null);
+      }
+      if (photo) references.push({ mimeType: 'image/jpeg', data: photo });
+      pieces.push({
+        name: p.name,
+        category: p.category,
+        color: p.color || null,
+        brand: p.brand || null,
+        hasImage: Boolean(photo),
+        styled: lookStyling[p.key] ?? null,
       });
     }
     if (pieces.length === 0) {

@@ -187,12 +187,6 @@ export const lookbook = {
       clearCaption: 'Clear the caption',
       saveCaption: 'Keep the caption',
     },
-    tagsView: {
-      title: 'Tags',
-      add: 'Add a tag',
-      keep: 'Keep the tag',
-      toggle: (tag: string): string => `Tag it ${tag}`,
-    },
     seasonsView: {
       title: 'Seasons',
       done: 'Done',

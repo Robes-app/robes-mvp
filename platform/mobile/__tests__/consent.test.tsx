@@ -124,3 +124,16 @@ test('an answer already given is not asked again', async () => {
   expect(screen.queryByText(consent.askTitle)).toBeNull();
   expect(start).not.toHaveBeenCalled();
 });
+
+// A recording shows her photos, so it needs Share my looks with Robes too (Annie, 26 Nov 2026).
+test.each([
+  [{ recordings: true, look_sharing: true }, true],
+  [{ recordings: true, look_sharing: false }, false],
+  [{ recordings: false, look_sharing: true }, false],
+  [{ replay: true, look_sharing: true }, false],
+])('screen recordings run only with Screen recordings and Share my looks: %o', async (yes, on) => {
+  const start = jest.spyOn(nativeAnalytics, 'start').mockResolvedValue();
+  mockFetch({ 'GET /me': ME, 'GET /me/consents': { ...UNANSWERED, analytics: true, ...yes } });
+  await renderWithApi(<AnalyticsSetup />);
+  await waitFor(() => expect(start).toHaveBeenCalledWith(ME.id, { recordings: on }));
+});

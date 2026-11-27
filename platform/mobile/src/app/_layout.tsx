@@ -24,6 +24,7 @@ import { DRAFT_SHEET } from '@/components/FormSheetScreen';
 import { api } from '@/lib/api';
 import { noteApiError } from '@/lib/session-events';
 import { SessionGate } from '@/lib/session-gate';
+import { TimeZoneSync } from '@/lib/timezone';
 
 // Light only, as beta: a dark-mode phone still sees cream (dark waits for a setting). Expo Go
 // may ignore app.json's userInterfaceStyle, so the theme is pinned here too. Twin of web layout.tsx.
@@ -63,6 +64,7 @@ export default function RootLayout() {
               <Stack.Screen name="looks/draft/[id]" options={DRAFT_SHEET} />
             </Stack>
             <SessionGate />
+            <TimeZoneSync />
           </ToastProvider>
         </View>
       </ApiClientProvider>

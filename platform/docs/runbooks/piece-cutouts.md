@@ -62,7 +62,7 @@ The lifting module does not exist in Expo Go, does not run in the Simulator, and
 cloud session. Until these steps have been done on a phone, the native path is unverified.
 
 1. Build and install a build that contains the module (it is native code, so an over-the-air
-   update is not enough): from `platform/mobile`, `pnpm testflight` for staging, or
+   update is not enough): from `platform/mobile`, a TestFlight build (`runbooks/ios-release.md`), or
    `npx eas-cli@latest build --profile development --platform ios` for a development build.
 2. On an iPhone on iOS 17 or later, sign in, open Wardrobe, tap +, Photo.
 3. Photograph, one at a time:

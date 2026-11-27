@@ -14,6 +14,7 @@ import { readsAsThey } from '@robes/core/avatar';
 import {
   type Balance,
   changeableRows,
+  cropsLanding,
   type DockMove,
   type DockState,
   defaultSources,
@@ -394,8 +395,10 @@ export function DraftLook({
     { params: { id: lookId ?? '' } },
     {
       enabled: lookId !== null,
-      // Until the picture has landed, renditions and all (pictureLanding).
-      refetchInterval: (q) => (pictureLanding(q.state.data) ? 3_000 : false),
+      // Until the picture has landed, renditions and all (pictureLanding), and every found
+      // row's crop with it (cropsLanding: they render after the read, tester trial 25 Nov).
+      refetchInterval: (q) =>
+        pictureLanding(q.state.data) || cropsLanding(q.state.data) ? 3_000 : false,
     },
   );
   if (lookId === null) {
@@ -1163,7 +1166,9 @@ function DraftBody({
           ? fb.placeholder
           : null;
   // A look from her photograph (Capture PRD 1c): The Rack finds, matches and adds its pieces.
-  const capture = useCaptureRack(look, editor);
+  // Her pieces found in the photograph dress her model at once, all of them in one picture and
+  // nothing filed (D1, Annie 26 Nov); a photograph whose pieces she never finds is never drawn.
+  const capture = useCaptureRack(look, editor, { onFound: () => adjustRef.current?.dress() });
   // A draft from her photograph is the photograph and its rack: no prompt card, no Generate.
   const captureDraft = capture.on && mode === 'draft';
   // The capture rack lists its pieces as they are found: the Rack's controls wait for the rack.
@@ -1296,9 +1301,11 @@ function DraftBody({
   };
   // A saved look's prompt keeps its own change (redline 14 Nov, pin 25): once Robes has answered
   // on the rack, the rack is written and the model wears it, with no button and nothing said.
-  const [applying, setApplying] = useState<'asked' | 'reading' | null>(null);
+  // `keeping`: the change is being written, between Robes' answer and the redraw it starts, so
+  // Robes is still at work there (25 Nov: Robes' work dropped for that moment and the dock folded
+  // twice on one send).
+  const [applying, setApplying] = useState<'asked' | 'reading' | 'keeping' | null>(null);
   const keep = async () => {
-    if (!editor.dirty) return;
     if (!(await editor.update(true))) return;
     src.settle();
     adjust.drawNow();
@@ -1306,8 +1313,12 @@ function DraftBody({
   useEffect(() => {
     if (applying === 'asked' && adjust.busy) setApplying('reading');
     if (applying === 'reading' && !adjust.busy) {
-      setApplying(null);
-      void keep();
+      if (!editor.dirty) {
+        setApplying(null);
+        return;
+      }
+      setApplying('keeping');
+      void keep().finally(() => setApplying(null));
     }
   });
   const done = () => {
@@ -1316,8 +1327,9 @@ function DraftBody({
       // A draft's photographs are kept as it is saved.
       void stack.commit().then((ok) => {
         if (!ok) return;
-        // Her photograph is the picture: nothing is drawn for a look from it.
-        if (!capture.on) adjust.drawForSave();
+        // A look from her photograph is drawn only once its pieces were found (D1); after
+        // that, Save draws what is behind as it does for any draft.
+        if (!capture.on || (look.onModel ?? null) !== null) adjust.drawForSave();
         save.mutate({ params: { id: look.id }, input: forDay ? { date: forDay } : {} });
       });
       return;
@@ -1387,12 +1399,19 @@ function DraftBody({
   // A draft's model wears the rack as she builds it (Annie, 16 Nov): pieces added, swapped or
   // taken off by hand dress it at once, the picks of one moment in one picture, and a draft that
   // has pieces but no picture yet is dressed as it opens. Not while a picture is being drawn, nor
-  // again after one failed; Robes' own photograph is the picture of a look it made, and her
-  // photograph of a captured one. A saved look's changes still wait for Update look (D17).
+  // again after one failed; Robes' own photograph is the picture of a look it made. A captured
+  // draft is first dressed when its pieces are found (`onFound`, D1); from then on it is dressed
+  // exactly as a hand-built one, each piece matched, added or taken off drawn as it lands (Annie,
+  // 26 Nov). Filing a found piece changes nothing it wears, so it draws nothing. Before its first
+  // picture her photograph is its only one. A saved look's changes still wait for Update look (D17).
   const handBuilt = mode === 'draft' && !captureDraft && !look.frame && rows.length > 0;
   const undressed = look.model === null && (look.onModel ?? null) === null;
+  const drawnCapture = captureDraft && rows.length > 0 && (look.onModel ?? null) !== null;
   const toDress =
-    handBuilt && !adjust.busy && look.onModel !== 'pending' && (adjust.stale || undressed);
+    (handBuilt || drawnCapture) &&
+    !adjust.busy &&
+    look.onModel !== 'pending' &&
+    (adjust.stale || undressed);
   // biome-ignore lint/correctness/useExhaustiveDependencies: another pick restarts the wait
   useEffect(() => {
     if (!toDress) return;
@@ -1439,7 +1458,6 @@ function DraftBody({
       <CaptureRow
         key={row.key}
         row={row}
-        look={look}
         capture={capture}
         onMatch={() =>
           setPicker({
@@ -1527,13 +1545,14 @@ function DraftBody({
   useEffect(() => {
     if (firstDress) setDockState('spark');
   }, [firstDress]);
-  // On a saved look her send puts the dock away to the sparkle while Robes works, as a draft does
-  // while it is first dressed; the sparkle's dot says when Robes has answered, a question or its
-  // words (Annie, 18 Nov).
-  const savedWorking = mode !== 'draft' && adjust.busy;
+  // On a saved look her send keeps the prompt open on Robes at work, at the bar or the thread she
+  // sent from, and Robes' question about the change, asked as its picture lands, folds either to
+  // the sparkle with the redraw, its dot holding the question; Robes' words alone keep it open on
+  // them (Annie, 26 Nov, D6). Put away by her while Robes works, the dot says when it has answered.
+  const question = adjust.state.question;
   useEffect(() => {
-    if (savedWorking) setDockState('spark');
-  }, [savedWorking]);
+    if (question !== null) setDockState((from) => dockNext(from, 'answered', dockContext));
+  }, [question, dockContext]);
   const [unread, setUnread] = useState(false);
   const dockNow = useRef(dockState);
   dockNow.current = dockState;
@@ -1557,7 +1576,9 @@ function DraftBody({
   }, [verdict]);
   const hasThread = adjust.state.thread.length > 0 || adjust.state.question !== null;
   const lastLine = adjust.state.thread.at(-1);
-  const working = lastLine?.who === 'work';
+  // While her change is written, before its redraw starts, Robes is still dressing it.
+  const keeping = applying === 'keeping' && lastLine?.who !== 'work';
+  const working = lastLine?.who === 'work' || keeping;
   const said =
     (lastLine?.who === 'robes' || lastLine?.who === 'filed') && lastLine.text !== d.modelDone
       ? lastLine
@@ -1615,11 +1636,13 @@ function DraftBody({
       state={dockState}
       first={!hasThread}
       line={
-        working
-          ? (lastLine?.text ?? null)
-          : verdict === 'down'
-            ? fb.change
-            : (adjust.state.question ?? said?.text ?? null)
+        keeping
+          ? d.dressing
+          : working
+            ? (lastLine?.text ?? null)
+            : verdict === 'down'
+              ? fb.change
+              : (adjust.state.question ?? said?.text ?? null)
       }
       working={working}
       thumbs={verdict === 'ask' ? <Thumbs adjust={adjust} /> : null}
@@ -1899,7 +1922,6 @@ function DraftBody({
         row={
           dockYield.gate(newPiece !== null) ? (rows.find((r) => r.key === newPiece) ?? null) : null
         }
-        look={look}
         capture={capture}
         onClose={() => setNewPiece(null)}
         onAdded={(piece) => {

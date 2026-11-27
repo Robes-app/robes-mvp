@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   captureEyebrow,
+  captureImage,
   captureRows,
   captureStage,
+  cropReads,
+  cropsLanding,
   type FoundPiece,
   filedCount,
   fileRow,
+  filesOnly,
   isCaptureRow,
   removeRow,
   restoreRows,
@@ -86,6 +90,25 @@ describe('the rack', () => {
     expect(filedCount(next)).toBe(1);
   });
 
+  // Filing keeps the picture current (Annie, 26 Nov): the filed row remembers the found row.
+  it('a filed row remembers the found row it was, and filing alone is no change to the picture', () => {
+    const next = fileRow(rows, top.key, hers());
+    expect(next[0]?.filedFrom).toBe(top.key);
+    expect(next[1]).toBe(bottom);
+    expect(filesOnly(rows, next)).toBe(true);
+    expect(filesOnly(next, fileRow(next, bottom.key, hers('x')))).toBe(true);
+    // Nothing filed, a row taken off, or a filed row swapped for another piece: a change.
+    expect(filesOnly(rows, rows)).toBe(false);
+    expect(filesOnly(next, removeRow(next, [], bottom.key).rows)).toBe(false);
+    expect(filesOnly(next, [hers('y'), bottom, shoes])).toBe(false);
+  });
+
+  it('a filed row already on the rack is not filed from anything', () => {
+    const once = fileRow(rows, top.key, hers());
+    const twice = fileRow(once, bottom.key, hers());
+    expect(twice.some((r) => r.filedFrom === bottom.key)).toBe(false);
+  });
+
   it('never hangs her piece twice', () => {
     const once = fileRow(rows, top.key, hers());
     const twice = fileRow(once, bottom.key, hers());
@@ -117,6 +140,8 @@ describe('the rack', () => {
     });
     const once = fileRow(rows, top.key, wish(top.key));
     expect(once.map((r) => r.proposal?.wishlistItemId ?? null)).toEqual(['wish-1', null, null]);
+    expect(once[0]?.filedFrom).toBe(top.key);
+    expect(filesOnly(rows, once)).toBe(true);
     expect(isCaptureRow(once[0] as RackRow)).toBe(false);
     const twice = fileRow(once, bottom.key, wish(bottom.key));
     expect(twice.map((r) => r.key)).toEqual([top.key, shoes.key]);
@@ -150,5 +175,58 @@ describe('captureStage', () => {
   it('keeps the photo when the read fails or every row is removed', () => {
     expect(captureStage({ ...rest, failed: true })).toBe('failed');
     expect(captureStage({ ...rest, cleared: true })).toBe('clear');
+  });
+});
+
+describe('found rows and their crops', () => {
+  const [top, bottom] = captureRows(READ, [found(0), found(1)], keys());
+  if (!top || !bottom) throw new Error('two rows');
+  const crop = (status: 'pending' | 'ready' | 'failed', renditions: unknown[] = []) => ({
+    assetId: top.proposal?.capture?.cropAssetId ?? '',
+    status,
+    renditions,
+  });
+
+  it('keeps a look landing while any found row’s crop is still being made', () => {
+    expect(cropsLanding(undefined)).toBe(false);
+    expect(cropsLanding({ captureImages: {} })).toBe(false);
+    expect(cropsLanding({ captureImages: { a: crop('ready'), b: crop('pending') } })).toBe(true);
+    expect(cropsLanding({ captureImages: { a: crop('ready'), b: crop('failed') } })).toBe(false);
+  });
+
+  it('fetches the read for found rows a saved look holds no crop for, once per read', () => {
+    const saved = (captureImages: Record<string, unknown>) => ({ status: 'saved', captureImages });
+    expect(cropReads([top, bottom], saved({}))).toEqual([READ]);
+    expect(cropReads([top, bottom], saved({ [top.key]: crop('pending') }))).toEqual([READ]);
+    expect(
+      cropReads([top, bottom], saved({ [top.key]: crop('pending'), [bottom.key]: crop('ready') })),
+    ).toEqual([]);
+    expect(cropReads([hers()], saved({}))).toEqual([]);
+  });
+
+  it('leaves a draft to its look, which its rows are written to at once', () => {
+    expect(cropReads([top, bottom], { status: 'draft', captureImages: {} })).toEqual([]);
+  });
+
+  it('draws whichever crop has landed, the look’s first', () => {
+    const ready = crop('ready', [{ width: 200 }]);
+    expect(captureImage(top, ready, crop('ready'))).toBe(ready);
+    expect(captureImage(top, crop('pending'), ready)).toBe(ready);
+    const pending = crop('pending');
+    expect(captureImage(top, pending, undefined)).toBe(pending);
+    expect(captureImage(top, undefined, pending)).toBe(pending);
+  });
+
+  it('stands in a pending crop before anything has come back, and none for a failed one', () => {
+    expect(captureImage(top, undefined, undefined)).toEqual({
+      assetId: top.proposal?.capture?.cropAssetId,
+      status: 'pending',
+      width: null,
+      height: null,
+      blurhash: null,
+      renditions: [],
+    });
+    expect(captureImage(top, undefined, crop('failed'))).toBeNull();
+    expect(captureImage(hers(), undefined, undefined)).toBeNull();
   });
 });

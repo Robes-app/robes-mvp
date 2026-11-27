@@ -1,4 +1,4 @@
-import { createNativeAnalytics } from '../src/lib/analytics';
+import { createNativeAnalytics, SESSION_REPLAY_CONFIG } from '../src/lib/analytics';
 
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
 
@@ -81,6 +81,18 @@ test('screen recordings run only with her yes to them, and stop with analytics',
   analytics.stop();
   expect(client.stopSessionRecording).toHaveBeenCalledTimes(3);
   expect(client.optOut).toHaveBeenCalled();
+});
+
+// The app as she sees it, her photos included (Annie, 26 Nov 2026); her email and the sign-in code
+// stay in Unrecorded, the system photo picker stays masked, no console lines or network calls.
+test('screen recordings show her text and photos, and nothing from the console or network', () => {
+  expect(SESSION_REPLAY_CONFIG).toEqual({
+    maskAllTextInputs: false,
+    maskAllImages: false,
+    maskAllSandboxedViews: true,
+    captureLog: false,
+    captureNetworkTelemetry: false,
+  });
 });
 
 test('without a key analytics never loads', async () => {
