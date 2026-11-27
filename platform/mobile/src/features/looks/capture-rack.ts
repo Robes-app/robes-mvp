@@ -35,7 +35,7 @@ import { isTerminal, JOB_REFRESH_MS } from './ideas';
 interface RackEditor {
   rack: { rows: RackRow[] };
   setRows: (rows: RackRow[], how?: 'quiet' | 'undo') => void;
-  remove: (key: string, found?: boolean) => void;
+  remove: (key: string) => void;
   written: () => Promise<void>;
 }
 
@@ -150,7 +150,12 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   const filedToast = (
     message: string,
     key: string,
-    undo: { became: string | null; how: 'quiet' | 'undo'; fresh?: boolean },
+    undo: {
+      what: 'match' | 'add' | 'wish' | 'new_wish';
+      became: string | null;
+      how: 'quiet' | 'undo';
+      fresh?: boolean;
+    },
     unfile?: () => Promise<unknown>,
   ) => {
     const at = rows.findIndex((r) => r.key === key);
@@ -161,6 +166,7 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       action: {
         label: ui.undo,
         onPress: () => {
+          nativeAnalytics.track('look_change_undone', { surface: look.status, what: undo.what });
           const back = undo.fresh ? rekeyed(was) : was;
           const read = reads[key];
           if (read && back.key !== key) setReads((r) => ({ ...r, [back.key]: read }));
@@ -195,6 +201,10 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   };
 
   const byId = new Map((on && waiting ? wardrobe.pieces : []).map((p) => [p.id, p]));
+  const suggestedOf = (row: RackRow): Piece | null =>
+    suggestedIds(row)
+      .map((id) => byId.get(id))
+      .find((piece) => piece && !rows.some((r) => r.pieceId === piece.id)) ?? null;
   return {
     on,
     stage: captureStage({
@@ -206,12 +216,14 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
     }),
     nothing,
     touched,
-    suggested: (row) =>
-      suggestedIds(row)
-        .map((id) => byId.get(id))
-        .find((piece) => piece && !rows.some((r) => r.pieceId === piece.id)) ?? null,
+    suggested: suggestedOf,
     // Nothing the picture wears changes.
-    dismiss: (key) => editor.setRows(dismissSuggestion(rows, key), 'quiet'),
+    dismiss: (key) => {
+      nativeAnalytics.track('look_match_dismissed');
+      const row = rows.find((r) => r.key === key);
+      const shown = row ? suggestedOf(row)?.id : undefined;
+      editor.setRows(dismissSuggestion(rows, key, shown), 'quiet');
+    },
     pieceOf: (id) => filed[id],
     found: (row) => reads[row.key],
     image: (row) => {
@@ -225,16 +237,17 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       nativeAnalytics.track('look_piece_filed', { how });
       setTouched(true);
       setFiled((f) => ({ ...f, [piece.id]: piece }));
-      // Added from the photo, or the piece Robes saw in it, it is the piece the picture wears;
+      // Added from the photo, or a piece Robes saw in it, it is the piece the picture wears;
       // any other piece of hers is a change the picture is behind on (Annie, 27 Nov).
-      const seen = rows.find((r) => r.key === key)?.proposal?.capture?.suggestedPieceId;
-      const worn = how !== 'match' || seen === piece.id;
+      const from = rows.find((r) => r.key === key);
+      const worn = how !== 'match' || (!!from && suggestedIds(from).includes(piece.id));
       const next = fileRow(rows, key, pieceRow(piece, null), worn);
       editor.setRows(next);
       // The row the found one became, unless her piece hung there already.
       const became = next.find((r) => !rows.includes(r))?.key ?? null;
       if (how !== 'add') {
         filedToast(lookbook.swap.swapped(piece.label), key, {
+          what: 'match',
           became,
           how: worn ? 'quiet' : 'undo',
         });
@@ -243,7 +256,7 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       // A piece added from the photo is new in her wardrobe: its grid and its count move, and
       // Undo takes it out again (a soft delete, as her own Delete is).
       refreshWardrobe();
-      filedToast(wardrobeCopy.receipts.added, key, { became, how: 'quiet' }, () =>
+      filedToast(wardrobeCopy.receipts.added, key, { what: 'add', became, how: 'quiet' }, () =>
         api.call('wardrobe.delete', { params: { id: piece.id } }).then(refreshWardrobe),
       );
     },
@@ -252,7 +265,12 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       setTouched(true);
       // A wish she already had is another piece than the one photographed.
       editor.setRows(fileRow(rows, key, wishRow(wish, key), false));
-      filedToast(lookbook.swap.swapped(wish.label), key, { became: key, how: 'undo', fresh: true });
+      filedToast(lookbook.swap.swapped(wish.label), key, {
+        what: 'wish',
+        became: key,
+        how: 'undo',
+        fresh: true,
+      });
     },
     saveWish: async (key) => {
       const capture = rows.find((r) => r.key === key)?.proposal?.capture;
@@ -271,7 +289,7 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
         filedToast(
           lookbook.savedSuggestion.body(1),
           key,
-          { became: key, how: 'quiet', fresh: true },
+          { what: 'new_wish', became: key, how: 'quiet', fresh: true },
           () => api.call('wishlist.delete', { params: { id: wish.id } }).then(refreshWishes),
         );
         return true;
@@ -280,9 +298,8 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       }
     },
     remove: (key) => {
-      nativeAnalytics.track('look_piece_filed', { how: 'remove' });
       setTouched(true);
-      editor.remove(key, true);
+      editor.remove(key);
     },
   };
 }

@@ -105,6 +105,7 @@ export function RackRowCard({
   thumb,
   highlight = false,
   href,
+  onOpen,
   onSwap,
   onFile,
   onWish,
@@ -118,6 +119,8 @@ export function RackRowCard({
   highlight?: boolean;
   // The piece's own page: hers, her wish, or the piece as the look holds it.
   href?: string;
+  // The row was opened (its page is `href`).
+  onOpen?: () => void;
   // The hanger on a piece she owns: the picker, to swap it.
   onSwap?: () => void;
   // The hanger + on a found piece: its sheet.
@@ -178,6 +181,7 @@ export function RackRowCard({
         }
         below={kind === 'found' && suggestion ? <LooksLike suggestion={suggestion} /> : null}
         {...(href ? { href } : {})}
+        {...(onOpen ? { onOpen } : {})}
         openLabel={copy.rack.open(name)}
         highlight={highlight}
         {...(onRemove ? { swipe: { label: copy.rack.remove(name), onRemove } } : {})}

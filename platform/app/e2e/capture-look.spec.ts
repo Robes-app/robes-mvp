@@ -109,7 +109,7 @@ test('the rack: find the pieces, match in one tap, add one, remove one, save wit
   // model in all of them at once, nothing filed.
   await expect(rack).toHaveAttribute('data-stage', 'rack');
   const pill = drawer.getByTestId('model-pill');
-  await expect(pill).toBeVisible();
+  await expect(pill).toHaveText('Dress your model');
   expect(draws).toHaveLength(0);
   await pill.click();
   await expect.poll(() => draws.length).toBe(1);

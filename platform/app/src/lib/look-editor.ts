@@ -215,7 +215,10 @@ export function useLookEditor(
         message: lookbook.swap.swapped(piece.label),
         action: {
           label: wardrobe.undo,
-          onAction: () => change(before, 'undo'),
+          onAction: () => {
+            track('look_change_undone', { surface: look.status, what: 'swap' });
+            change(before, 'undo');
+          },
         },
       });
     },
@@ -250,9 +253,9 @@ export function useLookEditor(
       if (rows.length !== rack.rows.length) change({ ...rack, rows });
     },
     // A swipe takes a piece off this look, never out of her wardrobe, behind the same Undo
-    // (Annie, 27 Nov). `found`: a piece from her photograph, whose removal the capture rack logs.
-    remove: (key: string, found = false) => {
-      if (!found) track('look_piece_removed', { surface: look.status });
+    // (Annie, 27 Nov), a piece found in her photograph as any other.
+    remove: (key: string) => {
+      track('look_piece_removed', { surface: look.status });
       const at = rack.rows.findIndex((r) => r.key === key);
       const row = rack.rows[at];
       if (!row) return;
@@ -264,6 +267,7 @@ export function useLookEditor(
           label: wardrobe.undo,
           // Back where it stood on the rack as it is now: whatever else she changed since stays.
           onAction: () => {
+            track('look_change_undone', { surface: look.status, what: 'remove' });
             const now = current.current;
             change(
               {

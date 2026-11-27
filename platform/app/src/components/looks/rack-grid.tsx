@@ -15,10 +15,13 @@ export function RackGrid({
   rows,
   imageOf,
   hrefOf,
+  onOpen,
 }: {
   rows: readonly RackRow[];
   imageOf: (row: RackRow) => PieceImage | null | undefined;
   hrefOf?: (row: RackRow) => string | undefined;
+  // A tile's link was followed.
+  onOpen?: (row: RackRow) => void;
 }) {
   return (
     <ul aria-label={lookbook.draftLook.rack} className="grid grid-cols-5 gap-x-3.5 gap-y-4 pt-1">
@@ -36,6 +39,7 @@ export function RackGrid({
             {href ? (
               <Link
                 href={href}
+                onClick={() => onOpen?.(row)}
                 aria-label={label}
                 title={label}
                 className="block rounded-sm focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"

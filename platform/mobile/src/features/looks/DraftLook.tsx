@@ -28,6 +28,7 @@ import {
   pictureLanding,
   type RackRow,
   rackLayoutFor,
+  rowKind,
   type Source,
   type Sources,
   type StageCard,
@@ -109,7 +110,7 @@ import { type PickerMode, PiecePicker } from './PiecePicker';
 import { RackCard } from './RackCard';
 import { RackGrid } from './RackGrid';
 import { RackRowCard } from './RackRow';
-import { ImageStack, useDressOnOpen } from './SavedLook';
+import { ImageStack } from './SavedLook';
 import { Scanning } from './ScanLine';
 import { SeasonsView } from './SeasonsView';
 import { PromptDock, StylingCard } from './StylingCard';
@@ -1062,7 +1063,10 @@ function DraftBody({
   // The prompt was open when the empty-wardrobe sheet took its place: it comes back after (B7).
   const backToPrompt = useRef(false);
   // Her pick on the toggle; until she makes one the Rack opens as `rackLayoutFor` says.
-  const [pickedLayout, setRackLayout] = useState<WardrobeLayout | null>(null);
+  // Edit look from Home opens on its pieces as a list (Annie, 27 Nov).
+  const [pickedLayout, setRackLayout] = useState<WardrobeLayout | null>(
+    mode === 'edit' && presentation === 'sheet' ? 'list' : null,
+  );
   const [adding, setAdding] = useState(false);
   // Left out on New look, the weather stays out of the draft it made (look prompt improvements B4).
   const [weatherOff, setWeatherOff] = useState(brief?.weatherOff === true);
@@ -1126,7 +1130,6 @@ function DraftBody({
   const [newPiece, setNewPiece] = useState<string | null>(null);
   // The found row whose sheet is up (the hanger + on its row).
   const [filing, setFiling] = useState<string | null>(null);
-  useDressOnOpen(look);
   const leaveSheetFor = useLeaveSheetFor();
   const save = useSaveLook(
     (saved) => {
@@ -1159,10 +1162,9 @@ function DraftBody({
   // Asked for (`schedule`, Schedule look, Worn's Add a date), it rises once the screen is in.
   const [diaryAsked, setDiary] = useState(schedule);
   const diary = diaryAsked && arrived;
-  // Image mode (D19): opened from Home's + it starts on Add a photo.
-  // Image mode (D19): opened from Home's + it starts on Add a photo, and so does the Edit look
-  // sheet, whose picture is the photo strip (Capture PRD 3.1).
-  const stripFirst = images === 'add' || (mode === 'edit' && presentation === 'sheet');
+  // Image mode (D19): opened from Home's + it starts on Add a photo. The Edit look sheet opens
+  // on its pieces (Annie, 27 Nov; it opened on the photo strip, Capture PRD 3.1).
+  const stripFirst = images === 'add';
   const [managing, setManaging] = useState(stripFirst);
   const stack = useImageStage(look);
   const [confirm, setConfirm] = useState<'discard' | 'delete' | null>(null);
@@ -1189,6 +1191,7 @@ function DraftBody({
     !!row.proposal && look.proposals.some((p) => p.key === row.key);
   const opens = (row: RackRow) => !!row.pieceId || !!wishFor(row) || heldProposal(row);
   const openPiece = (row: RackRow) => {
+    nativeAnalytics.track('look_piece_opened', { surface: look.status, kind: rowKind(row) });
     if (row.pieceId) router.push({ pathname: '/piece/[id]', params: { id: row.pieceId } });
     else {
       const wish = wishFor(row);
@@ -1303,8 +1306,11 @@ function DraftBody({
   });
   const pill = pillKind
     ? {
-        label: pillKind === 'dress' ? d.modelAsked : d.updateModel(adjust.badge || 1),
-        onPress: adjust.drawModel,
+        label: pillKind === 'dress' ? d.dressModel : d.updateModel(adjust.badge || 1),
+        onPress: () => {
+          nativeAnalytics.track('look_model_pill_tapped', { surface: look.status, how: pillKind });
+          adjust.drawModel();
+        },
       }
     : null;
   const dialog: { title: string; message: string; actions: AlertDialogAction[] } | null =
@@ -1763,9 +1769,18 @@ function DraftBody({
       <FoundPieceSheet
         row={dockYield.gate(filing !== null) ? (rows.find((r) => r.key === filing) ?? null) : null}
         onClose={() => setFiling(null)}
-        onAdd={(row) => setNewPiece(row.key)}
-        onWish={(row) => wishFound(row.key)}
-        onMatch={(row) => setPicker(matchMode(row))}
+        onAdd={(row) => {
+          nativeAnalytics.track('found_piece_option', { option: 'wardrobe' });
+          setNewPiece(row.key);
+        }}
+        onWish={(row) => {
+          nativeAnalytics.track('found_piece_option', { option: 'wishlist' });
+          wishFound(row.key);
+        }}
+        onMatch={(row) => {
+          nativeAnalytics.track('found_piece_option', { option: 'match' });
+          setPicker(matchMode(row));
+        }}
       />
       <NewPieceSheet
         row={

@@ -65,10 +65,15 @@ export const EVENTS = {
   // opened the camera).
   look_captured: z.object({ day: z.boolean() }).strict(),
   // The Rack of a look from her photograph: she asked for its pieces, and what she did with one.
+  // `remove` stays for builds before 27 Nov; a found row taken off is `look_piece_removed` now.
   look_pieces_asked: none,
   look_piece_filed: z
     .object({ how: z.enum(['match', 'suggested', 'add', 'remove', 'wish', 'new_wish']) })
     .strict(),
+  // A found piece's sheet (the hanger + on its row): the option she took.
+  found_piece_option: z.object({ option: z.enum(['wardrobe', 'wishlist', 'match']) }).strict(),
+  // "Looks like your …" on a found row: × says it is not that piece.
+  look_match_dismissed: none,
   // Add pieces: the camera hands its shots to Review.
   camera_filed: z.object({ n: count }).strict(),
   // Review: a photo's (or a link's) answered pieces are filed.
@@ -98,9 +103,23 @@ export const EVENTS = {
   piece_swapped: z.object({ surface: status, cat: category }).strict(),
   // The look editor: a piece is added to the rack.
   look_piece_added: z.object({ surface: status, cat: category }).strict(),
-  // The look editor: a row is taken off the rack.
+  // The look editor: a row is taken off the rack, one found in her photograph included.
   look_piece_removed: z.object({ surface: status }).strict(),
-  // The look editor: Update commits a saved look's edits.
+  // A row of a look opens the piece's own page; `kind` is what the row is.
+  look_piece_opened: z
+    .object({ surface: status, kind: z.enum(['owned', 'found', 'wish', 'shop']) })
+    .strict(),
+  // A change's toast: Undo, and what it took back (a piece taken off, swapped, matched, added to
+  // her wardrobe from the photo, matched to a wish, or saved as a new wish).
+  look_change_undone: z
+    .object({
+      surface: status,
+      what: z.enum(['remove', 'swap', 'match', 'add', 'wish', 'new_wish']),
+    })
+    .strict(),
+  // The pill on a look's picture: her model's first picture, or the one that catches up.
+  look_model_pill_tapped: z.object({ surface: status, how: z.enum(['dress', 'update']) }).strict(),
+  // The look editor: a change to a saved look or a suggestion is kept (each one, as she makes it).
   look_updated: z.object({ pieces: count }).strict(),
   // Save: a suggestion or a draft becomes a saved look.
   look_created: z

@@ -420,7 +420,7 @@ export const lookbook = {
     thread: 'Your words on this look',
     // The context chip: the day's place and weather, read from the diary.
     context: (place: string, range: string): string => `${place} · ${range}`,
-    // Delete, in edit mode (D9).
+    // Delete, at the foot of a saved look's Details (D9).
     delete: 'Delete this look',
     // The piece picker (Felix WardrobePicker): the wardrobe grid as a subview; its search, pills
     // and Photograph one read home's flyout copy.
@@ -524,6 +524,8 @@ export const lookbook = {
     thanks: 'Thanks, that helps. Here it is, dressed again.',
     another: 'Here’s another take, same brief.',
     modelAsked: 'Update the model',
+    // The pill on a look's picture, before her model has worn it (Annie, 27 Nov).
+    dressModel: 'Dress your model',
     modelDone: 'Done. The model now wears your changes.',
     savedUpdated: 'Saved, with the model updated.',
     changedBy: (what: string): string => `Updated the rack with your change: ${what}.`,

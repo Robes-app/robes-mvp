@@ -31,6 +31,7 @@ import {
   pictureLanding,
   type RackRow,
   rackLayoutFor,
+  rowKind,
   type Source,
   type Sources,
   type StageCard,
@@ -89,7 +90,7 @@ import { type PickerMode, PiecePicker } from './piece-picker';
 import { RackCard } from './rack-card';
 import { RackGrid } from './rack-grid';
 import { RackRowCard } from './rack-row';
-import { ImageStack, useDressOnOpen } from './saved-look';
+import { ImageStack } from './saved-look';
 import { Scanning } from './scan-line';
 import { SeasonsView } from './seasons-view';
 import { PromptDock, PromptSheetFixed, StylingCard } from './styling-card';
@@ -204,6 +205,7 @@ function Rack({
   hasWardrobe,
   onAdd,
   hrefOf,
+  onOpen,
   children,
 }: {
   rows: readonly RackRow[];
@@ -213,6 +215,7 @@ function Rack({
   onAdd: () => void;
   // Where a tile opens (a piece's page, a wish's).
   hrefOf?: (row: RackRow) => string | undefined;
+  onOpen?: (row: RackRow) => void;
   // The rows, as RackRowCards.
   children: ReactNode;
 }) {
@@ -224,7 +227,12 @@ function Rack({
           look; the big card is only for an empty rack (Annie, 15 Nov). */}
       {layout === 'grid' ? (
         <>
-          <RackGrid rows={rows} imageOf={imageOf} {...(hrefOf ? { hrefOf } : {})} />
+          <RackGrid
+            rows={rows}
+            imageOf={imageOf}
+            {...(hrefOf ? { hrefOf } : {})}
+            {...(onOpen ? { onOpen } : {})}
+          />
           <PieceList add={add}>{null}</PieceList>
         </>
       ) : (
@@ -963,6 +971,7 @@ function DraftBody({
       : router.replace(fromWish ? `/wardrobe/wishlist/${piece}` : `/piece/${piece}`);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { track } = useAnalytics().analytics;
   // A saved look is always in edit mode (D17): what she changes by hand is kept as she makes it,
   // under a Saved tick, with no Update look and nothing to discard (Annie, 27 Nov). A suggestion is
   // the saved look's anatomy (design "Suggested looks", 23 Nov): its changes are kept on it as it
@@ -978,7 +987,10 @@ function DraftBody({
   const src = useSources(owned, brief?.sources ?? null);
   const [emptyWardrobe, setEmptyWardrobe] = useState(false);
   // Her pick on the toggle; until she makes one the Rack opens as `rackLayoutFor` says.
-  const [pickedLayout, setRackLayout] = useState<WardrobeLayout | null>(null);
+  // Edit look from Home opens on its pieces as a list (Annie, 27 Nov).
+  const [pickedLayout, setRackLayout] = useState<WardrobeLayout | null>(
+    mode === 'edit' && presentation === 'drawer' ? 'list' : null,
+  );
   const [adding, setAdding] = useState(false);
   // Left out on New look, the weather stays out of the draft it made (look prompt improvements B4).
   const [weatherOff, setWeatherOff] = useState(brief?.weatherOff === true);
@@ -1042,7 +1054,6 @@ function DraftBody({
   const [newPiece, setNewPiece] = useState<string | null>(null);
   // The found row whose sheet is up (the hanger + on its row).
   const [filing, setFiling] = useState<string | null>(null);
-  useDressOnOpen(look);
   const save = useSaveLook(
     (saved) => {
       // Saved for a day: it is on that day and in the Lookbook, and she goes back to the screen
@@ -1079,9 +1090,9 @@ function DraftBody({
   useEffect(() => {
     if (schedule) window.history.replaceState(null, '', `/look/${look.id}`);
   }, [schedule, look.id]);
-  // Image mode (D19): opened from Home's + it starts on Add a photo, and so does the Edit look
-  // drawer, whose picture is the photo strip (Capture PRD 3.1).
-  const stripFirst = images === 'add' || (mode === 'edit' && presentation === 'drawer');
+  // Image mode (D19): opened from Home's + it starts on Add a photo. The Edit look drawer opens
+  // on its pieces (Annie, 27 Nov; it opened on the photo strip, Capture PRD 3.1).
+  const stripFirst = images === 'add';
   const [managing, setManaging] = useState(stripFirst);
   const stack = useImageStage(look);
   const [confirm, setConfirm] = useState<'discard' | 'delete' | null>(null);
@@ -1112,6 +1123,8 @@ function DraftBody({
         : row.proposal && look.proposals.some((p) => p.key === row.key)
           ? `/look/${look.id}/piece/${row.key}`
           : undefined;
+  const logOpen = (row: RackRow) =>
+    track('look_piece_opened', { surface: look.status, kind: rowKind(row) });
   const sendOpts = {
     balance: src.balance,
     ...(askContext ? { context: askContext } : {}),
@@ -1222,8 +1235,11 @@ function DraftBody({
   });
   const pill = pillKind
     ? {
-        label: pillKind === 'dress' ? d.modelAsked : d.updateModel(adjust.badge || 1),
-        onClick: adjust.drawModel,
+        label: pillKind === 'dress' ? d.dressModel : d.updateModel(adjust.badge || 1),
+        onClick: () => {
+          track('look_model_pill_tapped', { surface: look.status, how: pillKind });
+          adjust.drawModel();
+        },
       }
     : null;
   const dialog =
@@ -1286,7 +1302,7 @@ function DraftBody({
         image={imageOf(row)}
         {...(found ? { thumb: <CaptureThumb row={row} look={look} capture={capture} /> } : {})}
         highlight={!captureDraft && editor.mark(row.key) !== null}
-        {...(href ? { href } : {})}
+        {...(href ? { href, onOpen: () => logOpen(row) } : {})}
         onSwap={() => setPicker({ swap: { key: row.key, name: row.name, category: row.category } })}
         onFile={() => setFiling(row.key)}
         onWish={() => (found ? wishFound(row.key) : editor.wish(row.key))}
@@ -1311,7 +1327,6 @@ function DraftBody({
   // the sparkle (K6); a thumbs down opens the thread on what to change; the grabber and the close
   // move between the bar and the thread, and a tap on the dimmed look folds the thread (K8).
   // Native twin: DraftLook.tsx.
-  const { track } = useAnalytics().analytics;
   const verdict = adjust.state.verdict;
   const dockContext = mode === 'draft' ? 'draft' : 'saved';
   const [dock, setDock] = useState<DockState>(() =>
@@ -1585,6 +1600,7 @@ function DraftBody({
                 hasWardrobe={hasWardrobe}
                 onAdd={openAdd}
                 hrefOf={hrefOf}
+                onOpen={logOpen}
               >
                 {rackRows}
               </Rack>
@@ -1670,9 +1686,18 @@ function DraftBody({
       <FoundPieceSheet
         row={rows.find((r) => r.key === filing) ?? null}
         onClose={() => setFiling(null)}
-        onAdd={(row) => setNewPiece(row.key)}
-        onWish={(row) => wishFound(row.key)}
-        onMatch={(row) => setPicker(matchMode(row))}
+        onAdd={(row) => {
+          track('found_piece_option', { option: 'wardrobe' });
+          setNewPiece(row.key);
+        }}
+        onWish={(row) => {
+          track('found_piece_option', { option: 'wishlist' });
+          wishFound(row.key);
+        }}
+        onMatch={(row) => {
+          track('found_piece_option', { option: 'match' });
+          setPicker(matchMode(row));
+        }}
       />
       <NewPieceSheet
         row={rows.find((r) => r.key === newPiece) ?? null}

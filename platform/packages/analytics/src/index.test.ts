@@ -91,6 +91,27 @@ describe('event catalogue', () => {
     ]);
   });
 
+  it('takes the Edit look events, and still a found row removed as older builds send it', () => {
+    for (const [event, props] of [
+      ['look_model_pill_tapped', { surface: 'saved', how: 'dress' }],
+      ['look_model_pill_tapped', { surface: 'draft', how: 'update' }],
+      ['look_change_undone', { surface: 'draft', what: 'swap' }],
+      ['look_change_undone', { surface: 'saved', what: 'new_wish' }],
+      ['look_piece_opened', { surface: 'suggested', kind: 'found' }],
+      ['look_match_dismissed', {}],
+      ['found_piece_option', { option: 'wishlist' }],
+      ['look_piece_filed', { how: 'remove' }],
+    ] as const) {
+      expect(parseEvent(event, props)).toMatchObject({ ok: true });
+    }
+    // Which piece is never sent.
+    expect(parseEvent('look_piece_opened', { surface: 'saved', kind: 'owned', id: 'x' })).toEqual({
+      ok: false,
+      reason: 'invalid_props',
+    });
+    expect(parseEvent('found_piece_option', { option: 'remove' }).ok).toBe(false);
+  });
+
   it('keeps the dropped legacy acts out of the catalogue', () => {
     for (const legacy of [
       'travel_generated',

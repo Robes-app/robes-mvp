@@ -3,6 +3,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-
 import * as ImagePicker from 'expo-image-picker';
 import { LookCapture } from '../src/features/capture/LookCapture';
 import { DraftLook } from '../src/features/looks/DraftLook';
+import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, JOB_ID, LOOK_ID, look, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
@@ -48,6 +49,9 @@ jest.mock('expo-camera', () => {
     },
   };
 });
+
+const track = jest.spyOn(nativeAnalytics, 'track');
+beforeEach(() => track.mockClear());
 
 const copy = lookbook.draftLook.capture;
 const cam = copy.camera;
@@ -362,6 +366,7 @@ test('Find the pieces: a row per piece; the suggestion matches in one tap; a swi
   await waitFor(() => expect(written().proposals).toHaveLength(3));
   expect(written().pieces).toEqual([]);
   expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+  expect(track).toHaveBeenCalledWith('look_change_undone', { surface: 'draft', what: 'match' });
 
   // A swipe takes a row off this look behind the toast's Undo, which puts it back.
   await swipeOff('Cropped sweatshirt');
@@ -376,6 +381,10 @@ test('Find the pieces: a row per piece; the suggestion matches in one tap; a swi
     'Leggings',
     'Running trainers',
   ]);
+  // A found row taken off is a piece removed, as any other (no longer a filing).
+  expect(track).toHaveBeenCalledWith('look_piece_removed', { surface: 'draft' });
+  expect(track).not.toHaveBeenCalledWith('look_piece_filed', { how: 'remove' });
+  expect(track).toHaveBeenCalledWith('look_change_undone', { surface: 'draft', what: 'remove' });
 });
 
 test('× on Looks like your… dismisses the suggestion for this look; the row stays found', async () => {
@@ -398,6 +407,54 @@ test('× on Looks like your… dismisses the suggestion for this look; the row s
   // Kept on the look, so it stays dismissed when she comes back.
   await waitFor(() => expect(proposals()?.[2]?.capture.suggestedPieceId).toBeNull());
   expect(proposals()).toHaveLength(3);
+  expect(track).toHaveBeenCalledWith('look_match_dismissed');
+});
+
+test('× offers her next likeliest piece, when the read saw a second one', async () => {
+  const BOOTS = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const boots = piece({ id: BOOTS, label: 'Chalk plimsolls', category: 'Shoes', image: null });
+  const routes = draftRoutes();
+  const calls = mockFetch({
+    ...routes,
+    'GET /wardrobe/items': { items: [shoes, boots], nextCursor: null },
+    [`GET /jobs/${JOB_ID}`]: {
+      ...routes[`GET /jobs/${JOB_ID}`],
+      output: {
+        assetId: ASSET_ID,
+        noItemDetected: false,
+        readPieces: READ.map((p) => (p.index === 2 ? { ...p, alsoMatches: [BOOTS] } : p)),
+      },
+    },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  const read = () =>
+    (
+      calls.filter((c) => c.method === 'PATCH').at(-1)?.body as {
+        proposals: Array<{
+          capture: { suggestedPieceId: string | null; alsoSuggestedIds: string[] };
+        }>;
+      }
+    )?.proposals?.[2]?.capture;
+  await waitFor(() =>
+    expect(read()).toMatchObject({ suggestedPieceId: SHOES, alsoSuggestedIds: [BOOTS] }),
+  );
+  expect(await screen.findByText('White running shoes')).toBeTruthy();
+  // Not that one: the next stands in its place, one strip at a time.
+  await fireEvent.press(screen.getByRole('button', { name: ui.dismiss }));
+  expect(await screen.findByText('Chalk plimsolls')).toBeTruthy();
+  expect(screen.queryByText('White running shoes')).toBeNull();
+  expect(screen.getAllByText(copy.row.looksLike)).toHaveLength(1);
+  await waitFor(() =>
+    expect(read()).toMatchObject({ suggestedPieceId: BOOTS, alsoSuggestedIds: [] }),
+  );
+  // Nor that one: the strip goes.
+  await fireEvent.press(screen.getByRole('button', { name: ui.dismiss }));
+  await waitFor(() => expect(screen.queryByText(copy.row.looksLike)).toBeNull());
+  await waitFor(() => expect(read()?.suggestedPieceId).toBeNull());
 });
 
 test('the hanger + opens the found piece’s sheet: Add to wardrobe, Add to wishlist, Match to piece', async () => {
@@ -416,6 +473,7 @@ test('the hanger + opens the found piece’s sheet: Add to wardrobe, Add to wish
   // Add to wardrobe opens the new-piece review once the sheet has gone.
   await fireEvent.press(sheet.getByTestId('found-add'));
   expect(await screen.findByTestId('capture-new-piece')).toBeTruthy();
+  expect(track).toHaveBeenCalledWith('found_piece_option', { option: 'wardrobe' });
 });
 
 const FILED = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
@@ -515,11 +573,12 @@ test('the pieces found on a captured draft are written and wait for the pill, wh
       (c) => c.method === 'PATCH' && (c.body as { proposals?: unknown[] }).proposals?.length === 3,
     );
   await waitFor(() => expect(write()).toBeGreaterThanOrEqual(0));
-  await pillSays(lookbook.draft.modelAsked);
+  await pillSays(lookbook.draft.dressModel);
   await act(() => new Promise((r) => setTimeout(r, 1500)));
   expect(renders(calls)).toHaveLength(0);
   // One tap draws every found piece, on the rack as written, with nothing filed.
   await fireEvent.press(screen.getByTestId('model-pill'));
+  expect(track).toHaveBeenCalledWith('look_model_pill_tapped', { surface: 'draft', how: 'dress' });
   await waitFor(() => expect(renders(calls)).toHaveLength(1));
   expect(write()).toBeLessThan(calls.indexOf(renders(calls)[0] as never));
   expect(screen.queryByTestId('model-pill')).toBeNull();
@@ -630,7 +689,7 @@ test('the pieces found on a saved look are kept at once, with no Update look, an
     ).toHaveLength(3),
   );
   expect(screen.queryByTestId('update-look')).toBeNull();
-  await pillSays(lookbook.draft.modelAsked);
+  await pillSays(lookbook.draft.dressModel);
   expect(renders(calls)).toHaveLength(0);
   await fireEvent.press(screen.getByTestId('model-pill'));
   await waitFor(() => expect(renders(calls)).toHaveLength(1));

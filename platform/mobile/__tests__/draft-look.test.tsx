@@ -173,7 +173,7 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
   expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
   const renders = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/render'));
   const pill = await screen.findByTestId('model-pill');
-  expect(within(pill).getByText(lookbook.draft.modelAsked)).toBeTruthy();
+  expect(within(pill).getByText(lookbook.draft.dressModel)).toBeTruthy();
   await act(async () => {
     await new Promise((r) => setTimeout(r, 1200));
   });
@@ -181,6 +181,7 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
   await fireEvent.press(pill);
   await waitFor(() => expect(renders()).toHaveLength(1));
   expect(screen.queryByTestId('model-pill')).toBeNull();
+  expect(screen.queryByText(lookbook.draft.dressModel)).toBeNull();
   expect(screen.queryByText(lookbook.draft.modelAsked)).toBeNull();
   expect(onClose).not.toHaveBeenCalled();
 });
@@ -492,8 +493,11 @@ test('the Edit look sheet keeps each change as she makes it: a Saved tick, no Up
   expect(screen.queryByTestId('draft-done')).toBeNull();
   expect(screen.queryByTestId('update-look')).toBeNull();
   expect(screen.queryByTestId('saved-tick')).toBeNull();
-  // Its picture is the photo strip, on the Add a photo card (Capture PRD 3.1).
-  expect(screen.getByTestId('image-manager')).toBeTruthy();
+  // It opens on its pieces as a list, not on the photo strip (Annie, 27 Nov).
+  expect(screen.queryByTestId('image-manager')).toBeNull();
+  expect(
+    screen.getByRole('tab', { name: lookbook.savedLook.tabs.pieces, selected: true }),
+  ).toBeTruthy();
   // A change is written there and then, without working notes, and the tick says so.
   await fireEvent.press(
     screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
@@ -1284,7 +1288,10 @@ test('add a photo to a look: camera, Retake or Another, Add to look, then the st
     [`POST /looks/${LOOK_ID}/images`]: withPhoto,
     [`POST /looks/${LOOK_ID}/images/cover`]: withPhoto,
   });
-  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  // Home's + opens the sheet on the strip (`images=add`); Edit look opens on the pieces.
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} images="add" presentation="sheet" onClose={() => undefined} />,
+  );
   expect(await screen.findByTestId('image-manager')).toBeTruthy();
   expect(screen.queryByTestId('draft-done')).toBeNull();
   await fireEvent.press(screen.getByText(lookbook.savedLook.tabs.details));
