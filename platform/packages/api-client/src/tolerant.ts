@@ -13,8 +13,10 @@ export type TolerantResult<T> =
 type Path = readonly PropertyKey[];
 type Box = Record<PropertyKey, unknown>;
 
-// One issue per round, so an index removed from a list never shifts another issue's path.
-const MAX_ROUNDS = 200;
+// Each round mends every issue it safely can, deepest and highest index first, so removing a list
+// item never shifts a path still to mend; and one issue per list item a round, since a second
+// could land on the item that slid into its place. A rung of the ladder per round at most.
+const MAX_ROUNDS = 20;
 
 export function parseTolerantly<S extends z.ZodType>(
   schema: S,
@@ -26,11 +28,19 @@ export function parseTolerantly<S extends z.ZodType>(
   let value: unknown = body === undefined ? undefined : JSON.parse(JSON.stringify(body));
   let error = first.error;
   for (let round = 0; round < MAX_ROUNDS; round++) {
-    const issue = error.issues[0];
-    if (!issue) break;
-    const mended = mend(value, issue);
-    if (!mended.changed) break;
-    value = mended.value;
+    let changed = false;
+    const claimed = new Set<string>();
+    for (const issue of [...error.issues].sort((a, b) => comparePaths(b.path, a.path))) {
+      const item = listItemOf(value, issue.path);
+      if (item !== null) {
+        if (claimed.has(item)) continue;
+        claimed.add(item);
+      }
+      const mended = mend(value, issue);
+      changed ||= mended.changed;
+      value = mended.value;
+    }
+    if (!changed) break;
     const next = schema.safeParse(value);
     if (next.success) return { success: true, data: next.data, drift: first.error };
     error = next.error;
@@ -71,6 +81,25 @@ function mend(root: unknown, issue: z.core.$ZodIssue): { changed: boolean; value
   // list item), up to the response itself, which is never dropped.
   if (path.length > 1) return mend(root, { ...issue, code: 'custom', path: path.slice(0, -1) });
   return { changed: false, value: root };
+}
+
+function comparePaths(a: Path, b: Path): number {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x === y) continue;
+    if (typeof x === 'number' && typeof y === 'number') return x - y;
+    return String(x) < String(y) ? -1 : 1;
+  }
+  return a.length - b.length;
+}
+
+// The innermost list item a path runs through, as a key; null outside any list.
+function listItemOf(root: unknown, path: Path): string | null {
+  for (let i = path.length - 1; i > 0; i--) {
+    if (Array.isArray(at(root, path.slice(0, i)))) return JSON.stringify(path.slice(0, i + 1));
+  }
+  return null;
 }
 
 function isBox(v: unknown): v is Box {

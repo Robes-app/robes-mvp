@@ -57,6 +57,18 @@ describe('parseTolerantly (ADR-022)', () => {
     expect(r).toMatchObject({ success: true, data: { cover: null } });
   });
 
+  it('mends a long list in a few rounds, keeping every item it can read', () => {
+    const pieces = Array.from({ length: 500 }, (_, i) => ({
+      id: `p${i}`,
+      kind: i % 2 ? 'bag' : 'top',
+    }));
+    const r = parseTolerantly(Schema, { ...good, warmth: 9, pieces });
+    expect(r.success && r.data.pieces.map((p) => p.id)).toEqual(
+      pieces.filter((p) => p.kind === 'top').map((p) => p.id),
+    );
+    expect(r.success && r.data.warmth).toBe(5);
+  });
+
   it('still fails when a required field outside any list is unreadable', () => {
     const r = parseTolerantly(Schema, { ...good, id: 42 });
     expect(r.success).toBe(false);
