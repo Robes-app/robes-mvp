@@ -1,0 +1,80 @@
+name: platform-deploy-prod-workers
+
+# ADR-022, platform/docs/runbooks/ios-release.md §2: production's workers follow `main`, deployed
+# only once Vercel reports robes-prod's production build of that commit (which migrates the
+# database) succeeded, so new workers never meet the old schema. Only the Workers stack, and only
+# when its diff is Lambda code: anything else fails here and a person deploys it by hand.
+#
+# GitHub runs a `status` workflow from the default branch (main), so this file works once synced.
+# It waits for the repo variable PROD_WORKERS_AUTO_DEPLOY = 'true' and, in the `production`
+# environment (deployments from main only), AWS_DEPLOY_ROLE_ARN (robes-prod-github-deploy) and
+# POSTHOG_KEY.
+on:
+  status:
+  workflow_dispatch:
+
+concurrency:
+  group: platform-deploy-prod-workers
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+defaults:
+  run:
+    working-directory: platform
+
+jobs:
+  deploy:
+    if: >-
+      vars.PROD_WORKERS_AUTO_DEPLOY == 'true' && (github.event_name == 'workflow_dispatch' ||
+      (github.event.context == 'Vercel – robes-prod' && github.event.state == 'success' &&
+      contains(github.event.branches.*.name, 'main')))
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.sha || github.sha }}
+          fetch-depth: 0
+
+      # A status for an older commit (a preview, or a slow build overtaken by a newer merge) must
+      # never roll the workers back.
+      - name: only main's newest commit
+        id: head
+        run: |
+          git fetch -q origin main
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$(git rev-parse --short HEAD) is not main's newest commit; nothing to do."
+          fi
+
+      - if: steps.head.outputs.current == 'true'
+        uses: ./.github/actions/platform-setup
+
+      - if: steps.head.outputs.current == 'true'
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-west-1
+          role-session-name: robes-deploy-prod-workers-${{ github.run_id }}
+
+      - name: cdk diff, Lambda code only
+        if: steps.head.outputs.current == 'true'
+        id: guard
+        working-directory: platform/infra
+        env:
+          ROBES_POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
+        run: |
+          pnpm diff:prod-workers 2>&1 | tee "$RUNNER_TEMP/workers.diff"
+          pnpm exec tsx bin/workers-diff-guard.ts < "$RUNNER_TEMP/workers.diff" >> "$GITHUB_OUTPUT"
+
+      - name: cdk deploy (Production/Workers)
+        if: steps.guard.outputs.changed == 'true'
+        working-directory: platform/infra
+        env:
+          ROBES_POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
+        # A script, not `pnpm exec`: exec puts a relative .bin on PATH and esbuild bundling breaks.
+        run: pnpm deploy:prod-workers --require-approval never --ci

@@ -140,7 +140,9 @@ Workflows in repo root `.github/workflows/`, filtered to `platform/**`:
 
 - `platform-ci.yml` (every PR touching `platform/**`): checks (lint, typecheck, unit tests), database tests, e2e, `cdk diff`, gitleaks.
 - `platform-deploy-staging.yml` (every `beta` merge): `Staging/*` with the OIDC role; Vercel builds `beta` into staging and migrates.
-- `platform-deploy-prod.yml`: manual. Production's web and API deploy from `main` through Vercel (it migrates first); its workers and the iPhone app follow `runbooks/ios-release.md`.
+- `platform-deploy-prod.yml`: manual, `Production/*`; refuses to start while a production setting is empty. Production's web and API deploy from `main` through Vercel (it migrates first).
+- `platform-deploy-prod-workers.yml` (Vercel's `robes-prod` status succeeds on `main`'s newest commit): `Production/Workers` alone, only when its `cdk diff` is Lambda code (`runbooks/ios-release.md` §2).
+- `platform-sync-pr.yml` (every `beta` merge): keeps the one `sync/platform` PR into `main` current (§1); Niall merges it.
 
 `beta` is the trunk; `platform/` reaches `main` only through the sync (ADR-022).
 
