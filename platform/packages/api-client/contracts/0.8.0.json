@@ -1,0 +1,11500 @@
+{
+ "version": "0.8.0",
+ "tolerant": false,
+ "routes": {
+  "GET /me": {
+   "key": "me.get",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "5805d9ba1267"
+   }
+  },
+  "PATCH /me": {
+   "key": "me.update",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "$h": "3b3907cf3bc0"
+    }
+   },
+   "output": {
+    "$h": "5805d9ba1267"
+   }
+  },
+  "GET /me/features": {
+   "key": "me.features",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "90c35f8e99dd"
+   }
+  },
+  "PATCH /me/onboarding": {
+   "key": "me.onboarding.save",
+   "auth": "user",
+   "input": {
+    "$h": "4aae54f8ce32"
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "POST /me/onboarding/complete": {
+   "key": "me.onboarding.complete",
+   "auth": "user",
+   "input": {
+    "$h": "c7bb6401658e"
+   },
+   "output": {
+    "$h": "2be8f796f95d"
+   }
+  },
+  "POST /me/location": {
+   "key": "me.location",
+   "auth": "user",
+   "input": {
+    "$h": "f76e91fc33f1"
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "GET /me/notifications": {
+   "key": "notifications.list",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "993379b34b81"
+   }
+  },
+  "POST /me/notifications/dismiss": {
+   "key": "notifications.dismiss",
+   "auth": "user",
+   "input": {
+    "$h": "b752abdd884b"
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "POST /me/notifications/seen": {
+   "key": "notifications.seen",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "GET /me/deletion": {
+   "key": "me.deletion.get",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "104154f451b0"
+   }
+  },
+  "POST /me/deletion": {
+   "key": "me.deletion.request",
+   "auth": "user",
+   "input": {
+    "$h": "ba01ed419b65"
+   },
+   "output": {
+    "$h": "1d0a969f809b"
+   }
+  },
+  "GET /me/model": {
+   "key": "me.model.get",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "5ac209b24cec"
+   }
+  },
+  "PATCH /me/model": {
+   "key": "me.model.update",
+   "auth": "user",
+   "input": {
+    "$h": "e2d1690d5720"
+   },
+   "output": {
+    "$h": "5ac209b24cec"
+   }
+  },
+  "POST /me/model/twin": {
+   "key": "me.model.twin",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "5ac209b24cec"
+   }
+  },
+  "DELETE /me/model/twin": {
+   "key": "me.model.twin.delete",
+   "auth": "user",
+   "input": {
+    "$h": "734cfee4c6f0"
+   },
+   "output": {
+    "$h": "5ac209b24cec"
+   }
+  },
+  "POST /looks/:id/render": {
+   "key": "looks.renderOnModel",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "1ea110f88713"
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "GET /me/style": {
+   "key": "me.style.get",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "f28205e92e4b"
+   }
+  },
+  "POST /me/style/analyse": {
+   "key": "me.style.analyse",
+   "auth": "user",
+   "input": {
+    "$h": "0be60bac0869"
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "PUT /me/style/palette": {
+   "key": "me.style.palette",
+   "auth": "user",
+   "input": {
+    "$h": "9c53d362dd0f"
+   },
+   "output": {
+    "$h": "f28205e92e4b"
+   }
+  },
+  "PUT /me/style/season": {
+   "key": "me.style.season",
+   "auth": "user",
+   "input": {
+    "$h": "cb6b59c69ab5"
+   },
+   "output": {
+    "$h": "f28205e92e4b"
+   }
+  },
+  "GET /me/dna": {
+   "key": "me.dna.get",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "cef3d4c3c279"
+   }
+  },
+  "PATCH /me/dna": {
+   "key": "me.dna.update",
+   "auth": "user",
+   "input": {
+    "$h": "ce90b3f21233"
+   },
+   "output": {
+    "$h": "cef3d4c3c279"
+   }
+  },
+  "POST /me/dna/lines": {
+   "key": "me.dna.lines.add",
+   "auth": "user",
+   "input": {
+    "$h": "fe7e78e9056b"
+   },
+   "output": {
+    "$h": "cef3d4c3c279"
+   }
+  },
+  "DELETE /me/dna/lines/:id": {
+   "key": "me.dna.lines.remove",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "cef3d4c3c279"
+   }
+  },
+  "POST /me/dna/observations/:id/keep": {
+   "key": "me.dna.observations.keep",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "cef3d4c3c279"
+   }
+  },
+  "POST /me/dna/observations/:id/dismiss": {
+   "key": "me.dna.observations.dismiss",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "cef3d4c3c279"
+   }
+  },
+  "POST /me/dna/read": {
+   "key": "me.dna.read",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "POST /me/memory": {
+   "key": "me.memory.record",
+   "auth": "user",
+   "input": {
+    "$h": "30bd046f9446"
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "GET /me/exports": {
+   "key": "me.exports.get",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "7fcaa570aba9"
+   }
+  },
+  "POST /me/exports": {
+   "key": "me.exports.request",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "6645009986ea"
+   }
+  },
+  "PUT /me/push-tokens": {
+   "key": "me.pushTokens.register",
+   "auth": "user",
+   "input": {
+    "$h": "d5da365fed50"
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "POST /me/client-errors": {
+   "key": "me.clientErrors.report",
+   "auth": "user",
+   "input": {
+    "$h": "9cdcee148992"
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "DELETE /me/push-tokens/:token": {
+   "key": "me.pushTokens.revoke",
+   "auth": "user",
+   "params": {
+    "$h": "99548e1d5a7d"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "GET /me/consents": {
+   "key": "me.consents.get",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "53823f7b022f"
+   }
+  },
+  "POST /me/consents": {
+   "key": "me.consents.update",
+   "auth": "user",
+   "input": {
+    "$h": "39ded7091d2b"
+   },
+   "output": {
+    "$h": "53823f7b022f"
+   }
+  },
+  "GET /wardrobe/items": {
+   "key": "wardrobe.list",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "$h": "8a5cae0b0be3"
+    }
+   },
+   "output": {
+    "$h": "7efcaa69c51b"
+   }
+  },
+  "GET /wardrobe/summary": {
+   "key": "wardrobe.summary",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "$h": "d2621252b4cf"
+    }
+   },
+   "output": {
+    "$h": "29d7d22db429"
+   }
+  },
+  "POST /wardrobe/items": {
+   "key": "wardrobe.create",
+   "auth": "user",
+   "input": {
+    "$h": "791b69f624d8"
+   },
+   "output": {
+    "$h": "65154fc0bcb1"
+   }
+  },
+  "GET /wardrobe/items/:id": {
+   "key": "wardrobe.get",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "65154fc0bcb1"
+   }
+  },
+  "GET /wardrobe/items/:id/wears": {
+   "key": "wardrobe.wears",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "fcb16abcc9ab"
+   }
+  },
+  "PATCH /wardrobe/items/:id": {
+   "key": "wardrobe.update",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "$h": "04fcba588196"
+    }
+   },
+   "output": {
+    "$h": "65154fc0bcb1"
+   }
+  },
+  "POST /wardrobe/items/:id/photo": {
+   "key": "wardrobe.photo",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "b844f0cd8855"
+   },
+   "output": {
+    "$h": "65154fc0bcb1"
+   }
+  },
+  "POST /wardrobe/items/:id/read": {
+   "key": "wardrobe.reread",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "65154fc0bcb1"
+   }
+  },
+  "DELETE /wardrobe/items/:id": {
+   "key": "wardrobe.delete",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "POST /wardrobe/items/:id/restore": {
+   "key": "wardrobe.restore",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "65154fc0bcb1"
+   }
+  },
+  "POST /wardrobe/items/batch": {
+   "key": "wardrobe.batch",
+   "auth": "user",
+   "input": {
+    "$h": "926a66a9f5d8"
+   },
+   "output": {
+    "$h": "5bebefbc7ad0"
+   }
+  },
+  "POST /wardrobe/photo-reads": {
+   "key": "photoReads.start",
+   "auth": "user",
+   "input": {
+    "$h": "b844f0cd8855"
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "POST /wardrobe/photo-reads/:id/file": {
+   "key": "photoReads.file",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "0f9e155dc76d"
+   },
+   "output": {
+    "$h": "aff7ab0dcd23"
+   }
+  },
+  "POST /wardrobe/photo-reads/:id/pieces": {
+   "key": "photoReads.piece",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "03a37ea8afcb"
+   },
+   "output": {
+    "$h": "65154fc0bcb1"
+   }
+  },
+  "POST /wardrobe/photo-reads/:id/wishes": {
+   "key": "photoReads.wish",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "03a37ea8afcb"
+   },
+   "output": {
+    "$h": "aa47a7c67c78"
+   }
+  },
+  "GET /wishlist/items": {
+   "key": "wishlist.list",
+   "auth": "user",
+   "input": {
+    "$h": "ac3f5cb3441d"
+   },
+   "output": {
+    "$h": "89e28f604afd"
+   }
+  },
+  "POST /wishlist/items": {
+   "key": "wishlist.create",
+   "auth": "user",
+   "input": {
+    "$h": "b6d29bd93ef0"
+   },
+   "output": {
+    "$h": "aa47a7c67c78"
+   }
+  },
+  "GET /wishlist/items/:id": {
+   "key": "wishlist.get",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "aa47a7c67c78"
+   }
+  },
+  "PATCH /wishlist/items/:id": {
+   "key": "wishlist.update",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "$h": "519482240d55"
+    }
+   },
+   "output": {
+    "$h": "aa47a7c67c78"
+   }
+  },
+  "DELETE /wishlist/items/:id": {
+   "key": "wishlist.delete",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "POST /wishlist/items/:id/restore": {
+   "key": "wishlist.restore",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "aa47a7c67c78"
+   }
+  },
+  "POST /wishlist/items/:id/promote": {
+   "key": "wishlist.promote",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "65154fc0bcb1"
+   }
+  },
+  "GET /looks": {
+   "key": "looks.list",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "$h": "b666f296288b"
+    }
+   },
+   "output": {
+    "$h": "2f90cf991933"
+   }
+  },
+  "POST /looks": {
+   "key": "looks.create",
+   "auth": "user",
+   "input": {
+    "$h": "9fd4a327f3c1"
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "GET /looks/:id": {
+   "key": "looks.get",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "PATCH /looks/:id": {
+   "key": "looks.update",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "$h": "7550aca5e7d2"
+    }
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "DELETE /looks/:id": {
+   "key": "looks.delete",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "POST /looks/:id/restore": {
+   "key": "looks.restore",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "GET /looks/:id/wears": {
+   "key": "looks.wears",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "feaefe1a1262"
+   }
+  },
+  "POST /looks/:id/pieces/find": {
+   "key": "looks.findPieces",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "POST /looks/:id/images": {
+   "key": "looks.images.add",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "b844f0cd8855"
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "DELETE /looks/:id/images/:imageId": {
+   "key": "looks.images.remove",
+   "auth": "user",
+   "params": {
+    "$h": "5e8e1b3ae6df"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "POST /looks/:id/images/cover": {
+   "key": "looks.images.cover",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "0efa7b38ca91"
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "POST /looks/:id/images/robes": {
+   "key": "looks.images.robes",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "582039aa0de1"
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "POST /looks/:id/wears": {
+   "key": "looks.wear",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "2ba575fb9adc"
+   },
+   "output": {
+    "$h": "8c05619acc66"
+   }
+  },
+  "DELETE /looks/:id/wears/:date": {
+   "key": "looks.unwear",
+   "auth": "user",
+   "params": {
+    "$h": "0b7ff2849794"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "POST /looks/generate": {
+   "key": "looks.generate",
+   "auth": "user",
+   "input": {
+    "$h": "c972d976fb6c"
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "GET /looks/ideas": {
+   "key": "looks.ideas.list",
+   "auth": "user",
+   "input": {
+    "$h": "5a37444113fa"
+   },
+   "output": {
+    "$h": "a0b2b4eb5e65"
+   }
+  },
+  "GET /looks/ideas/:id": {
+   "key": "looks.ideas.get",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "5a837976e435"
+   }
+  },
+  "POST /looks/ideas/:id/save": {
+   "key": "looks.ideas.save",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "5a837976e435"
+   }
+  },
+  "POST /looks/ideas/:id/frames/:idx": {
+   "key": "looks.ideas.render",
+   "auth": "user",
+   "params": {
+    "$h": "ad93f5110764"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "POST /looks/ideas/:id/looks": {
+   "key": "looks.ideas.saveWay",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "326a19d85d4a"
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "DELETE /looks/ideas/:id": {
+   "key": "looks.ideas.delete",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "POST /looks/:id/save": {
+   "key": "looks.save",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "caf98c116270"
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "POST /looks/:id/proposals/:key/wish": {
+   "key": "looks.proposals.wish",
+   "auth": "user",
+   "params": {
+    "$h": "ec65705609fa"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "POST /looks/prompt": {
+   "key": "looks.prompt",
+   "auth": "user",
+   "input": {
+    "$h": "6967b6f25294"
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "POST /looks/:id/restyle": {
+   "key": "looks.restyle",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "d075a7ff81e0"
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "POST /looks/:id/frame": {
+   "key": "looks.frame",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "1ea110f88713"
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "POST /looks/:id/ask": {
+   "key": "looks.ask",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "825f7b941db3"
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "GET /looks/sets/:id": {
+   "key": "looks.sets.get",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "13412ec61455"
+   }
+  },
+  "GET /today": {
+   "key": "today.get",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "b796b2069b55"
+   }
+  },
+  "GET /today/weather": {
+   "key": "today.weather",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "date": {
+      "$h": "7e734acf5f3b"
+     }
+    }
+   },
+   "output": {
+    "$h": "46d08f9d5a6d"
+   }
+  },
+  "POST /today/generate": {
+   "key": "today.generate",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "$h": "77a2e342c144"
+    }
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "GET /today/looks/:id": {
+   "key": "today.looks.get",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "7689192e2051"
+   }
+  },
+  "POST /today/looks/:id/items/:idx/render": {
+   "key": "today.looks.render",
+   "auth": "user",
+   "params": {
+    "$h": "02b55a6ab7fb"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "POST /today/looks/:id/save": {
+   "key": "today.looks.save",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "ffbd3492fcf5"
+   },
+   "output": {
+    "$h": "2915e779ea4f"
+   }
+  },
+  "POST /travel/plan": {
+   "key": "travel.plan",
+   "auth": "user",
+   "input": {
+    "$h": "71451b9327c5"
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "GET /trips": {
+   "key": "trips.list",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "533c1c509a01"
+   }
+  },
+  "GET /trips/:id": {
+   "key": "trips.get",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "b4acb5d39d6d"
+   }
+  },
+  "POST /trips/:id/pin": {
+   "key": "trips.pin",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "434897df95a6"
+   }
+  },
+  "DELETE /trips/:id": {
+   "key": "trips.delete",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "POST /trips/:id/restore": {
+   "key": "trips.restore",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "GET /plan": {
+   "key": "plan.get",
+   "auth": "user",
+   "input": {
+    "$h": "7fce9b9dc9ef"
+   },
+   "output": {
+    "$h": "fb022d9a2637"
+   }
+  },
+  "POST /plan/looks/:id/days": {
+   "key": "plan.pin",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "632ebab28d4e"
+   },
+   "output": {
+    "$h": "9efd5a595a00"
+   }
+  },
+  "DELETE /plan/entries/:id": {
+   "key": "plan.unpin",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "PUT /plan/days/:date/name": {
+   "key": "plan.nameDay",
+   "auth": "user",
+   "params": {
+    "$h": "0ac697d38649"
+   },
+   "input": {
+    "$h": "24b0cc7a8f0b"
+   },
+   "output": {
+    "$h": "6051d8376e66"
+   }
+  },
+  "POST /plan/entries/:id/restore": {
+   "key": "plan.restore",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  },
+  "GET /plan/days/:date": {
+   "key": "plan.day",
+   "auth": "user",
+   "params": {
+    "$h": "0ac697d38649"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "9aa7a1eb948a"
+   }
+  },
+  "PUT /plan/days/:date/place": {
+   "key": "plan.place",
+   "auth": "user",
+   "params": {
+    "$h": "0ac697d38649"
+   },
+   "input": {
+    "$h": "ce41acdcaf35"
+   },
+   "output": {
+    "$h": "8a995c9adecd"
+   }
+  },
+  "GET /places": {
+   "key": "places.search",
+   "auth": "user",
+   "input": {
+    "$h": "693c6b55504d"
+   },
+   "output": {
+    "$h": "6cb5e927bc8f"
+   }
+  },
+  "GET /public/auth-providers": {
+   "key": "public.authProviders",
+   "auth": "public",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "12d838e5430c"
+   }
+  },
+  "GET /inbox": {
+   "key": "inbox.list",
+   "auth": "user",
+   "input": {
+    "$h": "ced405cc04e3"
+   },
+   "output": {
+    "$h": "8e3191eb2753"
+   }
+  },
+  "GET /inbox/:id": {
+   "key": "inbox.get",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "428f9218fcc3"
+   }
+  },
+  "POST /inbox/:id/decide": {
+   "key": "inbox.decide",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "b6be203057e0"
+   },
+   "output": {
+    "$h": "53f10f1cb8cd"
+   }
+  },
+  "POST /imports/link": {
+   "key": "imports.link",
+   "auth": "user",
+   "input": {
+    "$h": "06765ee09ab9"
+   },
+   "output": {
+    "$h": "a01bb6054914"
+   }
+  },
+  "GET /me/inbox-address": {
+   "key": "me.inboxAddress.get",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "7faaa17b43ae"
+   }
+  },
+  "POST /me/inbox-address/regenerate": {
+   "key": "me.inboxAddress.regenerate",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "7faaa17b43ae"
+   }
+  },
+  "DELETE /me/inbox-address": {
+   "key": "me.inboxAddress.revoke",
+   "auth": "user",
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "85baf4e89cd1"
+   }
+  },
+  "GET /jobs/:id": {
+   "key": "jobs.get",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "646b20bffe91"
+   }
+  },
+  "POST /uploads": {
+   "key": "uploads.create",
+   "auth": "user",
+   "input": {
+    "$h": "98e4362dbe75"
+   },
+   "output": {
+    "$h": "4e5c27b66561"
+   }
+  },
+  "POST /uploads/:id/complete": {
+   "key": "uploads.complete",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "31c9b2c861e3"
+   }
+  },
+  "POST /uploads/:id/lift": {
+   "key": "uploads.lift",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$h": "90e7871ee374"
+   },
+   "output": {
+    "$h": "8e6a079d67da"
+   }
+  },
+  "DELETE /uploads/:id": {
+   "key": "uploads.discard",
+   "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$h": "25fa6910d17f"
+   }
+  }
+ },
+ "schemas": {
+  "97a947cf54cd": {
+   "type": "string",
+   "format": "uuid",
+   "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+  },
+  "f6fbc31484e9": {
+   "looksReady": {
+    "default": true,
+    "type": "boolean"
+   },
+   "morningCue": {
+    "default": false,
+    "type": "boolean"
+   },
+   "nudges": {
+    "default": false,
+    "type": "boolean"
+   },
+   "receipts": {
+    "default": true,
+    "type": "boolean"
+   }
+  },
+  "b404ab67c83c": {
+   "anyOf": [
+    {
+     "type": "string",
+     "enum": [
+      "name",
+      "identity",
+      "styles",
+      "brands",
+      "looks",
+      "pieces",
+      "twin",
+      "outfit"
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "0ba192453657": {
+   "version": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "step": {
+    "$h": "b404ab67c83c"
+   },
+   "skipped": {
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "looks",
+      "pieces",
+      "twin",
+      "outfit"
+     ]
+    }
+   }
+  },
+  "94dccbdbbbec": {
+   "default": {
+    "version": null,
+    "step": null,
+    "skipped": []
+   },
+   "type": "object",
+   "properties": {
+    "$h": "0ba192453657"
+   },
+   "required": [
+    "version",
+    "step",
+    "skipped"
+   ]
+  },
+  "eec0901c7e0b": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "email": {
+    "type": "string"
+   },
+   "firstName": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "lastName": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "instagramHandle": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "locale": {
+    "type": "string"
+   },
+   "timezone": {
+    "type": "string"
+   },
+   "currency": {
+    "type": "string"
+   },
+   "homeCity": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "onboarded": {
+    "type": "boolean"
+   },
+   "notifications": {
+    "type": "object",
+    "properties": {
+     "$h": "f6fbc31484e9"
+    }
+   },
+   "firstRun": {
+    "$h": "94dccbdbbbec"
+   }
+  },
+  "5805d9ba1267": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "eec0901c7e0b"
+   },
+   "required": [
+    "id",
+    "email",
+    "firstName",
+    "lastName",
+    "instagramHandle",
+    "locale",
+    "timezone",
+    "currency",
+    "homeCity",
+    "onboarded",
+    "notifications"
+   ]
+  },
+  "3b3907cf3bc0": {
+   "firstName": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 60
+   },
+   "lastName": {
+    "type": "string",
+    "maxLength": 60
+   },
+   "instagramHandle": {
+    "type": "string",
+    "pattern": "^[A-Za-z0-9._]{1,30}$"
+   },
+   "locale": {
+    "type": "string",
+    "maxLength": 20
+   },
+   "timezone": {
+    "type": "string",
+    "maxLength": 64
+   },
+   "currency": {
+    "type": "string",
+    "pattern": "^[A-Z]{3}$"
+   },
+   "homeCity": {
+    "type": "string",
+    "maxLength": 120
+   },
+   "notifications": {
+    "type": "object",
+    "properties": {
+     "$h": "f6fbc31484e9"
+    },
+    "additionalProperties": false
+   }
+  },
+  "90c35f8e99dd": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "trips": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "trips"
+   ]
+  },
+  "6cff837c7846": {
+   "maxItems": 8,
+   "type": "array",
+   "items": {
+    "type": "string",
+    "enum": [
+     "Minimal",
+     "Modern",
+     "Classic",
+     "Sculptural",
+     "Bohemian",
+     "Eclectic",
+     "Heritage",
+     "Utility"
+    ]
+   }
+  },
+  "9cbed668cf07": {
+   "step": {
+    "type": "string",
+    "enum": [
+     "name",
+     "identity",
+     "styles",
+     "brands",
+     "looks",
+     "pieces",
+     "twin",
+     "outfit"
+    ]
+   },
+   "skipped": {
+    "maxItems": 4,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "looks",
+      "pieces",
+      "twin",
+      "outfit"
+     ]
+    }
+   },
+   "identity": {
+    "type": "string",
+    "enum": [
+     "woman",
+     "man",
+     "non_binary",
+     "unspecified"
+    ]
+   },
+   "styles": {
+    "$h": "6cff837c7846"
+   },
+   "brands": {
+    "maxItems": 40,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    }
+   }
+  },
+  "4aae54f8ce32": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "9cbed668cf07"
+   },
+   "additionalProperties": false
+  },
+  "25fa6910d17f": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "ok": {
+     "type": "boolean",
+     "const": true
+    }
+   },
+   "required": [
+    "ok"
+   ]
+  },
+  "550e2ed28224": {
+   "type": "string",
+   "enum": [
+    "blacks",
+    "greys",
+    "whites",
+    "neutrals",
+    "browns",
+    "greens",
+    "blues",
+    "purples",
+    "reds",
+    "pinks",
+    "oranges",
+    "yellows",
+    "metallics"
+   ]
+  },
+  "7a638258a3f3": {
+   "type": "object",
+   "propertyNames": {
+    "$h": "550e2ed28224"
+   },
+   "additionalProperties": {
+    "anyOf": [
+     {
+      "type": "number",
+      "const": -1
+     },
+     {
+      "type": "number",
+      "const": 1
+     }
+    ]
+   }
+  },
+  "350cc388feba": {
+   "identity": {
+    "type": "string",
+    "enum": [
+     "woman",
+     "man",
+     "non_binary",
+     "unspecified"
+    ]
+   },
+   "styles": {
+    "$h": "6cff837c7846"
+   },
+   "brands": {
+    "maxItems": 40,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    }
+   },
+   "colours": {
+    "$h": "7a638258a3f3"
+   },
+   "firstRun": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 100
+   }
+  },
+  "c7bb6401658e": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "350cc388feba"
+   },
+   "additionalProperties": false
+  },
+  "abcbb1ad9e30": {
+   "type": "string",
+   "format": "date-time",
+   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+  },
+  "2be8f796f95d": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "onboardedAt": {
+     "$h": "abcbb1ad9e30"
+    }
+   },
+   "required": [
+    "onboardedAt"
+   ]
+  },
+  "f76e91fc33f1": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "lat": {
+     "type": "number",
+     "minimum": -90,
+     "maximum": 90
+    },
+    "lon": {
+     "type": "number",
+     "minimum": -180,
+     "maximum": 180
+    }
+   },
+   "required": [
+    "lat",
+    "lon"
+   ],
+   "additionalProperties": false
+  },
+  "7e734acf5f3b": {
+   "type": "string",
+   "format": "date",
+   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+  },
+  "d032a2191b04": {
+   "key": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 80
+   },
+   "kind": {
+    "type": "string",
+    "enum": [
+     "receipts",
+     "diary",
+     "overnight"
+    ]
+   },
+   "text": {
+    "type": "string"
+   },
+   "line": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "date": {
+    "anyOf": [
+     {
+      "$h": "7e734acf5f3b"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "lookId": {
+    "default": null,
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "d9160e4f50ae": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "d032a2191b04"
+    },
+    "required": [
+     "key",
+     "kind",
+     "text",
+     "line",
+     "date"
+    ]
+   }
+  },
+  "bdface8feda5": {
+   "key": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 80
+   },
+   "kind": {
+    "type": "string",
+    "enum": [
+     "twin",
+     "dna",
+     "observations",
+     "receipts",
+     "diary",
+     "overnight"
+    ]
+   },
+   "text": {
+    "type": "string"
+   },
+   "line": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "date": {
+    "anyOf": [
+     {
+      "$h": "7e734acf5f3b"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "lookId": {
+    "default": null,
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "seen": {
+    "type": "boolean"
+   },
+   "section": {
+    "default": null,
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "gender",
+       "age",
+       "investment",
+       "types",
+       "brands"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "a4a7c5074e51": {
+   "default": [],
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "bdface8feda5"
+    },
+    "required": [
+     "key",
+     "kind",
+     "text",
+     "line",
+     "date",
+     "seen"
+    ]
+   }
+  },
+  "993379b34b81": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "items": {
+     "$h": "d9160e4f50ae"
+    },
+    "cards": {
+     "$h": "a4a7c5074e51"
+    }
+   },
+   "required": [
+    "items"
+   ]
+  },
+  "b752abdd884b": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "key": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 80
+      }
+     },
+     "required": [
+      "key"
+     ]
+    },
+    {
+     "type": "object",
+     "properties": {
+      "all": {
+       "type": "boolean",
+       "const": true
+      }
+     },
+     "required": [
+      "all"
+     ]
+    }
+   ]
+  },
+  "d000143f4069": {
+   "type": "object",
+   "properties": {
+    "status": {
+     "type": "string",
+     "enum": [
+      "requested",
+      "running",
+      "completed",
+      "failed"
+     ]
+    },
+    "requestedAt": {
+     "$h": "abcbb1ad9e30"
+    }
+   },
+   "required": [
+    "status",
+    "requestedAt"
+   ]
+  },
+  "104154f451b0": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "request": {
+     "anyOf": [
+      {
+       "$h": "d000143f4069"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "request"
+   ]
+  },
+  "ba01ed419b65": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "confirm": {
+     "type": "string",
+     "const": "DELETE"
+    }
+   },
+   "required": [
+    "confirm"
+   ]
+  },
+  "1d0a969f809b": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "status": {
+     "type": "string",
+     "enum": [
+      "requested",
+      "running",
+      "completed",
+      "failed"
+     ]
+    },
+    "requestedAt": {
+     "$h": "abcbb1ad9e30"
+    }
+   },
+   "required": [
+    "status",
+    "requestedAt"
+   ]
+  },
+  "a8ba7603ea9b": {
+   "type": "object",
+   "properties": {
+    "colour": {
+     "type": "boolean"
+    },
+    "silhouette": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "colour",
+    "silhouette"
+   ]
+  },
+  "93d98b99a25d": {
+   "status": {
+    "type": "string",
+    "enum": [
+     "none",
+     "pending",
+     "ready",
+     "failed"
+    ]
+   },
+   "imageUrl": {
+    "anyOf": [
+     {
+      "type": "string",
+      "format": "uri"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "c1b0b11222d2": {
+   "type": "object",
+   "properties": {
+    "skin": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "hair": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "skin",
+    "hair"
+   ]
+  },
+  "4493cde655ab": {
+   "shoulders": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -2,
+      "maximum": 2
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "bust": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -2,
+      "maximum": 2
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "hips": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -2,
+      "maximum": 2
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "waist": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -2,
+      "maximum": 2
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "3c0ae1bfdb6f": {
+   "status": {
+    "type": "string",
+    "enum": [
+     "none",
+     "pending",
+     "ready",
+     "failed"
+    ]
+   },
+   "current": {
+    "type": "boolean"
+   },
+   "imageUrl": {
+    "anyOf": [
+     {
+      "type": "string",
+      "format": "uri"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "c6c24393494b": {
+   "imageUrl": {
+    "anyOf": [
+     {
+      "type": "string",
+      "format": "uri"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "generic": {
+    "type": "boolean"
+   },
+   "on": {
+    "type": "string",
+    "enum": [
+     "twin",
+     "cell",
+     "robes"
+    ]
+   }
+  },
+  "7566ff21ebfc": {
+   "id": {
+    "type": "string"
+   },
+   "n": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 5
+   },
+   "imageUrl": {
+    "anyOf": [
+     {
+      "type": "string",
+      "format": "uri"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "none",
+     "pending",
+     "ready",
+     "failed"
+    ]
+   }
+  },
+  "4e30db75af18": {
+   "default": [],
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "7566ff21ebfc"
+    },
+    "required": [
+     "id",
+     "n",
+     "imageUrl",
+     "status"
+    ]
+   }
+  },
+  "0053d1812f7a": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "imageUrl": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "uri"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "id",
+    "imageUrl"
+   ]
+  },
+  "c0dc5e3e2deb": {
+   "filed": {
+    "type": "boolean"
+   },
+   "presence": {
+    "type": "string",
+    "enum": [
+     "woman",
+     "man",
+     "non_binary",
+     "unspecified"
+    ]
+   },
+   "skin": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 7
+   },
+   "hair": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 5
+   },
+   "line": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "soft",
+       "straight"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "frame": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "fuller",
+       "narrower"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "source": {
+    "type": "string",
+    "enum": [
+     "read",
+     "mixed",
+     "hand"
+    ]
+   },
+   "reads": {
+    "$h": "a8ba7603ea9b"
+   },
+   "cellId": {
+    "type": "string"
+   },
+   "cell": {
+    "type": "object",
+    "properties": {
+     "$h": "93d98b99a25d"
+    },
+    "required": [
+     "status",
+     "imageUrl"
+    ]
+   },
+   "swatches": {
+    "$h": "c1b0b11222d2"
+   },
+   "skinSet": {
+    "type": "boolean"
+   },
+   "hairSet": {
+    "type": "boolean"
+   },
+   "adj": {
+    "type": "object",
+    "properties": {
+     "$h": "4493cde655ab"
+    },
+    "required": [
+     "shoulders",
+     "bust",
+     "hips",
+     "waist"
+    ]
+   },
+   "closeUpUrl": {
+    "anyOf": [
+     {
+      "type": "string",
+      "format": "uri"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "twin": {
+    "type": "object",
+    "properties": {
+     "$h": "3c0ae1bfdb6f"
+    },
+    "required": [
+     "status",
+     "current",
+     "imageUrl"
+    ]
+   },
+   "stand": {
+    "type": "object",
+    "properties": {
+     "$h": "c6c24393494b"
+    },
+    "required": [
+     "imageUrl",
+     "generic"
+    ]
+   },
+   "preset": {
+    "default": null,
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "robesModels": {
+    "$h": "4e30db75af18"
+   },
+   "generics": {
+    "type": "array",
+    "items": {
+     "$h": "0053d1812f7a"
+    }
+   }
+  },
+  "5ac209b24cec": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "c0dc5e3e2deb"
+   },
+   "required": [
+    "filed",
+    "presence",
+    "skin",
+    "hair",
+    "line",
+    "frame",
+    "source",
+    "reads",
+    "cellId",
+    "cell",
+    "swatches",
+    "skinSet",
+    "hairSet",
+    "adj",
+    "closeUpUrl",
+    "twin"
+   ]
+  },
+  "01de750226bb": {
+   "presence": {
+    "type": "string",
+    "enum": [
+     "woman",
+     "man",
+     "non_binary",
+     "unspecified"
+    ]
+   },
+   "skin": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 7
+   },
+   "hair": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 5
+   },
+   "line": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "soft",
+       "straight"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "frame": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "fuller",
+       "narrower"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "adj": {
+    "type": "object",
+    "properties": {
+     "$h": "4493cde655ab"
+    },
+    "additionalProperties": false
+   },
+   "preset": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "e2d1690d5720": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "01de750226bb"
+   },
+   "additionalProperties": false
+  },
+  "734cfee4c6f0": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "source": {
+     "type": "string",
+     "enum": [
+      "web",
+      "ios",
+      "android"
+     ]
+    }
+   },
+   "required": [
+    "source"
+   ]
+  },
+  "af515008e5ff": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    }
+   },
+   "required": [
+    "id"
+   ]
+  },
+  "1ea110f88713": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "note": {
+     "type": "string",
+     "maxLength": 280
+    }
+   }
+  },
+  "692dfe6c50eb": {
+   "jobId": {
+    "$h": "97a947cf54cd"
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "queued",
+     "running",
+     "succeeded",
+     "partial",
+     "failed",
+     "cancelled"
+    ]
+   }
+  },
+  "a01bb6054914": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "692dfe6c50eb"
+   },
+   "required": [
+    "jobId",
+    "status"
+   ]
+  },
+  "a66e3cb5623f": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "hex": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "hex"
+    ]
+   }
+  },
+  "2a8bc3507f60": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "lifts": {
+      "type": "string"
+     },
+     "flattens": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "lifts",
+     "flattens"
+    ]
+   }
+  },
+  "0cef36361efd": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "hexes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "name",
+    "hexes"
+   ]
+  },
+  "f3070381f737": {
+   "season": {
+    "type": "string"
+   },
+   "undertone": {
+    "type": "string"
+   },
+   "contrast": {
+    "type": "string"
+   },
+   "summary": {
+    "type": "string"
+   },
+   "undertone_note": {
+    "type": "string"
+   },
+   "palette": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "neutrals": {
+    "$h": "a66e3cb5623f"
+   },
+   "best_colours": {
+    "$h": "a66e3cb5623f"
+   },
+   "avoid_colours": {
+    "$h": "a66e3cb5623f"
+   },
+   "avoid_note": {
+    "type": "string"
+   },
+   "proof_best": {
+    "type": "string"
+   },
+   "proof_less": {
+    "type": "string"
+   },
+   "seen_on_you": {
+    "$h": "2a8bc3507f60"
+   },
+   "metals": {
+    "type": "array",
+    "items": {
+     "$h": "0cef36361efd"
+    }
+   },
+   "metals_note": {
+    "type": "string"
+   },
+   "read_season": {
+    "type": "string"
+   }
+  },
+  "2185858b9aa2": {
+   "type": "object",
+   "properties": {
+    "$h": "f3070381f737"
+   },
+   "required": [
+    "season",
+    "undertone",
+    "contrast",
+    "summary",
+    "undertone_note",
+    "palette",
+    "neutrals",
+    "best_colours",
+    "avoid_colours",
+    "avoid_note",
+    "proof_best",
+    "proof_less",
+    "seen_on_you",
+    "metals",
+    "metals_note"
+   ]
+  },
+  "36f3ee140e70": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "note": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "note"
+    ]
+   }
+  },
+  "cf3245745f80": {
+   "body_type": {
+    "type": "string"
+   },
+   "summary": {
+    "type": "string"
+   },
+   "traits": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "dress_silhouettes": {
+    "$h": "36f3ee140e70"
+   },
+   "neckline_recommendations": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "styling_tips": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  },
+  "4d9197e228ff": {
+   "type": "object",
+   "properties": {
+    "$h": "cf3245745f80"
+   },
+   "required": [
+    "body_type",
+    "summary",
+    "traits",
+    "dress_silhouettes",
+    "neckline_recommendations",
+    "styling_tips"
+   ]
+  },
+  "4bc531fb9388": {
+   "lovedColors": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "rejectedColors": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "measurements": {
+    "type": "object",
+    "propertyNames": {
+     "type": "string"
+    },
+    "additionalProperties": {
+     "type": "string"
+    }
+   }
+  },
+  "b0643cab4e71": {
+   "type": "string",
+   "enum": [
+    "jet",
+    "softblack",
+    "blueblack",
+    "brownblack",
+    "charcoal",
+    "slate",
+    "ash",
+    "greymarl",
+    "dove",
+    "optic",
+    "ivory",
+    "chalk",
+    "cream",
+    "ecru",
+    "oat",
+    "sand",
+    "camel",
+    "stone",
+    "taupe",
+    "khaki",
+    "espresso",
+    "chocolate",
+    "mocha",
+    "cognac",
+    "rust",
+    "tan",
+    "bottle",
+    "forest",
+    "olive",
+    "emerald",
+    "sage",
+    "mint",
+    "lime",
+    "navy",
+    "denim",
+    "cobalt",
+    "teal",
+    "sky",
+    "powder",
+    "electricblue",
+    "aubergine",
+    "plum",
+    "violet",
+    "mauve",
+    "lavender",
+    "lilac",
+    "oxblood",
+    "bordeaux",
+    "burgundy",
+    "cherry",
+    "scarlet",
+    "brick",
+    "powderpink",
+    "blush",
+    "dustyrose",
+    "rose",
+    "fuchsia",
+    "hotpink",
+    "terracotta",
+    "burntorange",
+    "coral",
+    "apricot",
+    "neonorange",
+    "ochre",
+    "mustard",
+    "saffron",
+    "lemon",
+    "butter",
+    "acid",
+    "gold",
+    "silver",
+    "bronze",
+    "rosegold",
+    "gunmetal"
+   ]
+  },
+  "30b52b8b1e64": {
+   "type": "object",
+   "propertyNames": {
+    "$h": "b0643cab4e71"
+   },
+   "additionalProperties": {
+    "anyOf": [
+     {
+      "anyOf": [
+       {
+        "type": "number",
+        "const": -1
+       },
+       {
+        "type": "number",
+        "const": 1
+       }
+      ]
+     },
+     {
+      "type": "number",
+      "const": 0
+     }
+    ]
+   }
+  },
+  "f5ab0518bd2f": {
+   "type": "string",
+   "enum": [
+    "stripes",
+    "checks",
+    "plaid",
+    "houndstooth",
+    "dots",
+    "florals",
+    "animal",
+    "paisley",
+    "graphic",
+    "abstract"
+   ]
+  },
+  "c398a3e8247b": {
+   "type": "object",
+   "propertyNames": {
+    "$h": "f5ab0518bd2f"
+   },
+   "additionalProperties": {
+    "anyOf": [
+     {
+      "type": "number",
+      "const": -1
+     },
+     {
+      "type": "number",
+      "const": 1
+     }
+    ]
+   }
+  },
+  "1dd0595711ca": {
+   "default": {
+    "fam": {},
+    "shade": {},
+    "print": {}
+   },
+   "type": "object",
+   "properties": {
+    "fam": {
+     "$h": "7a638258a3f3"
+    },
+    "shade": {
+     "$h": "30b52b8b1e64"
+    },
+    "print": {
+     "$h": "c398a3e8247b"
+    }
+   },
+   "required": [
+    "fam",
+    "shade",
+    "print"
+   ]
+  },
+  "adecfb6f71f8": {
+   "colour": {
+    "anyOf": [
+     {
+      "$h": "2185858b9aa2"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "silhouette": {
+    "anyOf": [
+     {
+      "$h": "4d9197e228ff"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "overrides": {
+    "type": "object",
+    "properties": {
+     "$h": "4bc531fb9388"
+    },
+    "required": [
+     "lovedColors",
+     "rejectedColors",
+     "measurements"
+    ]
+   },
+   "palette": {
+    "$h": "1dd0595711ca"
+   },
+   "updatedAt": {
+    "anyOf": [
+     {
+      "$h": "abcbb1ad9e30"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "f28205e92e4b": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "adecfb6f71f8"
+   },
+   "required": [
+    "colour",
+    "silhouette",
+    "overrides",
+    "updatedAt"
+   ]
+  },
+  "0be60bac0869": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "kind": {
+     "type": "string",
+     "enum": [
+      "colour",
+      "silhouette"
+     ]
+    },
+    "assetId": {
+     "$h": "97a947cf54cd"
+    }
+   },
+   "required": [
+    "kind",
+    "assetId"
+   ]
+  },
+  "9c53d362dd0f": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "fam": {
+     "$h": "7a638258a3f3"
+    },
+    "shade": {
+     "$h": "30b52b8b1e64"
+    },
+    "print": {
+     "$h": "c398a3e8247b"
+    }
+   },
+   "required": [
+    "fam",
+    "shade",
+    "print"
+   ]
+  },
+  "b94e755156aa": {
+   "type": "string",
+   "enum": [
+    "Light Spring",
+    "Warm Spring",
+    "Clear Spring",
+    "Clear Winter",
+    "True Winter",
+    "Dark Winter",
+    "Dark Autumn",
+    "True Autumn",
+    "Soft Autumn",
+    "Soft Summer",
+    "True Summer",
+    "Light Summer"
+   ]
+  },
+  "cb6b59c69ab5": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "season": {
+     "$h": "b94e755156aa"
+    }
+   },
+   "required": [
+    "season"
+   ]
+  },
+  "97b639c8bece": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "tag": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "tag"
+    ]
+   }
+  },
+  "64c86b2665b6": {
+   "heightCm": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": 140,
+      "maximum": 210
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "sizeUk": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": 4,
+      "maximum": 24
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "shoeUk": {
+    "anyOf": [
+     {
+      "type": "number",
+      "minimum": 2,
+      "maximum": 13
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "ageBand": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "under_25",
+       "25_34",
+       "35_44",
+       "45_54",
+       "55_64",
+       "65_plus"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "bustBand": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": 28,
+      "maximum": 46
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "bustCup": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "AA",
+       "A",
+       "B",
+       "C",
+       "D",
+       "DD",
+       "E",
+       "F",
+       "FF",
+       "G"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "bustCm": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": 70,
+      "maximum": 140
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "waistCm": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": 50,
+      "maximum": 130
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "chestCm": {
+    "anyOf": [
+     {
+      "type": "number",
+      "minimum": 70,
+      "maximum": 150
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "inseamCm": {
+    "anyOf": [
+     {
+      "type": "number",
+      "minimum": 50,
+      "maximum": 110
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "collarCm": {
+    "anyOf": [
+     {
+      "type": "number",
+      "minimum": 30,
+      "maximum": 55
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "shoulderWidthCm": {
+    "anyOf": [
+     {
+      "type": "number",
+      "minimum": 30,
+      "maximum": 65
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "5bf6bc32f950": {
+   "type": "object",
+   "properties": {
+    "$h": "64c86b2665b6"
+   },
+   "required": [
+    "heightCm",
+    "sizeUk",
+    "shoeUk",
+    "ageBand",
+    "bustBand",
+    "bustCup",
+    "bustCm",
+    "waistCm",
+    "chestCm",
+    "inseamCm",
+    "collarCm",
+    "shoulderWidthCm"
+   ]
+  },
+  "e69d2c0eb50a": {
+   "height": {
+    "type": "string",
+    "enum": [
+     "cm",
+     "in"
+    ]
+   },
+   "size": {
+    "type": "string",
+    "enum": [
+     "uk",
+     "eu",
+     "us"
+    ]
+   },
+   "bust": {
+    "type": "string",
+    "enum": [
+     "uk",
+     "us",
+     "eu"
+    ]
+   },
+   "chest": {
+    "type": "string",
+    "enum": [
+     "cm",
+     "in"
+    ]
+   },
+   "waist": {
+    "type": "string",
+    "enum": [
+     "cm",
+     "in"
+    ]
+   },
+   "inseam": {
+    "type": "string",
+    "enum": [
+     "cm",
+     "in"
+    ]
+   },
+   "collar": {
+    "type": "string",
+    "enum": [
+     "cm",
+     "in"
+    ]
+   },
+   "shoes": {
+    "type": "string",
+    "enum": [
+     "uk",
+     "eu",
+     "us"
+    ]
+   },
+   "shoulders": {
+    "type": "string",
+    "enum": [
+     "cm",
+     "in"
+    ]
+   }
+  },
+  "077dbb60b592": {
+   "width": {
+    "type": "integer",
+    "minimum": -9007199254740991,
+    "maximum": 9007199254740991
+   },
+   "avif": {
+    "type": "string",
+    "format": "uri"
+   },
+   "webp": {
+    "type": "string",
+    "format": "uri"
+   }
+  },
+  "be486450e65a": {
+   "assetId": {
+    "$h": "97a947cf54cd"
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "pending",
+     "ready",
+     "failed"
+    ]
+   },
+   "width": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "height": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "blurhash": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "renditions": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "077dbb60b592"
+     },
+     "required": [
+      "width",
+      "avif",
+      "webp"
+     ]
+    }
+   },
+   "cutout": {
+    "anyOf": [
+     {
+      "type": "string",
+      "format": "uri"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "dbb305b7efbe": {
+   "type": "object",
+   "properties": {
+    "$h": "be486450e65a"
+   },
+   "required": [
+    "assetId",
+    "status",
+    "width",
+    "height",
+    "blurhash",
+    "renditions"
+   ]
+  },
+  "e4e680606423": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "label": {
+    "type": "string"
+   },
+   "category": {
+    "type": "string"
+   },
+   "brand": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "image": {
+    "anyOf": [
+     {
+      "$h": "dbb305b7efbe"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "ea32a2107d91": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "e4e680606423"
+    },
+    "required": [
+     "id",
+     "label",
+     "category",
+     "brand",
+     "image"
+    ]
+   }
+  },
+  "cc5b54c6930e": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "list": {
+    "type": "string",
+    "enum": [
+     "loves",
+     "avoids",
+     "rules"
+    ]
+   },
+   "text": {
+    "type": "string"
+   },
+   "source": {
+    "type": "string",
+    "enum": [
+     "drafted",
+     "edited",
+     "typed"
+    ]
+   },
+   "chip": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "keptAt": {
+    "$h": "abcbb1ad9e30"
+   }
+  },
+  "a9b2c7201699": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "cc5b54c6930e"
+    },
+    "required": [
+     "id",
+     "list",
+     "text",
+     "source",
+     "chip",
+     "keptAt"
+    ]
+   }
+  },
+  "22dbf6b33b5a": {
+   "type": "object",
+   "properties": {
+    "loved": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "rejected": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "loved",
+    "rejected"
+   ]
+  },
+  "b35f6a40ae1c": {
+   "loves": {
+    "$h": "a9b2c7201699"
+   },
+   "avoids": {
+    "$h": "a9b2c7201699"
+   },
+   "rules": {
+    "$h": "a9b2c7201699"
+   },
+   "notes": {
+    "type": "string"
+   },
+   "colours": {
+    "$h": "22dbf6b33b5a"
+   }
+  },
+  "ea9a8cf5cd91": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "list": {
+    "type": "string",
+    "enum": [
+     "loves",
+     "avoids",
+     "rules",
+     "notes",
+     "colours"
+    ]
+   },
+   "text": {
+    "type": "string"
+   },
+   "because": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "origin": {
+    "type": "string",
+    "enum": [
+     "read",
+     "prompt"
+    ]
+   }
+  },
+  "57a1d1386acc": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "ea9a8cf5cd91"
+    },
+    "required": [
+     "id",
+     "list",
+     "text",
+     "because",
+     "origin"
+    ]
+   }
+  },
+  "ed861ba99820": {
+   "types": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "brands": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "icons": {
+    "$h": "97b639c8bece"
+   },
+   "investment": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "under_500",
+       "500_1500",
+       "1500_5000",
+       "5000_plus"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "facts": {
+    "$h": "5bf6bc32f950"
+   },
+   "units": {
+    "type": "object",
+    "properties": {
+     "$h": "e69d2c0eb50a"
+    },
+    "additionalProperties": false
+   },
+   "gender": {
+    "type": "string",
+    "enum": [
+     "woman",
+     "man",
+     "non_binary",
+     "unspecified"
+    ]
+   },
+   "pieces": {
+    "$h": "ea32a2107d91"
+   },
+   "brief": {
+    "type": "object",
+    "properties": {
+     "$h": "b35f6a40ae1c"
+    },
+    "required": [
+     "loves",
+     "avoids",
+     "rules",
+     "notes",
+     "colours"
+    ]
+   },
+   "observations": {
+    "$h": "57a1d1386acc"
+   },
+   "readAt": {
+    "anyOf": [
+     {
+      "$h": "abcbb1ad9e30"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "readDue": {
+    "type": "boolean"
+   }
+  },
+  "cef3d4c3c279": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "ed861ba99820"
+   },
+   "required": [
+    "types",
+    "brands",
+    "icons",
+    "investment",
+    "facts",
+    "units",
+    "gender",
+    "pieces",
+    "brief",
+    "observations",
+    "readAt",
+    "readDue"
+   ]
+  },
+  "2d3786f2b2b8": {
+   "type": "string",
+   "enum": [
+    "Minimal",
+    "Modern",
+    "Classic",
+    "Sculptural",
+    "Bohemian",
+    "Eclectic",
+    "Heritage",
+    "Utility",
+    "Romantic",
+    "Off-duty",
+    "Avant-garde"
+   ]
+  },
+  "cef60c0e60b1": {
+   "types": {
+    "maxItems": 10,
+    "type": "array",
+    "items": {
+     "$h": "2d3786f2b2b8"
+    }
+   },
+   "brands": {
+    "maxItems": 40,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    }
+   },
+   "icons": {
+    "maxItems": 20,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 80
+    }
+   },
+   "investment": {
+    "type": "string",
+    "enum": [
+     "under_500",
+     "500_1500",
+     "1500_5000",
+     "5000_plus"
+    ]
+   },
+   "facts": {
+    "type": "object",
+    "properties": {
+     "$h": "64c86b2665b6"
+    },
+    "additionalProperties": false
+   },
+   "units": {
+    "type": "object",
+    "properties": {
+     "$h": "e69d2c0eb50a"
+    },
+    "additionalProperties": false
+   }
+  },
+  "ce90b3f21233": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "cef60c0e60b1"
+   },
+   "additionalProperties": false
+  },
+  "b327023c4b89": {
+   "list": {
+    "type": "string",
+    "enum": [
+     "loves",
+     "avoids",
+     "rules"
+    ]
+   },
+   "text": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 160
+   },
+   "chip": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 60
+   }
+  },
+  "fe7e78e9056b": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "b327023c4b89"
+   },
+   "required": [
+    "list",
+    "text"
+   ]
+  },
+  "28faf4910f93": {
+   "kind": {
+    "type": "string",
+    "const": "verdict"
+   },
+   "verdict": {
+    "anyOf": [
+     {
+      "type": "number",
+      "const": 0
+     },
+     {
+      "type": "number",
+      "const": 1
+     }
+    ]
+   },
+   "body": {
+    "type": "string",
+    "maxLength": 240
+   },
+   "surface": {
+    "type": "string",
+    "maxLength": 40
+   },
+   "subject": {
+    "type": "string",
+    "maxLength": 120
+   },
+   "lookId": {
+    "$h": "97a947cf54cd"
+   }
+  },
+  "8fd250a766b8": {
+   "kind": {
+    "type": "string",
+    "const": "swap"
+   },
+   "pieceOut": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "pieceIn": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "category": {
+    "type": "string",
+    "maxLength": 40
+   },
+   "surface": {
+    "type": "string",
+    "maxLength": 40
+   },
+   "subject": {
+    "type": "string",
+    "maxLength": 120
+   },
+   "lookId": {
+    "$h": "97a947cf54cd"
+   }
+  },
+  "f8403b91b45a": {
+   "kind": {
+    "type": "string",
+    "const": "ask"
+   },
+   "body": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 240
+   },
+   "surface": {
+    "type": "string",
+    "maxLength": 40
+   },
+   "subject": {
+    "type": "string",
+    "maxLength": 120
+   },
+   "lookId": {
+    "$h": "97a947cf54cd"
+   }
+  },
+  "30bd046f9446": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "oneOf": [
+    {
+     "type": "object",
+     "properties": {
+      "$h": "28faf4910f93"
+     },
+     "required": [
+      "kind",
+      "verdict"
+     ]
+    },
+    {
+     "type": "object",
+     "properties": {
+      "$h": "8fd250a766b8"
+     },
+     "required": [
+      "kind"
+     ]
+    },
+    {
+     "type": "object",
+     "properties": {
+      "$h": "f8403b91b45a"
+     },
+     "required": [
+      "kind",
+      "body"
+     ]
+    }
+   ]
+  },
+  "b0f87ec0d386": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "requested",
+     "running",
+     "ready",
+     "expired",
+     "failed"
+    ]
+   },
+   "requestedAt": {
+    "$h": "abcbb1ad9e30"
+   },
+   "readyAt": {
+    "anyOf": [
+     {
+      "$h": "abcbb1ad9e30"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "expiresAt": {
+    "anyOf": [
+     {
+      "$h": "abcbb1ad9e30"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "downloadUrl": {
+    "anyOf": [
+     {
+      "type": "string",
+      "format": "uri"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "5f25a0b45608": {
+   "type": "object",
+   "properties": {
+    "$h": "b0f87ec0d386"
+   },
+   "required": [
+    "id",
+    "status",
+    "requestedAt",
+    "readyAt",
+    "expiresAt",
+    "downloadUrl"
+   ]
+  },
+  "7fcaa570aba9": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "export": {
+     "anyOf": [
+      {
+       "$h": "5f25a0b45608"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "export"
+   ]
+  },
+  "6645009986ea": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "b0f87ec0d386"
+   },
+   "required": [
+    "id",
+    "status",
+    "requestedAt",
+    "readyAt",
+    "expiresAt",
+    "downloadUrl"
+   ]
+  },
+  "7354cd652b5f": {
+   "expoToken": {
+    "type": "string",
+    "pattern": "^(Exponent|Expo)PushToken\\[[A-Za-z0-9_-]{10,100}\\]$"
+   },
+   "platform": {
+    "type": "string",
+    "enum": [
+     "ios",
+     "android"
+    ]
+   },
+   "appVersion": {
+    "type": "string",
+    "maxLength": 32,
+    "pattern": "^\\d+(\\.\\d+)*$"
+   }
+  },
+  "d5da365fed50": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "7354cd652b5f"
+   },
+   "required": [
+    "expoToken",
+    "platform"
+   ]
+  },
+  "c6fe9eeaafe8": {
+   "where": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 60
+   },
+   "name": {
+    "type": "string",
+    "maxLength": 60
+   },
+   "message": {
+    "type": "string",
+    "maxLength": 300
+   },
+   "appVersion": {
+    "type": "string",
+    "maxLength": 32,
+    "pattern": "^\\d+(\\.\\d+)*$"
+   },
+   "analytics": {
+    "type": "boolean"
+   }
+  },
+  "9cdcee148992": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "c6fe9eeaafe8"
+   },
+   "required": [
+    "where",
+    "name",
+    "message",
+    "appVersion",
+    "analytics"
+   ]
+  },
+  "99548e1d5a7d": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "token": {
+     "type": "string",
+     "pattern": "^(Exponent|Expo)PushToken\\[[A-Za-z0-9_-]{10,100}\\]$"
+    }
+   },
+   "required": [
+    "token"
+   ]
+  },
+  "1409327077c0": {
+   "analytics": {
+    "type": [
+     "boolean",
+     "null"
+    ]
+   },
+   "replay": {
+    "type": [
+     "boolean",
+     "null"
+    ]
+   },
+   "marketing_email": {
+    "type": [
+     "boolean",
+     "null"
+    ]
+   },
+   "photo_analysis": {
+    "type": [
+     "boolean",
+     "null"
+    ]
+   },
+   "look_sharing": {
+    "type": [
+     "boolean",
+     "null"
+    ]
+   },
+   "recordings": {
+    "type": [
+     "boolean",
+     "null"
+    ]
+   }
+  },
+  "53823f7b022f": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "1409327077c0"
+   },
+   "required": [
+    "analytics",
+    "replay",
+    "marketing_email",
+    "photo_analysis",
+    "look_sharing",
+    "recordings"
+   ]
+  },
+  "e009fa9c057e": {
+   "analytics": {
+    "type": "boolean"
+   },
+   "replay": {
+    "type": "boolean"
+   },
+   "marketing_email": {
+    "type": "boolean"
+   },
+   "photo_analysis": {
+    "type": "boolean"
+   },
+   "look_sharing": {
+    "type": "boolean"
+   },
+   "recordings": {
+    "type": "boolean"
+   }
+  },
+  "82ec11533d53": {
+   "source": {
+    "type": "string",
+    "enum": [
+     "web",
+     "ios",
+     "android"
+    ]
+   },
+   "consents": {
+    "type": "object",
+    "properties": {
+     "$h": "e009fa9c057e"
+    },
+    "additionalProperties": false
+   }
+  },
+  "39ded7091d2b": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "82ec11533d53"
+   },
+   "required": [
+    "source",
+    "consents"
+   ]
+  },
+  "8a5cae0b0be3": {
+   "limit": {
+    "default": 60,
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 100
+   },
+   "cursor": {
+    "type": "string",
+    "maxLength": 200
+   },
+   "category": {
+    "type": "string",
+    "enum": [
+     "Tops",
+     "Bottoms",
+     "Dresses",
+     "Outerwear",
+     "Shoes",
+     "Bags",
+     "Accessories",
+     "Swimwear",
+     "Other"
+    ]
+   },
+   "categoryL2": {
+    "type": "string",
+    "maxLength": 60
+   },
+   "seasonBand": {
+    "type": "string",
+    "enum": [
+     "spring_summer",
+     "autumn_winter",
+     "year_round"
+    ]
+   },
+   "seasons": {
+    "maxItems": 16,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter",
+      "year_round"
+     ]
+    }
+   },
+   "colourFamily": {
+    "$h": "550e2ed28224"
+   },
+   "colourFamilies": {
+    "maxItems": 16,
+    "type": "array",
+    "items": {
+     "$h": "550e2ed28224"
+    }
+   },
+   "wearFor": {
+    "maxItems": 16,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 40
+    }
+   },
+   "brand": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 80
+   },
+   "q": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 80
+   }
+  },
+  "0680409a5bbd": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "label": {
+    "type": "string"
+   },
+   "category": {
+    "type": "string",
+    "enum": [
+     "Tops",
+     "Bottoms",
+     "Dresses",
+     "Outerwear",
+     "Shoes",
+     "Bags",
+     "Accessories",
+     "Swimwear",
+     "Other"
+    ]
+   },
+   "categoryL2": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "categoryL3": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "color": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "colourShade": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "colourExtra": {
+    "default": [],
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "print": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "material": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "colourCheck": {
+    "default": false,
+    "type": "boolean"
+   },
+   "materialCheck": {
+    "default": false,
+    "type": "boolean"
+   },
+   "brandCheck": {
+    "default": false,
+    "type": "boolean"
+   },
+   "brand": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "notes": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "reading",
+     "ready",
+     "failed"
+    ]
+   },
+   "detail": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "heroPosition": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "seasonBand": {
+    "type": "string",
+    "enum": [
+     "spring_summer",
+     "autumn_winter",
+     "year_round"
+    ]
+   },
+   "seasons": {
+    "default": [],
+    "maxItems": 4,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+     ]
+    }
+   },
+   "wearFor": {
+    "default": [],
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "price": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "currency": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "size": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "image": {
+    "anyOf": [
+     {
+      "$h": "dbb305b7efbe"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "wearCount": {
+    "default": 0,
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "createdAt": {
+    "$h": "abcbb1ad9e30"
+   },
+   "updatedAt": {
+    "$h": "abcbb1ad9e30"
+   }
+  },
+  "10798db7f7c6": {
+   "type": "object",
+   "properties": {
+    "$h": "0680409a5bbd"
+   },
+   "required": [
+    "id",
+    "label",
+    "category",
+    "categoryL2",
+    "categoryL3",
+    "color",
+    "brand",
+    "notes",
+    "status",
+    "heroPosition",
+    "seasonBand",
+    "price",
+    "currency",
+    "size",
+    "image",
+    "createdAt",
+    "updatedAt"
+   ]
+  },
+  "f9d7c8f30a14": {
+   "items": {
+    "type": "array",
+    "items": {
+     "$h": "10798db7f7c6"
+    }
+   },
+   "nextCursor": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "total": {
+    "default": 0,
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   }
+  },
+  "7efcaa69c51b": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "f9d7c8f30a14"
+   },
+   "required": [
+    "items",
+    "nextCursor"
+   ]
+  },
+  "d2621252b4cf": {
+   "category": {
+    "type": "string",
+    "enum": [
+     "Tops",
+     "Bottoms",
+     "Dresses",
+     "Outerwear",
+     "Shoes",
+     "Bags",
+     "Accessories",
+     "Swimwear",
+     "Other"
+    ]
+   },
+   "categoryL2": {
+    "type": "string",
+    "maxLength": 60
+   },
+   "seasonBand": {
+    "type": "string",
+    "enum": [
+     "spring_summer",
+     "autumn_winter",
+     "year_round"
+    ]
+   },
+   "seasons": {
+    "maxItems": 16,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter",
+      "year_round"
+     ]
+    }
+   },
+   "colourFamily": {
+    "$h": "550e2ed28224"
+   },
+   "colourFamilies": {
+    "maxItems": 16,
+    "type": "array",
+    "items": {
+     "$h": "550e2ed28224"
+    }
+   },
+   "wearFor": {
+    "maxItems": 16,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 40
+    }
+   },
+   "brand": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 80
+   },
+   "q": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 80
+   }
+  },
+  "c290eedab281": {
+   "category": {
+    "type": "string",
+    "enum": [
+     "Tops",
+     "Bottoms",
+     "Dresses",
+     "Outerwear",
+     "Shoes",
+     "Bags",
+     "Accessories",
+     "Swimwear",
+     "Other"
+    ]
+   },
+   "count": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 9007199254740991
+   }
+  },
+  "c640d43658ce": {
+   "total": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "categories": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "c290eedab281"
+     },
+     "required": [
+      "category",
+      "count"
+     ]
+    }
+   },
+   "brands": {
+    "default": [],
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "wearFor": {
+    "default": [],
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  },
+  "29d7d22db429": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "c640d43658ce"
+   },
+   "required": [
+    "total",
+    "categories"
+   ]
+  },
+  "4edc378bd30e": {
+   "type": "string",
+   "enum": [
+    "stripes",
+    "checks",
+    "plaid",
+    "houndstooth",
+    "dots",
+    "florals",
+    "animal",
+    "paisley",
+    "graphic",
+    "abstract",
+    "tiedye",
+    "camo",
+    "other"
+   ]
+  },
+  "77ca83c7f917": {
+   "type": "string",
+   "enum": [
+    "cotton",
+    "wool",
+    "linen",
+    "silk",
+    "cashmere",
+    "merino",
+    "mohair",
+    "alpaca",
+    "hemp",
+    "denim",
+    "jersey",
+    "satin",
+    "velvet",
+    "lace",
+    "corduroy",
+    "tweed",
+    "sequin",
+    "polyester",
+    "polyamide",
+    "elastane",
+    "acrylic",
+    "leather",
+    "suede",
+    "patent",
+    "shearling",
+    "nubuck",
+    "exotic",
+    "viscose",
+    "lyocell",
+    "modal",
+    "acetate",
+    "cupro",
+    "vegan_leather",
+    "faux_fur",
+    "faux_suede",
+    "vinyl",
+    "straw",
+    "metal",
+    "resin",
+    "wood"
+   ]
+  },
+  "649389e9276d": {
+   "label": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "categoryL2": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "categoryL3": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "color": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "colourShade": {
+    "anyOf": [
+     {
+      "$h": "b0643cab4e71"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "colourExtra": {
+    "maxItems": 3,
+    "type": "array",
+    "items": {
+     "$h": "b0643cab4e71"
+    }
+   },
+   "print": {
+    "anyOf": [
+     {
+      "$h": "4edc378bd30e"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "material": {
+    "anyOf": [
+     {
+      "$h": "77ca83c7f917"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "brand": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 80
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "notes": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 1000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "seasonBand": {
+    "type": "string",
+    "enum": [
+     "spring_summer",
+     "autumn_winter",
+     "year_round"
+    ]
+   },
+   "seasons": {
+    "maxItems": 4,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+     ]
+    }
+   },
+   "wearFor": {
+    "maxItems": 6,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 40
+    }
+   },
+   "price": {
+    "anyOf": [
+     {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "currency": {
+    "anyOf": [
+     {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "size": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 40
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "imageAssetId": {
+    "$h": "97a947cf54cd"
+   }
+  },
+  "791b69f624d8": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "649389e9276d"
+   },
+   "required": [
+    "label"
+   ]
+  },
+  "65154fc0bcb1": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "0680409a5bbd"
+   },
+   "required": [
+    "id",
+    "label",
+    "category",
+    "categoryL2",
+    "categoryL3",
+    "color",
+    "brand",
+    "notes",
+    "status",
+    "heroPosition",
+    "seasonBand",
+    "price",
+    "currency",
+    "size",
+    "image",
+    "createdAt",
+    "updatedAt"
+   ]
+  },
+  "4ca2ae7a4670": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "wornOn": {
+    "$h": "7e734acf5f3b"
+   },
+   "lookId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "lookName": {
+    "type": [
+     "string",
+     "null"
+    ]
+   }
+  },
+  "612f3e598d84": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "4ca2ae7a4670"
+    },
+    "required": [
+     "id",
+     "wornOn",
+     "lookId",
+     "lookName"
+    ]
+   }
+  },
+  "fcb16abcc9ab": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "items": {
+     "$h": "612f3e598d84"
+    },
+    "undated": {
+     "default": 0,
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    }
+   },
+   "required": [
+    "items"
+   ]
+  },
+  "04fcba588196": {
+   "label": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "categoryL2": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "categoryL3": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "color": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "colourShade": {
+    "anyOf": [
+     {
+      "$h": "b0643cab4e71"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "colourExtra": {
+    "maxItems": 3,
+    "type": "array",
+    "items": {
+     "$h": "b0643cab4e71"
+    }
+   },
+   "print": {
+    "anyOf": [
+     {
+      "$h": "4edc378bd30e"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "material": {
+    "anyOf": [
+     {
+      "$h": "77ca83c7f917"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "brand": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 80
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "notes": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 1000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "seasonBand": {
+    "type": "string",
+    "enum": [
+     "spring_summer",
+     "autumn_winter",
+     "year_round"
+    ]
+   },
+   "seasons": {
+    "maxItems": 4,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+     ]
+    }
+   },
+   "wearFor": {
+    "maxItems": 6,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 40
+    }
+   },
+   "price": {
+    "anyOf": [
+     {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "currency": {
+    "anyOf": [
+     {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "size": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 40
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "heroPosition": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "hero": {
+    "type": "boolean"
+   },
+   "detail": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "b844f0cd8855": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "assetId": {
+     "$h": "97a947cf54cd"
+    }
+   },
+   "required": [
+    "assetId"
+   ]
+  },
+  "926a66a9f5d8": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "assetIds": {
+     "minItems": 1,
+     "maxItems": 30,
+     "type": "array",
+     "items": {
+      "$h": "97a947cf54cd"
+     }
+    }
+   },
+   "required": [
+    "assetIds"
+   ]
+  },
+  "18de4b415182": {
+   "type": "object",
+   "properties": {
+    "pieceId": {
+     "$h": "97a947cf54cd"
+    },
+    "jobId": {
+     "$h": "97a947cf54cd"
+    }
+   },
+   "required": [
+    "pieceId",
+    "jobId"
+   ]
+  },
+  "5bebefbc7ad0": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "pieces": {
+     "type": "array",
+     "items": {
+      "$h": "10798db7f7c6"
+     }
+    },
+    "jobs": {
+     "type": "array",
+     "items": {
+      "$h": "18de4b415182"
+     }
+    }
+   },
+   "required": [
+    "pieces",
+    "jobs"
+   ]
+  },
+  "f0009c5d6411": {
+   "label": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "categoryL2": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "categoryL3": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "color": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "colourShade": {
+    "anyOf": [
+     {
+      "$h": "b0643cab4e71"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "colourExtra": {
+    "maxItems": 3,
+    "type": "array",
+    "items": {
+     "$h": "b0643cab4e71"
+    }
+   },
+   "print": {
+    "anyOf": [
+     {
+      "$h": "4edc378bd30e"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "material": {
+    "anyOf": [
+     {
+      "$h": "77ca83c7f917"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "brand": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 80
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "notes": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 1000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "seasonBand": {
+    "type": "string",
+    "enum": [
+     "spring_summer",
+     "autumn_winter",
+     "year_round"
+    ]
+   },
+   "seasons": {
+    "maxItems": 4,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+     ]
+    }
+   },
+   "wearFor": {
+    "maxItems": 6,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 40
+    }
+   },
+   "price": {
+    "anyOf": [
+     {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "currency": {
+    "anyOf": [
+     {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "size": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 40
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "fa34879138d5": {
+   "index": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 7
+   },
+   "state": {
+    "type": "string",
+    "const": "add"
+   },
+   "edits": {
+    "type": "object",
+    "properties": {
+     "$h": "f0009c5d6411"
+    },
+    "required": [
+     "label"
+    ]
+   }
+  },
+  "7a118b2ad76a": {
+   "index": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 7
+   },
+   "state": {
+    "type": "string",
+    "const": "owned"
+   },
+   "pieceId": {
+    "$h": "97a947cf54cd"
+   }
+  },
+  "5d5ba458dba3": {
+   "type": "object",
+   "properties": {
+    "index": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 7
+    },
+    "state": {
+     "type": "string",
+     "const": "skip"
+    }
+   },
+   "required": [
+    "index",
+    "state"
+   ]
+  },
+  "e9fe8eec565a": {
+   "oneOf": [
+    {
+     "type": "object",
+     "properties": {
+      "$h": "fa34879138d5"
+     },
+     "required": [
+      "index",
+      "state"
+     ]
+    },
+    {
+     "type": "object",
+     "properties": {
+      "$h": "7a118b2ad76a"
+     },
+     "required": [
+      "index",
+      "state",
+      "pieceId"
+     ]
+    },
+    {
+     "$h": "5d5ba458dba3"
+    }
+   ]
+  },
+  "dc165859b042": {
+   "answers": {
+    "minItems": 1,
+    "maxItems": 8,
+    "type": "array",
+    "items": {
+     "$h": "e9fe8eec565a"
+    }
+   },
+   "to": {
+    "default": "wardrobe",
+    "type": "string",
+    "enum": [
+     "wardrobe",
+     "wishlist"
+    ]
+   }
+  },
+  "0f9e155dc76d": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "dc165859b042"
+   },
+   "required": [
+    "answers"
+   ]
+  },
+  "f2e57db8834e": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "label": {
+    "type": "string"
+   },
+   "category": {
+    "type": "string",
+    "enum": [
+     "Tops",
+     "Bottoms",
+     "Dresses",
+     "Outerwear",
+     "Shoes",
+     "Bags",
+     "Accessories",
+     "Swimwear",
+     "Other"
+    ]
+   },
+   "categoryL2": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "categoryL3": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "color": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "colourShade": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "colourExtra": {
+    "default": [],
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "print": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "material": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "brand": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "note": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "price": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "currency": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "size": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "sourceUrl": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "sourceLabel": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "image": {
+    "anyOf": [
+     {
+      "$h": "dbb305b7efbe"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "createdAt": {
+    "$h": "abcbb1ad9e30"
+   },
+   "updatedAt": {
+    "$h": "abcbb1ad9e30"
+   }
+  },
+  "7dceae519553": {
+   "type": "object",
+   "properties": {
+    "$h": "f2e57db8834e"
+   },
+   "required": [
+    "id",
+    "label",
+    "category",
+    "categoryL2",
+    "categoryL3",
+    "color",
+    "brand",
+    "note",
+    "price",
+    "currency",
+    "size",
+    "sourceUrl",
+    "sourceLabel",
+    "image",
+    "createdAt",
+    "updatedAt"
+   ]
+  },
+  "3d8eb5150731": {
+   "filed": {
+    "type": "array",
+    "items": {
+     "$h": "10798db7f7c6"
+    }
+   },
+   "wished": {
+    "default": [],
+    "type": "array",
+    "items": {
+     "$h": "7dceae519553"
+    }
+   },
+   "photoAdded": {
+    "type": "array",
+    "items": {
+     "$h": "97a947cf54cd"
+    }
+   }
+  },
+  "aff7ab0dcd23": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "3d8eb5150731"
+   },
+   "required": [
+    "filed",
+    "photoAdded"
+   ]
+  },
+  "002334f0f9f5": {
+   "index": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 7
+   },
+   "edits": {
+    "type": "object",
+    "properties": {
+     "$h": "f0009c5d6411"
+    },
+    "required": [
+     "label"
+    ]
+   }
+  },
+  "03a37ea8afcb": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "002334f0f9f5"
+   },
+   "required": [
+    "index"
+   ]
+  },
+  "aa47a7c67c78": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "f2e57db8834e"
+   },
+   "required": [
+    "id",
+    "label",
+    "category",
+    "categoryL2",
+    "categoryL3",
+    "color",
+    "brand",
+    "note",
+    "price",
+    "currency",
+    "size",
+    "sourceUrl",
+    "sourceLabel",
+    "image",
+    "createdAt",
+    "updatedAt"
+   ]
+  },
+  "ac3f5cb3441d": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "limit": {
+     "default": 60,
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100
+    },
+    "cursor": {
+     "type": "string",
+     "maxLength": 200
+    }
+   }
+  },
+  "89e28f604afd": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "items": {
+     "type": "array",
+     "items": {
+      "$h": "7dceae519553"
+     }
+    },
+    "nextCursor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "items",
+    "nextCursor"
+   ]
+  },
+  "aa86946a4d34": {
+   "label": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "categoryL2": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "categoryL3": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "color": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "colourShade": {
+    "anyOf": [
+     {
+      "$h": "b0643cab4e71"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "colourExtra": {
+    "maxItems": 3,
+    "type": "array",
+    "items": {
+     "$h": "b0643cab4e71"
+    }
+   },
+   "print": {
+    "anyOf": [
+     {
+      "$h": "4edc378bd30e"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "material": {
+    "anyOf": [
+     {
+      "$h": "77ca83c7f917"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "brand": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 80
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "note": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 1000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "price": {
+    "anyOf": [
+     {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "currency": {
+    "anyOf": [
+     {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "size": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 40
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "sourceUrl": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 2048,
+      "format": "uri"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "sourceLabel": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 120
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "imageAssetId": {
+    "$h": "97a947cf54cd"
+   }
+  },
+  "b6d29bd93ef0": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "aa86946a4d34"
+   },
+   "required": [
+    "label"
+   ]
+  },
+  "519482240d55": {
+   "label": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "categoryL2": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "categoryL3": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "color": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "colourShade": {
+    "anyOf": [
+     {
+      "$h": "b0643cab4e71"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "colourExtra": {
+    "maxItems": 3,
+    "type": "array",
+    "items": {
+     "$h": "b0643cab4e71"
+    }
+   },
+   "print": {
+    "anyOf": [
+     {
+      "$h": "4edc378bd30e"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "material": {
+    "anyOf": [
+     {
+      "$h": "77ca83c7f917"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "brand": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 80
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "note": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 1000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "price": {
+    "anyOf": [
+     {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "currency": {
+    "anyOf": [
+     {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "size": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 40
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "sourceUrl": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 2048,
+      "format": "uri"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "sourceLabel": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 120
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "b666f296288b": {
+   "limit": {
+    "default": 30,
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 60
+   },
+   "cursor": {
+    "type": "string",
+    "maxLength": 200
+   },
+   "status": {
+    "default": "saved",
+    "type": "string",
+    "enum": [
+     "suggested",
+     "draft",
+     "saved"
+    ]
+   },
+   "anchorPieceId": {
+    "$h": "97a947cf54cd"
+   },
+   "pieceId": {
+    "$h": "97a947cf54cd"
+   }
+  },
+  "277b784375cd": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "image": {
+    "$h": "dbb305b7efbe"
+   },
+   "position": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   }
+  },
+  "637f8c3b8be5": {
+   "default": [],
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "277b784375cd"
+    },
+    "required": [
+     "id",
+     "image",
+     "position"
+    ]
+   }
+  },
+  "3b9e7c865829": {
+   "piece": {
+    "$h": "10798db7f7c6"
+   },
+   "slot": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "role": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "canvas",
+       "anchor",
+       "texture",
+       "exclamation"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "05effada1601": {
+   "default": "Other",
+   "type": "string",
+   "enum": [
+    "Tops",
+    "Bottoms",
+    "Dresses",
+    "Outerwear",
+    "Shoes",
+    "Bags",
+    "Accessories",
+    "Swimwear",
+    "Other"
+   ]
+  },
+  "14ef68c14f12": {
+   "readId": {
+    "$h": "97a947cf54cd"
+   },
+   "index": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 7
+   },
+   "cropAssetId": {
+    "$h": "97a947cf54cd"
+   },
+   "material": {
+    "default": null,
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "suggestedPieceId": {
+    "default": null,
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "fca745feb396": {
+   "default": null,
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "$h": "14ef68c14f12"
+     },
+     "required": [
+      "readId",
+      "index",
+      "cropAssetId"
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "f6c10b2e66fb": {
+   "key": {
+    "type": "string",
+    "pattern": "^p-[a-z0-9]{4,16}$"
+   },
+   "name": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "category": {
+    "$h": "05effada1601"
+   },
+   "color": {
+    "default": "",
+    "type": "string",
+    "maxLength": 40
+   },
+   "brand": {
+    "default": "",
+    "type": "string",
+    "maxLength": 60
+   },
+   "retailerHint": {
+    "default": "",
+    "type": "string",
+    "maxLength": 60
+   },
+   "pricePoint": {
+    "default": "",
+    "type": "string",
+    "maxLength": 20
+   },
+   "role": {
+    "default": null,
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "canvas",
+       "anchor",
+       "texture",
+       "exclamation"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "wishlisted": {
+    "default": false,
+    "type": "boolean"
+   },
+   "wishlistItemId": {
+    "default": null,
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "capture": {
+    "$h": "fca745feb396"
+   },
+   "url": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 2048,
+      "format": "uri"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "stillAssetId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "anchor": {
+    "type": "boolean"
+   }
+  },
+  "9176c06d609c": {
+   "key": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "string",
+      "pattern": "^p-[a-z0-9]{4,16}$"
+     }
+    ]
+   },
+   "pieceId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "name": {
+    "type": "string",
+    "maxLength": 120
+   },
+   "category": {
+    "type": "string",
+    "maxLength": 40
+   },
+   "categoryL2": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "brand": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 60
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "role": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "canvas",
+       "anchor",
+       "texture",
+       "exclamation"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "proposal": {
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "$h": "f6c10b2e66fb"
+      },
+      "required": [
+       "key",
+       "name",
+       "category"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "62127250142e": {
+   "type": "object",
+   "properties": {
+    "$h": "9176c06d609c"
+   },
+   "required": [
+    "key",
+    "pieceId",
+    "name",
+    "category",
+    "brand",
+    "role",
+    "proposal"
+   ]
+  },
+  "a252dc63f09b": {
+   "type": "object",
+   "propertyNames": {
+    "type": "string"
+   },
+   "additionalProperties": {
+    "type": "object",
+    "properties": {
+     "was": {
+      "$h": "62127250142e"
+     },
+     "back": {
+      "type": "boolean"
+     }
+    }
+   }
+  },
+  "3e68f7c30e51": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "label": {
+    "type": "string"
+   },
+   "brand": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "image": {
+    "anyOf": [
+     {
+      "$h": "dbb305b7efbe"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "fac3cce2f095": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "$h": "3e68f7c30e51"
+     },
+     "required": [
+      "id",
+      "label",
+      "brand",
+      "image"
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "a60e02c88a20": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "suggested",
+     "draft",
+     "saved"
+    ]
+   },
+   "name": {
+    "type": "string"
+   },
+   "nameProvisional": {
+    "type": "boolean"
+   },
+   "note": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "source": {
+    "type": "string"
+   },
+   "originLookId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "climateBand": {
+    "type": "string",
+    "enum": [
+     "spring_summer",
+     "autumn_winter",
+     "year_round"
+    ]
+   },
+   "seasons": {
+    "default": [],
+    "maxItems": 4,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+     ]
+    }
+   },
+   "tags": {
+    "default": [],
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "image": {
+    "anyOf": [
+     {
+      "$h": "dbb305b7efbe"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "photo": {
+    "anyOf": [
+     {
+      "$h": "dbb305b7efbe"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "model": {
+    "anyOf": [
+     {
+      "$h": "dbb305b7efbe"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "record": {
+    "type": "string",
+    "enum": [
+     "photo",
+     "model"
+    ]
+   },
+   "images": {
+    "$h": "637f8c3b8be5"
+   },
+   "robesHidden": {
+    "default": false,
+    "type": "boolean"
+   },
+   "pictureNote": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "frame": {
+    "type": "boolean"
+   },
+   "framePending": {
+    "type": "boolean"
+   },
+   "composedByRobes": {
+    "type": "boolean"
+   },
+   "onModel": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "pending",
+       "ready",
+       "failed"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "pictureStale": {
+    "default": false,
+    "type": "boolean"
+   },
+   "modelStale": {
+    "default": false,
+    "type": "boolean"
+   },
+   "onRobesModel": {
+    "default": false,
+    "type": "boolean"
+   },
+   "pieces": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "3b9e7c865829"
+     },
+     "required": [
+      "piece",
+      "slot",
+      "role"
+     ]
+    }
+   },
+   "proposals": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "f6c10b2e66fb"
+     },
+     "required": [
+      "key",
+      "name",
+      "category"
+     ]
+    }
+   },
+   "captureImages": {
+    "default": {},
+    "type": "object",
+    "propertyNames": {
+     "type": "string"
+    },
+    "additionalProperties": {
+     "$h": "dbb305b7efbe"
+    }
+   },
+   "proposalImages": {
+    "type": "object",
+    "propertyNames": {
+     "type": "string"
+    },
+    "additionalProperties": {
+     "$h": "dbb305b7efbe"
+    }
+   },
+   "styling": {
+    "type": "object",
+    "propertyNames": {
+     "type": "string"
+    },
+    "additionalProperties": {
+     "type": "string"
+    }
+   },
+   "edits": {
+    "$h": "a252dc63f09b"
+   },
+   "anchor": {
+    "$h": "fac3cce2f095"
+   },
+   "setId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "setIndex": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "seedId": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "dateHint": {
+    "anyOf": [
+     {
+      "$h": "7e734acf5f3b"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "timesWorn": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "lastWornOn": {
+    "anyOf": [
+     {
+      "$h": "7e734acf5f3b"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "pinnedOn": {
+    "default": [],
+    "type": "array",
+    "items": {
+     "$h": "7e734acf5f3b"
+    }
+   },
+   "createdAt": {
+    "$h": "abcbb1ad9e30"
+   },
+   "updatedAt": {
+    "$h": "abcbb1ad9e30"
+   }
+  },
+  "1bbaaed208d6": {
+   "type": "object",
+   "properties": {
+    "$h": "a60e02c88a20"
+   },
+   "required": [
+    "id",
+    "status",
+    "name",
+    "nameProvisional",
+    "note",
+    "source",
+    "originLookId",
+    "climateBand",
+    "image",
+    "photo",
+    "model",
+    "record",
+    "frame",
+    "framePending",
+    "composedByRobes",
+    "pieces",
+    "proposals",
+    "styling",
+    "edits",
+    "anchor",
+    "setId",
+    "setIndex",
+    "dateHint",
+    "timesWorn",
+    "lastWornOn",
+    "createdAt",
+    "updatedAt"
+   ]
+  },
+  "2f90cf991933": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "items": {
+     "type": "array",
+     "items": {
+      "$h": "1bbaaed208d6"
+     }
+    },
+    "nextCursor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "items",
+    "nextCursor"
+   ]
+  },
+  "0ed24c6ab46e": {
+   "pieceId": {
+    "$h": "97a947cf54cd"
+   },
+   "slot": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 40
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "role": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "canvas",
+       "anchor",
+       "texture",
+       "exclamation"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "e2d4a6fd446a": {
+   "maxItems": 20,
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "f6c10b2e66fb"
+    },
+    "required": [
+     "key",
+     "name",
+     "category"
+    ]
+   }
+  },
+  "4794810eb6e3": {
+   "type": "object",
+   "propertyNames": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "string",
+      "pattern": "^p-[a-z0-9]{4,16}$"
+     }
+    ]
+   },
+   "additionalProperties": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   }
+  },
+  "de4711f5efb6": {
+   "type": "object",
+   "propertyNames": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "string",
+      "pattern": "^p-[a-z0-9]{4,16}$"
+     }
+    ]
+   },
+   "additionalProperties": {
+    "type": "object",
+    "properties": {
+     "was": {
+      "$h": "62127250142e"
+     },
+     "back": {
+      "type": "boolean"
+     }
+    }
+   }
+  },
+  "25b131afb8a8": {
+   "name": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "note": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 2000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "climateBand": {
+    "type": "string",
+    "enum": [
+     "spring_summer",
+     "autumn_winter",
+     "year_round"
+    ]
+   },
+   "seasons": {
+    "maxItems": 4,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+     ]
+    }
+   },
+   "pieces": {
+    "maxItems": 50,
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "0ed24c6ab46e"
+     },
+     "required": [
+      "pieceId"
+     ]
+    }
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "saved",
+     "draft"
+    ]
+   },
+   "letGoOldest": {
+    "type": "boolean"
+   },
+   "anchorPieceId": {
+    "$h": "97a947cf54cd"
+   },
+   "photoAssetId": {
+    "$h": "97a947cf54cd"
+   },
+   "proposals": {
+    "$h": "e2d4a6fd446a"
+   },
+   "styling": {
+    "$h": "4794810eb6e3"
+   },
+   "edits": {
+    "$h": "de4711f5efb6"
+   },
+   "dateHint": {
+    "anyOf": [
+     {
+      "$h": "7e734acf5f3b"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "9fd4a327f3c1": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "25b131afb8a8"
+   },
+   "required": [
+    "pieces"
+   ]
+  },
+  "2915e779ea4f": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "a60e02c88a20"
+   },
+   "required": [
+    "id",
+    "status",
+    "name",
+    "nameProvisional",
+    "note",
+    "source",
+    "originLookId",
+    "climateBand",
+    "image",
+    "photo",
+    "model",
+    "record",
+    "frame",
+    "framePending",
+    "composedByRobes",
+    "pieces",
+    "proposals",
+    "styling",
+    "edits",
+    "anchor",
+    "setId",
+    "setIndex",
+    "dateHint",
+    "timesWorn",
+    "lastWornOn",
+    "createdAt",
+    "updatedAt"
+   ]
+  },
+  "7550aca5e7d2": {
+   "name": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "note": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 2000
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "climateBand": {
+    "type": "string",
+    "enum": [
+     "spring_summer",
+     "autumn_winter",
+     "year_round"
+    ]
+   },
+   "seasons": {
+    "maxItems": 4,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+     ]
+    }
+   },
+   "tags": {
+    "maxItems": 6,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 40
+    }
+   },
+   "pieces": {
+    "maxItems": 50,
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "0ed24c6ab46e"
+     },
+     "required": [
+      "pieceId"
+     ]
+    }
+   },
+   "proposals": {
+    "$h": "e2d4a6fd446a"
+   },
+   "styling": {
+    "$h": "4794810eb6e3"
+   },
+   "edits": {
+    "$h": "de4711f5efb6"
+   },
+   "dateHint": {
+    "anyOf": [
+     {
+      "$h": "7e734acf5f3b"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "letGoOldest": {
+    "type": "boolean"
+   },
+   "keepSuggested": {
+    "type": "boolean"
+   },
+   "record": {
+    "type": "string",
+    "enum": [
+     "photo",
+     "model"
+    ]
+   }
+  },
+  "bced06f50207": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "$h": "97a947cf54cd"
+     },
+     "label": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "label"
+    ]
+   }
+  },
+  "de272b7a1b58": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "wornOn": {
+     "$h": "7e734acf5f3b"
+    },
+    "pieces": {
+     "$h": "bced06f50207"
+    }
+   },
+   "required": [
+    "id",
+    "wornOn",
+    "pieces"
+   ]
+  },
+  "feaefe1a1262": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "items": {
+     "type": "array",
+     "items": {
+      "$h": "de272b7a1b58"
+     }
+    }
+   },
+   "required": [
+    "items"
+   ]
+  },
+  "5e8e1b3ae6df": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "imageId": {
+     "$h": "97a947cf54cd"
+    }
+   },
+   "required": [
+    "id",
+    "imageId"
+   ]
+  },
+  "0efa7b38ca91": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "imageId": {
+     "anyOf": [
+      {
+       "$h": "97a947cf54cd"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "imageId"
+   ]
+  },
+  "582039aa0de1": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "hidden": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "hidden"
+   ]
+  },
+  "2ba575fb9adc": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "wornOn": {
+     "$h": "7e734acf5f3b"
+    }
+   },
+   "required": [
+    "wornOn"
+   ]
+  },
+  "05a116b00829": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "lookId": {
+    "$h": "97a947cf54cd"
+   },
+   "wornOn": {
+    "$h": "7e734acf5f3b"
+   },
+   "pieceIds": {
+    "type": "array",
+    "items": {
+     "$h": "97a947cf54cd"
+    }
+   }
+  },
+  "8c05619acc66": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "05a116b00829"
+   },
+   "required": [
+    "id",
+    "lookId",
+    "wornOn",
+    "pieceIds"
+   ]
+  },
+  "0b7ff2849794": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "date": {
+     "$h": "7e734acf5f3b"
+    }
+   },
+   "required": [
+    "id",
+    "date"
+   ]
+  },
+  "5140f57e3f11": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "piece"
+    },
+    "pieceId": {
+     "$h": "97a947cf54cd"
+    }
+   },
+   "required": [
+    "type",
+    "pieceId"
+   ]
+  },
+  "c01dcca0b22b": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "text"
+    },
+    "text": {
+     "type": "string",
+     "minLength": 2,
+     "maxLength": 300
+    }
+   },
+   "required": [
+    "type",
+    "text"
+   ]
+  },
+  "2bf789bc77d1": {
+   "anchor": {
+    "oneOf": [
+     {
+      "$h": "5140f57e3f11"
+     },
+     {
+      "$h": "c01dcca0b22b"
+     }
+    ]
+   },
+   "occasion": {
+    "type": "string",
+    "maxLength": 120
+   },
+   "balance": {
+    "type": "string",
+    "enum": [
+     "owned",
+     "mix",
+     "new"
+    ]
+   },
+   "balanceNote": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 160
+   }
+  },
+  "c972d976fb6c": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "2bf789bc77d1"
+   },
+   "required": [
+    "anchor"
+   ]
+  },
+  "5a37444113fa": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "limit": {
+     "default": 30,
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 60
+    }
+   }
+  },
+  "7e0a5c097d33": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "piece"
+    },
+    "pieceId": {
+     "$h": "97a947cf54cd"
+    },
+    "label": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "type",
+    "pieceId",
+    "label"
+   ]
+  },
+  "5d0b7e4c62a7": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "text"
+    },
+    "label": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "type",
+    "label"
+   ]
+  },
+  "2d99a3730ef4": {
+   "name": {
+    "type": "string"
+   },
+   "category": {
+    "type": "string"
+   },
+   "color": {
+    "type": "string"
+   },
+   "colorHex": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "role": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "brand": {
+    "type": "string"
+   },
+   "retailerHint": {
+    "type": "string"
+   },
+   "pricePoint": {
+    "type": "string"
+   },
+   "pieceId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "2d2e8a1780e7": {
+   "type": "object",
+   "properties": {
+    "$h": "2d99a3730ef4"
+   },
+   "required": [
+    "name",
+    "category",
+    "color",
+    "colorHex",
+    "role",
+    "brand",
+    "retailerHint",
+    "pricePoint",
+    "pieceId"
+   ]
+  },
+  "e2e8162c837a": {
+   "eyebrow": {
+    "type": "string"
+   },
+   "title": {
+    "type": "string"
+   },
+   "scene": {
+    "default": "",
+    "type": "string"
+   },
+   "outfit": {
+    "default": "",
+    "type": "string"
+   },
+   "details": {
+    "default": "",
+    "type": "string"
+   },
+   "accessories": {
+    "default": "",
+    "type": "string"
+   },
+   "tags": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "pieces": {
+    "default": [],
+    "type": "array",
+    "items": {
+     "$h": "2d2e8a1780e7"
+    }
+   }
+  },
+  "45a8c152ebde": {
+   "idx": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "pending",
+     "ready",
+     "failed",
+     "deferred"
+    ]
+   },
+   "image": {
+    "anyOf": [
+     {
+      "$h": "dbb305b7efbe"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "3af0c12ed0c1": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "title": {
+    "type": "string"
+   },
+   "subtitle": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "anchor": {
+    "oneOf": [
+     {
+      "$h": "7e0a5c097d33"
+     },
+     {
+      "$h": "5d0b7e4c62a7"
+     }
+    ]
+   },
+   "fallback": {
+    "type": "boolean"
+   },
+   "wearer": {
+    "type": "string",
+    "enum": [
+     "woman",
+     "man"
+    ]
+   },
+   "ways": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "e2e8162c837a"
+     },
+     "required": [
+      "eyebrow",
+      "title",
+      "tags"
+     ]
+    }
+   },
+   "frames": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "45a8c152ebde"
+     },
+     "required": [
+      "idx",
+      "status",
+      "image"
+     ]
+    }
+   },
+   "jobId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "savedAt": {
+    "anyOf": [
+     {
+      "$h": "abcbb1ad9e30"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "expiresAt": {
+    "anyOf": [
+     {
+      "$h": "abcbb1ad9e30"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "createdAt": {
+    "$h": "abcbb1ad9e30"
+   }
+  },
+  "189428503f22": {
+   "type": "object",
+   "properties": {
+    "$h": "3af0c12ed0c1"
+   },
+   "required": [
+    "id",
+    "title",
+    "subtitle",
+    "anchor",
+    "fallback",
+    "wearer",
+    "ways",
+    "frames",
+    "jobId",
+    "savedAt",
+    "expiresAt",
+    "createdAt"
+   ]
+  },
+  "a0b2b4eb5e65": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "items": {
+     "type": "array",
+     "items": {
+      "$h": "189428503f22"
+     }
+    }
+   },
+   "required": [
+    "items"
+   ]
+  },
+  "5a837976e435": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "3af0c12ed0c1"
+   },
+   "required": [
+    "id",
+    "title",
+    "subtitle",
+    "anchor",
+    "fallback",
+    "wearer",
+    "ways",
+    "frames",
+    "jobId",
+    "savedAt",
+    "expiresAt",
+    "createdAt"
+   ]
+  },
+  "ad93f5110764": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "idx": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 2
+    }
+   },
+   "required": [
+    "id",
+    "idx"
+   ]
+  },
+  "326a19d85d4a": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "wayIdx": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 2
+    }
+   },
+   "required": [
+    "wayIdx"
+   ]
+  },
+  "caf98c116270": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 120
+    },
+    "date": {
+     "$h": "7e734acf5f3b"
+    }
+   }
+  },
+  "ec65705609fa": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "key": {
+     "type": "string",
+     "pattern": "^p-[a-z0-9]{4,16}$"
+    }
+   },
+   "required": [
+    "id",
+    "key"
+   ]
+  },
+  "156623228d47": {
+   "city": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "country": {
+    "default": null,
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 120
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "lat": {
+    "type": "number",
+    "minimum": -90,
+    "maximum": 90
+   },
+   "lon": {
+    "type": "number",
+    "minimum": -180,
+    "maximum": 180
+   }
+  },
+  "67118bcf454e": {
+   "prompt": {
+    "type": "string",
+    "minLength": 2,
+    "maxLength": 300
+   },
+   "date": {
+    "$h": "7e734acf5f3b"
+   },
+   "draft": {
+    "type": "boolean"
+   },
+   "pieceIds": {
+    "maxItems": 8,
+    "type": "array",
+    "items": {
+     "$h": "97a947cf54cd"
+    }
+   },
+   "anchorPieceId": {
+    "$h": "97a947cf54cd"
+   },
+   "anchorWishId": {
+    "$h": "97a947cf54cd"
+   },
+   "weather": {
+    "type": "boolean"
+   },
+   "place": {
+    "type": "object",
+    "properties": {
+     "$h": "156623228d47"
+    },
+    "required": [
+     "city",
+     "lat",
+     "lon"
+    ]
+   },
+   "balance": {
+    "type": "string",
+    "enum": [
+     "owned",
+     "mix",
+     "new"
+    ]
+   },
+   "balanceNote": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 160
+   }
+  },
+  "6967b6f25294": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "67118bcf454e"
+   },
+   "required": [
+    "prompt"
+   ]
+  },
+  "d075a7ff81e0": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "note": {
+     "type": "string",
+     "maxLength": 300
+    }
+   }
+  },
+  "05bbf248a31e": {
+   "type": "object",
+   "properties": {
+    "who": {
+     "type": "string",
+     "enum": [
+      "her",
+      "robes"
+     ]
+    },
+    "text": {
+     "type": "string",
+     "maxLength": 400
+    }
+   },
+   "required": [
+    "who",
+    "text"
+   ]
+  },
+  "460b74c1872c": {
+   "name": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "category": {
+    "$h": "05effada1601"
+   },
+   "brand": {
+    "default": "",
+    "type": "string",
+    "maxLength": 60
+   }
+  },
+  "6e823306908f": {
+   "key": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "string",
+      "pattern": "^p-[a-z0-9]{4,16}$"
+     }
+    ]
+   },
+   "pieceId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "proposal": {
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "$h": "460b74c1872c"
+      },
+      "required": [
+       "name",
+       "category"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "keep": {
+    "default": false,
+    "type": "boolean"
+   },
+   "was": {
+    "default": null,
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 120
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "styled": {
+    "default": null,
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 120
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "cb6e143661bd": {
+   "minItems": 1,
+   "maxItems": 14,
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "6e823306908f"
+    },
+    "required": [
+     "key",
+     "pieceId",
+     "proposal"
+    ]
+   }
+  },
+  "0e67c3e35285": {
+   "day": {
+    "type": "string",
+    "maxLength": 40
+   },
+   "weather": {
+    "type": "string",
+    "maxLength": 60
+   },
+   "occasion": {
+    "type": "string",
+    "maxLength": 80
+   }
+  },
+  "a1ea85998b21": {
+   "surface": {
+    "type": "string",
+    "enum": [
+     "draft",
+     "saved",
+     "suggested",
+     "day"
+    ]
+   },
+   "text": {
+    "type": "string",
+    "maxLength": 300
+   },
+   "reasons": {
+    "maxItems": 3,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "dressy",
+      "casual",
+      "colours",
+      "fit",
+      "piece",
+      "weather"
+     ]
+    }
+   },
+   "thread": {
+    "default": [],
+    "maxItems": 6,
+    "type": "array",
+    "items": {
+     "$h": "05bbf248a31e"
+    }
+   },
+   "rack": {
+    "$h": "cb6e143661bd"
+   },
+   "balance": {
+    "type": "string",
+    "enum": [
+     "owned",
+     "mix",
+     "new"
+    ]
+   },
+   "context": {
+    "type": "object",
+    "properties": {
+     "$h": "0e67c3e35285"
+    }
+   }
+  },
+  "825f7b941db3": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "a1ea85998b21"
+   },
+   "required": [
+    "surface",
+    "text",
+    "rack"
+   ]
+  },
+  "a2b235f33647": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "mode": {
+    "type": "string",
+    "enum": [
+     "piece",
+     "prompt"
+    ]
+   },
+   "prompt": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "anchor": {
+    "$h": "fac3cce2f095"
+   },
+   "dateHint": {
+    "anyOf": [
+     {
+      "$h": "7e734acf5f3b"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "jobId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "looks": {
+    "type": "array",
+    "items": {
+     "$h": "1bbaaed208d6"
+    }
+   }
+  },
+  "13412ec61455": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "a2b235f33647"
+   },
+   "required": [
+    "id",
+    "mode",
+    "prompt",
+    "anchor",
+    "dateHint",
+    "jobId",
+    "looks"
+   ]
+  },
+  "362078f1a4dc": {
+   "rule": {
+    "type": "string",
+    "enum": [
+     "start",
+     "model",
+     "five",
+     "build",
+     "wear",
+     "week"
+    ]
+   },
+   "remaining": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 9007199254740991
+   },
+   "count": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 9007199254740991
+   },
+   "lookName": {
+    "type": "string"
+   },
+   "presence": {
+    "type": "string",
+    "enum": [
+     "woman",
+     "man",
+     "non_binary",
+     "unspecified"
+    ]
+   }
+  },
+  "ef48ca66847a": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "date": {
+    "$h": "7e734acf5f3b"
+   },
+   "slot": {
+    "type": "string",
+    "enum": [
+     "day",
+     "evening"
+    ]
+   },
+   "activity": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "worn": {
+    "default": false,
+    "type": "boolean"
+   },
+   "position": {
+    "default": 0,
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "look": {
+    "$h": "1bbaaed208d6"
+   }
+  },
+  "4f4e942e5e20": {
+   "entry": {
+    "type": "object",
+    "properties": {
+     "$h": "ef48ca66847a"
+    },
+    "required": [
+     "id",
+     "date",
+     "slot",
+     "activity",
+     "look"
+    ]
+   },
+   "worn": {
+    "type": "boolean"
+   }
+  },
+  "d53896e1721a": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "name": {
+    "type": "string"
+   },
+   "image": {
+    "anyOf": [
+     {
+      "$h": "dbb305b7efbe"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "worn": {
+    "type": "boolean"
+   }
+  },
+  "c1fe9770c075": {
+   "default": null,
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "$h": "d53896e1721a"
+     },
+     "required": [
+      "id",
+      "name",
+      "image",
+      "worn"
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "7229ba55fbad": {
+   "date": {
+    "$h": "7e734acf5f3b"
+   },
+   "looks": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "first": {
+    "$h": "c1fe9770c075"
+   }
+  },
+  "6473cdbfa6ed": {
+   "minItems": 7,
+   "maxItems": 7,
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "7229ba55fbad"
+    },
+    "required": [
+     "date",
+     "looks"
+    ]
+   }
+  },
+  "0f4afac95cb8": {
+   "type": "string",
+   "enum": [
+    "fake",
+    "key_piece",
+    "daily",
+    "travel",
+    "travel_looks",
+    "look_render",
+    "avatar_cell",
+    "wardrobe_analyse",
+    "stylenotes_analyse",
+    "receipt_read",
+    "alternates",
+    "lookbuild_note",
+    "link_import",
+    "cutout",
+    "style_brief",
+    "wardrobe_pieces",
+    "look_ask"
+   ]
+  },
+  "5f86a8761874": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "type": "string"
+    },
+    "lines": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "title",
+    "lines"
+   ]
+  },
+  "45f6c7aac084": {
+   "idx": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "placeholder",
+     "pending",
+     "ready",
+     "failed",
+     "deferred"
+    ]
+   },
+   "assetId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "73c309ebf9be": {
+   "pieceId": {
+    "$h": "97a947cf54cd"
+   },
+   "name": {
+    "type": "string"
+   },
+   "category": {
+    "type": "string"
+   },
+   "categoryL2": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "brand": {
+    "type": [
+     "string",
+     "null"
+    ]
+   }
+  },
+  "fa31885fced1": {
+   "name": {
+    "type": "string"
+   },
+   "category": {
+    "type": "string"
+   },
+   "color": {
+    "type": "string"
+   },
+   "brand": {
+    "type": "string"
+   },
+   "retailerHint": {
+    "type": "string"
+   },
+   "pricePoint": {
+    "type": "string"
+   },
+   "wishlisted": {
+    "type": "boolean"
+   },
+   "wishlistItemId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "054479b1b1b9": {
+   "type": "object",
+   "properties": {
+    "$h": "fa31885fced1"
+   },
+   "required": [
+    "name",
+    "category",
+    "color",
+    "brand",
+    "retailerHint",
+    "pricePoint"
+   ]
+  },
+  "3c9137f12772": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "$h": "73c309ebf9be"
+     },
+     "required": [
+      "pieceId",
+      "name",
+      "category",
+      "brand"
+     ]
+    },
+    {
+     "type": "object",
+     "properties": {
+      "proposal": {
+       "$h": "054479b1b1b9"
+      }
+     },
+     "required": [
+      "proposal"
+     ]
+    }
+   ]
+  },
+  "be27f9e6ca80": {
+   "type": "object",
+   "properties": {
+    "key": {
+     "anyOf": [
+      {
+       "$h": "97a947cf54cd"
+      },
+      {
+       "type": "string",
+       "pattern": "^p-[a-z0-9]{4,16}$"
+      }
+     ]
+    },
+    "to": {
+     "$h": "3c9137f12772"
+    }
+   },
+   "required": [
+    "key",
+    "to"
+   ]
+  },
+  "9a056d6a6b22": {
+   "type": "object",
+   "properties": {
+    "key": {
+     "anyOf": [
+      {
+       "$h": "97a947cf54cd"
+      },
+      {
+       "type": "string",
+       "pattern": "^p-[a-z0-9]{4,16}$"
+      }
+     ]
+    },
+    "note": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "key",
+    "note"
+   ]
+  },
+  "5399d7c649ca": {
+   "intent": {
+    "type": "string",
+    "enum": [
+     "swap",
+     "back",
+     "rule",
+     "styled",
+     "clarify",
+     "draft",
+     "none",
+     "picture"
+    ]
+   },
+   "reply": {
+    "type": "string"
+   },
+   "swaps": {
+    "type": "array",
+    "items": {
+     "$h": "be27f9e6ca80"
+    }
+   },
+   "adds": {
+    "default": [],
+    "maxItems": 8,
+    "type": "array",
+    "items": {
+     "$h": "3c9137f12772"
+    }
+   },
+   "back": {
+    "type": "array",
+    "items": {
+     "anyOf": [
+      {
+       "$h": "97a947cf54cd"
+      },
+      {
+       "type": "string",
+       "pattern": "^p-[a-z0-9]{4,16}$"
+      }
+     ]
+    }
+   },
+   "backAll": {
+    "type": "boolean"
+   },
+   "styled": {
+    "type": "array",
+    "items": {
+     "$h": "9a056d6a6b22"
+    }
+   },
+   "draft": {
+    "type": "string"
+   },
+   "rule": {
+    "type": "string"
+   },
+   "noticed": {
+    "type": "boolean"
+   },
+   "followUp": {
+    "type": "string",
+    "maxLength": 120
+   },
+   "picture": {
+    "type": "string",
+    "maxLength": 240
+   }
+  },
+  "673fa3592c58": {
+   "type": "object",
+   "properties": {
+    "$h": "5399d7c649ca"
+   },
+   "required": [
+    "intent",
+    "reply",
+    "swaps",
+    "back",
+    "backAll",
+    "styled",
+    "draft",
+    "rule",
+    "noticed"
+   ]
+  },
+  "0d992b071800": {
+   "x": {
+    "type": "number",
+    "minimum": 0,
+    "maximum": 1
+   },
+   "y": {
+    "type": "number",
+    "minimum": 0,
+    "maximum": 1
+   },
+   "w": {
+    "type": "number",
+    "minimum": 0,
+    "maximum": 1
+   },
+   "h": {
+    "type": "number",
+    "minimum": 0,
+    "maximum": 1
+   }
+  },
+  "11844ff0cb38": {
+   "type": "object",
+   "properties": {
+    "pieceId": {
+     "$h": "97a947cf54cd"
+    },
+    "confidence": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
+    }
+   },
+   "required": [
+    "pieceId",
+    "confidence"
+   ]
+  },
+  "a36795d04079": {
+   "index": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 7
+   },
+   "label": {
+    "type": "string"
+   },
+   "category": {
+    "type": "string",
+    "enum": [
+     "Tops",
+     "Bottoms",
+     "Dresses",
+     "Outerwear",
+     "Shoes",
+     "Bags",
+     "Accessories",
+     "Swimwear",
+     "Other"
+    ]
+   },
+   "categoryL2": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "categoryL3": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "color": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "brand": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "notes": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "colourShade": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "colourExtra": {
+    "default": [],
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "print": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "material": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "box": {
+    "type": "object",
+    "properties": {
+     "$h": "0d992b071800"
+    },
+    "required": [
+     "x",
+     "y",
+     "w",
+     "h"
+    ]
+   },
+   "match": {
+    "anyOf": [
+     {
+      "$h": "11844ff0cb38"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "cropAssetId": {
+    "$h": "97a947cf54cd"
+   }
+  },
+  "76c40673090e": {
+   "type": "object",
+   "properties": {
+    "$h": "a36795d04079"
+   },
+   "required": [
+    "index",
+    "label",
+    "category",
+    "categoryL2",
+    "categoryL3",
+    "color",
+    "brand",
+    "notes",
+    "box",
+    "match",
+    "cropAssetId"
+   ]
+  },
+  "30c8ee0ebf4a": {
+   "text": {
+    "$h": "5f86a8761874"
+   },
+   "images": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "45f6c7aac084"
+     },
+     "required": [
+      "idx",
+      "status"
+     ]
+    }
+   },
+   "ideaId": {
+    "$h": "97a947cf54cd"
+   },
+   "fallback": {
+    "type": "boolean"
+   },
+   "wearer": {
+    "type": "string",
+    "enum": [
+     "woman",
+     "man"
+    ]
+   },
+   "ways": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "e2e8162c837a"
+     },
+     "required": [
+      "eyebrow",
+      "title",
+      "tags"
+     ]
+    }
+   },
+   "setId": {
+    "$h": "97a947cf54cd"
+   },
+   "lookIds": {
+    "type": "array",
+    "items": {
+     "$h": "97a947cf54cd"
+    }
+   },
+   "occasion": {
+    "type": "string",
+    "maxLength": 24
+   },
+   "ask": {
+    "$h": "673fa3592c58"
+   },
+   "pieceId": {
+    "$h": "97a947cf54cd"
+   },
+   "label": {
+    "type": "string"
+   },
+   "category": {
+    "type": "string"
+   },
+   "noItemDetected": {
+    "type": "boolean"
+   },
+   "assetId": {
+    "$h": "97a947cf54cd"
+   },
+   "readPieces": {
+    "type": "array",
+    "items": {
+     "$h": "76c40673090e"
+    }
+   },
+   "inboxId": {
+    "$h": "97a947cf54cd"
+   },
+   "dailyLookId": {
+    "$h": "97a947cf54cd"
+   },
+   "tripId": {
+    "$h": "97a947cf54cd"
+   },
+   "lookId": {
+    "$h": "97a947cf54cd"
+   },
+   "styleKind": {
+    "type": "string",
+    "enum": [
+     "colour",
+     "silhouette"
+    ]
+   },
+   "archetype": {
+    "type": "string"
+   },
+   "noSubject": {
+    "type": "boolean"
+   }
+  },
+  "03a0fd0f2e60": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "kind": {
+    "$h": "0f4afac95cb8"
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "queued",
+     "running",
+     "succeeded",
+     "partial",
+     "failed",
+     "cancelled"
+    ]
+   },
+   "stage": {
+    "type": "string",
+    "enum": [
+     "queued",
+     "text",
+     "images",
+     "done"
+    ]
+   },
+   "output": {
+    "type": "object",
+    "properties": {
+     "$h": "30c8ee0ebf4a"
+    }
+   },
+   "error": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "cancelRequested": {
+    "type": "boolean"
+   },
+   "createdAt": {
+    "$h": "abcbb1ad9e30"
+   },
+   "updatedAt": {
+    "$h": "abcbb1ad9e30"
+   },
+   "finishedAt": {
+    "anyOf": [
+     {
+      "$h": "abcbb1ad9e30"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "c3372dff1c90": {
+   "type": "object",
+   "properties": {
+    "$h": "03a0fd0f2e60"
+   },
+   "required": [
+    "id",
+    "kind",
+    "status",
+    "stage",
+    "output",
+    "error",
+    "cancelRequested",
+    "createdAt",
+    "updatedAt",
+    "finishedAt"
+   ]
+  },
+  "be04398c4b97": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "title": {
+     "type": "string"
+    },
+    "headline": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "title",
+    "headline"
+   ]
+  },
+  "fd3c5cfb9e30": {
+   "type": "object",
+   "propertyNames": {
+    "type": "string",
+    "enum": [
+     "O1",
+     "O2",
+     "O3",
+     "O4"
+    ]
+   },
+   "additionalProperties": {
+    "$h": "abcbb1ad9e30"
+   }
+  },
+  "013c4f920151": {
+   "type": "object",
+   "properties": {
+    "modelAsked": {
+     "type": "boolean"
+    },
+    "piecesAsked": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "modelAsked",
+    "piecesAsked"
+   ]
+  },
+  "8b484b864f1e": {
+   "styleConfirmed": {
+    "type": "boolean"
+   },
+   "twinOnFile": {
+    "type": "boolean"
+   },
+   "pics": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "ownLookSaved": {
+    "type": "boolean"
+   },
+   "anyLook": {
+    "type": "boolean"
+   },
+   "snoozed": {
+    "$h": "fd3c5cfb9e30"
+   },
+   "dayOne": {
+    "$h": "013c4f920151"
+   }
+  },
+  "716d6a00add5": {
+   "type": "object",
+   "properties": {
+    "$h": "8b484b864f1e"
+   },
+   "required": [
+    "styleConfirmed",
+    "twinOnFile",
+    "pics",
+    "ownLookSaved",
+    "snoozed"
+   ]
+  },
+  "46451a70084f": {
+   "brands": {
+    "maxItems": 3,
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "icons": {
+    "maxItems": 3,
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "styles": {
+    "maxItems": 3,
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  },
+  "211f61e7ba4a": {
+   "maxItems": 4,
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "3e68f7c30e51"
+    },
+    "required": [
+     "id",
+     "label",
+     "brand",
+     "image"
+    ]
+   }
+  },
+  "9a7f837d3f6d": {
+   "maxItems": 3,
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "3e68f7c30e51"
+    },
+    "required": [
+     "id",
+     "label",
+     "brand",
+     "image"
+    ]
+   }
+  },
+  "f6d7b3ab11bb": {
+   "receipts": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 9007199254740991
+   },
+   "pieces": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "retailer": {
+    "type": [
+     "string",
+     "null"
+    ]
+   }
+  },
+  "c6894b9e1109": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "$h": "f6d7b3ab11bb"
+     },
+     "required": [
+      "receipts",
+      "pieces",
+      "retailer"
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "09cb561d8fd6": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "id": {
+       "$h": "97a947cf54cd"
+      },
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "text"
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "31770bce888a": {
+   "state": {
+    "$h": "716d6a00add5"
+   },
+   "rows": {
+    "type": "object",
+    "properties": {
+     "$h": "46451a70084f"
+    },
+    "required": [
+     "brands",
+     "icons",
+     "styles"
+    ]
+   },
+   "recent": {
+    "$h": "211f61e7ba4a"
+   },
+   "candidates": {
+    "$h": "9a7f837d3f6d"
+   },
+   "receipts": {
+    "$h": "c6894b9e1109"
+   },
+   "noticed": {
+    "$h": "09cb561d8fd6"
+   },
+   "saved": {
+    "maxItems": 4,
+    "type": "array",
+    "items": {
+     "$h": "1bbaaed208d6"
+    }
+   },
+   "suggested": {
+    "maxItems": 4,
+    "type": "array",
+    "items": {
+     "$h": "1bbaaed208d6"
+    }
+   }
+  },
+  "3366fe7e0cfd": {
+   "type": "object",
+   "properties": {
+    "$h": "31770bce888a"
+   },
+   "required": [
+    "state",
+    "rows",
+    "recent",
+    "candidates",
+    "receipts",
+    "noticed",
+    "saved",
+    "suggested"
+   ]
+  },
+  "40f3a0b7aabd": {
+   "city": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "tempRange": {
+    "type": "string"
+   },
+   "condition": {
+    "type": "string"
+   },
+   "nowC": {
+    "default": null,
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "code": {
+    "default": null,
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "aad09e5daf22": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "$h": "40f3a0b7aabd"
+     },
+     "required": [
+      "city",
+      "tempRange",
+      "condition"
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "138782b69452": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "ef48ca66847a"
+    },
+    "required": [
+     "id",
+     "date",
+     "slot",
+     "activity",
+     "look"
+    ]
+   }
+  },
+  "7325e6dfdf57": {
+   "type": "object",
+   "properties": {
+    "look": {
+     "anyOf": [
+      {
+       "$h": "1bbaaed208d6"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "jobId": {
+     "anyOf": [
+      {
+       "$h": "97a947cf54cd"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "look",
+    "jobId"
+   ]
+  },
+  "9648d0261751": {
+   "date": {
+    "$h": "7e734acf5f3b"
+   },
+   "name": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "place": {
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "$h": "156623228d47"
+      },
+      "required": [
+       "city",
+       "lat",
+       "lon"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "weather": {
+    "$h": "aad09e5daf22"
+   },
+   "entries": {
+    "$h": "138782b69452"
+   },
+   "draft": {
+    "default": null,
+    "anyOf": [
+     {
+      "$h": "7325e6dfdf57"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "f02a655a904e": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "9648d0261751"
+    },
+    "required": [
+     "date",
+     "name",
+     "place",
+     "weather",
+     "entries"
+    ]
+   }
+  },
+  "ed989adcf1a1": {
+   "type": "object",
+   "properties": {
+    "from": {
+     "$h": "7e734acf5f3b"
+    },
+    "to": {
+     "$h": "7e734acf5f3b"
+    },
+    "days": {
+     "$h": "f02a655a904e"
+    }
+   },
+   "required": [
+    "from",
+    "to",
+    "days"
+   ]
+  },
+  "cb5cd15b61df": {
+   "date": {
+    "$h": "7e734acf5f3b"
+   },
+   "hour": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 23
+   },
+   "firstName": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "nextStep": {
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "$h": "362078f1a4dc"
+      },
+      "required": [
+       "rule"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "today": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "4f4e942e5e20"
+     },
+     "required": [
+      "entry",
+      "worn"
+     ]
+    }
+   },
+   "week": {
+    "$h": "6473cdbfa6ed"
+   },
+   "tray": {
+    "type": "array",
+    "items": {
+     "$h": "c3372dff1c90"
+    }
+   },
+   "ideas": {
+    "type": "array",
+    "items": {
+     "$h": "189428503f22"
+    }
+   },
+   "inboxCount": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "overnight": {
+    "anyOf": [
+     {
+      "$h": "be04398c4b97"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "home": {
+    "$h": "3366fe7e0cfd"
+   },
+   "diary": {
+    "$h": "ed989adcf1a1"
+   }
+  },
+  "b796b2069b55": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "cb5cd15b61df"
+   },
+   "required": [
+    "date",
+    "hour",
+    "firstName",
+    "today",
+    "week",
+    "tray",
+    "ideas",
+    "inboxCount",
+    "overnight",
+    "home"
+   ]
+  },
+  "46d08f9d5a6d": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "$h": "40f3a0b7aabd"
+     },
+     "required": [
+      "city",
+      "tempRange",
+      "condition"
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "77a2e342c144": {
+   "prompt": {
+    "type": "string",
+    "maxLength": 500
+   },
+   "occasion": {
+    "type": "string",
+    "maxLength": 120
+   },
+   "lockedPieceIds": {
+    "maxItems": 8,
+    "type": "array",
+    "items": {
+     "$h": "97a947cf54cd"
+    }
+   }
+  },
+  "3835c112c5c4": {
+   "climate": {
+    "type": "string"
+   },
+   "wearFor": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "vibe": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  },
+  "63a060a09c12": {
+   "type": "object",
+   "properties": {
+    "city": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "tempRange": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "condition": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "city",
+    "tempRange",
+    "condition"
+   ]
+  },
+  "a63717513918": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "brand": {
+     "type": "string"
+    },
+    "retailerHint": {
+     "type": "string"
+    },
+    "pricePoint": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "name",
+    "brand",
+    "retailerHint",
+    "pricePoint"
+   ]
+  },
+  "95e7a4769f4b": {
+   "name": {
+    "type": "string"
+   },
+   "category": {
+    "type": "string"
+   },
+   "brand": {
+    "type": "string"
+   },
+   "how": {
+    "type": "string"
+   },
+   "piece": {
+    "anyOf": [
+     {
+      "$h": "10798db7f7c6"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "retailerHint": {
+    "type": "string"
+   },
+   "pricePoint": {
+    "type": "string"
+   },
+   "alternates": {
+    "type": "array",
+    "items": {
+     "$h": "a63717513918"
+    }
+   },
+   "image": {
+    "anyOf": [
+     {
+      "$h": "dbb305b7efbe"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "imageIndex": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "imageStatus": {
+    "type": "string",
+    "enum": [
+     "pending",
+     "ready",
+     "failed",
+     "deferred"
+    ]
+   }
+  },
+  "faf1fede0016": {
+   "type": "object",
+   "properties": {
+    "$h": "95e7a4769f4b"
+   },
+   "required": [
+    "name",
+    "category",
+    "brand",
+    "how",
+    "piece",
+    "retailerHint",
+    "pricePoint",
+    "alternates",
+    "image",
+    "imageIndex",
+    "imageStatus"
+   ]
+  },
+  "fa9f02d52fe4": {
+   "title": {
+    "type": "string",
+    "enum": [
+     "The Anchor",
+     "The Canvas",
+     "The Texture",
+     "The Accents"
+    ]
+   },
+   "items": {
+    "type": "array",
+    "items": {
+     "$h": "faf1fede0016"
+    }
+   }
+  },
+  "4a47116b9397": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "jobId": {
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "fallback": {
+    "type": "boolean"
+   },
+   "occasionLabel": {
+    "type": "string"
+   },
+   "headline": {
+    "type": "string"
+   },
+   "stylistSummary": {
+    "type": "string"
+   },
+   "transitionTip": {
+    "type": "string"
+   },
+   "palette": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "lookTags": {
+    "type": "object",
+    "properties": {
+     "$h": "3835c112c5c4"
+    },
+    "required": [
+     "climate",
+     "wearFor",
+     "vibe"
+    ]
+   },
+   "weather": {
+    "anyOf": [
+     {
+      "$h": "63a060a09c12"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "steps": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "fa9f02d52fe4"
+     },
+     "required": [
+      "title",
+      "items"
+     ]
+    }
+   },
+   "savedAt": {
+    "anyOf": [
+     {
+      "$h": "abcbb1ad9e30"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "expiresAt": {
+    "anyOf": [
+     {
+      "$h": "abcbb1ad9e30"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "createdAt": {
+    "$h": "abcbb1ad9e30"
+   }
+  },
+  "7689192e2051": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "4a47116b9397"
+   },
+   "required": [
+    "id",
+    "jobId",
+    "fallback",
+    "occasionLabel",
+    "headline",
+    "stylistSummary",
+    "transitionTip",
+    "palette",
+    "lookTags",
+    "weather",
+    "steps",
+    "savedAt",
+    "expiresAt",
+    "createdAt"
+   ]
+  },
+  "02b55a6ab7fb": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "idx": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 20
+    }
+   },
+   "required": [
+    "id",
+    "idx"
+   ]
+  },
+  "ffbd3492fcf5": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 120
+    }
+   },
+   "required": [
+    "name"
+   ]
+  },
+  "2a514ee4c1ff": {
+   "destination": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "dateFrom": {
+    "$h": "7e734acf5f3b"
+   },
+   "dateTo": {
+    "$h": "7e734acf5f3b"
+   },
+   "occasions": {
+    "default": [],
+    "maxItems": 10,
+    "type": "array",
+    "items": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 60
+    }
+   },
+   "anchorPieceIds": {
+    "default": [],
+    "maxItems": 8,
+    "type": "array",
+    "items": {
+     "$h": "97a947cf54cd"
+    }
+   },
+   "brief": {
+    "type": "string",
+    "maxLength": 600
+   },
+   "vibe": {
+    "type": "string",
+    "maxLength": 240
+   }
+  },
+  "71451b9327c5": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "2a514ee4c1ff"
+   },
+   "required": [
+    "destination",
+    "dateFrom",
+    "dateTo"
+   ]
+  },
+  "e175072e2ed3": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "destination": {
+    "type": "string"
+   },
+   "dateFrom": {
+    "$h": "7e734acf5f3b"
+   },
+   "dateTo": {
+    "$h": "7e734acf5f3b"
+   },
+   "tripLabel": {
+    "type": "string"
+   }
+  },
+  "4abe3a3fc7b3": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "e175072e2ed3"
+    },
+    "required": [
+     "id",
+     "destination",
+     "dateFrom",
+     "dateTo",
+     "tripLabel"
+    ]
+   }
+  },
+  "533c1c509a01": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "items": {
+     "$h": "4abe3a3fc7b3"
+    }
+   },
+   "required": [
+    "items"
+   ]
+  },
+  "e3b04919ee61": {
+   "city": {
+    "type": "string"
+   },
+   "country": {
+    "type": "string"
+   },
+   "tempRange": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "condition": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "seasonal": {
+    "type": "boolean"
+   }
+  },
+  "46712026f311": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "$h": "e3b04919ee61"
+     },
+     "required": [
+      "city",
+      "country",
+      "tempRange",
+      "condition",
+      "seasonal"
+     ]
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "d326815eb100": {
+   "name": {
+    "type": "string"
+   },
+   "tier": {
+    "type": "string"
+   },
+   "category": {
+    "type": "string"
+   },
+   "brand": {
+    "type": "string"
+   },
+   "description": {
+    "type": "string"
+   },
+   "reason": {
+    "type": "string"
+   },
+   "bridge": {
+    "type": "string"
+   },
+   "piece": {
+    "anyOf": [
+     {
+      "$h": "10798db7f7c6"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "retailerHint": {
+    "type": "string"
+   },
+   "pricePoint": {
+    "type": "string"
+   }
+  },
+  "e2e4b49b1b5d": {
+   "type": "object",
+   "properties": {
+    "$h": "d326815eb100"
+   },
+   "required": [
+    "name",
+    "tier",
+    "category",
+    "brand",
+    "description",
+    "reason",
+    "bridge",
+    "piece",
+    "retailerHint",
+    "pricePoint"
+   ]
+  },
+  "29afbcff0f8f": {
+   "role": {
+    "type": "string"
+   },
+   "note": {
+    "type": "string"
+   },
+   "capsuleIndex": {
+    "type": "integer",
+    "minimum": -9007199254740991,
+    "maximum": 9007199254740991
+   }
+  },
+  "4728ab9d0db6": {
+   "date": {
+    "$h": "7e734acf5f3b"
+   },
+   "occasion": {
+    "type": "string"
+   },
+   "title": {
+    "type": "string"
+   },
+   "how": {
+    "type": "string"
+   },
+   "items": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "29afbcff0f8f"
+     },
+     "required": [
+      "role",
+      "note",
+      "capsuleIndex"
+     ]
+    }
+   }
+  },
+  "d62d76147fb1": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "4728ab9d0db6"
+    },
+    "required": [
+     "date",
+     "occasion",
+     "title",
+     "how",
+     "items"
+    ]
+   }
+  },
+  "627c66fe0a1b": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "destination": {
+    "type": "string"
+   },
+   "dateFrom": {
+    "$h": "7e734acf5f3b"
+   },
+   "dateTo": {
+    "$h": "7e734acf5f3b"
+   },
+   "dateLine": {
+    "type": "string"
+   },
+   "tripDays": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 10
+   },
+   "tripLabel": {
+    "type": "string"
+   },
+   "headline": {
+    "type": "string"
+   },
+   "locationVibe": {
+    "type": "string"
+   },
+   "stylistSummary": {
+    "type": "string"
+   },
+   "suitcaseNote": {
+    "type": "string"
+   },
+   "palette": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "weather": {
+    "$h": "46712026f311"
+   },
+   "capsule": {
+    "type": "array",
+    "items": {
+     "$h": "e2e4b49b1b5d"
+    }
+   },
+   "looks": {
+    "$h": "d62d76147fb1"
+   },
+   "pinnedLookIds": {
+    "anyOf": [
+     {
+      "type": "array",
+      "items": {
+       "$h": "97a947cf54cd"
+      }
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "createdAt": {
+    "$h": "abcbb1ad9e30"
+   }
+  },
+  "b4acb5d39d6d": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "627c66fe0a1b"
+   },
+   "required": [
+    "id",
+    "destination",
+    "dateFrom",
+    "dateTo",
+    "dateLine",
+    "tripDays",
+    "tripLabel",
+    "headline",
+    "locationVibe",
+    "stylistSummary",
+    "suitcaseNote",
+    "palette",
+    "weather",
+    "capsule",
+    "looks",
+    "pinnedLookIds",
+    "createdAt"
+   ]
+  },
+  "434897df95a6": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "lookIds": {
+     "type": "array",
+     "items": {
+      "$h": "97a947cf54cd"
+     }
+    }
+   },
+   "required": [
+    "lookIds"
+   ]
+  },
+  "7fce9b9dc9ef": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "from": {
+     "$h": "7e734acf5f3b"
+    },
+    "days": {
+     "default": 30,
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 62
+    }
+   }
+  },
+  "006515c024a7": {
+   "type": "object",
+   "properties": {
+    "date": {
+     "$h": "7e734acf5f3b"
+    },
+    "name": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "entries": {
+     "$h": "138782b69452"
+    }
+   },
+   "required": [
+    "date",
+    "name",
+    "entries"
+   ]
+  },
+  "fb022d9a2637": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "from": {
+     "$h": "7e734acf5f3b"
+    },
+    "to": {
+     "$h": "7e734acf5f3b"
+    },
+    "days": {
+     "type": "array",
+     "items": {
+      "$h": "006515c024a7"
+     }
+    }
+   },
+   "required": [
+    "from",
+    "to",
+    "days"
+   ]
+  },
+  "43a1f8d5f660": {
+   "dates": {
+    "minItems": 1,
+    "maxItems": 31,
+    "type": "array",
+    "items": {
+     "$h": "7e734acf5f3b"
+    }
+   },
+   "slot": {
+    "default": "day",
+    "type": "string",
+    "enum": [
+     "day",
+     "evening"
+    ]
+   },
+   "activity": {
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 120
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "632ebab28d4e": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "43a1f8d5f660"
+   },
+   "required": [
+    "dates"
+   ]
+  },
+  "9efd5a595a00": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "entries": {
+     "$h": "138782b69452"
+    }
+   },
+   "required": [
+    "entries"
+   ]
+  },
+  "0ac697d38649": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "date": {
+     "$h": "7e734acf5f3b"
+    }
+   },
+   "required": [
+    "date"
+   ]
+  },
+  "24b0cc7a8f0b": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "name": {
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 120
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "name"
+   ]
+  },
+  "6051d8376e66": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "date": {
+     "$h": "7e734acf5f3b"
+    },
+    "name": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "date",
+    "name"
+   ]
+  },
+  "f3f8f5e56427": {
+   "today": {
+    "$h": "7e734acf5f3b"
+   },
+   "home": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "day": {
+    "type": "object",
+    "properties": {
+     "$h": "9648d0261751"
+    },
+    "required": [
+     "date",
+     "name",
+     "place",
+     "weather",
+     "entries"
+    ]
+   }
+  },
+  "9aa7a1eb948a": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "f3f8f5e56427"
+   },
+   "required": [
+    "today",
+    "home",
+    "day"
+   ]
+  },
+  "a2d2864696b7": {
+   "place": {
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "$h": "156623228d47"
+      },
+      "required": [
+       "city",
+       "lat",
+       "lon"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "ce41acdcaf35": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "a2d2864696b7"
+   },
+   "required": [
+    "place"
+   ]
+  },
+  "4a01735a68e7": {
+   "date": {
+    "$h": "7e734acf5f3b"
+   },
+   "place": {
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "$h": "156623228d47"
+      },
+      "required": [
+       "city",
+       "lat",
+       "lon"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "8a995c9adecd": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "4a01735a68e7"
+   },
+   "required": [
+    "date",
+    "place"
+   ]
+  },
+  "693c6b55504d": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "q": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 60
+    },
+    "date": {
+     "$h": "7e734acf5f3b"
+    }
+   },
+   "required": [
+    "q"
+   ]
+  },
+  "bf570f617667": {
+   "tempRange": {
+    "type": "string"
+   },
+   "code": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "86ab7a2c904a": {
+   "city": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120
+   },
+   "country": {
+    "default": null,
+    "anyOf": [
+     {
+      "type": "string",
+      "maxLength": 120
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "lat": {
+    "type": "number",
+    "minimum": -90,
+    "maximum": 90
+   },
+   "lon": {
+    "type": "number",
+    "minimum": -180,
+    "maximum": 180
+   },
+   "weather": {
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "$h": "bf570f617667"
+      },
+      "required": [
+       "tempRange",
+       "code"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "c2760f4de17b": {
+   "maxItems": 8,
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "86ab7a2c904a"
+    },
+    "required": [
+     "city",
+     "lat",
+     "lon",
+     "weather"
+    ]
+   }
+  },
+  "6cb5e927bc8f": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "items": {
+     "$h": "c2760f4de17b"
+    }
+   },
+   "required": [
+    "items"
+   ]
+  },
+  "12d838e5430c": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "apple": {
+     "type": "boolean"
+    },
+    "google": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "apple",
+    "google"
+   ]
+  },
+  "ced405cc04e3": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "state": {
+     "default": "inbox",
+     "type": "string",
+     "enum": [
+      "inbox",
+      "added",
+      "discarded"
+     ]
+    }
+   }
+  },
+  "9237d915f24b": {
+   "index": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "label": {
+    "type": "string"
+   },
+   "brand": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "price": {
+    "type": [
+     "number",
+     "null"
+    ]
+   },
+   "currency": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "size": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "categoryL2": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "categoryL3": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "color": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "colourShade": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "colourExtra": {
+    "default": [],
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "print": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "material": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "image": {
+    "default": null,
+    "anyOf": [
+     {
+      "$h": "dbb305b7efbe"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "reading": {
+    "default": false,
+    "type": "boolean"
+   },
+   "sourceUrl": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "state": {
+    "default": "inbox",
+    "type": "string",
+    "enum": [
+     "inbox",
+     "added",
+     "discarded"
+    ]
+   },
+   "filedId": {
+    "default": null,
+    "anyOf": [
+     {
+      "$h": "97a947cf54cd"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "ea075b541b09": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "$h": "9237d915f24b"
+    },
+    "required": [
+     "index",
+     "label",
+     "brand",
+     "price",
+     "currency",
+     "sourceUrl"
+    ]
+   }
+  },
+  "856ed8c72d25": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "source": {
+    "type": "string",
+    "enum": [
+     "receipt",
+     "photo",
+     "link",
+     "share"
+    ]
+   },
+   "retailer": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "subject": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "orderRef": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "fromEmail": {
+    "default": null,
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "items": {
+    "$h": "ea075b541b09"
+   },
+   "receivedAt": {
+    "$h": "abcbb1ad9e30"
+   },
+   "decidedAt": {
+    "default": null,
+    "anyOf": [
+     {
+      "$h": "abcbb1ad9e30"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "f917e03ece14": {
+   "type": "object",
+   "properties": {
+    "$h": "856ed8c72d25"
+   },
+   "required": [
+    "id",
+    "source",
+    "retailer",
+    "subject",
+    "items",
+    "receivedAt"
+   ]
+  },
+  "410a8bcdee21": {
+   "inbox": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "added": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "discarded": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   }
+  },
+  "ce8d6f25224c": {
+   "default": {
+    "inbox": 0,
+    "added": 0,
+    "discarded": 0
+   },
+   "type": "object",
+   "properties": {
+    "$h": "410a8bcdee21"
+   },
+   "required": [
+    "inbox",
+    "added",
+    "discarded"
+   ]
+  },
+  "500f9051bae6": {
+   "items": {
+    "type": "array",
+    "items": {
+     "$h": "f917e03ece14"
+    }
+   },
+   "count": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 9007199254740991
+   },
+   "counts": {
+    "$h": "ce8d6f25224c"
+   }
+  },
+  "8e3191eb2753": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "500f9051bae6"
+   },
+   "required": [
+    "items",
+    "count"
+   ]
+  },
+  "428f9218fcc3": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "856ed8c72d25"
+   },
+   "required": [
+    "id",
+    "source",
+    "retailer",
+    "subject",
+    "items",
+    "receivedAt"
+   ]
+  },
+  "73380666c3c6": {
+   "action": {
+    "type": "string",
+    "enum": [
+     "wardrobe",
+     "wishlist",
+     "dismiss"
+    ]
+   },
+   "itemIndexes": {
+    "maxItems": 50,
+    "type": "array",
+    "items": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 50
+    }
+   }
+  },
+  "b6be203057e0": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "73380666c3c6"
+   },
+   "required": [
+    "action"
+   ]
+  },
+  "e06c0aa5459e": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "held",
+     "filed",
+     "dismissed"
+    ]
+   },
+   "filedTo": {
+    "anyOf": [
+     {
+      "type": "string",
+      "enum": [
+       "wardrobe",
+       "wishlist"
+      ]
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "filedIds": {
+    "type": "array",
+    "items": {
+     "$h": "97a947cf54cd"
+    }
+   }
+  },
+  "53f10f1cb8cd": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "e06c0aa5459e"
+   },
+   "required": [
+    "id",
+    "status",
+    "filedTo",
+    "filedIds"
+   ]
+  },
+  "e233216d3891": {
+   "url": {
+    "type": "string",
+    "maxLength": 2048,
+    "format": "uri"
+   },
+   "as": {
+    "default": "wardrobe",
+    "type": "string",
+    "enum": [
+     "wardrobe",
+     "wishlist"
+    ]
+   }
+  },
+  "06765ee09ab9": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "e233216d3891"
+   },
+   "required": [
+    "url"
+   ]
+  },
+  "d4d7a96e2be6": {
+   "type": "string",
+   "format": "email",
+   "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+  },
+  "7faaa17b43ae": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "address": {
+     "$h": "d4d7a96e2be6"
+    },
+    "createdAt": {
+     "$h": "abcbb1ad9e30"
+    }
+   },
+   "required": [
+    "address",
+    "createdAt"
+   ]
+  },
+  "931a4d09357c": {
+   "type": "object",
+   "properties": {
+    "address": {
+     "$h": "d4d7a96e2be6"
+    },
+    "createdAt": {
+     "$h": "abcbb1ad9e30"
+    }
+   },
+   "required": [
+    "address",
+    "createdAt"
+   ]
+  },
+  "85baf4e89cd1": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "address": {
+     "anyOf": [
+      {
+       "$h": "931a4d09357c"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "address"
+   ]
+  },
+  "646b20bffe91": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "03a0fd0f2e60"
+   },
+   "required": [
+    "id",
+    "kind",
+    "status",
+    "stage",
+    "output",
+    "error",
+    "cancelRequested",
+    "createdAt",
+    "updatedAt",
+    "finishedAt"
+   ]
+  },
+  "2bf2214e1186": {
+   "kind": {
+    "type": "string",
+    "enum": [
+     "wardrobe",
+     "wishlist",
+     "headshot",
+     "full_length",
+     "look_photo"
+    ]
+   },
+   "contentType": {
+    "type": "string",
+    "enum": [
+     "image/jpeg",
+     "image/png",
+     "image/webp",
+     "image/heic",
+     "image/heif",
+     "image/avif"
+    ]
+   },
+   "bytes": {
+    "type": "integer",
+    "exclusiveMinimum": 0,
+    "maximum": 20971520
+   }
+  },
+  "98e4362dbe75": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "2bf2214e1186"
+   },
+   "required": [
+    "kind",
+    "contentType",
+    "bytes"
+   ]
+  },
+  "7cfd8856de85": {
+   "method": {
+    "type": "string",
+    "const": "PUT"
+   },
+   "url": {
+    "type": "string",
+    "format": "uri"
+   },
+   "headers": {
+    "type": "object",
+    "propertyNames": {
+     "type": "string"
+    },
+    "additionalProperties": {
+     "type": "string"
+    }
+   },
+   "expiresAt": {
+    "$h": "abcbb1ad9e30"
+   }
+  },
+  "d5158ff9e36c": {
+   "assetId": {
+    "$h": "97a947cf54cd"
+   },
+   "upload": {
+    "type": "object",
+    "properties": {
+     "$h": "7cfd8856de85"
+    },
+    "required": [
+     "method",
+     "url",
+     "headers",
+     "expiresAt"
+    ]
+   }
+  },
+  "4e5c27b66561": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "d5158ff9e36c"
+   },
+   "required": [
+    "assetId",
+    "upload"
+   ]
+  },
+  "079ac7048032": {
+   "id": {
+    "$h": "97a947cf54cd"
+   },
+   "kind": {
+    "type": "string"
+   },
+   "status": {
+    "type": "string",
+    "enum": [
+     "pending",
+     "ready",
+     "failed"
+    ]
+   },
+   "width": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "height": {
+    "anyOf": [
+     {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "blurhash": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "master": {
+    "anyOf": [
+     {
+      "type": "string",
+      "format": "uri"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "renditions": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "$h": "077dbb60b592"
+     },
+     "required": [
+      "width",
+      "avif",
+      "webp"
+     ]
+    }
+   }
+  },
+  "31c9b2c861e3": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "$h": "079ac7048032"
+   },
+   "required": [
+    "id",
+    "kind",
+    "status",
+    "width",
+    "height",
+    "blurhash",
+    "master",
+    "renditions"
+   ]
+  },
+  "90e7871ee374": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "bytes": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 6291456
+    }
+   },
+   "required": [
+    "bytes"
+   ]
+  },
+  "8e6a079d67da": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "upload": {
+     "type": "object",
+     "properties": {
+      "$h": "7cfd8856de85"
+     },
+     "required": [
+      "method",
+      "url",
+      "headers",
+      "expiresAt"
+     ]
+    }
+   },
+   "required": [
+    "upload"
+   ]
+  }
+ }
+}

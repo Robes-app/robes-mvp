@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "contract:save": "tsx scripts/contract.ts"
   },
   "dependencies": {
     "@robes/contracts": "workspace:*",
@@ -38,6 +39,7 @@
     "happy-dom": "20.14.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

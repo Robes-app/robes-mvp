@@ -1,0 +1,83 @@
+name: platform-sync-pr
+
+# ADR-022, platform/docs/runbooks/ios-release.md §1: one open PR into `main`, `sync/platform`,
+# rebuilt from `beta` after every merge that touches platform/, by the only method that carries
+# beta's deletions. Only Niall merges it. Needs the repo setting "Allow GitHub Actions to create
+# and approve pull requests"; without it the branch is still kept current and the run says so.
+# The workflow token cannot push .github/workflows, so a change there is synced by hand (§1).
+on:
+  push:
+    branches: [beta]
+    paths: ['platform/**', '.github/**']
+  workflow_dispatch:
+
+concurrency:
+  group: platform-sync-pr
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: rebuild sync/platform from beta
+        id: sync
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch -q origin beta
+          beta=$(git rev-parse --short origin/beta)
+          git checkout -q -B sync/platform origin/main
+          git rm -rq platform && git checkout origin/beta -- platform
+          if git diff --cached --quiet origin/main -- platform; then
+            echo "main already carries beta's platform/ ($beta)."
+            gh pr close sync/platform --comment "main already matches beta at $beta." 2>/dev/null || true
+            exit 0
+          fi
+          git commit -qm "sync: platform from beta at $beta"
+          test -z "$(git diff --stat origin/beta HEAD -- platform)"
+          git push -qf origin sync/platform
+          echo "beta=$beta" >> "$GITHUB_OUTPUT"
+          echo "github=$(git diff --quiet origin/main origin/beta -- .github && echo same || echo differs)" >> "$GITHUB_OUTPUT"
+
+      - name: open or refresh the PR
+        if: steps.sync.outputs.beta
+        env:
+          BETA: ${{ steps.sync.outputs.beta }}
+          GITHUB_DIFFERS: ${{ steps.sync.outputs.github == 'differs' }}
+        run: |
+          {
+            echo "\`platform/\` from \`beta\` at $BETA, rebuilt by \`platform-sync-pr.yml\` after every beta merge. **Niall merges** (ios-release.md §1)."
+            echo
+            echo "Before merging: §0, is anything a two-step change? The \`checks\` job answers it (\`compat.test.ts\`) for every supported app version."
+            echo "After: §1 proof on production; the workers deploy themselves (§2) once Vercel's robes-prod build succeeds."
+            echo
+            echo "PRs going over:"
+            # Since the beta commit the last sync carried (its message names it).
+            last=$(git log -1 --format=%s --grep='^sync: platform from beta at ' origin/main | sed -E 's/^sync: platform from beta at ([0-9a-f]+).*/\1/')
+            git log --first-parent --format=%s "${last:-origin/main}..origin/beta" -- platform \
+              | sed -nE 's/^Merge pull request (#[0-9]+) from [^/]+\/(.*)$/- \1 \2/p'
+            if [ "$GITHUB_DIFFERS" = true ]; then
+              echo
+              echo "⚠️ \`.github\` differs between main and beta: sync it by hand, by path, in this PR."
+            fi
+          } > "$RUNNER_TEMP/body.md"
+          if gh pr view sync/platform --json state -q .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit sync/platform --title "sync: platform from beta at $BETA" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base main --head sync/platform --title "sync: platform from beta at $BETA" --body-file "$RUNNER_TEMP/body.md" \
+              || echo "::warning::No PR opened: turn on Settings → Actions → General → Allow GitHub Actions to create and approve pull requests, or open sync/platform → main by hand."
+          fi
+          # A push by the workflow token starts no pull_request run; ask for the checks directly.
+          gh workflow run platform-ci.yml --ref sync/platform

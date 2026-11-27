@@ -5,6 +5,8 @@
   "scripts": {
     "cdk": "cdk",
     "synth": "cdk synth --quiet -c fixtures=true",
+    "diff:prod-workers": "test -n \"$ROBES_POSTHOG_KEY\" || { echo 'ROBES_POSTHOG_KEY is not set (the GitHub variable POSTHOG_KEY).' >&2; exit 1; }; ROBES_PRODUCTION_AWS_ACCOUNT_ID=259887029472 ROBES_PRODUCTION_BUDGETS=off ROBES_PRODUCTION_GENERATE_RESERVED_CONCURRENCY=0 ROBES_PRODUCTION_GITHUB_OIDC_PROVIDER_ARN=arn:aws:iam::259887029472:oidc-provider/token.actions.githubusercontent.com cdk diff 'Production/Workers' -c stage=production --exclusively --output cdk.out.prod",
+    "guard:prod-workers": "tsx bin/workers-diff-guard.ts",
     "deploy:prod-workers": "test -n \"$ROBES_POSTHOG_KEY\" || { echo 'ROBES_POSTHOG_KEY is not set: export the PostHog project token (phc_..., the GitHub variable POSTHOG_KEY) first, or production workers send no AI traces or error reports.' >&2; exit 1; }; ROBES_PRODUCTION_AWS_ACCOUNT_ID=259887029472 ROBES_PRODUCTION_BUDGETS=off ROBES_PRODUCTION_GENERATE_RESERVED_CONCURRENCY=0 ROBES_PRODUCTION_GITHUB_OIDC_PROVIDER_ARN=arn:aws:iam::259887029472:oidc-provider/token.actions.githubusercontent.com cdk deploy 'Production/Workers' -c stage=production --exclusively --output cdk.out.prod",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
