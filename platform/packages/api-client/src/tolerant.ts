@@ -13,10 +13,10 @@ export type TolerantResult<T> =
 type Path = readonly PropertyKey[];
 type Box = Record<PropertyKey, unknown>;
 
-// Each round mends every issue it safely can, deepest and highest index first, so removing a list
-// item never shifts a path still to mend; and one issue per list item a round, since a second
-// could land on the item that slid into its place. A rung of the ladder per round at most.
-const MAX_ROUNDS = 20;
+// Each round mends every issue, deepest and highest index first, so removing a list item never
+// shifts a path still to mend; an issue inside an item removed this round waits for the next
+// parse (its path would now name the item that slid into place). A rung of the ladder per round.
+const MAX_ROUNDS = 50;
 
 export function parseTolerantly<S extends z.ZodType>(
   schema: S,
@@ -29,16 +29,13 @@ export function parseTolerantly<S extends z.ZodType>(
   let error = first.error;
   for (let round = 0; round < MAX_ROUNDS; round++) {
     let changed = false;
-    const claimed = new Set<string>();
+    const removed: Path[] = [];
     for (const issue of [...error.issues].sort((a, b) => comparePaths(b.path, a.path))) {
-      const item = listItemOf(value, issue.path);
-      if (item !== null) {
-        if (claimed.has(item)) continue;
-        claimed.add(item);
-      }
+      if (removed.some((r) => startsWith(issue.path, r))) continue;
       const mended = mend(value, issue);
       changed ||= mended.changed;
       value = mended.value;
+      if (mended.removed) removed.push(mended.removed);
     }
     if (!changed) break;
     const next = schema.safeParse(value);
@@ -48,7 +45,11 @@ export function parseTolerantly<S extends z.ZodType>(
   return { success: false, error: first.error };
 }
 
-function mend(root: unknown, issue: z.core.$ZodIssue): { changed: boolean; value: unknown } {
+// `removed`: the path of a list item it took out, if any.
+function mend(
+  root: unknown,
+  issue: z.core.$ZodIssue,
+): { changed: boolean; value: unknown; removed?: Path } {
   const path = issue.path;
   const parent = at(root, path.slice(0, -1));
   const key = path[path.length - 1];
@@ -70,7 +71,7 @@ function mend(root: unknown, issue: z.core.$ZodIssue): { changed: boolean; value
   // nothing (optional or defaulted); a required field then climbs to what holds it.
   if (Array.isArray(parent) && current !== undefined) {
     parent.splice(Number(key), 1);
-    return { changed: true, value: root };
+    return { changed: true, value: root, removed: path };
   }
   if (current !== undefined) {
     if (current === null) delete parent[key];
@@ -94,13 +95,7 @@ function comparePaths(a: Path, b: Path): number {
   return a.length - b.length;
 }
 
-// The innermost list item a path runs through, as a key; null outside any list.
-function listItemOf(root: unknown, path: Path): string | null {
-  for (let i = path.length - 1; i > 0; i--) {
-    if (Array.isArray(at(root, path.slice(0, i)))) return JSON.stringify(path.slice(0, i + 1));
-  }
-  return null;
-}
+const startsWith = (path: Path, prefix: Path) => prefix.every((k, i) => path[i] === k);
 
 function isBox(v: unknown): v is Box {
   return typeof v === 'object' && v !== null;
