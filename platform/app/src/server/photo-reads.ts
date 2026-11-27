@@ -8,15 +8,18 @@ import {
   type LookAnswer,
   type LookFromPhotoInput,
   type Piece,
+  type ReadCrops,
   ReadPiece,
   type StartJobOutput,
   type Wish,
 } from '@robes/contracts';
 import type { ReadPieceRow, UserId } from '@robes/db';
 import { z } from 'zod';
+import { toImage } from './asset-urls';
 import { repos } from './db';
 import { startJob } from './jobs';
 import { suggestedName, toLook, withOwnedPieces } from './looks-entity';
+import { mediaDelivery } from './media';
 import { liftedWith, toPieces } from './wardrobe';
 import { toWishes } from './wishlist';
 
@@ -214,6 +217,27 @@ export async function findLookPieces(
   const assetId = front?.assetId ?? look.photoAssetId;
   if (!assetId) throw new ApiError('conflict');
   return startPhotoRead(userId, req, assetId);
+}
+
+// The crops of a read of hers, each signed for her through media delivery, `pending` until its
+// renditions exist (they come after the job, from the S3 event). A crop already discarded is left
+// out.
+export async function readCrops(userId: UserId, jobId: string): Promise<ReadCrops> {
+  const read = await loadRead(userId, jobId);
+  const assets = await repos.assets.getManyForUser(
+    userId,
+    read.readPieces.map((p) => p.cropAssetId),
+  );
+  const byId = new Map(assets.map((a) => [a.id, a]));
+  const crops = await Promise.all(
+    read.readPieces.flatMap((p) => {
+      const asset = byId.get(p.cropAssetId);
+      return asset
+        ? [toImage(mediaDelivery, userId, asset).then((image) => ({ index: p.index, image }))]
+        : [];
+    }),
+  );
+  return { crops };
 }
 
 // Add piece on The Rack (Capture PRD 1c.8): one piece of a read filed to her wardrobe with her

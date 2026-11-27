@@ -1,5 +1,5 @@
-import { filters, lookbook, ui, wardrobe, you } from '@robes/copy';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { filters, lookbook, tags as tagsCopy, ui, wardrobe, you } from '@robes/copy';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { PieceDetail } from '../src/features/wardrobe/PieceDetail';
 import { WardrobeView } from '../src/features/wardrobe/WardrobeView';
 import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
@@ -246,13 +246,23 @@ test('wear it for is hers to set, and each tap is the answer', async () => {
     [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
     [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ wearFor: ['Everyday', 'Work'] }),
     'GET /wardrobe/items': { items: [], nextCursor: null },
+    'GET /tags': {
+      items: ['Everyday', 'Work'].map((label, i) => ({
+        id: `00000000-0000-4000-8000-00000000000${i}`,
+        label,
+        isSeed: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        looks: 0,
+        pieces: 0,
+      })),
+    },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
   await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.wearing }));
   await fireEvent.press(
     screen.getByRole('button', { name: `${wardrobe.piece.rows.wearFor}: Everyday` }),
   );
-  await fireEvent.press(screen.getByRole('button', { name: 'Work' }));
+  await fireEvent.press(await screen.findByRole('button', { name: tagsCopy.toggle('Work') }));
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   // The tags ride into the prompt when a look is built around the piece, so they are the write.
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
@@ -532,33 +542,41 @@ test('a print is a list with its own drawn square; a pick saves', async () => {
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ print: 'stripes' });
 });
 
-test('her own wear tag is added from "+ Your own" and picked at once', async () => {
+test('a piece’s tags are the one Tags drawer: a tag typed is made and ticked at once', async () => {
   const calls = mockFetch({
     [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
     [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
     [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ wearFor: ['Everyday', 'Weekend casual'] }),
     'GET /wardrobe/items': { items: [], nextCursor: null },
+    'GET /tags': {
+      items: [
+        {
+          id: '00000000-0000-4000-8000-000000000001',
+          label: 'Everyday',
+          isSeed: true,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          looks: 0,
+          pieces: 1,
+        },
+      ],
+    },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
   await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.piece.tabs.wearing }));
   await fireEvent.press(
     screen.getByRole('button', { name: `${wardrobe.piece.rows.wearFor}: Everyday` }),
   );
-  expect(screen.getByText(wardrobe.fields.wearFor.helper)).toBeTruthy();
+  const sheet = within(await screen.findByTestId('tags-sheet'));
   // Done sits in the header; there is no ×.
-  expect(screen.getByRole('button', { name: wardrobe.piece.done })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: wardrobe.fields.wearFor.own }));
-  await fireEvent.changeText(
-    screen.getByLabelText(wardrobe.fields.wearFor.ownLabel),
-    'Weekend casual',
-  );
-  await fireEvent(screen.getByLabelText(wardrobe.fields.wearFor.ownLabel), 'submitEditing');
+  expect(sheet.getByRole('button', { name: tagsCopy.done })).toBeTruthy();
+  expect(sheet.queryByRole('button', { name: 'Close' })).toBeNull();
+  expect(await sheet.findByRole('button', { name: tagsCopy.toggle('Everyday') })).toBeTruthy();
+  await fireEvent.changeText(sheet.getByLabelText(tagsCopy.add), 'Weekend casual');
+  await fireEvent(sheet.getByLabelText(tagsCopy.add), 'submitEditing');
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
     wearFor: ['Everyday', 'Weekend casual'],
   });
-  expect(await screen.findByRole('button', { name: 'Weekend casual' })).toBeTruthy();
 });
 
 test('removing a piece goes back and offers Undo, which restores it', async () => {
@@ -760,8 +778,8 @@ test('the filter sheet refines by what she wears it for and by one brand from th
   await renderWithApi(<WardrobeView />);
   await fireEvent.press(await screen.findByRole('button', { name: ui.filter }));
   expect(await screen.findByText(filters.wearFor)).toBeTruthy();
-  // The shared list leads (Weekend among it), then her own tag.
-  expect(screen.getByRole('button', { name: 'Weekend' })).toBeTruthy();
+  // Only the tags on her pieces: a default none of them carries is not offered.
+  expect(screen.queryByRole('button', { name: 'Weekend' })).toBeNull();
   await fireEvent.press(await screen.findByRole('button', { name: 'Skiing' }));
   await fireEvent.press(screen.getByRole('button', { name: wardrobe.filter.brand }));
   await fireEvent.press(await screen.findByRole('button', { name: 'Toteme' }));

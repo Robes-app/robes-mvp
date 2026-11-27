@@ -13,7 +13,7 @@ import {
 } from '@robes/core/add-flow';
 import { captureEyebrow, type RackRow } from '@robes/core/looks';
 import { Icon, type IconName } from '@robes/icons/web';
-import { Button, ErrorText, Image, Subview, Tabs, Text } from '@robes/ui';
+import { Button, ErrorText, Image, Skeleton, Subview, Tabs, Text } from '@robes/ui';
 import { type ReactNode, useState } from 'react';
 import { CropThumb } from '@/components/photo-pieces/photo-frame';
 import { CardRow } from '@/components/wardrobe/piece-card';
@@ -109,7 +109,7 @@ export function CaptureRow({
   onMatch: () => void;
   onAdd: () => void;
 }) {
-  const crop = look.captureImages[row.key];
+  const crop = capture.image(row);
   const sources = crop ? imageSources(crop.renditions) : null;
   const read = capture.found(row);
   const photo = photoSrc(look);
@@ -132,6 +132,9 @@ export function CaptureRow({
             <Image src={sources.src} srcSet={sources.srcSet} sizes="52px" alt="" aspect="4:5" />
           ) : read && photo ? (
             <CropThumb src={photo} box={read.box} natural={null} className="size-full" />
+          ) : crop?.status === 'pending' ? (
+            // Its crop is still being made: the row's loading state, never "no photo".
+            <Skeleton className="aspect-[4/5] w-full" />
           ) : (
             <div aria-hidden className="flex aspect-[4/5] items-center justify-center">
               <Text size="small" tone="muted">
@@ -336,7 +339,7 @@ export function NewPieceSheet({
     ? ({ ...readDraft(piece), category: piece.category } as PieceValues)
     : null;
   const values = base ? withTagDefaults({ ...base, ...changes } as PieceValues) : null;
-  const crop = row ? look.captureImages[row.key] : undefined;
+  const crop = row ? capture.image(row) : null;
   const sources = crop ? imageSources(crop.renditions) : null;
   const photo = photoSrc(look);
   const gone = read !== null && !held && job.isError;
@@ -398,6 +401,8 @@ export function NewPieceSheet({
             />
           ) : piece && photo ? (
             <CropThumb src={photo} box={piece.box} natural={null} className="size-full" />
+          ) : crop?.status === 'pending' ? (
+            <Skeleton className="size-full" />
           ) : null}
         </div>
         <Tabs items={TABS} value={tab} onChange={setTab} label={wardrobe.piece.sections.piece} />

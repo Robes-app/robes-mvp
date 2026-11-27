@@ -11,7 +11,7 @@ export function modelRenderRepo(db: Db) {
     async look(userId: UserId, lookId: string) {
       const look = await db
         .selectFrom('looks')
-        .select(['id', 'name', 'renderKey', 'renderStatus', 'styling', 'pictureNote'])
+        .select(['id', 'name', 'renderKey', 'renderStatus', 'styling', 'pictureNote', 'proposals'])
         .where('userId', '=', userId)
         .where('id', '=', lookId)
         .where('deletedAt', 'is', null)
@@ -44,6 +44,22 @@ export function modelRenderRepo(db: Db) {
         .orderBy('lp.position')
         .execute();
       return { look, pieces };
+    },
+
+    // Which of her assets are ready to show the image model: the photographs of the look's
+    // proposals (a piece found in her photograph, a seeded piece's still). Read by her id alone,
+    // so a proposal naming an asset that is not hers is drawn from its words.
+    async readyAssets(userId: UserId, assetIds: readonly string[]): Promise<Set<string>> {
+      if (assetIds.length === 0) return new Set();
+      const rows = await db
+        .selectFrom('assets')
+        .select('id')
+        .where('userId', '=', userId)
+        .where('id', 'in', [...assetIds])
+        .where('status', '=', 'ready')
+        .where('deletedAt', 'is', null)
+        .execute();
+      return new Set(rows.map((r) => r.id));
     },
 
     // Lands only if the look still wants this render (she may have changed model or rack since).

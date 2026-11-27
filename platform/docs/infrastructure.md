@@ -136,17 +136,15 @@ Malware/abuse: magic-byte + dimension checks in `RenditionFn`; moderation for im
 
 ## 7. CI/CD (GitHub Actions)
 
-Workflows in repo root `.github/workflows/` with `paths: [platform/**]` filters so legacy is unaffected.
+Workflows in repo root `.github/workflows/`, filtered to `platform/**`:
 
-| Workflow | Trigger | Jobs |
-|---|---|---|
-| `platform-ci.yml` | PR touching `platform/**` | pnpm install (cache) → `turbo run lint typecheck test build --filter=...[origin/<base>]` → `supabase start` + `supabase db reset` + pgTAP (`supabase test db`) → Playwright against `next start` with local Supabase → gitleaks → `pnpm audit --prod` → `cdk synth` + `cdk diff` (staging) comment on PR |
-| `platform-deploy-staging.yml` | push to trunk | `supabase db push` (staging) → `cdk deploy --all` (Staging, via OIDC role) → Vercel deploys itself (Git integration) → post-deploy smoke (Playwright @smoke against staging) |
-| `platform-deploy-prod.yml` | manual dispatch / release tag, environment protection (required reviewer) | same steps against production; Vercel promote staging build (`vercel promote`) |
-| `mobile.yml` | PR touching `platform/mobile/**` or shared packages | typecheck, jest-expo tests, `eas build --profile preview --non-interactive` on labels; Maestro flows on EAS Workflows |
-| `platform-nightly.yml` | cron | full Playwright + Maestro, `pnpm eval --all` against staging models, dependency audit, Supabase advisors report |
+- `platform-ci.yml` (every PR touching `platform/**`): checks (lint, typecheck, unit tests), database tests, e2e, `cdk diff`, gitleaks.
+- `platform-deploy-staging.yml` (every `beta` merge): `Staging/*` with the OIDC role; Vercel builds `beta` into staging and migrates.
+- `platform-deploy-prod.yml`: manual, `Production/*`; refuses to start while a production setting is empty. Production's web and API deploy from `main` through Vercel (it migrates first).
+- `platform-deploy-prod-workers.yml` (Vercel's `robes-prod` status succeeds on a `main` commit whose `platform/` is still main's): `Production/Workers` alone, only when its `cdk diff` is Lambda code (`runbooks/ios-release.md` §2).
+- `platform-sync-pr.yml` (every `beta` merge): keeps the one `sync/platform` PR into `main` current (§1); Niall merges it.
 
-Branching (ADR-013): M0–M1 on branch `platform` (PRs into it). Once CI is green and Railway **watch paths** are set to exclude `platform/**`, `platform/` merges into `beta` and `beta` becomes the trunk for both; after cutover legacy code is deleted.
+`beta` is the trunk; `platform/` reaches `main` only through the sync (ADR-022).
 
 ## 8. Cost controls (SEC-03 + cost-research §6)
 

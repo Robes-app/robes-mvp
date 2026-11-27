@@ -6,6 +6,9 @@ on:
   push:
     branches: [platform]
     paths: ['platform/**', '.github/workflows/platform-*.yml']
+  # The sync PR (platform-sync-pr.yml) asks for its checks this way: a push by the workflow token
+  # starts no pull_request run.
+  workflow_dispatch:
 
 concurrency:
   group: platform-ci-${{ github.ref }}

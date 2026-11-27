@@ -48,6 +48,14 @@ describe('me contracts', async () => {
     expect(() => UpdateMeInput.parse({ instagramHandle: 'bad handle' })).toThrow();
   });
 
+  it('takes an IANA timezone and nothing else (B6)', () => {
+    expect(UpdateMeInput.parse({ timezone: 'Australia/Sydney' })).toEqual({
+      timezone: 'Australia/Sydney',
+    });
+    for (const timezone of ['+10:00', 'Mars/Olympus_Mons', '', 'Australia Sydney'])
+      expect(() => UpdateMeInput.parse({ timezone })).toThrow();
+  });
+
   it('takes the onboarding answers, all optional, and nothing else', async () => {
     const { CompleteOnboardingInput } = await import('./me');
     expect(CompleteOnboardingInput.parse({})).toEqual({});

@@ -2,6 +2,7 @@ import { ApiError } from '@robes/api';
 import { Deleted, EmptyInput, Look, LookParams, UpdateLookInput } from '@robes/contracts';
 import { verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
+import { beforeFiling, keepFiledPicture } from '@/server/filed-picture';
 import { draftsFull } from '@/server/look-states';
 import { toLook, withOwnedPieces } from '@/server/looks-entity';
 import { route } from '@/server/route';
@@ -25,11 +26,14 @@ export const PATCH = route({
   rateLimit: { key: 'looks.update', limit: 120, windowSeconds: 60 },
   handler: async ({ user, input, params }) => {
     const userId = verifiedUserId(user.id);
-    const { tags, ...fields } = input;
+    const { tags, filed, ...fields } = input;
+    // Found rows filed in this write keep her picture current (Annie, 26 Nov): read it first.
+    const before = filed?.length ? await beforeFiling(userId, params.id) : null;
     // Editing a suggestion makes it a draft, within the five (409 drafts_full, then letGoOldest).
-    const row = await draftsFull(() =>
+    let row = await draftsFull(() =>
       withOwnedPieces(() => repos.looks.update(userId, params.id, fields)),
     );
+    if (row && before && filed) row = await keepFiledPicture(userId, before, row, filed);
     // What she wears it for lives in the tag namespace, not a column on the look.
     if (tags && row) await repos.looks.setTags(userId, params.id, tags);
     return toLook(userId, row);

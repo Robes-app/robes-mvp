@@ -17,7 +17,6 @@ import {
   sheetCategories,
   sheetL1For,
   subcategoriesOf,
-  WEAR_SEEDS,
 } from '@robes/core/taxonomy';
 import {
   currencyForLocale,
@@ -33,7 +32,6 @@ import {
   Heading,
   IconButton,
   MIN_TOUCH,
-  maxFontSizeMultiplier,
   OptionList,
   Pill,
   Text,
@@ -41,8 +39,9 @@ import {
   useColor,
 } from '@robes/ui-native';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { DetentSheet } from '@/components/DetentSheet';
+import { TagsSheet } from '@/features/tags/TagsSheet';
 import { ColourPicker, OptionRow, PrintPicker } from './ColourField';
 import { MaterialPicker } from './MaterialField';
 
@@ -189,6 +188,8 @@ export function PieceFieldSheet({
   // The drawer opens on what is filed now, whichever field she tapped. Only on opening: callers
   // pass a fresh piece object each render, and a re-render must not wipe what she is typing.
   const opened = useRef<PieceField | null>(null);
+  const tagsAsked = useRef(false);
+  if (field === 'wearFor') tagsAsked.current = true;
   useEffect(() => {
     if (field === opened.current) return;
     opened.current = field;
@@ -244,146 +245,159 @@ export function PieceFieldSheet({
   return (
     // A piece's lists run long (the colour families, the categories): iOS's own sheet at two
     // heights, the list scrolling inside it (Annie, 16 Nov).
-    <DetentSheet
-      open={field !== null}
-      onClose={onClose}
-      title={category?.title ?? (field ? TITLES[field] : '')}
-      {...(category?.eyebrow ? { eyebrow: category.eyebrow } : {})}
-      {...(back
-        ? {
-            leading: (
-              <IconButton
-                icon="back"
-                label={fields.back(back.label)}
-                tone="ink-muted"
-                onPress={() => setDrill(back.to)}
-              />
-            ),
-          }
-        : {})}
-      // A tap on wearFor or a season is the answer, so Done at the right is the one way out: no ×
-      // (a spacer keeps the title centred).
-      {...(field === 'wearFor' || field === 'season'
-        ? { done: { label: copy.done, onPress: onClose }, leading: <View style={{ width: 36 }} /> }
-        : {})}
-      scroll
-      testID="piece-field-sheet"
-    >
-      <View className="gap-4 pb-6">
-        {field === 'wearFor' ? (
-          <WearForPicker piece={piece} onPick={onSave} />
-        ) : field === 'category' ? (
-          <CategoryList piece={piece} drill={drill} onDrill={setDrill} onPick={commit} />
-        ) : field === 'season' ? (
-          <SeasonOptions seasons={piece.seasons ?? []} onSave={onSave} />
-        ) : field === 'material' ? (
-          <MaterialPicker
-            value={piece.material}
-            // "Not sure" while nothing is filed is already the answer: it only closes.
-            onChange={(material) =>
-              material === piece.material ? onClose() : commit({ material })
+    <>
+      {/* Her tags are the one Tags drawer a look shares (tags cleanup, 26 Nov): mounted once first
+          asked for and kept, so it leaves as it came. */}
+      {tagsAsked.current ? (
+        <TagsSheet
+          open={field === 'wearFor'}
+          selected={piece.wearFor}
+          onChange={(wearFor) => onSave({ wearFor })}
+          onClose={onClose}
+        />
+      ) : null}
+      <DetentSheet
+        open={field !== null && field !== 'wearFor'}
+        onClose={onClose}
+        title={category?.title ?? (field ? TITLES[field] : '')}
+        {...(category?.eyebrow ? { eyebrow: category.eyebrow } : {})}
+        {...(back
+          ? {
+              leading: (
+                <IconButton
+                  icon="back"
+                  label={fields.back(back.label)}
+                  tone="ink-muted"
+                  onPress={() => setDrill(back.to)}
+                />
+              ),
             }
-          />
-        ) : field === 'print' ? (
-          <PrintPicker value={colour} onChange={(next) => commit({ print: next.print })} />
-        ) : field === 'colour' || field === 'extra' ? (
-          <>
-            {field === 'extra' ? (
-              <Text size="small" tone="muted">
-                {copy.extraHint}
-              </Text>
-            ) : null}
-            <ColourPicker
-              value={colour}
-              slot={field === 'extra' ? 'extra' : 'main'}
-              onChange={(next) => {
-                setColour(next);
-                const input = { colourShade: next.colourShade, colourExtra: next.colourExtra };
-                // One main colour is the answer; additional colours are picked as many as there are.
-                if (field === 'extra') onSave(input);
-                else commit(input);
-              }}
+          : {})}
+        // A tap on a season is the answer, so Done at the right is the one way out: no × (a spacer
+        // keeps the title centred).
+        {...(field === 'season'
+          ? {
+              done: { label: copy.done, onPress: onClose },
+              leading: <View style={{ width: 36 }} />,
+            }
+          : {})}
+        scroll
+        testID="piece-field-sheet"
+      >
+        <View className="gap-4 pb-6">
+          {field === 'category' ? (
+            <CategoryList piece={piece} drill={drill} onDrill={setDrill} onPick={commit} />
+          ) : field === 'season' ? (
+            <SeasonOptions seasons={piece.seasons ?? []} onSave={onSave} />
+          ) : field === 'material' ? (
+            <MaterialPicker
+              value={piece.material}
+              // "Not sure" while nothing is filed is already the answer: it only closes.
+              onChange={(material) =>
+                material === piece.material ? onClose() : commit({ material })
+              }
             />
-          </>
-        ) : field === 'price' ? (
-          <PriceField
-            text={text}
-            onText={setText}
-            currency={currency}
-            onCurrency={setCurrency}
-            onSubmit={save}
-          />
-        ) : field === 'size' && stepper ? (
-          <SizeStepper
-            system={stepper}
-            uk={uk}
-            onStep={(direction) => setUk(stepUkSize(stepper, uk, direction))}
-          />
-        ) : field ? (
-          <Field
-            label={TITLES[field]}
-            labelHidden
-            autoFocus
-            value={text}
-            onChangeText={setText}
-            multiline={field === 'notes'}
-            returnKeyType={field === 'notes' ? 'default' : 'done'}
-            onSubmitEditing={field === 'notes' ? undefined : save}
-            {...(field === 'detail' && text.trim() && detailOf(text) === null
-              ? { error: fields.detail.invalid }
-              : {})}
-            placeholder={
-              field === 'detail'
-                ? fields.detail.placeholder
-                : field === 'brand' || field === 'shop'
-                  ? fields.brand.placeholder
-                  : field === 'notes'
-                    ? fields.notes.placeholder
-                    : field === 'label'
-                      ? (suggestPieceName({
-                          colourName: shade(piece.colourShade)?.name ?? null,
-                          categoryL2: piece.categoryL2,
-                          categoryL3: piece.categoryL3,
-                        }) ?? fields.name.placeholder)
-                      : undefined
-            }
-            maxLength={
-              field === 'notes'
-                ? 1000
-                : field === 'label'
-                  ? 120
-                  : field === 'brand'
-                    ? 80
-                    : field === 'detail'
-                      ? DETAIL_MAX
-                      : 40
-            }
-            // Notes open at four lines and grow to eight; the brand's prompt is the serif italic.
-            className={field === 'notes' ? 'max-h-48' : undefined}
-            style={
-              field === 'brand' && !text
-                ? { fontFamily: fonts.displayItalic, fontSize: 17 }
-                : undefined
-            }
-          />
-        ) : null}
-        {field === 'price' || field === 'size' ? (
-          <Text size="caption" tone="muted">
-            {fields.price.helper}
-          </Text>
-        ) : null}
-        {field === 'size' && piece.size ? (
-          <Button variant="quiet" className="self-center" onPress={() => commit({ size: null })}>
-            {fields.size.notSure}
-          </Button>
-        ) : null}
-        {field && TYPED.has(field) ? (
-          <Button loading={saving} disabled={!next} onPress={save}>
-            {copy.saveField}
-          </Button>
-        ) : null}
-      </View>
-    </DetentSheet>
+          ) : field === 'print' ? (
+            <PrintPicker value={colour} onChange={(next) => commit({ print: next.print })} />
+          ) : field === 'colour' || field === 'extra' ? (
+            <>
+              {field === 'extra' ? (
+                <Text size="small" tone="muted">
+                  {copy.extraHint}
+                </Text>
+              ) : null}
+              <ColourPicker
+                value={colour}
+                slot={field === 'extra' ? 'extra' : 'main'}
+                onChange={(next) => {
+                  setColour(next);
+                  const input = { colourShade: next.colourShade, colourExtra: next.colourExtra };
+                  // One main colour is the answer; additional colours are picked as many as there are.
+                  if (field === 'extra') onSave(input);
+                  else commit(input);
+                }}
+              />
+            </>
+          ) : field === 'price' ? (
+            <PriceField
+              text={text}
+              onText={setText}
+              currency={currency}
+              onCurrency={setCurrency}
+              onSubmit={save}
+            />
+          ) : field === 'size' && stepper ? (
+            <SizeStepper
+              system={stepper}
+              uk={uk}
+              onStep={(direction) => setUk(stepUkSize(stepper, uk, direction))}
+            />
+          ) : field ? (
+            <Field
+              label={TITLES[field]}
+              labelHidden
+              autoFocus
+              value={text}
+              onChangeText={setText}
+              multiline={field === 'notes'}
+              returnKeyType={field === 'notes' ? 'default' : 'done'}
+              onSubmitEditing={field === 'notes' ? undefined : save}
+              {...(field === 'detail' && text.trim() && detailOf(text) === null
+                ? { error: fields.detail.invalid }
+                : {})}
+              placeholder={
+                field === 'detail'
+                  ? fields.detail.placeholder
+                  : field === 'brand' || field === 'shop'
+                    ? fields.brand.placeholder
+                    : field === 'notes'
+                      ? fields.notes.placeholder
+                      : field === 'label'
+                        ? (suggestPieceName({
+                            colourName: shade(piece.colourShade)?.name ?? null,
+                            categoryL2: piece.categoryL2,
+                            categoryL3: piece.categoryL3,
+                          }) ?? fields.name.placeholder)
+                        : undefined
+              }
+              maxLength={
+                field === 'notes'
+                  ? 1000
+                  : field === 'label'
+                    ? 120
+                    : field === 'brand'
+                      ? 80
+                      : field === 'detail'
+                        ? DETAIL_MAX
+                        : 40
+              }
+              // Notes open at four lines and grow to eight; the brand's prompt is the serif italic.
+              className={field === 'notes' ? 'max-h-48' : undefined}
+              style={
+                field === 'brand' && !text
+                  ? { fontFamily: fonts.displayItalic, fontSize: 17 }
+                  : undefined
+              }
+            />
+          ) : null}
+          {field === 'price' || field === 'size' ? (
+            <Text size="caption" tone="muted">
+              {fields.price.helper}
+            </Text>
+          ) : null}
+          {field === 'size' && piece.size ? (
+            <Button variant="quiet" className="self-center" onPress={() => commit({ size: null })}>
+              {fields.size.notSure}
+            </Button>
+          ) : null}
+          {field && TYPED.has(field) ? (
+            <Button loading={saving} disabled={!next} onPress={save}>
+              {copy.saveField}
+            </Button>
+          ) : null}
+        </View>
+      </DetentSheet>
+    </>
   );
 }
 
@@ -572,86 +586,6 @@ function CategoryList({
           onPress={() => onDrill({ sheetL1: cat, l2: null })}
         />
       ))}
-    </View>
-  );
-}
-
-const WEAR_MAX = 6;
-
-// What she wears it for: the seven seeds, then her own in the order she made them, multi-select.
-// Each tap is the answer; "+ Your own" turns into a field where Return adds the tag and picks it.
-// The web twin is components/wardrobe/piece-field-sheet.tsx.
-function WearForPicker({
-  piece,
-  onPick,
-}: {
-  piece: PieceValues;
-  onPick: (input: UpdatePieceInput) => void;
-}) {
-  const seeds: string[] = WEAR_SEEDS.map((s) => s.label);
-  const chosen = piece.wearFor;
-  // Her own tags stay listed while the drawer is open, picked or not.
-  const [own, setOwn] = useState<string[]>(() => chosen.filter((c) => !seeds.includes(c)));
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState('');
-  const options = [...seeds, ...own.filter((o) => !seeds.includes(o))];
-  const toggle = (label: string) => {
-    if (chosen.includes(label)) onPick({ wearFor: chosen.filter((c) => c !== label) });
-    else if (chosen.length < WEAR_MAX) onPick({ wearFor: [...chosen, label] });
-  };
-  const add = () => {
-    const typed = draft.trim();
-    setDraft('');
-    setAdding(false);
-    if (!typed) return;
-    const label = options.find((o) => o.toLowerCase() === typed.toLowerCase()) ?? typed;
-    if (!options.includes(label)) setOwn((o) => [...o, label]);
-    if (!chosen.includes(label) && chosen.length < WEAR_MAX)
-      onPick({ wearFor: [...chosen, label] });
-  };
-  return (
-    <View className="gap-4">
-      <Text size="small" tone="muted">
-        {fields.wearFor.helper}
-      </Text>
-      <View className="flex-row flex-wrap items-center gap-2">
-        {options.map((label) => (
-          <Pill key={label} selected={chosen.includes(label)} onPress={() => toggle(label)}>
-            {label}
-          </Pill>
-        ))}
-        {adding ? (
-          <TextInput
-            autoFocus
-            accessibilityLabel={fields.wearFor.ownLabel}
-            value={draft}
-            maxLength={40}
-            returnKeyType="done"
-            onChangeText={setDraft}
-            onSubmitEditing={add}
-            onBlur={() => {
-              if (!draft.trim()) setAdding(false);
-            }}
-            maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-            className="min-h-9 w-40 rounded-pill border border-border-control bg-surface-raised px-4 text-sm text-ink"
-            style={{ fontFamily: fonts.sans }}
-          />
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={fields.wearFor.own}
-            onPress={() => setAdding(true)}
-            style={{ minHeight: MIN_TOUCH }}
-            className="justify-center"
-          >
-            <View className="min-h-9 justify-center rounded-pill border border-border-control border-dashed px-4">
-              <Text size="small" tone="muted">
-                {fields.wearFor.own}
-              </Text>
-            </View>
-          </Pressable>
-        )}
-      </View>
     </View>
   );
 }

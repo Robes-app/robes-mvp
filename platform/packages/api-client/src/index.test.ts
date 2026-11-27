@@ -114,6 +114,15 @@ describe('call', () => {
     await expect(client.call('me.get')).rejects.toMatchObject({ code: 'internal', status: 200 });
   });
 
+  it('reads a wider response a newer API sends, and reports the drift (ADR-022)', async () => {
+    const onDrift = vi.fn();
+    const firstRun = { version: 2, step: 'a-step-from-later', skipped: [] };
+    const { client } = setup([json({ ...me, firstRun })], { baseUrl: 'https://api.test', onDrift });
+    const out = await client.call('me.get');
+    expect(out.firstRun.step).toBeNull();
+    expect(onDrift).toHaveBeenCalledWith('me.get', expect.anything());
+  });
+
   it('reports network failures on non-retryable calls as status 0', async () => {
     const { client, fetch } = setup([new TypeError('offline')]);
     const err = (await client

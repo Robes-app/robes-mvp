@@ -310,6 +310,121 @@ test('Find the pieces: a row per piece; the suggestion matches in one tap; Remov
   await waitFor(() => expect(written().proposals).toHaveLength(2));
 });
 
+// D1 (Annie, 26 Nov): finding the pieces draws her model wearing all of them, nothing filed.
+const RENDER = { [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' } };
+const renders = (calls: ReturnType<typeof mockFetch>) =>
+  calls.filter((c) => c.method === 'POST' && c.path.endsWith(`/looks/${LOOK_ID}/render`));
+
+test('the pieces found on a captured draft dress her model once, written first, nothing filed', async () => {
+  const calls = mockFetch({ ...draftRoutes(), ...RENDER });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  await waitFor(() => expect(renders(calls)).toHaveLength(1));
+  // The rack holding every found piece was written before the picture was asked for.
+  const draw = calls.indexOf(renders(calls)[0] as never);
+  const write = calls.findIndex(
+    (c) => c.method === 'PATCH' && (c.body as { proposals?: unknown[] }).proposals?.length === 3,
+  );
+  expect(write).toBeGreaterThanOrEqual(0);
+  expect(write).toBeLessThan(draw);
+  expect(calls.some((c) => c.path.includes('/wardrobe/') && c.method === 'POST')).toBe(false);
+});
+
+// Annie, 26 Nov: filing a found piece keeps the picture current (the server carries it), and any
+// other change after the first picture dresses her model exactly as on a draft built by hand.
+test('after its first picture a captured draft is dressed as a hand-built one; filing draws nothing', async () => {
+  const routes = draftRoutes();
+  const patch = routes[`PATCH /looks/${LOOK_ID}`] as (init: RequestInit) => ReturnType<typeof look>;
+  let drawn = false;
+  let last = captured();
+  const calls = mockFetch({
+    ...routes,
+    [`GET /looks/${LOOK_ID}`]: () => last,
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => {
+      const body = JSON.parse(String(init.body)) as { filed?: unknown[] };
+      last = {
+        ...patch(init),
+        onModel: drawn ? 'ready' : null,
+        pictureStale: drawn && !body.filed,
+      };
+      return last;
+    },
+    [`POST /looks/${LOOK_ID}/render`]: () => {
+      drawn = true;
+      last = { ...last, onModel: 'ready' };
+      return { jobId: JOB_ID, status: 'queued' };
+    },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  await waitFor(() => expect(renders(calls)).toHaveLength(1));
+  const found = calls.find(
+    (c) => c.method === 'PATCH' && (c.body as { proposals?: unknown[] }).proposals?.length === 3,
+  )?.body as { proposals: Array<{ key: string; name: string }> };
+  const trainers = found.proposals.find((p) => p.name === 'Running trainers')?.key;
+
+  // Matched to her shoes: the write says what was filed, and the model is not drawn again.
+  await fireEvent.press(screen.getByRole('button', { name: copy.row.quick }));
+  await waitFor(() =>
+    expect(calls.filter((c) => c.method === 'PATCH').at(-1)?.body).toMatchObject({
+      pieces: [{ pieceId: SHOES, role: null }],
+      filed: [{ from: trainers, to: SHOES }],
+    }),
+  );
+  await act(() => new Promise((r) => setTimeout(r, 1500)));
+  expect(renders(calls)).toHaveLength(1);
+
+  // A found piece taken off is a change: the model is dressed again, with no Save.
+  const [removeTop] = screen.getAllByRole('button', { name: copy.row.remove });
+  await fireEvent.press(removeTop as never);
+  await waitFor(() => expect(renders(calls)).toHaveLength(2), { timeout: 4000 });
+});
+
+test('a captured photo whose pieces are never found is never drawn', async () => {
+  const calls = mockFetch({
+    ...draftRoutes(captured({ photo: PHOTO, image: PHOTO })),
+    ...RENDER,
+    [`POST /looks/${LOOK_ID}/save`]: captured({ status: 'saved', photo: PHOTO, image: PHOTO }),
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-skip'));
+  await screen.findByTestId('capture-rack-photo');
+  await fireEvent.press(screen.getByTestId('draft-done'));
+  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/save'))).toBe(true));
+  expect(renders(calls)).toHaveLength(0);
+});
+
+test('the pieces found on a saved look are kept and drawn at once, with no Update look', async () => {
+  const saved = captured({ status: 'saved', photo: PHOTO, image: PHOTO });
+  const routes = draftRoutes(saved);
+  const calls = mockFetch({
+    ...routes,
+    ...RENDER,
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...(routes[`PATCH /looks/${LOOK_ID}`] as (i: RequestInit) => object)(init),
+      status: 'saved',
+    }),
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="saved" onClose={jest.fn()} />);
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  // On a saved look the found pieces join its own rack.
+  expect(await screen.findByText('Cropped sweatshirt')).toBeTruthy();
+  await waitFor(() => expect(renders(calls)).toHaveLength(1));
+  expect(
+    (calls.find((c) => c.method === 'PATCH')?.body as { proposals?: unknown[] } | undefined)
+      ?.proposals,
+  ).toHaveLength(3);
+  expect(screen.queryByText(lookbook.draftLook.update)).toBeNull();
+});
+
 test('Match to piece opens the picker as Match to your wardrobe, the suggestion ticked', async () => {
   const calls = mockFetch(draftRoutes());
   await renderWithApi(
@@ -444,3 +559,83 @@ test('a read that fails says so with Retry, and the photo is kept', async () => 
   expect(screen.getByRole('button', { name: copy.retry })).toBeTruthy();
   expect(screen.getByText(copy.card.later)).toBeTruthy();
 });
+
+// Tester trial 25 Nov (B2): the found rows showed no pictures, because their crops render after
+// the read and nothing asked for them again until she removed a piece.
+const cropUrl = (i: number) => `http://m.test/crop-${i}.webp`;
+const cropImage = (i: number, status: 'pending' | 'ready') => ({
+  assetId: crop(i),
+  status,
+  width: status === 'ready' ? 400 : null,
+  height: status === 'ready' ? 500 : null,
+  blurhash: null,
+  renditions: status === 'ready' ? [{ width: 320, avif: cropUrl(i), webp: cropUrl(i) }] : [],
+});
+const drawn = (url: string) => JSON.stringify(screen.toJSON()).includes(url);
+
+test("a draft's found rows wait on their crops and show them once they render", async () => {
+  const routes = draftRoutes();
+  const patch = routes[`PATCH /looks/${LOOK_ID}`];
+  let rendered = false;
+  const withCrops = (l: ReturnType<typeof captured>) =>
+    captured({
+      ...l,
+      captureImages: Object.fromEntries(
+        (l.proposals ?? []).flatMap((p) =>
+          p.capture
+            ? [[p.key, cropImage(p.capture.index, rendered ? 'ready' : 'pending')] as const]
+            : [],
+        ),
+      ),
+    });
+  const calls = mockFetch({
+    ...routes,
+    // The write lands before the crops render; the next read of the look has them.
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => withCrops(patch(init)),
+    [`GET /looks/${LOOK_ID}`]: () => {
+      const out = withCrops(routes[`GET /looks/${LOOK_ID}`]());
+      if (out.proposals.length) rendered = true;
+      return out;
+    },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  expect(await screen.findByTestId('capture-rack-rack')).toBeTruthy();
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(drawn(cropUrl(0))).toBe(false);
+  await waitFor(() => expect(drawn(cropUrl(0))).toBe(true), { timeout: 8000 });
+  expect(drawn(cropUrl(1))).toBe(true);
+  // The look itself carried them: no separate read of the crops for a draft.
+  expect(calls.some((c) => c.path.endsWith('/crops'))).toBe(false);
+}, 15_000);
+
+test("a saved look's found rows show their crops before Update look", async () => {
+  let rendered = false;
+  const saved = captured({ status: 'saved', photo: PHOTO, image: PHOTO });
+  const calls = mockFetch({
+    ...draftRoutes(saved),
+    [`GET /wardrobe/photo-reads/${JOB_ID}/crops`]: () => {
+      const out = {
+        crops: READ.map((p) => ({
+          index: p.index,
+          image: cropImage(p.index, rendered ? 'ready' : 'pending'),
+        })),
+      };
+      rendered = true;
+      return out;
+    },
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="saved" onClose={jest.fn()} />);
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  expect(await screen.findByText('Cropped sweatshirt')).toBeTruthy();
+  await waitFor(() => expect(drawn(cropUrl(0))).toBe(true), { timeout: 8000 });
+  expect(drawn(cropUrl(2))).toBe(true);
+  // The found rows are written at once (D1), and their crops show from the read before the look
+  // comes back holding them.
+  expect(
+    (calls.find((c) => c.method === 'PATCH')?.body as { proposals?: unknown[] } | undefined)
+      ?.proposals,
+  ).toHaveLength(3);
+}, 15_000);

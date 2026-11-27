@@ -107,6 +107,9 @@ export function rackFromLook(
 export function rackUpdate(state: RackState, opts: { keepEdits: boolean }): UpdateLookInput {
   const keys = new Set(state.rows.map((r) => r.key));
   const styling = Object.fromEntries(Object.entries(state.styling).filter(([k]) => keys.has(k)));
+  const filed = state.rows.flatMap((r) =>
+    r.filedFrom ? [{ from: r.filedFrom, to: r.pieceId ?? r.key }] : [],
+  );
   return {
     pieces: state.rows.flatMap((r) => (r.pieceId ? [{ pieceId: r.pieceId, role: r.role }] : [])),
     // Categories the prompt names freely are folded by the contract (Proposal.category.catch).
@@ -114,6 +117,7 @@ export function rackUpdate(state: RackState, opts: { keepEdits: boolean }): Upda
       r.proposal ? [{ ...r.proposal, role: r.role ?? r.proposal.role }] : [],
     ) as UpdateLookInput['proposals'],
     styling,
+    ...(filed.length > 0 ? { filed } : {}),
     ...(opts.keepEdits
       ? {
           edits: Object.fromEntries(

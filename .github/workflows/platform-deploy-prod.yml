@@ -22,6 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
+      # Without these, 'Production/*' deletes the alert subscriptions and changes the CDN
+      # (ios-release.md §2); the workers alone deploy through platform-deploy-prod-workers.yml.
+      - name: every production setting is present
+        env:
+          VALUES: ${{ format('{0}|{1}|{2}|{3}|{4}', vars.ALERT_EMAIL, vars.MEDIA_DOMAIN, vars.MEDIA_CERT_ARN, vars.CLOUDFRONT_PUBLIC_KEY, vars.POSTHOG_KEY) }}
+        run: |
+          case "|$VALUES|" in *"||"*) echo "::error::A production variable is empty: ALERT_EMAIL, MEDIA_DOMAIN, MEDIA_CERT_ARN, CLOUDFRONT_PUBLIC_KEY, POSTHOG_KEY"; exit 1;; esac
       - uses: actions/checkout@v5
       - uses: ./.github/actions/platform-setup
       - run: pnpm --filter @robes/infra test

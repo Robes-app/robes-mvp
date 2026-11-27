@@ -1,62 +1,17 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
-import { Edits, Look, LookRole, LookStatus, Proposal, Styling } from '@robes/contracts';
+import { Edits, Look, LookRole, LookStatus, Styling } from '@robes/contracts';
 import { looks as copy } from '@robes/copy';
 import { renderModelOf, standKey, stoodOnOf } from '@robes/core/avatar';
 import { frameKey } from '@robes/core/looks';
 import { LookPiecesNotFound, type UserId } from '@robes/db';
-import { z } from 'zod';
 import { toImage } from './asset-urls';
 import { repos } from './db';
 import { mediaDelivery } from './media';
 import { rackHash } from './render-key';
+import { proposalsOf } from './stored-proposals';
 import { toPieces } from './wardrobe';
 
-const Proposals = z.array(z.unknown()).catch([]);
-// A proposal as legacy stored it (a shop row: the chosen option of a few, its role, saved = ♡).
-const LegacyProposal = z.object({
-  role: z.string().nullable().optional(),
-  cats: z.array(z.string()).optional(),
-  opts: z
-    .array(
-      z.looseObject({
-        name: z.string(),
-        brand: z.string().nullable().optional(),
-        retailer_hint: z.string().nullable().optional(),
-        price_point: z.string().nullable().optional(),
-      }),
-    )
-    .min(1),
-  oi: z.number().int().optional(),
-  saved: z.boolean().optional(),
-});
-const LEGACY_ROLES: Record<string, Proposal['role']> = {
-  'the canvas': 'canvas',
-  'the anchor': 'anchor',
-  'the texture': 'texture',
-  'the exclamation point': 'exclamation',
-};
-// Stored rows are read leniently: a malformed one drops rather than failing the whole look.
-function proposalsOf(raw: unknown): Proposal[] {
-  return Proposals.parse(raw ?? []).flatMap((p, i) => {
-    const parsed = Proposal.safeParse(p);
-    if (parsed.success) return [parsed.data];
-    const legacy = LegacyProposal.safeParse(p);
-    if (!legacy.success) return [];
-    const opt = legacy.data.opts[legacy.data.oi ?? 0] ?? legacy.data.opts[0];
-    const shaped = Proposal.safeParse({
-      key: `p-legacy${i}`,
-      name: opt?.name,
-      category: legacy.data.cats?.[0] ?? 'Other',
-      brand: opt?.brand ?? '',
-      retailerHint: opt?.retailer_hint ?? '',
-      pricePoint: opt?.price_point ?? '',
-      role: LEGACY_ROLES[(legacy.data.role ?? '').toLowerCase()] ?? null,
-      wishlisted: legacy.data.saved === true,
-    });
-    return shaped.success ? [shaped.data] : [];
-  });
-}
 const ROBES_SOURCES = new Set(['generated', 'today', 'travel', 'seed']);
 
 type LookRow = NonNullable<Awaited<ReturnType<typeof repos.looks.get>>>;
@@ -160,7 +115,8 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
     const lookPieces = byLook.get(row.id) ?? [];
     const styling = Styling.catch({}).parse(row.styling ?? {});
     // The picture was drawn for another rack than this one (plan 2026-11-03 §1.4): the frame's
-    // key, or the render's rack hash, no longer matches the pieces and how they are worn.
+    // key, or the render's rack hash, no longer matches the pieces and how they are worn. Both
+    // count the proposals (found in her photograph, or added by the prompt): they are drawn too.
     const pictureStale =
       row.frameAssetId && row.frameKey
         ? row.frameKey !==
@@ -179,6 +135,7 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
               lookPieces.map((p) => ({ id: p.piece.id })),
               styling,
               row.pictureNote,
+              proposals,
             )
           : false;
     return Look.parse({

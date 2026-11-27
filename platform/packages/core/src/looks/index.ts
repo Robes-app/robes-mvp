@@ -150,6 +150,10 @@ export interface RackRow {
   brand: string | null;
   role: LookRole | null;
   proposal: Proposal | null;
+  // The found row (its rack key) this row was filed from: matched to her piece, added to her
+  // wardrobe or taken as a wish. Filing keeps the picture current (Annie, 26 Nov); the server
+  // reads it once, with the write that files it (`rackUpdate`'s `filed`).
+  filedFrom?: string;
 }
 
 // What a changed row replaced, or that the prompt put it back (dropped at Save).
@@ -540,38 +544,6 @@ export function lookMatches(
     ({ piece }) =>
       piece.label.toLowerCase().includes(q) || (piece.brand ?? '').toLowerCase().includes(q),
   );
-}
-
-// What a look is worn for: her own tags on the look lead (Felix 3e Details › Tags; plan R7), and
-// when it has none, what its pieces agree on (legacy _rbInheritLookTags): the tags every one of
-// its pieces carries, Everyday aside (nearly every piece has it, so it says nothing), A–Z, two at
-// most. Filters (the Pick sheet, the Lookbook) read it as the look's Wear it for.
-export function lookWearFor(look: {
-  tags?: readonly string[];
-  pieces: readonly { piece: { wearFor?: readonly string[] } }[];
-}): string[] {
-  if (look.tags?.length) return [...look.tags];
-  const pieces = look.pieces.map((p) => p.piece.wearFor ?? []);
-  if (!pieces.length) return [];
-  const counts = new Map<string, number>();
-  for (const tags of pieces) {
-    for (const t of new Set(tags)) counts.set(t, (counts.get(t) ?? 0) + 1);
-  }
-  return [...counts]
-    .filter(([t, n]) => n === pieces.length && t.toLowerCase() !== 'everyday')
-    .map(([t]) => t)
-    .sort((a, b) => a.localeCompare(b, 'en-GB'))
-    .slice(0, 2);
-}
-
-// The Wear it for options a set of looks offers, A–Z.
-export function wearForOptions(
-  looks: readonly {
-    tags?: readonly string[];
-    pieces: readonly { piece: { wearFor?: readonly string[] } }[];
-  }[],
-): string[] {
-  return [...new Set(looks.flatMap(lookWearFor))].sort((a, b) => a.localeCompare(b, 'en-GB'));
 }
 
 // Where a new look's pieces come from. The prompt's Wardrobe and Shop toggles answer it (look

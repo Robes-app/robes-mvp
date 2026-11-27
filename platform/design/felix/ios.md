@@ -37,7 +37,7 @@ The iPhone app is Felix's web app's twin: the same tokens, type, copy and rules.
 - **Settings and subviews** start below the header. A sheet measures its own window, not the tab's safe area, so it never gains the tab bar's height as empty glass.
 - **Dynamic Type** scales text up to a cap: body ×2, labels ×1.6, controls ×1.5, headings ×1.4.
 - **Every target is at least 44pt.** A 28pt toggle or a 22pt × disc keeps a 44pt hit area.
-- **Screen recordings** follow her consent, and fields that hold her words or account details are never recorded. Those fields are wrapped in `Unrecorded`.
+- **Screen recordings** follow her consent and show the app as she sees it, her photos included (26 Nov 2026). Her email and the sign-in code are never recorded: those fields are wrapped in `Unrecorded`.
 
 ## Where it lives in code
 

@@ -1,5 +1,7 @@
 # Beta → staging parity: every gap, and the plan to move today
 
+> **Done (27 Nov 2026)** — kept as a record. Releasing is `runbooks/ios-release.md`; what is left of the cutover is `runbooks/production-release.md`.
+
 Status: audit complete 2026-10-28 (Annie + Claude). Owner: Annie. Supersedes §A of
 [`2026-10-23-cutover-readiness.md`](2026-10-23-cutover-readiness.md) (its §A list is now partly
 stale — see §9); §0 (media pipeline) and §B–F of that plan still stand.

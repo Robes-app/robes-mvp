@@ -57,8 +57,9 @@ export function AnalyticsProvider({
   const pathname = usePathname();
 
   const analyticsOn = Boolean(browser && userId && consents?.analytics === true);
-  // Only her yes to recordings that show her words; an older `replay` yes was to masked ones.
-  const replayOn = consents?.recordings === true;
+  // A recording shows her photos, so it needs her yes to Share my looks with Robes as well as to
+  // Screen recordings (Annie, 26 Nov 2026). An older `replay` yes starts none.
+  const replayOn = consents?.recordings === true && consents?.look_sharing === true;
 
   useEffect(() => {
     if (!browser) return;

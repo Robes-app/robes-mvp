@@ -25,7 +25,6 @@ Fill in as resources are created. IDs are not secrets; keys and passwords are.
 | GCP project | `robes-staging` | `robes-prod` | Gemini key owner |
 | PostHog (EU) project ID | `275134` ("Robes", shared with legacy beta) | `275134` (same project for now; split by `environment`) | `NEXT_PUBLIC_POSTHOG_KEY` |
 | SES domain / config set | `staging.mail.byrobes.com` / `robes-staging-email` | `mail.byrobes.com` / `robes-prod-email` | `MAIL_FROM`, `SES_CONFIGURATION_SET` (§9) |
-| EAS channel | `preview` | `production` | mobile builds |
 
 ## 2. Postgres (per environment)
 
@@ -98,13 +97,8 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
       ROBES_PRODUCTION_GITHUB_OIDC_PROVIDER_ARN=arn:aws:iam::259887029472:oidc-provider/token.actions.githubusercontent.com \
       pnpm cdk deploy 'Production/*' -c stage=production --output cdk.out.prod
     ```
-    Lambda's account limit is 10 (hence no reserved concurrency), the account is an Organizations member (no budgets), and neither stage has a custom media domain yet (`MEDIA_PUBLIC_ORIGIN` is the CloudFront domain). The GitHub `staging`/`production` environments are not set up yet, so deploy staging from a laptop after merging worker or infra changes (always `cdk diff` first) until §5 step 5 is done. The website alone redeploys on a `beta` merge; the workers (photo reads, looks, images) do not — a merge that changes `packages/jobs`, `packages/ai` or `workers/` reaches staging only with a deploy.
-    **Production workers after a `main` sync (13 Nov 2026).** Merging to `main` deploys the website and API only; the workers (looks, photo reads, the hourly sweep) stay on their old code until this runs, with that account's credentials and the PostHog project token in the environment:
-    ```bash
-    export ROBES_POSTHOG_KEY=<the phc_… project token>   # refuses to run without it (21 Nov 2026)
-    pnpm --filter @robes/infra deploy:prod-workers   # only the Prod-Workers stack: six functions' code
-    ```
-    Until 21 Nov 2026 no production deploy set `ROBES_POSTHOG_KEY`, so production workers sent no AI traces (`$ai_generation`) and no error reports; there is no fallback key.
+    Lambda's account limit is 10 (hence no reserved concurrency), the account is an Organizations member (no budgets), and neither stage has a custom media domain yet (`MEDIA_PUBLIC_ORIGIN` is the CloudFront domain). Staging deploys itself on every `beta` merge that touches `platform/**` (§5 step 5), workers included.
+    **Production workers** are not deployed by a `main` merge: `runbooks/ios-release.md` §2 (after the sync's build has migrated, `Production/Workers` alone, `cdk diff` first).
     Do **not** run the full `'Production/*'` deploy above from a laptop unless `ROBES_PRODUCTION_ALERT_EMAIL` and the media settings are set as they were when the stacks were made: without them the diff proposes deleting the alert email subscriptions and changing the CDN. Always `cdk diff` first, and read it.
 11. Confirm the SNS email subscription for alerts/budgets (`ROBES_<STAGE>_ALERT_EMAIL`). Optional: AWS Chatbot → Slack `#robes-alerts` subscribed to `robes-<env>-alerts`.
 
@@ -149,7 +143,6 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `NEXT_PUBLIC_POSTHOG_KEY` | required outside dev; publishable ingest key, read at runtime and passed to the browser |
 | `NEXT_PUBLIC_POSTHOG_HOST` | optional, default `https://eu.i.posthog.com` (https required outside dev); CSP gains it and `https://eu-assets.i.posthog.com` |
 | `POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_ID` | build-time only: source-map upload to PostHog error tracking. Key sensitive, scope *Error tracking: write*. Without them the build skips the upload |
-| `MIN_APP_VERSION` | 426 gate for old native builds |
 | `INBOUND_MAIL_DOMAIN` | `in.staging.mail.byrobes.com` / `in.mail.byrobes.com`; the domain of her forwarding address (§9 step 7) |
 | `UNSUB_HMAC_KEY` | sensitive; the same value as Secrets Manager `robes-<env>/unsub/hmac-key` (≥32 chars), which notifyFn signs unsubscribe links with. Rotating it voids links in mail already sent |
 
@@ -224,7 +217,7 @@ CDK (`EmailStack`) creates the domain identity (Easy DKIM, RSA 2048), MAIL FROM 
 
 ## 12. Mobile (EAS)
 
-EAS project linked to `platform/mobile`; channels `preview` (staging) and `production`. EAS env holds **public** values only (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_POSTHOG_KEY` — after `eas init`: `eas env:create --name EXPO_PUBLIC_POSTHOG_KEY --value <phc_…> --environment preview --environment production --visibility plaintext`). `expo/access-token` in Secrets Manager is the push-sending token for `notifyFn`.
+EAS project linked to `platform/mobile`; no update channels (no over-the-air updates yet). EAS env holds **public** values only (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_POSTHOG_KEY`). TestFlight builds: `runbooks/ios-release.md`. `expo/access-token` in Secrets Manager is the push-sending token for `notifyFn`.
 
 **Universal links (N4).** Staging builds claim `staging.byrobes.com`, production builds `app.byrobes.com`, development builds nothing (`mobile/app.config.ts`); the paths are `@robes/core/app-links`. For each stage: (1) Apple Developer → Identifiers → the App ID (`com.byrobes.app.staging` / `com.byrobes.app`) has **Associated Domains** on (EAS normally syncs this on build); (2) set the Vercel env above and check `https://<host>/.well-known/apple-app-site-association` and `/assetlinks.json` list the app; (3) a **new EAS build** (entitlements are native, not OTA). iOS reads the file at install, so path changes need a new build too. Native Google/Apple sign-in through the browser also needs the stage's scheme (`robes-staging://` / `robes://`) in `AUTH_TRUSTED_ORIGINS`.
 

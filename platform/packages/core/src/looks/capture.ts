@@ -103,7 +103,9 @@ export function restoreRows(rows: readonly RackRow[], removed: readonly RemovedR
 }
 
 // Matched or added: the row becomes her piece, or a wish from her wishlist as a piece to find
-// (TestFlight 20 Nov), in the same place. Neither is hung twice; the found row just goes.
+// (TestFlight 20 Nov), in the same place. Neither is hung twice; the found row just goes. The
+// filed row remembers the found row it was, so her picture, drawn wearing the found piece, stays
+// current: it is the same piece, now filed (Annie, 26 Nov).
 export function fileRow(rows: readonly RackRow[], key: string, piece: RackRow): RackRow[] {
   const wishId = piece.proposal?.wishlistItemId ?? null;
   const same = (r: RackRow) =>
@@ -111,7 +113,23 @@ export function fileRow(rows: readonly RackRow[], key: string, piece: RackRow): 
       ? r.pieceId === piece.pieceId
       : wishId !== null && r.proposal?.wishlistItemId === wishId;
   if (rows.some(same)) return rows.filter((r) => r.key !== key);
-  return rows.map((r) => (r.key === key ? piece : r));
+  const from = rows.find((r) => r.key === key);
+  const filedFrom = from && isCaptureRow(from) ? { filedFrom: key } : {};
+  return rows.map((r) => (r.key === key ? { ...piece, ...filedFrom } : r));
+}
+
+// True when `after` is `before` with found rows filed in place (`fileRow`) and nothing else
+// changed: the picture still wears it, so the change does not count against the picture.
+export function filesOnly(before: readonly RackRow[], after: readonly RackRow[]): boolean {
+  if (before.length !== after.length) return false;
+  let filed = false;
+  for (const [i, row] of after.entries()) {
+    const was = before[i] as RackRow;
+    if (row === was) continue;
+    if (!row.filedFrom || row.filedFrom !== was.key || !isCaptureRow(was)) return false;
+    filed = true;
+  }
+  return filed;
 }
 
 export const filedCount = (rows: readonly RackRow[]): number =>
@@ -140,4 +158,68 @@ export function captureStage(s: {
   if (s.failed) return 'failed';
   if (s.cleared) return 'clear';
   return s.settled ? 'photo' : 'ask';
+}
+
+// A found row's crop as the server hands it over (the contract's PieceImage is a superset). Its
+// renditions are made after the read job finishes, from the S3 event, so a crop is `pending` for
+// a few seconds after its row lands (tester trial 25 Nov: the found rows showed no pictures until
+// the look was fetched again for something else).
+export interface CropImage {
+  assetId: string;
+  status: 'pending' | 'ready' | 'failed';
+  renditions: readonly unknown[];
+}
+
+// The row's crop before anything about it has come back: drawn as the row's loading state, never
+// as a piece with no photograph.
+export interface PendingCrop {
+  assetId: string;
+  status: 'pending';
+  width: null;
+  height: null;
+  blurhash: null;
+  renditions: never[];
+}
+
+// Whether a look holds a found row whose crop is still being made: a page showing its rack asks
+// again until it lands, as `pictureLanding` does for the picture.
+export function cropsLanding(
+  look: { captureImages?: Readonly<Record<string, Pick<CropImage, 'status'>>> } | undefined,
+): boolean {
+  return Object.values(look?.captureImages ?? {}).some((c) => c.status === 'pending');
+}
+
+// The reads whose crops a rack fetches for itself: those of its found rows the look holds no crop
+// for. A draft writes its rows through at once and the look comes back with their crops; a saved
+// look writes the found rows at once too (D1), but a row it holds only on her phone until Update
+// look, or one written before the look comes back, has none there yet.
+export function cropReads(
+  rows: readonly RackRow[],
+  look: { status: string; captureImages: Readonly<Record<string, unknown>> },
+): string[] {
+  if (look.status === 'draft') return [];
+  const ids = rows.flatMap((r) => {
+    const capture = r.proposal?.capture;
+    return capture && !(r.key in look.captureImages) ? [capture.readId] : [];
+  });
+  return [...new Set(ids)];
+}
+
+// The crop to draw for a found row: whichever of the look's and the read's has landed, else the
+// one still being made, else a stand-in for the row's crop so the row shows its loading state. A
+// crop that failed shows no photograph.
+export function captureImage<I extends CropImage>(
+  row: RackRow,
+  fromLook: I | undefined,
+  fromRead: I | undefined,
+): I | PendingCrop | null {
+  const ready = [fromLook, fromRead].find((c) => c?.status === 'ready');
+  if (ready) return ready;
+  const pending = [fromLook, fromRead].find((c) => c?.status === 'pending');
+  if (pending) return pending;
+  if (fromLook || fromRead) return null;
+  const assetId = row.proposal?.capture?.cropAssetId;
+  return assetId
+    ? { assetId, status: 'pending', width: null, height: null, blurhash: null, renditions: [] }
+    : null;
 }

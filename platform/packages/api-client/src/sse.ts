@@ -1,6 +1,7 @@
 import { type RouteKey, type Routes, routes, type SseRouteKey } from '@robes/contracts';
 import type { z } from 'zod';
 import type { ApiClient, ParamsOf } from './index';
+import { parseTolerantly } from './tolerant';
 
 export type EventsOf<K extends SseRouteKey> = Routes[K]['events'];
 export type EventName<K extends SseRouteKey> = keyof EventsOf<K> & string;
@@ -64,14 +65,19 @@ export function openEvents<K extends SseRouteKey>(
     if (!handler) continue;
     source.addEventListener(name, (event) => {
       if (closed) return;
-      let data: unknown;
+      // Mended like any response (ADR-022): an older app still hears a newer server's events.
+      let parsed: ReturnType<typeof parseTolerantly>;
       try {
-        data = schema.parse(parseData(event.data));
+        parsed = parseTolerantly(schema, parseData(event.data));
       } catch (error) {
         options.onInvalid?.(name as EventName<K>, error);
         return;
       }
-      handler(data);
+      if (!parsed.success) {
+        options.onInvalid?.(name as EventName<K>, parsed.error);
+        return;
+      }
+      handler(parsed.data);
     });
   }
   source.addEventListener('error', () => {

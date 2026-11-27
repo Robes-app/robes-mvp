@@ -4,7 +4,9 @@ import { queryKeys, useApiAll, useApiClient } from '@robes/api-client/react';
 import {
   type Look,
   type Piece,
+  type PieceImage,
   pieceRow,
+  type ReadCrops,
   type ReadPiece,
   type Wish,
   wishRow,
@@ -12,8 +14,10 @@ import {
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import {
   type CaptureStage,
+  captureImage,
   captureRows,
   captureStage,
+  cropReads,
   fileRow,
   isCaptureRow,
   type RackRow,
@@ -21,7 +25,7 @@ import {
   removeRow,
   restoreRows,
 } from '@robes/core/looks';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 import { useJob } from './use-job';
@@ -31,6 +35,8 @@ import { invalidateWardrobe } from './wardrobe';
 interface RackEditor {
   rack: { rows: RackRow[] };
   setRows: (rows: RackRow[]) => void;
+  // The pieces a read found, joined to the rack and written at once (a saved look too).
+  addFound: (rows: RackRow[]) => void;
 }
 
 export interface CaptureRack {
@@ -48,6 +54,8 @@ export interface CaptureRack {
   pieceOf: (id: string) => Piece | undefined;
   // What the read saw of a found row (its box, for the crop drawn from the photo).
   found: (row: RackRow) => ReadPiece | undefined;
+  // A found row's crop: pending (the row's loading state) until its renditions land.
+  image: (row: RackRow) => PieceImage | null;
   find: () => void;
   skip: () => void;
   match: (key: string, piece: Piece, how: 'match' | 'suggested' | 'add') => void;
@@ -62,9 +70,16 @@ export interface CaptureRack {
 // The Rack of a look from her photograph (Capture PRD 1c.3–1c.6): Find the pieces reads the
 // look's photo; each found piece is a row she matches to a piece of hers, adds to her wardrobe or
 // removes, and whatever is left unfiled stays on the look as a suggestion. The rows live on the
-// look's own rack through its editor, so a draft writes through and a saved look waits for
-// Update look. Native twin: mobile/src/features/looks/capture-rack.ts.
-export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
+// look's own rack through its editor, so a draft writes through and a saved look's changes wait
+// for Update look; the pieces a read finds are written as they land on both, and her model is
+// drawn wearing them (D1, Annie 26 Nov), filed or not. Native twin: mobile/src/features/looks/capture-rack.ts.
+// `onFound`: the read has landed its pieces on the rack. A photograph whose pieces were never
+// found is never drawn.
+export function useCaptureRack(
+  look: Look,
+  editor: RackEditor,
+  opts: { onFound?: () => void } = {},
+): CaptureRack {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const { track } = useAnalytics().analytics;
@@ -83,6 +98,8 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   const { job, connection } = useJob(jobId);
   const current = useRef(rows);
   current.current = rows;
+  const onFound = useRef(opts.onFound);
+  onFound.current = opts.onFound;
 
   const waiting = rows.some(isCaptureRow);
   const wardrobe = useApiAll(
@@ -90,6 +107,7 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
     { input: { limit: 100 } },
     { enabled: on && waiting },
   );
+  const crops = useReadCrops(on ? cropReads(rows, look) : []);
 
   // The read lands once: its pieces join the rack, or it says there was nothing to find.
   const handled = useRef<string | null>(null);
@@ -120,7 +138,8 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       ),
     }));
     setEverFound(true);
-    editor.setRows([...current.current, ...found]);
+    editor.addFound(found);
+    onFound.current?.();
   }, [jobId, job, connection, editor]);
 
   const find = () => {
@@ -157,6 +176,11 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
     },
     pieceOf: (id) => filed[id],
     found: (row) => reads[row.key],
+    image: (row) => {
+      const capture = row.proposal?.capture;
+      const fromRead = capture ? crops.get(capture.readId)?.get(capture.index) : undefined;
+      return captureImage(row, look.captureImages[row.key], fromRead);
+    },
     find,
     skip: () => setSkipped(true),
     match: (key, piece, how) => {
@@ -201,4 +225,27 @@ export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
       setRemoved([]);
     },
   };
+}
+
+const CROP_REFRESH_MS = 3_000;
+
+// The crops of each read whose found rows the look holds none for (a saved look's rows wait in
+// the editor until Update look), asked again while any is still being made. Native twin:
+// useReadCrops in mobile/src/features/looks/capture-rack.ts.
+function useReadCrops(readIds: readonly string[]): Map<string, Map<number, PieceImage>> {
+  const api = useApiClient();
+  const results = useQueries({
+    queries: readIds.map((id) => ({
+      queryKey: queryKeys.call('photoReads.crops', { params: { id } }),
+      queryFn: () => api.call('photoReads.crops', { params: { id } }),
+      refetchInterval: (q: { state: { data: ReadCrops | undefined } }) =>
+        q.state.data?.crops.some((c) => c.image.status === 'pending') ? CROP_REFRESH_MS : false,
+    })),
+  });
+  const out = new Map<string, Map<number, PieceImage>>();
+  results.forEach((r, i) => {
+    const id = readIds[i];
+    if (id && r.data) out.set(id, new Map(r.data.crops.map((c) => [c.index, c.image])));
+  });
+  return out;
 }

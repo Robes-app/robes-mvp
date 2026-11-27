@@ -33,6 +33,7 @@ import { styleBriefRepo, styleDnaRepo, styleMemoryRepo } from './style-dna';
 import { styleAnalysisRepo, styleProfileRepo } from './style-profile';
 import { stylingRepo } from './styling';
 import { suggestedLooksRepo } from './suggested';
+import { tagsRepo } from './tags';
 import { tripsRepo } from './trips';
 import { twinArchivesRepo } from './twin-archives';
 import { uiStateRepo } from './ui-state';
@@ -81,6 +82,8 @@ export function createRepositories(db: Db) {
     // Her Style DNA, the brief in her words and the memory (legacy Settings + style memory).
     styleDna: styleDnaRepo(db),
     styleMemory: styleMemoryRepo(db),
+    // Her tag list, shared by her looks and pieces (tags cleanup, 26 Nov).
+    tags: tagsRepo(db),
     usage: usageRepo(db),
     trips: tripsRepo(db),
     wardrobe: wardrobeRepo(db),

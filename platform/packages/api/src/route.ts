@@ -1,8 +1,8 @@
+import { compareVersions } from '@robes/contracts';
 import { z } from 'zod';
 import type { AuthUser, ResolveUser } from './auth';
 import { ApiError, MESSAGES, STATUS } from './errors';
 import type { RateLimiter } from './rate-limit';
-import { compareVersions } from './version';
 
 export type AuthMode = 'public' | 'user' | 'admin';
 
