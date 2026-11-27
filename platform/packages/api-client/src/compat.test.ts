@@ -42,6 +42,32 @@ describe('covers (ADR-022)', () => {
     expect(reads(z.object({ k: Kind }), z.object({ k: Wider }), true)).toHaveLength(1);
   });
 
+  // Review, 27 Nov: what mending can't save still breaks a mending build.
+  it('a mending build still breaks on a renamed, retyped or unclampable field', () => {
+    const Item = z.object({ imageUrl: z.string() });
+    expect(
+      reads(
+        z.object({ items: z.array(Item) }),
+        z.object({ items: z.array(z.object({ image: z.string() })) }),
+        true,
+      ),
+    ).not.toEqual([]);
+    expect(
+      reads(
+        z.object({ a: z.object({ b: z.string() }).optional() }),
+        z.object({ a: z.object({ b: z.number() }) }),
+        true,
+      ),
+    ).not.toEqual([]);
+    expect(
+      reads(
+        z.object({ score: z.number().positive() }),
+        z.object({ score: z.number().min(0) }),
+        true,
+      ),
+    ).not.toEqual([]);
+  });
+
   it('a field it reads that may now be missing breaks it', () => {
     expect(reads(z.object({ a: z.string() }), z.object({ a: z.string().optional() }))).toHaveLength(
       1,
@@ -59,6 +85,10 @@ describe('covers (ADR-022)', () => {
       takes(z.object({ s: z.string().max(5) }), z.object({ s: z.string().max(9) })),
     ).toHaveLength(1);
     expect(takes(z.object({ s: z.string().optional() }), z.object({ s: z.string() }))).toEqual([]);
+  });
+
+  it('the server must keep taking the path params the app sends', () => {
+    expect(takes(z.object({ id: z.uuid() }), z.object({ id: z.string() }))).not.toEqual([]);
   });
 
   it('a route the app calls must still be there', () => {

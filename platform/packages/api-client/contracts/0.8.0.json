@@ -173,6 +173,9 @@
   "POST /looks/:id/render": {
    "key": "looks.renderOnModel",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "1ea110f88713"
    },
@@ -257,6 +260,9 @@
   "DELETE /me/dna/lines/:id": {
    "key": "me.dna.lines.remove",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -269,6 +275,9 @@
   "POST /me/dna/observations/:id/keep": {
    "key": "me.dna.observations.keep",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -281,6 +290,9 @@
   "POST /me/dna/observations/:id/dismiss": {
    "key": "me.dna.observations.dismiss",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -359,6 +371,9 @@
   "DELETE /me/push-tokens/:token": {
    "key": "me.pushTokens.revoke",
    "auth": "user",
+   "params": {
+    "$h": "99548e1d5a7d"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -431,6 +446,9 @@
   "GET /wardrobe/items/:id": {
    "key": "wardrobe.get",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -443,6 +461,9 @@
   "GET /wardrobe/items/:id/wears": {
    "key": "wardrobe.wears",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -455,6 +476,9 @@
   "PATCH /wardrobe/items/:id": {
    "key": "wardrobe.update",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -469,6 +493,9 @@
   "POST /wardrobe/items/:id/photo": {
    "key": "wardrobe.photo",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "b844f0cd8855"
    },
@@ -479,6 +506,9 @@
   "POST /wardrobe/items/:id/read": {
    "key": "wardrobe.reread",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -491,6 +521,9 @@
   "DELETE /wardrobe/items/:id": {
    "key": "wardrobe.delete",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -503,6 +536,9 @@
   "POST /wardrobe/items/:id/restore": {
    "key": "wardrobe.restore",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -535,6 +571,9 @@
   "POST /wardrobe/photo-reads/:id/file": {
    "key": "photoReads.file",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "0f9e155dc76d"
    },
@@ -545,6 +584,9 @@
   "POST /wardrobe/photo-reads/:id/pieces": {
    "key": "photoReads.piece",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "03a37ea8afcb"
    },
@@ -555,6 +597,9 @@
   "POST /wardrobe/photo-reads/:id/wishes": {
    "key": "photoReads.wish",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "03a37ea8afcb"
    },
@@ -585,6 +630,9 @@
   "GET /wishlist/items/:id": {
    "key": "wishlist.get",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -597,6 +645,9 @@
   "PATCH /wishlist/items/:id": {
    "key": "wishlist.update",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -611,6 +662,9 @@
   "DELETE /wishlist/items/:id": {
    "key": "wishlist.delete",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -623,6 +677,9 @@
   "POST /wishlist/items/:id/restore": {
    "key": "wishlist.restore",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -635,6 +692,9 @@
   "POST /wishlist/items/:id/promote": {
    "key": "wishlist.promote",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -671,6 +731,9 @@
   "GET /looks/:id": {
    "key": "looks.get",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -683,6 +746,9 @@
   "PATCH /looks/:id": {
    "key": "looks.update",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -697,6 +763,9 @@
   "DELETE /looks/:id": {
    "key": "looks.delete",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -709,6 +778,9 @@
   "POST /looks/:id/restore": {
    "key": "looks.restore",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -721,6 +793,9 @@
   "GET /looks/:id/wears": {
    "key": "looks.wears",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -733,6 +808,9 @@
   "POST /looks/:id/pieces/find": {
    "key": "looks.findPieces",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -745,6 +823,9 @@
   "POST /looks/:id/images": {
    "key": "looks.images.add",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "b844f0cd8855"
    },
@@ -755,6 +836,9 @@
   "DELETE /looks/:id/images/:imageId": {
    "key": "looks.images.remove",
    "auth": "user",
+   "params": {
+    "$h": "5e8e1b3ae6df"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -767,6 +851,9 @@
   "POST /looks/:id/images/cover": {
    "key": "looks.images.cover",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "0efa7b38ca91"
    },
@@ -777,6 +864,9 @@
   "POST /looks/:id/images/robes": {
    "key": "looks.images.robes",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "582039aa0de1"
    },
@@ -787,6 +877,9 @@
   "POST /looks/:id/wears": {
    "key": "looks.wear",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "2ba575fb9adc"
    },
@@ -797,6 +890,9 @@
   "DELETE /looks/:id/wears/:date": {
    "key": "looks.unwear",
    "auth": "user",
+   "params": {
+    "$h": "0b7ff2849794"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -829,6 +925,9 @@
   "GET /looks/ideas/:id": {
    "key": "looks.ideas.get",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -841,6 +940,9 @@
   "POST /looks/ideas/:id/save": {
    "key": "looks.ideas.save",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -853,6 +955,9 @@
   "POST /looks/ideas/:id/frames/:idx": {
    "key": "looks.ideas.render",
    "auth": "user",
+   "params": {
+    "$h": "ad93f5110764"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -865,6 +970,9 @@
   "POST /looks/ideas/:id/looks": {
    "key": "looks.ideas.saveWay",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "326a19d85d4a"
    },
@@ -875,6 +983,9 @@
   "DELETE /looks/ideas/:id": {
    "key": "looks.ideas.delete",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -887,6 +998,9 @@
   "POST /looks/:id/save": {
    "key": "looks.save",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "caf98c116270"
    },
@@ -897,6 +1011,9 @@
   "POST /looks/:id/proposals/:key/wish": {
    "key": "looks.proposals.wish",
    "auth": "user",
+   "params": {
+    "$h": "ec65705609fa"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -919,6 +1036,9 @@
   "POST /looks/:id/restyle": {
    "key": "looks.restyle",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "d075a7ff81e0"
    },
@@ -929,6 +1049,9 @@
   "POST /looks/:id/frame": {
    "key": "looks.frame",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "1ea110f88713"
    },
@@ -939,6 +1062,9 @@
   "POST /looks/:id/ask": {
    "key": "looks.ask",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "825f7b941db3"
    },
@@ -949,6 +1075,9 @@
   "GET /looks/sets/:id": {
    "key": "looks.sets.get",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1003,6 +1132,9 @@
   "GET /today/looks/:id": {
    "key": "today.looks.get",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1015,6 +1147,9 @@
   "POST /today/looks/:id/items/:idx/render": {
    "key": "today.looks.render",
    "auth": "user",
+   "params": {
+    "$h": "02b55a6ab7fb"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1027,6 +1162,9 @@
   "POST /today/looks/:id/save": {
    "key": "today.looks.save",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "ffbd3492fcf5"
    },
@@ -1059,6 +1197,9 @@
   "GET /trips/:id": {
    "key": "trips.get",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1071,6 +1212,9 @@
   "POST /trips/:id/pin": {
    "key": "trips.pin",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1083,6 +1227,9 @@
   "DELETE /trips/:id": {
    "key": "trips.delete",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1095,6 +1242,9 @@
   "POST /trips/:id/restore": {
    "key": "trips.restore",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1117,6 +1267,9 @@
   "POST /plan/looks/:id/days": {
    "key": "plan.pin",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "632ebab28d4e"
    },
@@ -1127,6 +1280,9 @@
   "DELETE /plan/entries/:id": {
    "key": "plan.unpin",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1139,6 +1295,9 @@
   "PUT /plan/days/:date/name": {
    "key": "plan.nameDay",
    "auth": "user",
+   "params": {
+    "$h": "0ac697d38649"
+   },
    "input": {
     "$h": "24b0cc7a8f0b"
    },
@@ -1149,6 +1308,9 @@
   "POST /plan/entries/:id/restore": {
    "key": "plan.restore",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1161,6 +1323,9 @@
   "GET /plan/days/:date": {
    "key": "plan.day",
    "auth": "user",
+   "params": {
+    "$h": "0ac697d38649"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1173,6 +1338,9 @@
   "PUT /plan/days/:date/place": {
    "key": "plan.place",
    "auth": "user",
+   "params": {
+    "$h": "0ac697d38649"
+   },
    "input": {
     "$h": "ce41acdcaf35"
    },
@@ -1215,6 +1383,9 @@
   "GET /inbox/:id": {
    "key": "inbox.get",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1227,6 +1398,9 @@
   "POST /inbox/:id/decide": {
    "key": "inbox.decide",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "b6be203057e0"
    },
@@ -1283,6 +1457,9 @@
   "GET /jobs/:id": {
    "key": "jobs.get",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1305,6 +1482,9 @@
   "POST /uploads/:id/complete": {
    "key": "uploads.complete",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -1317,6 +1497,9 @@
   "POST /uploads/:id/lift": {
    "key": "uploads.lift",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$h": "90e7871ee374"
    },
@@ -1327,6 +1510,9 @@
   "DELETE /uploads/:id": {
    "key": "uploads.discard",
    "auth": "user",
+   "params": {
+    "$h": "af515008e5ff"
+   },
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -2515,6 +2701,18 @@
    },
    "required": [
     "source"
+   ]
+  },
+  "af515008e5ff": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    }
+   },
+   "required": [
+    "id"
    ]
   },
   "1ea110f88713": {
@@ -4095,6 +4293,19 @@
     "message",
     "appVersion",
     "analytics"
+   ]
+  },
+  "99548e1d5a7d": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "token": {
+     "type": "string",
+     "pattern": "^(Exponent|Expo)PushToken\\[[A-Za-z0-9_-]{10,100}\\]$"
+    }
+   },
+   "required": [
+    "token"
    ]
   },
   "1409327077c0": {
@@ -7223,6 +7434,22 @@
     "items"
    ]
   },
+  "5e8e1b3ae6df": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "imageId": {
+     "$h": "97a947cf54cd"
+    }
+   },
+   "required": [
+    "id",
+    "imageId"
+   ]
+  },
   "0efa7b38ca91": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -7294,6 +7521,22 @@
     "lookId",
     "wornOn",
     "pieceIds"
+   ]
+  },
+  "0b7ff2849794": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "date": {
+     "$h": "7e734acf5f3b"
+    }
+   },
+   "required": [
+    "id",
+    "date"
    ]
   },
   "5140f57e3f11": {
@@ -7690,6 +7933,24 @@
     "createdAt"
    ]
   },
+  "ad93f5110764": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "idx": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 2
+    }
+   },
+   "required": [
+    "id",
+    "idx"
+   ]
+  },
   "326a19d85d4a": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -7717,6 +7978,23 @@
      "$h": "7e734acf5f3b"
     }
    }
+  },
+  "ec65705609fa": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "key": {
+     "type": "string",
+     "pattern": "^p-[a-z0-9]{4,16}$"
+    }
+   },
+   "required": [
+    "id",
+    "key"
+   ]
   },
   "156623228d47": {
    "city": {
@@ -9745,6 +10023,24 @@
     "createdAt"
    ]
   },
+  "02b55a6ab7fb": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "$h": "97a947cf54cd"
+    },
+    "idx": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 20
+    }
+   },
+   "required": [
+    "id",
+    "idx"
+   ]
+  },
   "ffbd3492fcf5": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -10233,6 +10529,18 @@
    },
    "required": [
     "entries"
+   ]
+  },
+  "0ac697d38649": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "date": {
+     "$h": "7e734acf5f3b"
+    }
+   },
+   "required": [
+    "date"
    ]
   },
   "24b0cc7a8f0b": {

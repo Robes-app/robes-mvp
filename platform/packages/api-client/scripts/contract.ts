@@ -58,11 +58,12 @@ function share(v: unknown): unknown {
 
 const { routes: used, ...meta } = contractFor(version, usedKeys());
 const shared = Object.fromEntries(
-  Object.entries(used).map(([id, { key, auth, input, output, events }]) => [
+  Object.entries(used).map(([id, { key, auth, params, input, output, events }]) => [
     id,
     {
       key,
       auth,
+      ...(params ? { params: share(params) } : {}),
       ...(input ? { input: share(input) } : {}),
       ...(output ? { output: share(output) } : {}),
       ...(events ? { events: share(events) } : {}),

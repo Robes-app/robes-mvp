@@ -8,6 +8,7 @@ type Json = Record<string, unknown>;
 export interface RouteContract {
   key: string;
   auth: string;
+  params?: Json;
   input?: Json;
   output?: Json;
   events?: Record<string, Json>;
@@ -45,11 +46,18 @@ export function contractFor(version: string, usedKeys: ReadonlySet<string>): App
   for (const [key, def] of Object.entries(routes) as [string, RouteDef][]) {
     if (!usedKeys.has(key)) continue;
     const sse = 'sse' in def ? (def as SseRouteDef) : null;
+    const params = def.params ? { params: schemaOf(def.params, 'input') } : {};
     out.routes[routeId(def)] = sse
-      ? { key, auth: def.auth, events: mapValues(sse.events, (s) => schemaOf(s, 'input')) }
+      ? {
+          key,
+          auth: def.auth,
+          ...params,
+          events: mapValues(sse.events, (s) => schemaOf(s, 'input')),
+        }
       : {
           key,
           auth: def.auth,
+          ...params,
           input: schemaOf((def as JsonRouteDef).input, 'input'),
           output: schemaOf((def as JsonRouteDef).output, 'input'),
         };
@@ -71,6 +79,9 @@ export function breaksFor(app: AppContract): string[] {
       problems.push(`${id}: now needs ${def.auth} (was ${was.auth})`);
     }
     const at = (part: string) => ({ path: `${id} ${part}`, tolerant: false, soft: false });
+    if (was.params && def.params) {
+      problems.push(...covers(schemaOf(def.params, 'input'), was.params, at('params')));
+    }
     if ('sse' in def) {
       for (const [name, wasEvent] of Object.entries(was.events ?? {})) {
         const event = (def as SseRouteDef).events[name];
@@ -102,8 +113,10 @@ const AUTH_RANK: Record<string, number> = { public: 0, user: 1, admin: 2 };
 
 interface Ctx {
   path: string;
-  // Reading a response in a build that mends it: bounds are clamped, and a `soft` value (nullable,
-  // optional, or inside a list) can be nulled, dropped or take its list item with it.
+  // Reading a response in a build that mends it (tolerant.ts): inclusive number bounds are clamped
+  // and long strings and lists cut anywhere; a new value (a widening) is nulled, dropped or takes
+  // its list item with it, so it is safe only where the value is `soft` (nullable, optional, or
+  // inside a list). Anything else — a field gone, a type changed — breaks that build everywhere.
   tolerant: boolean;
   soft: boolean;
 }
@@ -144,51 +157,57 @@ export function covers(wide: Json, narrow: Json, ctx: Ctx): string[] {
   }
   const problems: string[] = [];
   const say = (what: string) => problems.push(`${ctx.path}: ${what}`);
+  // A value this build has no word for: mended away where it is soft, a break where it isn't.
+  const widened = (what: string) => {
+    if (!(ctx.tolerant && ctx.soft)) say(what);
+  };
   if (isAny(narrow)) {
-    say('any value was allowed, now restricted');
+    widened('any value was allowed, now restricted');
     return problems;
   }
 
   const wTypes = typesOf(wide);
   if (wTypes && nTypes) {
     const lost = nTypes.filter((t) => !typeFits(t, wTypes));
-    if (lost.length) say(`${lost.join(', ')} no longer accepted (${wTypes.join(', ')})`);
+    const what = `${lost.join(', ')} no longer accepted (${wTypes.join(', ')})`;
+    if (lost.length === 1 && lost[0] === 'null') widened(what);
+    else if (lost.length) say(what);
   }
   const wVals = valuesOf(wide);
   if (wVals) {
     const nVals = valuesOf(narrow);
     const extra = nVals?.filter((v) => !wVals.some((w) => JSON.stringify(w) === JSON.stringify(v)));
-    if (!nVals) say(`any value → only ${JSON.stringify(wVals)}`);
-    else if (extra?.length) say(`new values ${JSON.stringify(extra)}`);
+    if (!nVals) widened(`any value → only ${JSON.stringify(wVals)}`);
+    else if (extra?.length) widened(`new values ${JSON.stringify(extra)}`);
   }
   if (typeof wide.pattern === 'string' && wide.pattern !== narrow.pattern) {
     const re = new RegExp(wide.pattern);
     const vals = valuesOf(narrow);
-    if (!vals?.every((v) => typeof v === 'string' && re.test(v))) say(`must match ${wide.pattern}`);
+    if (!vals?.every((v) => typeof v === 'string' && re.test(v)))
+      widened(`must match ${wide.pattern}`);
   }
   if (typeof wide.format === 'string' && wide.format !== narrow.format) {
-    say(`must be a ${wide.format}`);
+    widened(`must be a ${wide.format}`);
   }
-  // A mending build clamps numbers and cuts strings and lists that run long.
-  const bounds = ctx.tolerant
-    ? ['minLength', 'minItems']
-    : [
-        'minimum',
-        'exclusiveMinimum',
-        'maximum',
-        'exclusiveMaximum',
-        'minLength',
-        'maxLength',
-        'minItems',
-        'maxItems',
-      ];
+  // A mending build clamps inclusive number bounds and cuts long strings and lists, anywhere.
+  const mended = new Set(ctx.tolerant ? ['minimum', 'maximum', 'maxLength', 'maxItems'] : []);
+  const bounds = [
+    'minimum',
+    'exclusiveMinimum',
+    'maximum',
+    'exclusiveMaximum',
+    'minLength',
+    'maxLength',
+    'minItems',
+    'maxItems',
+  ].filter((b) => !mended.has(b));
   for (const b of bounds) {
     const w = wide[b];
     if (typeof w !== 'number') continue;
     const n = narrow[b];
     const lower = b.startsWith('min') || b === 'exclusiveMinimum';
     if (typeof n !== 'number' || (lower ? n < w : n > w)) {
-      say(`${b} ${n ?? (lower ? '-∞' : '∞')} is past ${w}`);
+      widened(`${b} ${n ?? (lower ? '-∞' : '∞')} is past ${w}`);
     }
   }
 
@@ -198,7 +217,7 @@ export function covers(wide: Json, narrow: Json, ctx: Ctx): string[] {
   const wReq = new Set((wide.required ?? []) as string[]);
   const nReq = new Set((narrow.required ?? []) as string[]);
   for (const key of wReq) {
-    if (!nReq.has(key) && !(ctx.tolerant && ctx.soft)) say(`${key} may now be missing`);
+    if (!nReq.has(key)) say(`${key} may now be missing`);
   }
   for (const [key, n] of Object.entries(nProps)) {
     const w = wProps[key] ?? (isObj(wide.additionalProperties) ? wide.additionalProperties : null);
@@ -207,20 +226,19 @@ export function covers(wide: Json, narrow: Json, ctx: Ctx): string[] {
       continue;
     }
     const soft = ctx.soft || !wReq.has(key) || nullable(w);
-    const child = covers(w, n, { ...ctx, path: `${ctx.path}.${key}`, soft });
-    if (!(ctx.tolerant && soft)) problems.push(...child);
+    problems.push(...covers(w, n, { ...ctx, path: `${ctx.path}.${key}`, soft }));
   }
   if (isObj(narrow.additionalProperties) && isObj(wide.additionalProperties)) {
     problems.push(...covers(wide.additionalProperties, narrow.additionalProperties, ctx));
   }
 
-  // Lists: a mending build drops an item it can't read.
+  // Lists: a mending build drops an item holding a new value it can't read.
   if (isObj(wide.items)) {
     if (!isObj(narrow.items)) say('items unchecked before, now checked');
-    else {
-      const child = covers(wide.items, narrow.items, { ...ctx, path: `${ctx.path}[]`, soft: true });
-      if (!ctx.tolerant) problems.push(...child);
-    }
+    else
+      problems.push(
+        ...covers(wide.items, narrow.items, { ...ctx, path: `${ctx.path}[]`, soft: true }),
+      );
   }
   return problems;
 }

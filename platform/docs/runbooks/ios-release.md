@@ -62,7 +62,7 @@ and are synced by hand, by path.
 
 The workers (looks, photo reads, the hourly sweep) deploy **after** §1's build has migrated (new
 workers read new columns). `.github/workflows/platform-deploy-prod-workers.yml` does it: when
-Vercel reports `robes-prod` succeeded on `main`'s newest commit, it runs `cdk diff
+Vercel reports `robes-prod` succeeded on a `main` commit whose `platform/` is still main's, it runs `cdk diff
 'Production/Workers'` and deploys only when the diff is the functions' code
 (`infra/src/lib/diff-guard.ts`); an empty diff deploys nothing. Anything more (IAM, queues,
 alarms, a function's environment) fails the run, and a person deploys by hand, below. It needs,
