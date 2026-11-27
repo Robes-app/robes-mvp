@@ -382,8 +382,13 @@ export const filters = {
 // App shell (IA §3.2): nav, Create sheet, command bar, placeholder routes.
 export const shell = {
   primaryNav: 'Main',
-  // A server that needs a newer app (426, audit F6): the store link, never a dead end.
-  update: { title: 'Update Robes to keep going.', action: 'Update', later: 'Not now' },
+  // A server that needs a newer app (426, audit F6; ADR-022): one way forward, never a dead end.
+  // `ready`: a newer build is out (the latest app version), said once per version.
+  update: {
+    title: 'Update Robes to keep going.',
+    action: 'Update',
+    ready: 'A new Robes is ready.',
+  },
   openYou: 'Your profile and settings',
   create: {
     title: 'Create',

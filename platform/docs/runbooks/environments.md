@@ -143,7 +143,6 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `NEXT_PUBLIC_POSTHOG_KEY` | required outside dev; publishable ingest key, read at runtime and passed to the browser |
 | `NEXT_PUBLIC_POSTHOG_HOST` | optional, default `https://eu.i.posthog.com` (https required outside dev); CSP gains it and `https://eu-assets.i.posthog.com` |
 | `POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_ID` | build-time only: source-map upload to PostHog error tracking. Key sensitive, scope *Error tracking: write*. Without them the build skips the upload |
-| `MIN_APP_VERSION` | production only: the minimum app version (ADR-022); older apps get `426`. Read at boot: set it before the deploy that needs it (`runbooks/ios-release.md` §6) |
 | `INBOUND_MAIL_DOMAIN` | `in.staging.mail.byrobes.com` / `in.mail.byrobes.com`; the domain of her forwarding address (§9 step 7) |
 | `UNSUB_HMAC_KEY` | sensitive; the same value as Secrets Manager `robes-<env>/unsub/hmac-key` (≥32 chars), which notifyFn signs unsubscribe links with. Rotating it voids links in mail already sent |
 

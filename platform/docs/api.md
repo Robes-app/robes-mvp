@@ -45,6 +45,7 @@ export const POST = route({
 |---|---|
 | `GET /api/v1/health` | returns `{ ok: true }` only |
 | `GET /api/v1/public/auth-providers` (built) | returns `{ apple, google }` booleans from env only, so native sign-in shows the web's buttons (F5); 60/min per IP |
+| `GET /api/v1/public/app-versions` (built) | returns `{ minimum, latest }` from `app/src/server/app-versions.ts` (ADR-022), so the phone knows at launch whether it must or may update; 60/min per IP |
 | `GET /.well-known/apple-app-site-association`, `GET /.well-known/assetlinks.json` (built) | universal-link files for Apple's CDN and Google's verifier (N4); built from env only (`APPLE_TEAM_ID` + `APPLE_APP_BUNDLE_ID`, `ANDROID_APP_PACKAGE` + `ANDROID_CERT_SHA256`; unset → a valid file listing no app); paths from `@robes/core/app-links` (an explicit list of the screens the app has, `/` exactly plus e.g. `/look/*`, `/plan/*`; never a catch-all, never `/api`, `/auth`, `/share`, `/legal`, `/unsubscribe`, `/waitlist`, `/admin`, `/dev`); `application/json`; 60/min per IP |
 | `POST /api/v1/public/waitlist` (built) | Turnstile + 5/hour per IP + `signups` kill switch; insert-only (an existing contact is never changed) and the same 202 either way; double opt-in via the `/waitlist/confirm?t=` page (HMAC, purpose-bound token, button confirms) |
 | `GET /api/v1/public/shares/:token` (built) | 128-bit token; whitelisted snapshot projected through `SharedLook`; images signed ≤2 h; IP rate limit |

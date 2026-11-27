@@ -19,4 +19,5 @@ export * from './tags';
 export * from './today';
 export * from './travel';
 export * from './twin';
+export * from './version';
 export * from './wardrobe';

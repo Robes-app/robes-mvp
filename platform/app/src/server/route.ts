@@ -10,6 +10,7 @@ import {
 import { sessionUser } from '@robes/auth';
 import { verifiedUserId } from '@robes/db';
 import { errorReporter } from './analytics';
+import { APP_VERSIONS } from './app-versions';
 import { auth } from './auth';
 import { clientIp } from './client-ip';
 import { repos } from './db';
@@ -30,7 +31,7 @@ const deps: RouteDeps = {
   resolveUser: (req) => sessionUser(auth, req.headers),
   isAdmin: (userId) => repos.admin.isAdmin(verifiedUserId(userId)),
   isFlagEnabled,
-  ...(env.MIN_APP_VERSION ? { minAppVersion: env.MIN_APP_VERSION } : {}),
+  minAppVersion: APP_VERSIONS.minimum,
   rateLimiter,
   clientIp,
   logger,

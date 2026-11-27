@@ -23,7 +23,7 @@ import {
   ListAuditInput,
   SetAdminFlagInput,
 } from './admin';
-import { AuthProviders, EmptyInput, HealthOutput } from './common';
+import { AppVersions, AuthProviders, EmptyInput, HealthOutput } from './common';
 import { Consents, DeleteTwinInput, UpdateConsentsInput } from './consents';
 import {
   DecideInboxInput,
@@ -1158,6 +1158,13 @@ export const routes = {
     auth: 'public',
     input: EmptyInput,
     output: AuthProviders,
+  },
+  'public.appVersions': {
+    method: 'GET',
+    path: '/public/app-versions',
+    auth: 'public',
+    input: EmptyInput,
+    output: AppVersions,
   },
   'public.waitlist.join': {
     method: 'POST',

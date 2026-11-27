@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = new Set([
   '/.well-known/apple-app-site-association',
   '/.well-known/assetlinks.json',
   '/api/v1/health',
+  '/api/v1/public/app-versions',
   '/api/v1/public/auth-providers',
   '/api/v1/public/shares/[token]',
   '/api/v1/public/unsub/[token]',

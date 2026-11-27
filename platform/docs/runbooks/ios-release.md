@@ -13,9 +13,10 @@ the latest app version**. A two-step change raises the minimum app version later
 Read the PRs going over (`git log --first-parent origin/main..origin/beta`). A change is a
 two-step change when a supported app version would fail against it: a request it sends is now
 refused (an input narrowed, a new required field, a route renamed or removed), or a response
-field it reads is gone. **Until every supported app version parses responses tolerantly (0.9.0
-on), a wider response is one too**: a new enum value or a wider range breaks any older app that
-reads it (#259 broke 0.7.0 this way).
+field it reads is gone. **Until the minimum app version is 0.9.0 or later, a wider response is one
+too**: 0.8.0 and earlier reject a whole response holding a new enum value or a wider range (#259
+broke 0.7.0 this way). From 0.9.0 the app reads them tolerantly, except a new value in a required
+field outside any list (`platform/CLAUDE.md` rule 3).
 
 A two-step change never ships whole. Step one makes production accept old and new; the new app
 ships; step two (§6) raises the minimum app version once the old app is gone.
@@ -106,22 +107,26 @@ the same release.
 
 ## 5. After approval: the latest app version
 
-Raise the latest app version to the approved one, by PR into `beta` and the next sync, so older
-apps suggest the update. Never before approval: the nudge would point at nothing installable.
+Raise `latest` in `platform/app/src/server/app-versions.ts` to the approved version, by PR into
+`beta` and the next sync, so older apps (0.9.0 on) show "A new Robes is ready." once. Never before
+approval: the toast would point at nothing installable.
 
 ## 6. Two-step changes: raising the minimum app version
 
 Raise it only when PostHog shows no sessions below it in the last 7 days, or the builds below it
-are past TestFlight's 90-day expiry; otherwise step two waits. It is read when the server starts,
-so it must be in place **before** the deploy that needs it, never after.
-
-Today it is the Vercel variable `MIN_APP_VERSION` on `robes-prod` (Production), set before the
-sync is merged so the sync's build picks it up. Check it:
+are past TestFlight's 90-day expiry; otherwise step two waits. It is `minimum` in
+`platform/app/src/server/app-versions.ts`, raised by its own PR into `beta`, and it must reach
+production **with or before** the change that needs it, never after. Apps below it see only the
+update screen (0.9.0 on; 0.8.0 shows the same line with a *Not now* that leads nowhere). Check it
+once the sync is live:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -H 'x-robes-app-version: <old>' https://app.byrobes.com/api/v1/me   # 426
 curl -s -o /dev/null -w '%{http_code}\n' -H 'x-robes-app-version: <new>' https://app.byrobes.com/api/v1/me   # 401
 ```
+
+Until 27 Nov 2026 the minimum was the Vercel variable `MIN_APP_VERSION` on `robes-prod`; nothing
+reads it once the version file is live, so **[Niall]** removes it then.
 
 ## Rolling back
 
