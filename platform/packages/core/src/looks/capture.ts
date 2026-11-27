@@ -105,8 +105,15 @@ export function restoreRows(rows: readonly RackRow[], removed: readonly RemovedR
 // Matched or added: the row becomes her piece, or a wish from her wishlist as a piece to find
 // (TestFlight 20 Nov), in the same place. Neither is hung twice; the found row just goes. The
 // filed row remembers the found row it was, so her picture, drawn wearing the found piece, stays
-// current: it is the same piece, now filed (Annie, 26 Nov).
-export function fileRow(rows: readonly RackRow[], key: string, piece: RackRow): RackRow[] {
+// current: it is the same piece, now filed (Annie, 26 Nov). `worn` is false for a match to
+// another piece of hers than the one in the photograph: that is a change the picture is behind
+// on, like any swap (Annie, 27 Nov).
+export function fileRow(
+  rows: readonly RackRow[],
+  key: string,
+  piece: RackRow,
+  worn = true,
+): RackRow[] {
   const wishId = piece.proposal?.wishlistItemId ?? null;
   const same = (r: RackRow) =>
     piece.pieceId !== null
@@ -114,7 +121,7 @@ export function fileRow(rows: readonly RackRow[], key: string, piece: RackRow): 
       : wishId !== null && r.proposal?.wishlistItemId === wishId;
   if (rows.some(same)) return rows.filter((r) => r.key !== key);
   const from = rows.find((r) => r.key === key);
-  const filedFrom = from && isCaptureRow(from) ? { filedFrom: key } : {};
+  const filedFrom = worn && from && isCaptureRow(from) ? { filedFrom: key } : {};
   return rows.map((r) => (r.key === key ? { ...piece, ...filedFrom } : r));
 }
 
@@ -190,9 +197,8 @@ export function cropsLanding(
 }
 
 // The reads whose crops a rack fetches for itself: those of its found rows the look holds no crop
-// for. A draft writes its rows through at once and the look comes back with their crops; a saved
-// look writes the found rows at once too (D1), but a row it holds only on her phone until Update
-// look, or one written before the look comes back, has none there yet.
+// for. Every look writes its rows through at once and comes back with their crops; on a saved
+// look a row just written, before the look comes back, has none there yet.
 export function cropReads(
   rows: readonly RackRow[],
   look: { status: string; captureImages: Readonly<Record<string, unknown>> },

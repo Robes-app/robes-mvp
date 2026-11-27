@@ -41,3 +41,38 @@ export function pictureLanding(look: LandingLook | undefined): boolean {
     [look.image, look.model, look.photo].some((p) => p?.status === 'pending')
   );
 }
+
+// The pill on a look's picture (Annie, 27 Nov): her model is drawn when she asks, never by a
+// change made by hand. `dress` is the first picture, for a look with pieces and none of her model
+// yet; `update` once its pieces differ from the picture drawn; nothing while the picture is
+// current, being drawn, or failed with its own Try again in the pill's place. A picture she hid is
+// not offered afresh (D19), and Robes' frame is a picture already.
+export type ModelPill = 'dress' | 'update';
+export interface PillLook {
+  frame: boolean;
+  model: unknown | null;
+  onModel?: 'pending' | 'ready' | 'failed' | null | undefined;
+  framePending?: boolean | undefined;
+  robesHidden: boolean;
+  // Her photograph leads the look: a failed draw shows no Try again over it.
+  record: string;
+  photo: unknown | null;
+}
+
+export function modelPill(
+  look: PillLook,
+  s: {
+    // The rows on the rack, her pieces and the pieces to find alike.
+    rows: number;
+    // The rack has moved on from the picture (`pictureStale`, or a change not yet written).
+    stale: boolean;
+    // A draw is in hand that the look does not read as pending yet.
+    drawing: boolean;
+  },
+): ModelPill | null {
+  if (s.rows === 0 || s.drawing || look.onModel === 'pending' || look.framePending) return null;
+  const ownPhoto = look.photo !== null && look.record === 'photo';
+  if (look.onModel === 'failed' && !ownPhoto) return null;
+  if (!look.frame && look.model === null) return look.robesHidden && !s.stale ? null : 'dress';
+  return s.stale ? 'update' : null;
+}

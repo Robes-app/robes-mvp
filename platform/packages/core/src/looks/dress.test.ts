@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type DressableLook, dressOnOpen, pictureLanding } from './dress';
+import { type DressableLook, dressOnOpen, modelPill, type PillLook, pictureLanding } from './dress';
 
 const look = (over: Partial<DressableLook> = {}): DressableLook => ({
   status: 'saved',
@@ -48,5 +48,52 @@ describe('pictureLanding', () => {
       false,
     );
     expect(pictureLanding({ onModel: 'failed', model: null })).toBe(false);
+  });
+});
+
+describe('modelPill', () => {
+  const drawn = (over: Partial<PillLook> = {}): PillLook => ({
+    frame: false,
+    model: { assetId: 'a' },
+    onModel: 'ready',
+    framePending: false,
+    robesHidden: false,
+    record: 'model',
+    photo: null,
+    ...over,
+  });
+  const bare = (over: Partial<PillLook> = {}) => drawn({ model: null, onModel: null, ...over });
+  const rest = { rows: 2, stale: false, drawing: false };
+
+  it('offers the first picture to a look with pieces and none of her model yet', () => {
+    expect(modelPill(bare(), rest)).toBe('dress');
+    expect(modelPill(bare(), { ...rest, stale: true })).toBe('dress');
+    // A look from her photograph, its pieces found.
+    expect(modelPill(bare({ record: 'photo', photo: {} }), rest)).toBe('dress');
+    expect(modelPill(bare(), { ...rest, rows: 0 })).toBeNull();
+  });
+
+  it('offers an update only once the pieces differ from the picture', () => {
+    expect(modelPill(drawn(), rest)).toBeNull();
+    expect(modelPill(drawn(), { ...rest, stale: true })).toBe('update');
+    expect(modelPill(drawn({ frame: true }), { ...rest, stale: true })).toBe('update');
+    expect(modelPill(drawn({ frame: true, model: null }), rest)).toBeNull();
+  });
+
+  it('stands down while the picture is drawn', () => {
+    expect(modelPill(drawn(), { ...rest, stale: true, drawing: true })).toBeNull();
+    expect(modelPill(drawn({ onModel: 'pending' }), { ...rest, stale: true })).toBeNull();
+    expect(modelPill(drawn({ framePending: true }), { ...rest, stale: true })).toBeNull();
+    expect(modelPill(bare({ onModel: 'pending' }), rest)).toBeNull();
+  });
+
+  it('leaves a failed picture to its Try again, unless her photograph covers it', () => {
+    expect(modelPill(bare({ onModel: 'failed' }), rest)).toBeNull();
+    expect(modelPill(bare({ onModel: 'failed', record: 'photo', photo: {} }), rest)).toBe('dress');
+  });
+
+  it('never offers afresh a picture she hid, until its pieces change', () => {
+    expect(modelPill(bare({ robesHidden: true }), rest)).toBeNull();
+    expect(modelPill(bare({ robesHidden: true }), { ...rest, stale: true })).toBe('dress');
   });
 });

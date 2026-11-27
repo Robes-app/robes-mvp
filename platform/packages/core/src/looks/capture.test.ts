@@ -101,6 +101,11 @@ describe('the rack', () => {
     expect(filesOnly(rows, rows)).toBe(false);
     expect(filesOnly(next, removeRow(next, [], bottom.key).rows)).toBe(false);
     expect(filesOnly(next, [hers('y'), bottom, shoes])).toBe(false);
+    // Matched to another piece of hers than the one photographed: a change like any swap.
+    const other = fileRow(rows, top.key, hers('z'), false);
+    expect(other[0]).toMatchObject({ pieceId: hers('z').pieceId });
+    expect(other[0]?.filedFrom).toBeUndefined();
+    expect(filesOnly(rows, other)).toBe(false);
   });
 
   it('a filed row already on the rack is not filed from anything', () => {
