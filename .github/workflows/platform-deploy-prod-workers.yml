@@ -5,6 +5,8 @@ name: platform-deploy-prod-workers
 # database) succeeded, so new workers never meet the old schema. Only the Workers stack, and only
 # when its diff is Lambda code: anything else fails here and a person deploys it by hand.
 #
+# Vercel also posts `success` for a build its Ignored Build Step skipped ("Canceled by Ignored
+# Build Step"), which migrated nothing, so only "Deployment has completed" counts.
 # GitHub runs a `status` workflow from the default branch (main), so this file works once synced.
 # It waits for the repo variable PROD_WORKERS_AUTO_DEPLOY = 'true' and, in the `production`
 # environment (deployments from main only), AWS_DEPLOY_ROLE_ARN (robes-prod-github-deploy) and
@@ -32,6 +34,7 @@ jobs:
     if: >-
       vars.PROD_WORKERS_AUTO_DEPLOY == 'true' && (github.event_name == 'workflow_dispatch' ||
       (github.event.context == 'Vercel – robes-prod' && github.event.state == 'success' &&
+      github.event.description == 'Deployment has completed' &&
       contains(github.event.branches.*.name, 'main')))
     runs-on: ubuntu-latest
     environment: production
