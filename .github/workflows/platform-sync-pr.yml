@@ -73,8 +73,10 @@ jobs:
               echo "⚠️ \`.github\` differs between main and beta: sync it by hand, by path, in this PR."
             fi
           } > "$RUNNER_TEMP/body.md"
-          if gh pr view sync/platform --json state -q .state 2>/dev/null | grep -q OPEN; then
-            gh pr edit sync/platform --title "sync: platform from beta at $BETA" --body-file "$RUNNER_TEMP/body.md"
+          num=$(gh pr list --head sync/platform --base main --state open --json number -q '.[0].number')
+          if [ -n "$num" ]; then
+            # `gh pr edit` fails on this repo (Projects classic GraphQL); REST edits the PR.
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/pulls/$num" -f title="sync: platform from beta at $BETA" -F body=@"$RUNNER_TEMP/body.md" >/dev/null
           else
             gh pr create --base main --head sync/platform --title "sync: platform from beta at $BETA" --body-file "$RUNNER_TEMP/body.md" \
               || echo "::warning::No PR opened: turn on Settings → Actions → General → Allow GitHub Actions to create and approve pull requests, or open sync/platform → main by hand."
