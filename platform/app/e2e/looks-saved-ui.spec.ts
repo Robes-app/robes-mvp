@@ -32,8 +32,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Draft look')).toBeVisible();
-  // With a piece hanging, the small + hanger chip adds the next (Annie, 15 Nov).
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  // With a piece hanging, the pill under the rows adds the next (Annie, 27 Nov).
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   await picker.getByRole('button', { name: 'Include Straight jeans' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();
@@ -373,19 +373,13 @@ test('a saved look edits in place (3e): a swap behind Undo is kept as she makes 
     })
   ).json();
   await page.goto(`/look/${look.id}`);
-  // 3e edits in place (D17): no Edit chip, the rows carry their swap and × discs, and nothing
-  // waits to be applied yet.
+  // 3e edits in place (D17): no Edit chip and no pencil (Annie, 27 Nov); each row carries its
+  // hanger, and a swipe (Remove, on focus) takes it off this look.
   const look3e = page.getByTestId('saved-look');
   await expect(page.getByRole('button', { name: 'Edit look' })).toHaveCount(0);
   await expect(look3e.getByTestId('update-look')).toHaveCount(0);
   const picker = page.getByTestId('piece-picker');
-  // At rest the rows open their pieces; the pencil shows the swap and × (plan R2).
-  await expect(look3e.getByRole('button', { name: /^Swap / })).toHaveCount(0);
-  // Edit mode rocks the cards (Robes MVP 2b), and Playwright only clicks what holds still: this
-  // test is about the swap, so it runs as a browser with Reduce Motion (no rocking) would.
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await look3e.getByRole('button', { name: 'Edit pieces' }).click();
-  // Edit mode (Robes MVP 2b): × on the card's corner and the swap disc; the wears step aside.
+  await expect(look3e.getByRole('button', { name: 'Edit pieces' })).toHaveCount(0);
   await expect(look3e.getByRole('button', { name: /^Remove / })).toHaveCount(1);
   await look3e.getByRole('button', { name: /^Swap / }).click();
   await picker.getByRole('button', { name: 'Include Navy coat' }).click();
