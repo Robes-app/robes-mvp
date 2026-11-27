@@ -10,6 +10,7 @@ import {
 } from '@robes/contracts';
 import { errors } from '@robes/copy';
 import type { z } from 'zod';
+import { parseTolerantly } from './tolerant';
 
 export const APP_VERSION_HEADER = 'x-robes-app-version';
 export const IDEMPOTENCY_HEADER = 'idempotency-key';
@@ -90,6 +91,8 @@ export interface ApiClientOptions {
   retryDelayMs?: (attempt: number) => number;
   sleep?: (ms: number) => Promise<void>;
   randomUUID?: () => string;
+  // A response this build's schema rejected but could read once mended (ADR-022): report it.
+  onDrift?: (key: JsonRouteKey, error: z.ZodError) => void;
 }
 
 export interface ApiClient {
@@ -224,8 +227,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
       if (res.ok) {
         const body = res.status === 204 ? undefined : await readJson(res);
-        const parsed = def.output.safeParse(body);
-        if (parsed.success) return parsed.data as OutputOf<K>;
+        const parsed = parseTolerantly(def.output, body);
+        if (parsed.success) {
+          if (parsed.drift) options.onDrift?.(key, parsed.drift);
+          return parsed.data as OutputOf<K>;
+        }
         throw new ApiClientError({
           status: res.status,
           code: 'internal',
@@ -255,3 +261,4 @@ export type {
   RouteKey,
   SseRouteKey,
 } from '@robes/contracts';
+export { parseTolerantly, type TolerantResult } from './tolerant';

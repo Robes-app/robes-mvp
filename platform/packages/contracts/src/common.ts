@@ -31,3 +31,7 @@ export const HealthOutput = z.object({ ok: z.literal(true) });
 // Which social sign-ins this server offers, so the phone shows the same buttons as the web.
 export const AuthProviders = z.object({ apple: z.boolean(), google: z.boolean() });
 export type AuthProviders = z.infer<typeof AuthProviders>;
+// The app versions production serves (ADR-022): below `minimum` the app must update; below
+// `latest` it suggests the update once.
+export const AppVersions = z.object({ minimum: z.string(), latest: z.string() });
+export type AppVersions = z.infer<typeof AppVersions>;
