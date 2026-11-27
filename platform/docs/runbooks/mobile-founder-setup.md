@@ -55,6 +55,19 @@ While it's running:
 - **Your changes only affect the app, not the server.** The API runs on Vercel. Edits under `mobile/` show up instantly; edits under `app/`, `packages/api` or `db/` do nothing on your phone until they are deployed. If Claude Code proposes server changes, commit them on a branch and hand them over.
 - **Some features need a real build, not Expo Go:** Sign in with Apple, native crash reporting, in-app purchases. Push notifications also need setup that hasn't been done yet. Use email sign-in.
 
+## The staging API Expo Go talks to
+
+- Vercel project `codu/robes-app`, custom environment **`staging`** (branch `beta`) → `https://staging.byrobes.com`. Health: `curl https://staging.byrobes.com/api/v1/health` → `{"ok":true}`.
+- `BETTER_AUTH_URL` and `APP_URL` = `https://staging.byrobes.com` (set 2026-10-15).
+- `AUTH_TRUSTED_ORIGINS` = `https://robes-app-two.vercel.app,robes://,robes-staging://,robes-dev://,exp://`. **`exp://` is what lets Expo Go sign in.** Better Auth's Expo plugin only trusts `exp://` when `NODE_ENV=development`, and Vercel runs as production. Remove `exp://` before this deployment holds real customers. Check it from a terminal:
+  ```bash
+  curl -s -X POST https://staging.byrobes.com/api/auth/email-otp/send-verification-otp \
+    -H 'content-type: application/json' -H 'expo-origin: exp://1.2.3.4:8081' -d '{}'
+  # VALIDATION_ERROR = origin accepted (good); INVALID_ORIGIN = exp:// missing
+  ```
+- **Sign-in codes go through SES** (`environments.md` §9). Until the account has production access it is in the SES sandbox and only delivers to verified addresses: add each tester's email under SES → Identities (eu-west-1) first.
+- Vercel env changes only apply after a redeploy (`vercel redeploy <deployment> --target staging --scope codu`).
+
 ## When it breaks
 
 | What you see | Fix |

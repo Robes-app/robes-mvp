@@ -1,5 +1,7 @@
 # Cutover readiness: swapping byrobes.com to the new app
 
+> **Done (27 Nov 2026)** — kept as a record. Releasing is `runbooks/ios-release.md`; what is left of the cutover is `runbooks/production-release.md`.
+
 Status: draft, 2026-10-23 (updated 2026-10-26). Owner: Niall. The ordered steps a person with
 credentials runs are [`runbooks/production-release.md`](../runbooks/production-release.md). This is the checklist that gets us from "the new app works on
 staging" to "every beta user is on the new app and didn't notice anything break". The cutover
