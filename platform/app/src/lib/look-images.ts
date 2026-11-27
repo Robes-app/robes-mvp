@@ -96,10 +96,5 @@ export function useImageStage(look: Look) {
     changed,
     committing,
     commit,
-    // Discard: the photos she added and never kept go too.
-    reset: () => {
-      discard(stage.added);
-      setStage(EMPTY_STAGE);
-    },
   };
 }

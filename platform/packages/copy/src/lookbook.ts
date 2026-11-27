@@ -4,7 +4,6 @@
 const pieces = (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`);
 const TO_FIND_WORDS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'] as const;
 const KEPT_WORDS = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
-const ROLE = { canvas: 'Canvas', anchor: 'Anchor', texture: 'Texture', exclamation: 'Exclamation' };
 const line = (parts: (string | null)[]): string => parts.filter(Boolean).join(' · ');
 
 // What a saved look says about itself: its rack, its wears, when it was last worn
@@ -212,11 +211,8 @@ export const lookbook = {
     editTitle: 'Edit look',
     newName: 'New look',
     close: 'Close',
-    // The done disc: Save on a draft; on a saved look's edit it only closes, once nothing waits
-    // for Update look (D18).
+    // The done disc: Save on a draft. A saved look has none: each change is kept as she makes it.
     done: 'Save look',
-    // A saved look's one accept (3e's pill, the Edit look drawer's footer; D17, D18).
-    update: 'Update look',
     doneForDay: 'Save and schedule for this day',
     // The prompt box (look prompt PRD P, D4, L3): the draft's placeholders turn while the field is
     // empty, the board's line first; a saved look's row asks for the change instead.
@@ -351,9 +347,6 @@ export const lookbook = {
     // The Rack card before the first piece (PRD §4.6): with a wardrobe it opens the picker; empty
     // it opens Add your pieces. The heading shows once a piece hangs.
     rack: 'The Rack',
-    // The pencil on The Rack (PRD §6.1, plan R2): edit-pieces mode shows each row's swap and ×;
-    // at rest a row opens its piece.
-    editPieces: 'Edit pieces',
     rackCard: {
       pick: 'Pick from your wardrobe',
       // With an empty wardrobe (docked prompt PRD W5).
@@ -392,16 +385,17 @@ export const lookbook = {
       nothing: 'No pieces found in this photo',
       retry: 'Retry',
       clear: 'The rack is clear. The look keeps its photo.',
+      // A found piece's row (Annie, 27 Nov): `add` names the hanger + that opens its sheet, whose
+      // rows are Add to wardrobe (`review.cta`), Add to wishlist and `match`; `quick` is the tick
+      // on "Looks like your …".
       row: {
         match: 'Match to piece',
         add: 'Add piece',
-        remove: 'Remove',
         looksLike: 'Looks like your',
         quick: 'Match',
-        noMatch: 'No close match in your wardrobe',
       },
+      // The toast when a piece is taken off a look, behind Undo.
       removed: (n: number): string => (n === 1 ? '1 piece removed' : `${n} pieces removed`),
-      undo: 'Undo',
       match: {
         title: 'Match to your wardrobe',
         cta: 'Match piece',
@@ -426,7 +420,7 @@ export const lookbook = {
     thread: 'Your words on this look',
     // The context chip: the day's place and weather, read from the diary.
     context: (place: string, range: string): string => `${place} · ${range}`,
-    // Delete, in edit mode (D9).
+    // Delete, at the foot of a saved look's Details (D9).
     delete: 'Delete this look',
     // The piece picker (Felix WardrobePicker): the wardrobe grid as a subview; its search, pills
     // and Photograph one read home's flyout copy.
@@ -454,19 +448,9 @@ export const lookbook = {
       // The quiet third way: the draft waits in the Lookbook's In progress row.
       later: 'Keep for later',
     },
-    discardEdit: {
-      title: 'Discard your changes?',
-      body: 'The look stays as it was.',
-      discard: 'Discard',
-      keep: 'Keep editing',
-    },
   },
   // Beta's save toast: a look she worked on, by name (a suggestion's is savedSuggestion).
   savedAs: (name: string): string => `${name} saved to your Lookbook ✓`,
-  // Update look landed (Capture PRD 3.5).
-  updated: 'Look updated',
-  // Under it on a saved look (docked prompt PRD V2): each change is written as she makes it.
-  updatedBody: 'Your changes replace the saved look.',
   // A draft saved onto a day (docked prompt PRD, Draft saved).
   savedToDay: (day: string): string => `Saved to ${day}`,
   savedToDayBody: 'The look and its pieces are on your week.',
@@ -540,6 +524,8 @@ export const lookbook = {
     thanks: 'Thanks, that helps. Here it is, dressed again.',
     another: 'Here’s another take, same brief.',
     modelAsked: 'Update the model',
+    // The pill on a look's picture, before her model has worn it (Annie, 27 Nov).
+    dressModel: 'Dress your model',
     modelDone: 'Done. The model now wears your changes.',
     savedUpdated: 'Saved, with the model updated.',
     changedBy: (what: string): string => `Updated the rack with your change: ${what}.`,
@@ -567,7 +553,7 @@ export const lookbook = {
     tileBar: 'Draft look',
     tileDressing: 'Dressing…',
     open: 'Open the draft',
-    // The bar.
+    // The bar; `saved` is also the saved look's tick, each time a change she made is kept.
     saving: 'Saving…',
     saved: 'Saved',
     discardChanges: 'Discard changes',
@@ -575,18 +561,10 @@ export const lookbook = {
   // The one wardrobe sheet behind every + and every swap (legacy 2026-10-15, design 2 / 4a).
   rack: {
     title: (n: number): string => `The rack · ${pieces(n)}`,
-    addPiece: '+ Add a piece',
     notYours: 'Not yours yet',
     wishlist: 'Wishlist',
-    // The pill under a piece the last change swapped (docked prompt PRD T3); the full line is
-    // its label. `the` as in feedback.notThe.
-    swapped: 'Swapped',
-    swappedFor: (the: string): string => `Swapped in for ${the}`,
     // A Shop piece's row, in every context (W6).
     shop: (brand: string): string => `${brand} · Shop`,
-    backIn: 'Back in · from the prompt',
-    added: 'Added',
-    roles: ROLE,
     open: (name: string): string => `Open ${name}`,
     swap: (name: string): string => `Swap ${name}`,
     save: (name: string): string => `Save ${name} to your wishlist`,

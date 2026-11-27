@@ -32,8 +32,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Draft look')).toBeVisible();
-  // With a piece hanging, the small + hanger chip adds the next (Annie, 15 Nov).
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  // With a piece hanging, the pill under the rows adds the next (Annie, 27 Nov).
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   await picker.getByRole('button', { name: 'Include Straight jeans' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();
@@ -200,7 +200,7 @@ test('removing a look can be undone', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Weekend' })).toBeVisible();
 });
 
-test('the image stack (D19, D20): a photograph lands in focus and the strip’s ✓ keeps it as the cover, never waiting for Update look', async ({
+test('the image stack (D19, D20): a photograph lands in focus and the strip’s ✓ keeps it as the cover there and then', async ({
   page,
 }) => {
   await signIn(page);
@@ -355,7 +355,7 @@ test('Details: the caption keeps on blur, Seasons picks the four seasons, Tags p
   expect(await seriousViolations(page)).toEqual([]);
 });
 
-test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update look applies', async ({
+test('a saved look edits in place (3e): a swap behind Undo is kept as she makes it, under a Saved tick', async ({
   page,
 }) => {
   await signIn(page);
@@ -373,19 +373,13 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
     })
   ).json();
   await page.goto(`/look/${look.id}`);
-  // 3e edits in place (D17): no Edit chip, the rows carry their swap and × discs, and nothing
-  // waits to be applied yet.
+  // 3e edits in place (D17): no Edit chip and no pencil (Annie, 27 Nov); each row carries its
+  // hanger, and a swipe (Remove, on focus) takes it off this look.
   const look3e = page.getByTestId('saved-look');
   await expect(page.getByRole('button', { name: 'Edit look' })).toHaveCount(0);
   await expect(look3e.getByTestId('update-look')).toHaveCount(0);
   const picker = page.getByTestId('piece-picker');
-  // At rest the rows open their pieces; the pencil shows the swap and × (plan R2).
-  await expect(look3e.getByRole('button', { name: /^Swap / })).toHaveCount(0);
-  // Edit mode rocks the cards (Robes MVP 2b), and Playwright only clicks what holds still: this
-  // test is about the swap, so it runs as a browser with Reduce Motion (no rocking) would.
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await look3e.getByRole('button', { name: 'Edit pieces' }).click();
-  // Edit mode (Robes MVP 2b): × on the card's corner and the swap disc; the wears step aside.
+  await expect(look3e.getByRole('button', { name: 'Edit pieces' })).toHaveCount(0);
   await expect(look3e.getByRole('button', { name: /^Remove / })).toHaveCount(1);
   await look3e.getByRole('button', { name: /^Swap / }).click();
   await picker.getByRole('button', { name: 'Include Navy coat' }).click();
@@ -398,17 +392,11 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
   await look3e.getByRole('button', { name: /^Swap / }).click();
   await picker.getByRole('button', { name: 'Include Navy coat' }).click();
   await picker.getByRole('button', { name: 'Swap it in' }).click();
-  // Leaving with the change unapplied asks first; Keep editing stays.
-  await page.getByTestId('saved-look-back').click();
-  const ask = page.getByRole('alertdialog', { name: 'Discard your changes?' });
-  await ask.getByRole('button', { name: 'Keep editing' }).click();
-  await expect(look3e.getByTestId(`rack-row-${navy}`)).toBeVisible();
-  // Update look holds the foot in Schedule look's place while the change waits (PRD §6.1); it
-  // applies the change, she stays on the look, and Schedule look comes back.
-  await expect(look3e.getByRole('button', { name: 'Schedule look' })).toHaveCount(0);
-  await look3e.getByTestId('update-look').click();
-  await expect(page.getByText('Look updated', { exact: true })).toBeVisible();
+  // The change is kept as she makes it (Annie, 27 Nov): the Saved tick says so, Schedule look
+  // stays the foot's one button, and nothing waits for an Update look.
+  await expect(look3e.getByTestId('saved-tick')).toBeVisible();
   await expect(look3e.getByRole('button', { name: 'Schedule look' })).toBeVisible();
+  await expect(look3e.getByTestId('update-look')).toHaveCount(0);
   await expect
     .poll(async () =>
       (await (await page.request.get(`/api/v1/looks/${look.id}`)).json()).pieces.map(
@@ -416,6 +404,9 @@ test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update
       ),
     )
     .toEqual([navy]);
+  // Leaving asks nothing: there is nothing to discard.
+  await page.getByTestId('saved-look-back').click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
 });
 
 test('a saved look is renamed in Details › Caption: the name is the caption (D16)', async ({

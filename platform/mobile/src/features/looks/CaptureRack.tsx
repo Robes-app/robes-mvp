@@ -9,8 +9,7 @@ import {
   rowChanges,
   withTagDefaults,
 } from '@robes/core/add-flow';
-import { captureEyebrow, type RackRow } from '@robes/core/looks';
-import { Icon, type IconName } from '@robes/icons/native';
+import type { RackRow } from '@robes/core/looks';
 import { shadowNative } from '@robes/tokens';
 import {
   Button,
@@ -19,18 +18,17 @@ import {
   fonts,
   Image,
   PrimaryScope,
+  Sheet,
   Skeleton,
   Subview,
   Tabs,
   Text,
-  useColor,
 } from '@robes/ui-native';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, Text as RNText, View } from 'react-native';
-import { CardRow } from '@/features/wardrobe/PieceCard';
 import { type PieceField, PieceFieldSheet } from '@/features/wardrobe/PieceFieldSheet';
 import { PieceRow, RecordRows, type RecordTab } from '@/features/wardrobe/PieceRows';
-import { pieceSource, renditionUri } from '@/lib/images';
+import { renditionUri } from '@/lib/images';
 import type { CaptureRack } from './capture-rack';
 import { DashedCard } from './RackCard';
 
@@ -38,41 +36,6 @@ const copy = lookbook.draftLook.capture;
 
 const sheetOf = (row: Pick<RackRow, 'category' | 'categoryL2'>) =>
   (row.categoryL2 && sheetL1For(row.categoryL2)) || row.category;
-
-// A found row's action: a 32pt cream disc in a 44pt target; the label is its accessible name.
-function RowDisc({
-  icon,
-  label,
-  faint = false,
-  onPress,
-  testID,
-}: {
-  icon: IconName;
-  label: string;
-  faint?: boolean;
-  onPress: () => void;
-  testID?: string;
-}) {
-  const ink = useColor(faint ? 'ink-faint' : 'ink');
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      testID={testID}
-      className="items-center justify-center"
-      style={{ width: 38, height: 44 }}
-      hitSlop={{ top: 0, bottom: 0, left: 3, right: 3 }}
-    >
-      <View
-        className="items-center justify-center rounded-pill bg-surface-sunk"
-        style={{ width: 32, height: 32 }}
-      >
-        <Icon name={icon} size={14} color={ink} />
-      </View>
-    </Pressable>
-  );
-}
 
 // The Rack's heading on a look from her photograph: the serif title, and what Robes is doing.
 function Head({ status }: { status?: string }) {
@@ -94,127 +57,6 @@ function Head({ status }: { status?: string }) {
           {status}
         </RNText>
       ) : null}
-    </View>
-  );
-}
-
-// A piece found in her photograph, not filed yet (Capture PRD 1c.6): the shared piece row with
-// the crop, CATEGORY · COLOUR · MATERIAL, the name, and Match to piece · Add piece · Remove. When
-// Robes sees one of hers in it, "Looks like your …" sits under a hairline with its one-tap Match;
-// otherwise the row says there is no close match. Web twin: components/looks/capture-rack.tsx.
-export function CaptureRow({
-  row,
-  capture,
-  onMatch,
-  onAdd,
-}: {
-  row: RackRow;
-  capture: CaptureRack;
-  onMatch: () => void;
-  onAdd: () => void;
-}) {
-  const hers = capture.suggested(row);
-  const { uri: hersUri, fit: hersFit } = pieceSource(hers?.image, 28);
-  const [, ...said] = captureEyebrow(row, '').split(' · ').filter(Boolean);
-  return (
-    <CardRow
-      testID={`capture-row-${row.key}`}
-      piece={{
-        id: row.key,
-        label: row.name,
-        category: row.category,
-        categoryL2: row.categoryL2 ?? null,
-        brand: null,
-        image: capture.image(row),
-      }}
-      {...(said.length ? { role: said.join(' · ') } : {})}
-      maker={hers ? '' : copy.row.noMatch}
-      action={
-        <View className="flex-row items-center" style={{ marginRight: -6 }}>
-          <RowDisc
-            icon="wardrobe"
-            label={copy.row.match}
-            onPress={onMatch}
-            testID={`capture-match-${row.key}`}
-          />
-          <RowDisc
-            icon="plus"
-            label={copy.row.add}
-            onPress={onAdd}
-            testID={`capture-add-${row.key}`}
-          />
-          <RowDisc
-            icon="close"
-            label={copy.row.remove}
-            faint
-            onPress={() => capture.remove(row.key)}
-            testID={`capture-remove-${row.key}`}
-          />
-        </View>
-      }
-      below={
-        hers ? (
-          <View className="flex-row items-center gap-2.5">
-            <View
-              className="overflow-hidden bg-surface-sunk"
-              style={{ width: 28, height: 35, borderRadius: 2 }}
-            >
-              {hersUri ? (
-                <Image source={hersUri} alt="" aspect="4:5" contentFit="cover" {...hersFit} />
-              ) : null}
-            </View>
-            <View className="flex-1" style={{ gap: 2 }}>
-              <RNText className="text-ink-faint" style={{ fontFamily: fonts.sans, fontSize: 10.5 }}>
-                {copy.row.looksLike}
-              </RNText>
-              <RNText
-                numberOfLines={1}
-                className="text-ink"
-                style={{ fontFamily: fonts.sans, fontSize: 12.5 }}
-              >
-                {hers.label}
-              </RNText>
-            </View>
-            <View style={{ marginRight: -6 }}>
-              <RowDisc
-                icon="check"
-                label={copy.row.quick}
-                onPress={() => capture.match(row.key, hers, 'suggested')}
-                testID={`capture-quick-match-${row.key}`}
-              />
-            </View>
-          </View>
-        ) : null
-      }
-    />
-  );
-}
-
-// "2 pieces removed · Undo" under the list: Undo puts every removed row back (1c.6).
-export function RemovedLine({ capture }: { capture: CaptureRack }) {
-  if (!capture.removed) return null;
-  return (
-    <View className="flex-row items-center justify-center gap-2">
-      <RNText
-        accessibilityLiveRegion="polite"
-        className="text-ink-faint"
-        style={{ fontFamily: fonts.sans, fontSize: 12 }}
-      >
-        {copy.removed(capture.removed)}
-      </RNText>
-      <Pressable
-        accessibilityRole="button"
-        onPress={capture.undo}
-        testID="capture-undo"
-        className="min-h-11 justify-center"
-      >
-        <RNText
-          className="text-ink-muted"
-          style={{ fontFamily: fonts.sans, fontSize: 12, textDecorationLine: 'underline' }}
-        >
-          {copy.undo}
-        </RNText>
-      </Pressable>
     </View>
   );
 }
@@ -246,9 +88,64 @@ function FindingRow({ width, delay }: { width: `${number}%`; delay: number }) {
   );
 }
 
+// A found piece's options, from the hanger + on its row (Annie, 27 Nov; artboard 03a): a bottom
+// sheet with Add to wardrobe (the new-piece review), Add to wishlist and Match to piece (the
+// picker in match mode). iOS presents nothing over a sheet still leaving, so what she picks runs
+// once the sheet has gone. Web twin: components/looks/capture-rack.tsx FoundPieceSheet.
+export function FoundPieceSheet({
+  row,
+  onClose,
+  onAdd,
+  onWish,
+  onMatch,
+}: {
+  // The found row the sheet is about; null closes it.
+  row: RackRow | null;
+  onClose: () => void;
+  onAdd: (row: RackRow) => void;
+  onWish: (row: RackRow) => void;
+  onMatch: (row: RackRow) => void;
+}) {
+  const after = useRef<(() => void) | null>(null);
+  // The row is held while the sheet leaves, so its name does not blink out.
+  const held = useRef(row);
+  if (row) held.current = row;
+  const shown = row ?? held.current;
+  const pick = (then: (row: RackRow) => void) => () => {
+    if (!row) return;
+    after.current = () => then(row);
+    onClose();
+  };
+  return (
+    <Sheet
+      open={row !== null}
+      onClose={onClose}
+      onClosed={() => {
+        const then = after.current;
+        after.current = null;
+        then?.();
+      }}
+      title={shown?.name ?? ''}
+      eyebrow={copy.card.eyebrow}
+      testID="found-piece-sheet"
+      rows={[
+        { icon: 'wardrobe', label: copy.review.cta, onPress: pick(onAdd), testID: 'found-add' },
+        {
+          icon: 'heart',
+          label: lookbook.pieceToFind.add,
+          onPress: pick(onWish),
+          testID: 'found-wish',
+        },
+        { icon: 'swap', label: copy.row.match, onPress: pick(onMatch), testID: 'found-match' },
+      ]}
+    />
+  );
+}
+
 // The Pieces tab of a look from her photograph (Capture PRD 1c.3–1c.6; canvas 1c): the dashed
 // Find the pieces card with "Skip, keep just the photo", the skeleton rows while Robes reads, the
-// rack once it has, and the photo kept when there is nothing left on it. `children` are the rows.
+// rack once it has, and the photo kept when there is nothing left on it. `children` is the list
+// of rows.
 export function CapturePieces({
   look,
   capture,
@@ -317,7 +214,7 @@ export function CapturePieces({
           {card(copy.card.later)}
         </>
       ) : null}
-      {stage === 'rack' ? <View className="gap-2.5">{children}</View> : null}
+      {stage === 'rack' ? children : null}
       {stage === 'clear' ? (
         <View
           className="rounded-card border-rule-mid bg-surface-raised"
@@ -331,7 +228,6 @@ export function CapturePieces({
           </RNText>
         </View>
       ) : null}
-      <RemovedLine capture={capture} />
     </View>
   );
 }

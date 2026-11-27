@@ -34,7 +34,7 @@ test('capture → use photo → save: the look is in the Lookbook and on today, 
 }) => {
   await signIn(page);
   await declineConsent(page);
-  // A photograph whose pieces she never finds is never drawn on her model (D1, 26 Nov).
+  // A photograph whose pieces she never finds is never drawn on her model.
   const draws = drawsOf(page);
 
   await page
@@ -105,29 +105,47 @@ test('the rack: find the pieces, match in one tap, add one, remove one, save wit
   await rack.getByRole('button', { name: 'Find the pieces' }).click();
   const found = rack.locator('[data-testid^="capture-row-"]');
   await expect(found).toHaveCount(3, { timeout: 30_000 });
-  // The pieces found dress her model at once, all of them, nothing filed (D1, 26 Nov).
-  await expect.poll(() => draws.length).toBe(1);
+  // Finding the pieces draws nothing (Annie, 27 Nov): the pill on her photograph dresses her
+  // model in all of them at once, nothing filed.
   await expect(rack).toHaveAttribute('data-stage', 'rack');
+  const pill = drawer.getByTestId('model-pill');
+  await expect(pill).toHaveText('Dress your model');
+  expect(draws).toHaveLength(0);
+  await pill.click();
+  await expect.poll(() => draws.length).toBe(1);
+  await expect(pill).toHaveCount(0);
   await expect(drawer.getByTestId('draft-done')).toHaveAttribute('aria-disabled', 'false');
-  // No close match on the tee; the shoes look like hers.
-  await expect(found.nth(0)).toContainText('No close match in your wardrobe');
+  // Each row says where it came from; only the shoes look like one of hers (Annie, 27 Nov: no
+  // line for a row with no close match).
+  await expect(found.nth(0)).toContainText('From your photo');
+  await expect(found.nth(0)).not.toContainText('Looks like your');
   await expect(found.nth(2)).toContainText('Looks like your');
   await expect(found.nth(2)).toContainText('White running shoes');
 
-  // One tap on the suggestion files the row as her piece: it opens the piece and shows its wears.
+  // One tap on the suggestion files the row as her piece, which opens the piece; Undo puts the
+  // found row back, and the tick files it again.
   await found.nth(2).getByRole('button', { name: 'Match', exact: true }).click();
   await expect(rack.getByRole('link', { name: 'Open White running shoes' })).toBeVisible();
   await expect(found).toHaveCount(2);
-
-  // Remove hides the row behind Undo; Undo puts it back.
-  await found.nth(0).getByRole('button', { name: 'Remove' }).click();
-  await expect(rack.getByText('1 piece removed')).toBeVisible();
-  await expect(found).toHaveCount(1);
-  await rack.getByRole('button', { name: 'Undo' }).click();
+  await page.getByRole('button', { name: 'Undo' }).last().click();
+  await expect(found).toHaveCount(3);
+  await found.nth(2).getByRole('button', { name: 'Match', exact: true }).click();
   await expect(found).toHaveCount(2);
 
-  // Match to piece opens her wardrobe under the row's category; nothing ticked, nothing to match.
-  await found.nth(0).getByRole('button', { name: 'Match to piece' }).click();
+  // A swipe takes a row off this look (the keyboard reaches its Remove) behind the toast's Undo,
+  // which puts it back.
+  const remove = found.nth(0).getByRole('button', { name: /^Remove .* from this look$/ });
+  await remove.focus();
+  await remove.press('Enter');
+  await expect(page.getByText('1 piece removed').first()).toBeVisible();
+  await expect(found).toHaveCount(1);
+  await page.getByRole('button', { name: 'Undo' }).last().click();
+  await expect(found).toHaveCount(2);
+
+  // The hanger + opens the found piece's sheet. Match to piece opens her wardrobe under the
+  // row's category; nothing ticked, nothing to match.
+  await found.nth(0).getByRole('button', { name: 'Add piece' }).click();
+  await page.getByRole('button', { name: 'Match to piece' }).click();
   const picker = page.getByTestId('piece-picker');
   await expect(picker.getByText('Match to your wardrobe')).toBeVisible();
   await expect(picker.getByTestId('picker-confirm')).toHaveText(/Match piece/i);
@@ -136,6 +154,7 @@ test('the rack: find the pieces, match in one tap, add one, remove one, save wit
 
   // Add piece: the found piece on its own page, Robes' read in the rows, filed with one tap.
   await found.nth(1).getByRole('button', { name: 'Add piece' }).click();
+  await page.getByRole('button', { name: 'Add to wardrobe' }).click();
   const sheet = page.getByTestId('capture-new-piece');
   await expect(sheet.getByRole('tab', { name: 'Colour' })).toBeVisible();
   await sheet.getByTestId('capture-add-to-wardrobe').click();
@@ -231,7 +250,7 @@ test('a draft from her photograph, its read and its pieces are hers alone', asyn
   expect((await api.post(pieceUrl, { data: { index: 7 } })).status()).toBe(404);
 
   // Her read's crops, each by its piece, signed for her (B2: a saved look's found rows need them
-  // before Update look).
+  // before the look comes back with them).
   const cropsUrl = `/api/v1/wardrobe/photo-reads/${jobId}/crops`;
   const crops = await api.get(cropsUrl);
   expect(crops.status()).toBe(200);

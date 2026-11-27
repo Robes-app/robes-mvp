@@ -29,6 +29,9 @@ export const ReadPiece = z.object({
   box: PieceBox,
   // Her piece it very likely is, read against her wardrobe; null when Robes sees a new one.
   match: z.object({ pieceId: z.uuid(), confidence: fraction }).nullable(),
+  // Her other pieces it may be, likeliest first (wardrobe-pieces v5). Defaulted: a read stored
+  // before v5, or by an older worker, has none.
+  alsoMatches: z.array(z.uuid()).max(4).default([]),
   // The piece's own crop of the photo (renders a moment after the read).
   cropAssetId: z.uuid(),
 });
@@ -38,7 +41,7 @@ export const StartPhotoReadInput = z.object({ assetId: z.uuid() });
 export const PhotoReadParams = z.object({ id: z.uuid() });
 
 // Each piece's crop of a read, by the piece's index, signed for her: a found row on a saved look
-// waits on her phone until Update look, so the look itself has no crop to hand it (tester trial
+// is on her phone before the look comes back with it, so the look itself has no crop to hand it (tester trial
 // 25 Nov). `pending` until its renditions exist.
 export const ReadCrops = z.object({
   crops: z.array(z.object({ index: pieceIndex, image: PieceImage })),

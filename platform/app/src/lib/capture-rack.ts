@@ -11,6 +11,7 @@ import {
   type Wish,
   wishRow,
 } from '@robes/contracts';
+import { errors, lookbook, wardrobe as wardrobeCopy } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import {
   type CaptureStage,
@@ -18,13 +19,15 @@ import {
   captureRows,
   captureStage,
   cropReads,
+  dismissSuggestion,
   fileRow,
   isCaptureRow,
+  putBack,
   type RackRow,
-  type RemovedRow,
-  removeRow,
-  restoreRows,
+  rekeyed,
+  suggestedIds,
 } from '@robes/core/looks';
+import { useToast } from '@robes/ui';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
@@ -34,9 +37,9 @@ import { invalidateWardrobe } from './wardrobe';
 // What the capture rack needs of the look's editor (lib/look-editor.ts).
 interface RackEditor {
   rack: { rows: RackRow[] };
-  setRows: (rows: RackRow[]) => void;
-  // The pieces a read found, joined to the rack and written at once (a saved look too).
-  addFound: (rows: RackRow[]) => void;
+  setRows: (rows: RackRow[], how?: 'quiet' | 'undo') => void;
+  remove: (key: string) => void;
+  written: () => Promise<void>;
 }
 
 export interface CaptureRack {
@@ -45,11 +48,13 @@ export interface CaptureRack {
   stage: CaptureStage;
   // The read found nothing to wear in the photo (said in place of "Couldn't find the pieces").
   nothing: boolean;
-  removed: number;
-  // She found, filed or removed something in this sitting (Discard asks first, PRD 1c.10).
+  // She found, filed or removed something in this sitting (a draft's Discard asks first, PRD 1c.10).
   touched: boolean;
-  // Her piece a found row looks like, when it is still in her wardrobe.
+  // Her piece a found row looks like, when it is still in her wardrobe: the likeliest she has
+  // not said no to.
   suggested: (row: RackRow) => Piece | null;
+  // "Looks like your …" is not it: the suggestion leaves the row, on this look.
+  dismiss: (key: string) => void;
   // A filed piece, before the look comes back from the server with it.
   pieceOf: (id: string) => Piece | undefined;
   // What the read saw of a found row (its box, for the crop drawn from the photo).
@@ -64,24 +69,21 @@ export interface CaptureRack {
   matchWish: (key: string, wish: Wish) => void;
   saveWish: (key: string) => Promise<boolean>;
   remove: (key: string) => void;
-  undo: () => void;
 }
 
 // The Rack of a look from her photograph (Capture PRD 1c.3–1c.6): Find the pieces reads the
 // look's photo; each found piece is a row she matches to a piece of hers, adds to her wardrobe or
-// removes, and whatever is left unfiled stays on the look as a suggestion. The rows live on the
-// look's own rack through its editor, so a draft writes through and a saved look's changes wait
-// for Update look; the pieces a read finds are written as they land on both, and her model is
-// drawn wearing them (D1, Annie 26 Nov), filed or not. Native twin: mobile/src/features/looks/capture-rack.ts.
-// `onFound`: the read has landed its pieces on the rack. A photograph whose pieces were never
-// found is never drawn.
-export function useCaptureRack(
-  look: Look,
-  editor: RackEditor,
-  opts: { onFound?: () => void } = {},
-): CaptureRack {
+// removes, and whatever is left unfiled stays on the look as a suggestion. Each filing stands
+// behind a 6 s Undo that puts the found row back and takes the piece or wish it made out of her
+// wardrobe or wishlist again (Annie, 27 Nov). The rows live on the
+// look's own rack through its editor, which writes every change as it is made, the pieces a read
+// finds among them. Nothing is drawn for it: her model wears the look when she asks, from the
+// pill on its picture (Annie, 27 Nov; supersedes D1's draw as the read lands).
+// Native twin: mobile/src/features/looks/capture-rack.ts.
+export function useCaptureRack(look: Look, editor: RackEditor): CaptureRack {
   const api = useApiClient();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { track } = useAnalytics().analytics;
   const on = look.source === 'capture';
   const rows = editor.rack.rows;
@@ -92,14 +94,15 @@ export function useCaptureRack(
   const [skipped, setSkipped] = useState(false);
   const [touched, setTouched] = useState(false);
   const [everFound, setEverFound] = useState(false);
-  const [removed, setRemoved] = useState<RemovedRow[]>([]);
   const [filed, setFiled] = useState<Record<string, Piece>>({});
   const [reads, setReads] = useState<Record<string, ReadPiece>>({});
   const { job, connection } = useJob(jobId);
   const current = useRef(rows);
   current.current = rows;
-  const onFound = useRef(opts.onFound);
-  onFound.current = opts.onFound;
+  const setRows = useRef(editor.setRows);
+  setRows.current = editor.setRows;
+  const written = useRef(editor.written);
+  written.current = editor.written;
 
   const waiting = rows.some(isCaptureRow);
   const wardrobe = useApiAll(
@@ -138,9 +141,49 @@ export function useCaptureRack(
       ),
     }));
     setEverFound(true);
-    editor.addFound(found);
-    onFound.current?.();
+    editor.setRows([...current.current, ...found]);
   }, [jobId, job, connection, editor]);
+
+  // A filing's toast. Undo puts the found row back where it stood on the rack as it is now,
+  // takes off the row it became, and then `unfile` takes back what the filing made. `how`: what the picture
+  // makes of the Undo. `fresh`: the row comes back under a new key (it was a wish; `rekeyed`).
+  const filedToast = (
+    message: string,
+    key: string,
+    undo: {
+      what: 'match' | 'add' | 'wish' | 'new_wish';
+      became: string | null;
+      how: 'quiet' | 'undo';
+      fresh?: boolean;
+    },
+    unfile?: () => Promise<unknown>,
+  ) => {
+    const at = rows.findIndex((r) => r.key === key);
+    const was = rows[at];
+    if (!was) return;
+    toast({
+      message,
+      action: {
+        label: wardrobeCopy.undo,
+        onAction: () => {
+          track('look_change_undone', { surface: look.status, what: undo.what });
+          const back = undo.fresh ? rekeyed(was) : was;
+          const read = reads[key];
+          if (read && back.key !== key) setReads((r) => ({ ...r, [back.key]: read }));
+          setRows.current(putBack(current.current, back, at, undo.became), undo.how);
+          if (!unfile) return;
+          // The look lets go of the piece first, then her wardrobe or wishlist does.
+          void written
+            .current()
+            .then(unfile)
+            .catch(() => toast({ message: errors.internal }));
+        },
+      },
+    });
+  };
+  const refreshWardrobe = () => {
+    void invalidateWardrobe(queryClient);
+  };
 
   const find = () => {
     if (starting || jobId) return;
@@ -157,6 +200,10 @@ export function useCaptureRack(
   };
 
   const byId = new Map((wardrobe.data?.items ?? []).map((p) => [p.id, p]));
+  const suggestedOf = (row: RackRow): Piece | null =>
+    suggestedIds(row)
+      .map((id) => byId.get(id))
+      .find((piece) => piece && !rows.some((r) => r.pieceId === piece.id)) ?? null;
   return {
     on,
     stage: captureStage({
@@ -167,12 +214,14 @@ export function useCaptureRack(
       cleared: everFound && rows.length === 0,
     }),
     nothing,
-    removed: removed.length,
     touched,
-    suggested: (row) => {
-      const id = row.proposal?.capture?.suggestedPieceId;
-      const piece = id ? byId.get(id) : undefined;
-      return piece && !rows.some((r) => r.pieceId === piece.id) ? piece : null;
+    suggested: suggestedOf,
+    // Nothing the picture wears changes.
+    dismiss: (key) => {
+      track('look_match_dismissed');
+      const row = rows.find((r) => r.key === key);
+      const shown = row ? suggestedOf(row)?.id : undefined;
+      editor.setRows(dismissSuggestion(rows, key, shown), 'quiet');
     },
     pieceOf: (id) => filed[id],
     found: (row) => reads[row.key],
@@ -187,14 +236,40 @@ export function useCaptureRack(
       track('look_piece_filed', { how });
       setTouched(true);
       setFiled((f) => ({ ...f, [piece.id]: piece }));
-      editor.setRows(fileRow(rows, key, pieceRow(piece, null)));
-      // A piece added from the photo is new in her wardrobe: its grid and its count move.
-      if (how === 'add') void invalidateWardrobe(queryClient);
+      // Added from the photo, or a piece Robes saw in it, it is the piece the picture wears;
+      // any other piece of hers is a change the picture is behind on (Annie, 27 Nov).
+      const from = rows.find((r) => r.key === key);
+      const worn = how !== 'match' || (!!from && suggestedIds(from).includes(piece.id));
+      const next = fileRow(rows, key, pieceRow(piece, null), worn);
+      editor.setRows(next);
+      // The row the found one became, unless her piece hung there already.
+      const became = next.find((r) => !rows.includes(r))?.key ?? null;
+      if (how !== 'add') {
+        filedToast(lookbook.swap.swapped(piece.label), key, {
+          what: 'match',
+          became,
+          how: worn ? 'quiet' : 'undo',
+        });
+        return;
+      }
+      // A piece added from the photo is new in her wardrobe: its grid and its count move, and
+      // Undo takes it out again (a soft delete, as her own Delete is).
+      refreshWardrobe();
+      filedToast(wardrobeCopy.receipts.added, key, { what: 'add', became, how: 'quiet' }, () =>
+        api.call('wardrobe.delete', { params: { id: piece.id } }).then(refreshWardrobe),
+      );
     },
     matchWish: (key, wish) => {
       track('look_piece_filed', { how: 'wish' });
       setTouched(true);
-      editor.setRows(fileRow(rows, key, wishRow(wish, key)));
+      // A wish she already had is another piece than the one photographed.
+      editor.setRows(fileRow(rows, key, wishRow(wish, key), false));
+      filedToast(lookbook.swap.swapped(wish.label), key, {
+        what: 'wish',
+        became: key,
+        how: 'undo',
+        fresh: true,
+      });
     },
     saveWish: async (key) => {
       const capture = rows.find((r) => r.key === key)?.proposal?.capture;
@@ -206,31 +281,32 @@ export function useCaptureRack(
         });
         track('look_piece_filed', { how: 'new_wish' });
         setTouched(true);
-        editor.setRows(fileRow(current.current, key, wishRow(wish, key)));
-        void queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') });
+        setRows.current(fileRow(current.current, key, wishRow(wish, key)));
+        const refreshWishes = () =>
+          queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') });
+        void refreshWishes();
+        filedToast(
+          lookbook.savedSuggestion.body(1),
+          key,
+          { what: 'new_wish', became: key, how: 'quiet', fresh: true },
+          () => api.call('wishlist.delete', { params: { id: wish.id } }).then(refreshWishes),
+        );
         return true;
       } catch {
         return false;
       }
     },
     remove: (key) => {
-      track('look_piece_filed', { how: 'remove' });
       setTouched(true);
-      const next = removeRow(rows, removed, key);
-      setRemoved(next.removed);
-      editor.setRows(next.rows);
-    },
-    undo: () => {
-      editor.setRows(restoreRows(rows, removed));
-      setRemoved([]);
+      editor.remove(key);
     },
   };
 }
 
 const CROP_REFRESH_MS = 3_000;
 
-// The crops of each read whose found rows the look holds none for (a saved look's rows wait in
-// the editor until Update look), asked again while any is still being made. Native twin:
+// The crops of each read whose found rows the look holds none for (a row just written, before
+// the look comes back with it), asked again while any is still being made. Native twin:
 // useReadCrops in mobile/src/features/looks/capture-rack.ts.
 function useReadCrops(readIds: readonly string[]): Map<string, Map<number, PieceImage>> {
   const api = useApiClient();

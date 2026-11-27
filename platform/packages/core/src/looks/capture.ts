@@ -1,9 +1,8 @@
 // The capture rack (Capture PRD 1c, 10 Nov 2026): the pieces found in her photograph of a look,
-// each a row she matches to a piece of hers, adds to her wardrobe, or removes. An unfiled row is a
+// each a row she matches to a piece of hers, adds to her wardrobe or wishlist, or removes. An unfiled row is a
 // proposal that carries its read (`capture`); a filed one is an ordinary piece row. Pure, shared
 // by web and native.
 import { shade } from '../colour';
-import { material } from '../material';
 import { MATCH_THRESHOLD } from '../photo-pieces';
 import { newProposalKey, type RackRow } from './index';
 
@@ -19,10 +18,12 @@ export interface FoundPiece {
   material: string | null;
   cropAssetId: string;
   match: { pieceId: string; confidence: number } | null;
+  // Her other pieces it may be, likeliest first (absent on a read from before wardrobe-pieces v5).
+  alsoMatches?: readonly string[];
 }
 
 // The read's pieces as rack rows, in the read's order. A match below the threshold is no
-// suggestion: the row reads "No close match in your wardrobe" instead.
+// suggestion, and then her other pieces are none either.
 export function captureRows(
   readId: string,
   pieces: readonly FoundPiece[],
@@ -34,6 +35,7 @@ export function captureRows(
       const key = newKey();
       const name = p.label.trim().slice(0, 120) || p.category;
       const brand = (p.brand ?? '').trim().slice(0, 60);
+      const suggested = p.match && p.match.confidence >= MATCH_THRESHOLD ? p.match.pieceId : null;
       return {
         key,
         pieceId: null,
@@ -58,8 +60,10 @@ export function captureRows(
             index: p.index,
             cropAssetId: p.cropAssetId,
             material: p.material,
-            suggestedPieceId:
-              p.match && p.match.confidence >= MATCH_THRESHOLD ? p.match.pieceId : null,
+            suggestedPieceId: suggested,
+            alsoSuggestedIds: suggested
+              ? [...new Set(p.alsoMatches ?? [])].filter((id) => id !== suggested).slice(0, 4)
+              : [],
           },
         },
       };
@@ -68,45 +72,82 @@ export function captureRows(
 
 export const isCaptureRow = (row: RackRow): boolean => !!row.proposal?.capture;
 
-// The unfiled row's small caps: CATEGORY · COLOUR · MATERIAL, each only when the read saw it.
-export function captureEyebrow(row: RackRow, category: string): string {
-  const colour = row.proposal?.color?.trim() ?? '';
-  const made = material(row.proposal?.capture?.material)?.name ?? '';
-  return [category, colour, made].filter(Boolean).join(' · ');
+// What a row of a look is, which decides the one control at its right (Annie, 27 Nov): a piece
+// she owns swaps, a piece found in her photograph files, a wish opens, and a piece Robes
+// proposes carries its price and a heart.
+export type RowKind = 'owned' | 'found' | 'wish' | 'shop';
+
+export function rowKind(row: RackRow): RowKind {
+  if (row.pieceId !== null || !row.proposal) return 'owned';
+  if (row.proposal.capture) return 'found';
+  return row.proposal.wishlisted ? 'wish' : 'shop';
 }
 
-// Rows she removed, each with where it stood, so Undo puts every one back in place (1c.6).
-export interface RemovedRow {
-  row: RackRow;
-  at: number;
+// Her pieces a found row may be, likeliest first.
+export function suggestedIds(row: RackRow): string[] {
+  const capture = row.proposal?.capture;
+  return capture?.suggestedPieceId
+    ? [capture.suggestedPieceId, ...(capture.alsoSuggestedIds ?? [])]
+    : [];
 }
 
-export function removeRow(
+// "Looks like your …" dismissed for this look: the likeliest piece goes from the row, and the
+// next one, when the read has one, stands in its place. `shown`: the piece the strip named, when
+// it was not the likeliest (that one is on the rack already, or gone from her wardrobe); it goes
+// with every piece before it.
+export function dismissSuggestion(
   rows: readonly RackRow[],
-  removed: readonly RemovedRow[],
   key: string,
-): { rows: RackRow[]; removed: RemovedRow[] } {
-  const at = rows.findIndex((r) => r.key === key);
-  const row = rows[at];
-  if (!row) return { rows: [...rows], removed: [...removed] };
-  return { rows: rows.filter((r) => r.key !== key), removed: [...removed, { row, at }] };
+  shown?: string,
+): RackRow[] {
+  return rows.map((r) => {
+    const capture = r.proposal?.capture;
+    if (r.key !== key || !r.proposal || !capture) return r;
+    const ids = suggestedIds(r);
+    const [next = null, ...rest] = ids.slice(Math.max(shown ? ids.indexOf(shown) : 0, 0) + 1);
+    return {
+      ...r,
+      proposal: {
+        ...r.proposal,
+        capture: { ...capture, suggestedPieceId: next, alsoSuggestedIds: rest },
+      },
+    };
+  });
 }
 
-// Undo: every removed row back where it stood, last removed first so the places still hold.
-export function restoreRows(rows: readonly RackRow[], removed: readonly RemovedRow[]): RackRow[] {
-  const out = [...rows];
-  for (const { row, at } of [...removed].reverse()) {
-    if (out.some((r) => r.key === row.key)) continue;
-    out.splice(Math.min(at, out.length), 0, row);
-  }
+// A proposal row under a new key. A found row that was filed as a wish and is put back by Undo
+// takes one: the server keeps a key's wish once filed (`keepServerFields`), so under its old key
+// the row would come back still marked as that wish.
+export function rekeyed(row: RackRow, key: string = newProposalKey()): RackRow {
+  return row.proposal ? { ...row, key, proposal: { ...row.proposal, key } } : row;
+}
+
+// Undo for one row: back on the rack as it stands now, where it stood (`at`), and the row it
+// became in a filing (`became`) taken off. Whatever else she changed since stays.
+export function putBack(
+  rows: readonly RackRow[],
+  row: RackRow,
+  at: number,
+  became: string | null = null,
+): RackRow[] {
+  if (rows.some((r) => r.key === row.key)) return [...rows];
+  const out = rows.filter((r) => r.key !== became);
+  out.splice(Math.min(Math.max(at, 0), out.length), 0, row);
   return out;
 }
 
 // Matched or added: the row becomes her piece, or a wish from her wishlist as a piece to find
 // (TestFlight 20 Nov), in the same place. Neither is hung twice; the found row just goes. The
 // filed row remembers the found row it was, so her picture, drawn wearing the found piece, stays
-// current: it is the same piece, now filed (Annie, 26 Nov).
-export function fileRow(rows: readonly RackRow[], key: string, piece: RackRow): RackRow[] {
+// current: it is the same piece, now filed (Annie, 26 Nov). `worn` is false for a match to
+// another piece of hers than the one in the photograph: that is a change the picture is behind
+// on, like any swap (Annie, 27 Nov).
+export function fileRow(
+  rows: readonly RackRow[],
+  key: string,
+  piece: RackRow,
+  worn = true,
+): RackRow[] {
   const wishId = piece.proposal?.wishlistItemId ?? null;
   const same = (r: RackRow) =>
     piece.pieceId !== null
@@ -114,7 +155,7 @@ export function fileRow(rows: readonly RackRow[], key: string, piece: RackRow): 
       : wishId !== null && r.proposal?.wishlistItemId === wishId;
   if (rows.some(same)) return rows.filter((r) => r.key !== key);
   const from = rows.find((r) => r.key === key);
-  const filedFrom = from && isCaptureRow(from) ? { filedFrom: key } : {};
+  const filedFrom = worn && from && isCaptureRow(from) ? { filedFrom: key } : {};
   return rows.map((r) => (r.key === key ? { ...piece, ...filedFrom } : r));
 }
 
@@ -190,9 +231,8 @@ export function cropsLanding(
 }
 
 // The reads whose crops a rack fetches for itself: those of its found rows the look holds no crop
-// for. A draft writes its rows through at once and the look comes back with their crops; a saved
-// look writes the found rows at once too (D1), but a row it holds only on her phone until Update
-// look, or one written before the look comes back, has none there yet.
+// for. Every look writes its rows through at once and comes back with their crops; on a saved
+// look a row just written, before the look comes back, has none there yet.
 export function cropReads(
   rows: readonly RackRow[],
   look: { status: string; captureImages: Readonly<Record<string, unknown>> },

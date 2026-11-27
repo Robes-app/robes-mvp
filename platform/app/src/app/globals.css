@@ -53,22 +53,3 @@ body {
 :root[data-theme="dark"] .warm-ground {
   background: var(--bg);
 }
-
-/* Robes MVP 2b, the Rack's edit mode: the cards rock while the pencil is down (pzJigL ±0.35°, a
-   tile pzJig ±1.1°); motion-safe only. Native twin: useJig in RackRow.tsx. */
-@keyframes rack-jig-row {
-  from {
-    transform: rotate(-0.35deg);
-  }
-  to {
-    transform: rotate(0.35deg);
-  }
-}
-@keyframes rack-jig-tile {
-  from {
-    transform: rotate(-1.1deg);
-  }
-  to {
-    transform: rotate(1.1deg);
-  }
-}

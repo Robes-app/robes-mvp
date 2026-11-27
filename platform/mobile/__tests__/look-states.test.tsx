@@ -218,7 +218,7 @@ test('a suggested look is the saved look’s page, signed by Robes; Save look fi
   });
 });
 
-test('a swap on a suggestion waits for Save look, which keeps it suggested until it saves', async () => {
+test('a swap on a suggestion is kept on it as she makes it, still suggested until Save look saves it', async () => {
   const COAT = '99999999-9999-4999-8999-999999999999';
   const coat = piece({ id: COAT, label: 'Navy wool coat' });
   const shown = suggestion({ pieces: [{ piece: piece(), slot: null, role: 'anchor' }] });
@@ -234,8 +234,7 @@ test('a swap on a suggestion waits for Save look, which keeps it suggested until
     'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  // At rest a piece to find carries its heart (design "Suggested looks" 03); the pencil is a
-  // saved look's edit, swap and × with no heart (03b).
+  // A piece to find carries its heart (design "Suggested looks" 03); a piece of hers its hanger.
   expect(
     await screen.findByRole('button', { name: lookbook.rack.save('Black pointed mules') }),
   ).toBeTruthy();
@@ -247,10 +246,7 @@ test('a swap on a suggestion waits for Save look, which keeps it suggested until
     pathname: '/look-piece/[id]/[key]',
     params: { id: LOOK_ID, key: mules.key },
   });
-  await fireEvent.press(screen.getByTestId('rack-pencil'));
-  expect(
-    screen.queryByRole('button', { name: lookbook.rack.save('Black pointed mules') }),
-  ).toBeNull();
+  expect(screen.queryByTestId('rack-pencil')).toBeNull();
   await fireEvent.press(
     screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );
@@ -259,15 +255,19 @@ test('a swap on a suggestion waits for Save look, which keeps it suggested until
     await screen.findByRole('checkbox', { name: diary.flyout.pick('Navy wool coat') }),
   );
   await fireEvent.press(screen.getByTestId('picker-confirm'));
-  // Nothing is written until Save look, which stays the one button.
+  // Kept as she makes it (Annie, 27 Nov), the look staying suggested: Save look is still its one
+  // button, and it carries no Saved tick of a saved look.
   expect(await screen.findByText('Navy wool coat')).toBeTruthy();
-  expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
-  expect(screen.queryByTestId('update-look')).toBeNull();
-  await fireEvent.press(screen.getByTestId('save-suggestion'));
-  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/save'))).toBe(true));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   const patch = calls.find((c) => c.method === 'PATCH');
   expect(patch?.body).toMatchObject({ keepSuggested: true });
   expect(JSON.stringify(patch?.body)).toContain(COAT);
+  expect(screen.queryByTestId('update-look')).toBeNull();
+  expect(screen.queryByTestId('saved-tick')).toBeNull();
+  expect(calls.some((c) => c.path.endsWith('/save'))).toBe(false);
+  await fireEvent.press(screen.getByTestId('save-suggestion'));
+  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/save'))).toBe(true));
+  expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1);
   expect(calls.findIndex((c) => c.method === 'PATCH')).toBeLessThan(
     calls.findIndex((c) => c.path.endsWith('/save')),
   );
@@ -307,9 +307,8 @@ test('a swap can take a wish: the WISHLIST tab stays open, and the wish lands as
     'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByTestId('rack-pencil'));
   await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
+    await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );
   const tab = await screen.findByRole('tab', { name: wardrobe.segments.wishlist });
   expect(tab.props.accessibilityState?.disabled).not.toBe(true);
@@ -548,9 +547,8 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
   expect(patch.edits).toEqual({
     [JEAN]: { was: expect.objectContaining({ name: 'Black pointed mules' }) },
   });
-  // The swapped row carries the Swapped pill, its full line the label (docked prompt T3).
-  expect(screen.getByLabelText(lookbook.rack.swappedFor('the black pointed mules'))).toBeTruthy();
-  expect(screen.getByTestId('swapped-pill')).toHaveTextContent(lookbook.rack.swapped);
+  // The row carries no Swapped pill (Annie, 27 Nov: the row marks are gone).
+  expect(screen.queryByTestId('swapped-pill')).toBeNull();
   // Sent from the drawer, the picture is drawn once the rack is answered and written (D14).
   await waitFor(() =>
     expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBe(true),

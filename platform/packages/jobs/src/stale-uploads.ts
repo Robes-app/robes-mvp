@@ -2,8 +2,8 @@ import { type SystemRepositories, verifiedUserId } from '@robes/db';
 import { deleteAssetObjects, type MediaStorage } from '@robes/media/storage';
 import type { JobLogger } from './logger';
 
-// D20 (Annie, 6 Nov): a look photo she picks in image mode uploads at once but is only attached on
-// Update look. Her Discard marks it deleted (uploads.discard); this deletes its files and row, and
+// D20 (Annie, 6 Nov): a look photo she picks in image mode uploads at once but is only attached by
+// the strip's ✓ (a draft's, as it is saved). Her Discard marks it deleted (uploads.discard); this deletes its files and row, and
 // catches the rest — the app closed first, or the discard failed — once a day old. Nothing anything
 // holds is touched. Runs hourly (infra `stale-uploads`), here because only the maintenance role
 // may delete media. Uploads older than STALE_UPLOAD_WITHIN_DAYS and never discarded are left, so

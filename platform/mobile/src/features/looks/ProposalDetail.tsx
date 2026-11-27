@@ -17,7 +17,8 @@ import { useInvalidateLooks } from './look-states';
 // A piece Robes picked for a look, before it is on her wishlist (Annie, 24 Nov): the wish's page
 // read from the look — its name, photograph, category, brand, price and shop link — with Add to
 // wishlist as its one button. Nothing is stored until she adds it; it is then filed as Save files
-// it (looks.proposals.wish) and opens as her wish. One already filed opens as the wish. Web twin:
+// it (looks.proposals.wish) and opens as her wish. One already filed opens as the wish. A piece
+// found in her photograph opens here too, with its crop and no button (Annie, 27 Nov). Web twin:
 // app/src/components/looks/proposal-detail.tsx.
 export function ProposalDetail({ lookId, pieceKey }: { lookId: string; pieceKey: string }) {
   const router = useRouter();
@@ -49,7 +50,10 @@ export function ProposalDetail({ lookId, pieceKey }: { lookId: string; pieceKey:
       </View>
     );
   }
-  const image = look.proposalImages?.[pieceKey] ?? null;
+  // A piece found in her photograph shows its crop, and is filed from its row on the look (the
+  // heart, or the hanger's sheet): `looks.proposals.wish` files only what Robes picked.
+  const found = proposal.capture !== null;
+  const image = look.proposalImages?.[pieceKey] ?? look.captureImages[pieceKey] ?? null;
   const cutout = cutoutUri(image);
   const uri = cutout ?? renditionUri(image, 400);
   const rows = [
@@ -102,16 +106,18 @@ export function ProposalDetail({ lookId, pieceKey }: { lookId: string; pieceKey:
             </Pressable>
           ) : null}
           {wish.isError ? <ErrorText>{errorMessage(wish.error)}</ErrorText> : null}
-          <PrimaryScope>
-            <Button
-              icon="heart"
-              loading={wish.isPending || wishId !== null}
-              onPress={() => wish.mutate({ params: { id: lookId, key: pieceKey }, input: {} })}
-              testID="proposal-wish"
-            >
-              {lookbook.pieceToFind.add}
-            </Button>
-          </PrimaryScope>
+          {found ? null : (
+            <PrimaryScope>
+              <Button
+                icon="heart"
+                loading={wish.isPending || wishId !== null}
+                onPress={() => wish.mutate({ params: { id: lookId, key: pieceKey }, input: {} })}
+                testID="proposal-wish"
+              >
+                {lookbook.pieceToFind.add}
+              </Button>
+            </PrimaryScope>
+          )}
         </View>
       </ScrollView>
     </View>

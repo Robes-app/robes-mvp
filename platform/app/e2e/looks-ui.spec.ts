@@ -129,7 +129,8 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await picker.getByRole('button', { name: 'Include White wide-leg trouser' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
-  // The draft carries on in the same drawer: the piece on the rack, the model dressed in it and,
+  // The draft carries on in the same drawer: the piece on the rack, its model drawn when she asks
+  // from the pill on the picture (Annie, 27 Nov) and,
   // built by hand, the prompt resting as its sparkle so the bar never covers the rack (Annie,
   // 18 Nov); one tap opens the bar.
   await expect(page.getByText('Draft look')).toBeVisible();
@@ -144,10 +145,8 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   // about the change it made (kept over the fixed list, Annie 18 Nov).
   await expect(page.getByText(/^How does (it|the change) look/)).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('Done.', { exact: false })).toHaveCount(0);
-  // The Swapped pill, its full line the label (docked prompt T3).
-  await expect(
-    page.getByRole('img', { name: 'Swapped in for the white wide-leg trouser' }),
-  ).toBeVisible();
+  // The row carries no Swapped pill (Annie, 27 Nov: the row marks are gone).
+  await expect(page.getByTestId('swapped-pill')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Open Dark straight jean' })).toBeVisible();
 
   // The send leaves the bar where it was, the look live above it: Robes' question and the field
@@ -235,8 +234,8 @@ test('the draft look at 390: her model, the piece picker, and the done disc', as
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('list', { name: 'The rack · 1 piece' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
-  // With a piece hanging, the small + hanger chip adds the next (Annie, 15 Nov).
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  // With a piece hanging, the pill under the rows adds the next (Annie, 27 Nov).
+  await page.getByRole('button', { name: 'Pick from your wardrobe' }).click();
   await picker.getByRole('button', { name: 'Include White wide-leg trouser' }).click();
   await picker.getByRole('button', { name: 'Add 1 piece' }).click();
   await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();
@@ -290,12 +289,8 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
   // The old address of a draft still opens it: the one DraftLook, on its page (D14).
   await page.goto(`/look/${draft.id}`);
   await expect(page.getByText('Draft look')).toBeVisible();
-  // L10: the pencil shows the hanger (plan R2); it opens the picker on the row; Swap it in lands
-  // at once; Undo (6 s) puts it back.
-  // Edit mode rocks the cards (Robes MVP 2b), and Playwright only clicks what holds still: this
-  // test is about the swap, so it runs as a browser with Reduce Motion (no rocking) would.
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.getByRole('button', { name: 'Edit pieces' }).click();
+  // L10: the hanger on her piece's row opens the picker on it (Annie, 27 Nov: no pencil); Swap it
+  // in lands at once; Undo (6 s) puts it back.
   await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
   const picker = page.getByTestId('piece-picker');
   await picker.getByRole('button', { name: 'Include Dark straight jean' }).click();

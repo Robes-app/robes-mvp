@@ -21,7 +21,8 @@ const focus =
 // A piece Robes picked for a look, before it is on her wishlist (Annie, 24 Nov): the wish's page
 // read from the look — its name, photograph, category, brand, price and shop link — with Add to
 // wishlist as its one button. Nothing is stored until she adds it; it is then filed as Save files
-// it (looks.proposals.wish) and opens as her wish. One already filed opens as the wish. Native
+// it (looks.proposals.wish) and opens as her wish. One already filed opens as the wish. A piece
+// found in her photograph opens here too, with its crop and no button (Annie, 27 Nov). Native
 // twin: mobile/src/features/looks/ProposalDetail.tsx.
 export function ProposalDetail({ lookId, pieceKey }: { lookId: string; pieceKey: string }) {
   const router = useRouter();
@@ -51,7 +52,10 @@ export function ProposalDetail({ lookId, pieceKey }: { lookId: string; pieceKey:
     );
   }
   if (!proposal) return <Text tone="muted">{lookbook.pieceToFind.gone}</Text>;
-  const image = look.proposalImages?.[pieceKey] ?? null;
+  // A piece found in her photograph shows its crop, and is filed from its row on the look (the
+  // heart, or the hanger's sheet): `looks.proposals.wish` files only what Robes picked.
+  const found = proposal.capture !== null;
+  const image = look.proposalImages?.[pieceKey] ?? look.captureImages[pieceKey] ?? null;
   const shop = proposal.retailerHint || shopName(proposal.url);
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col lg:max-w-none">
@@ -95,19 +99,21 @@ export function ProposalDetail({ lookId, pieceKey }: { lookId: string; pieceKey:
             </a>
           ) : null}
         </div>
-        <div className="flex min-w-0 flex-col gap-3">
-          {wish.isError ? <ErrorText>{errorCopy(wish.error)}</ErrorText> : null}
-          <Button
-            variant="primary"
-            block
-            loading={wish.isPending || wishId !== null}
-            onClick={() => wish.mutate({ params: { id: lookId, key: pieceKey }, input: {} })}
-            data-testid="proposal-wish"
-          >
-            <Icon name="heart" size={13} />
-            {lookbook.pieceToFind.add}
-          </Button>
-        </div>
+        {found ? null : (
+          <div className="flex min-w-0 flex-col gap-3">
+            {wish.isError ? <ErrorText>{errorCopy(wish.error)}</ErrorText> : null}
+            <Button
+              variant="primary"
+              block
+              loading={wish.isPending || wishId !== null}
+              onClick={() => wish.mutate({ params: { id: lookId, key: pieceKey }, input: {} })}
+              data-testid="proposal-wish"
+            >
+              <Icon name="heart" size={13} />
+              {lookbook.pieceToFind.add}
+            </Button>
+          </div>
+        )}
       </article>
     </div>
   );

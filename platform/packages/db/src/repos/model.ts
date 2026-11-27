@@ -162,8 +162,8 @@ export function modelRepo(db: Db) {
           select twin_asset_id::text from app.avatars
           where user_id = ${userId} and twin_asset_id is not null`.execute(trx);
         // Robes' pictures of her looks drawn on her twin carry her face: they go too, and each
-        // look is drawn again on a Robes model when it is next opened (useDressOnOpen). The looks
-        // themselves, her photographs of them and her wears stay.
+        // look offers Dress your model on its picture (the pill; nothing draws by itself, Annie
+        // 27 Nov). The looks themselves, her photographs of them and her wears stay.
         const onTwin = (eb: ExpressionBuilder<DB, 'looks'>) =>
           eb.or([
             eb('stoodOn', '=', 'twin'),

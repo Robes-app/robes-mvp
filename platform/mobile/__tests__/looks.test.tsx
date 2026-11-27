@@ -329,7 +329,7 @@ test('Details › Seasons picks the four seasons (D12); the row reads them back'
   );
 });
 
-test('a look her model has not worn starts dressing on open, on whatever model she stands on', async () => {
+test('a look her model has not worn waits for Dress your model: opening it draws nothing', async () => {
   const photo = piece().image;
   if (!photo) throw new Error('fixture piece has an image');
   const mine = look({ photo, model: null, record: 'photo', image: photo, onModel: null });
@@ -345,42 +345,48 @@ test('a look her model has not worn starts dressing on open, on whatever model s
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  // Beta dressed every saved look on whatever model she stands on: it starts by itself.
-  await waitFor(() =>
-    expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBeTruthy(),
-  );
+  // The pill is the only way to ask (Annie, 27 Nov; beta dressed every saved look on open).
+  const render = () => calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'));
+  const pill = await screen.findByTestId('model-pill');
+  expect(within(pill).getByText(lookbook.draft.dressModel)).toBeTruthy();
+  await act(() => new Promise((r) => setTimeout(r, 600)));
+  expect(render()).toBeUndefined();
+  // Asked, she is drawn on whatever model she stands on.
+  await fireEvent.press(pill);
+  await waitFor(() => expect(render()).toBeTruthy());
 });
 
-test('Update on a saved look her model wears asks her model to wear the new rack', async () => {
+test('a change by hand on a saved look her model wears is kept, then the pill asks her model to wear the new rack', async () => {
   const jeans = piece({ id: '99999999-9999-4999-8999-999999999999', label: 'Straight jeans' });
   const mine = look({
     pieces: [
       { piece: piece(), slot: null, role: null },
       { piece: jeans, slot: null, role: null },
     ],
-    // Already drawn on her model, so opening it starts nothing; only Update should.
+    // Already drawn on her model, so opening it starts nothing; only the pill should.
     model: piece().image,
     onModel: 'ready',
   });
   const calls = mockFetch({
     [`GET /looks/${LOOK_ID}`]: mine,
     [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
-    [`PATCH /looks/${LOOK_ID}`]: { ...mine, pieces: [mine.pieces[0]] },
+    [`PATCH /looks/${LOOK_ID}`]: { ...mine, pieces: [mine.pieces[0]], pictureStale: true },
     [`POST /looks/${LOOK_ID}/render`]: { jobId: '77777777-7777-4777-8777-777777777777' },
     'GET /me/model': modelData({
       stand: { imageUrl: 'https://media.test/generic.webp', generic: true },
     }),
     'GET /looks': { items: [], nextCursor: null },
   });
-  // Home's Edit look sheet (D18): the rack is worked there, Update look keeps it.
+  // Home's Edit look sheet (D18): the rack is worked there, each change kept as she makes it.
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
-  await fireEvent.press(await screen.findByTestId('rack-pencil'));
   await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
+    await screen.findByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
-  // The piece taken off leaves the picture behind, so Update look draws it after (D6).
-  await fireEvent.press(screen.getByTestId('update-look'));
-  // The picture must not keep showing the jeans she took off (beta re-dressed the model live).
+  // The piece taken off leaves the picture behind: nothing is drawn until she asks (Annie,
+  // 27 Nov), from the pill on the picture.
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBe(false);
+  await fireEvent.press(await screen.findByTestId('model-pill'));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBeTruthy(),
   );

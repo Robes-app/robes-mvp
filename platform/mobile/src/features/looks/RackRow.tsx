@@ -1,93 +1,26 @@
-import type { PieceImage } from '@robes/contracts';
-import { lookbook as copy } from '@robes/copy';
-import { nameNoBrand, type RackRow, type RowNote, theName } from '@robes/core/looks';
-import { Icon } from '@robes/icons/native';
-import { shadowNative } from '@robes/tokens';
-import { IconButton, Text, useColor, useReducedMotion } from '@robes/ui-native';
-import { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, View } from 'react-native';
-import { CardRow, Photo, type RowMeta } from '@/features/wardrobe/PieceCard';
+import type { Piece, PieceImage } from '@robes/contracts';
+import { lookbook as copy, ui } from '@robes/copy';
+import { nameNoBrand, type RackRow, rowKind } from '@robes/core/looks';
+import { Icon, type IconName } from '@robes/icons/native';
+import { fonts, IconButton, Image, useColor } from '@robes/ui-native';
+import { Pressable, Text, View } from 'react-native';
+import { CardRow, type RowMeta } from '@/features/wardrobe/PieceCard';
+import { pieceSource } from '@/lib/images';
 
-export type RowMark = RowNote | { kind: 'added' };
+const found = copy.draftLook.capture;
 
-// Robes MVP 2b, edit mode: the cards rock (pzJigL ±0.35°, a tile pzJig ±1.1°) while the pencil is
-// down, as an iPhone's home screen does; still under Reduce Motion.
-export function useJig(
-  on: boolean,
-  degrees: number,
-): Animated.AnimatedInterpolation<string> | string {
-  const reduced = useReducedMotion();
-  const t = useRef(new Animated.Value(0)).current;
-  const live = on && !reduced;
-  useEffect(() => {
-    if (!live) {
-      t.setValue(0.5);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, {
-          toValue: 1,
-          duration: 130,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(t, {
-          toValue: 0,
-          duration: 130,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [live, t]);
-  return live
-    ? t.interpolate({ inputRange: [0, 1], outputRange: [`-${degrees}deg`, `${degrees}deg`] })
-    : '0deg';
-}
-
-// A row's action off the pencil (swap, remove on a suggestion's page): a 32pt `cream-200` disc
-// with an `ink-soft` glyph, in a 44pt hit area.
+// A row's one control: a 32pt `cream-200` disc with its glyph, in a 44pt hit area. `plus` marks
+// the hanger that files a found piece.
 function Disc({
   icon,
   label,
-  onPress,
-}: {
-  icon: 'wardrobe' | 'close';
-  label: string;
-  onPress: () => void;
-}) {
-  const muted = useColor('ink-muted');
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      className="items-center justify-center"
-      style={{ width: 44, height: 44 }}
-    >
-      <View
-        className="items-center justify-center rounded-pill bg-surface-sunk"
-        style={{ width: 32, height: 32 }}
-      >
-        <Icon name={icon} size={15} color={muted} />
-      </View>
-    </Pressable>
-  );
-}
-
-// Edit mode's small discs (Robes MVP 2b): 22pt, the bg veil with a lift, an ink glyph; the hit area
-// reaches 44.
-export function EditDisc({
-  icon,
-  label,
+  plus = false,
   onPress,
   testID,
 }: {
-  icon: 'wardrobe' | 'close';
+  icon: IconName;
   label: string;
+  plus?: boolean;
   onPress: () => void;
   testID?: string;
 }) {
@@ -97,129 +30,147 @@ export function EditDisc({
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      hitSlop={11}
+      testID={testID}
       className="items-center justify-center"
-      style={{ width: 22, height: 22 }}
-      {...(testID ? { testID } : {})}
+      style={{ width: 44, height: 44 }}
     >
       <View
-        className="items-center justify-center rounded-pill border-rule-mid bg-veil"
-        style={{ width: 22, height: 22, borderWidth: 0.5, ...shadowNative.disc }}
+        className="items-center justify-center rounded-pill bg-surface-sunk"
+        style={{ width: 32, height: 32 }}
       >
-        <Icon name={icon} size={11} color={ink} />
+        <Icon name={icon} size={15} color={ink} />
+        {plus ? (
+          <View className="absolute" style={{ right: 3, top: 3 }}>
+            <Icon name="plus" size={8} color={ink} />
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
 }
 
 // A Shop piece (one Robes proposes new, not a wish or a found piece) reads "{brand} · Shop" in
-// every context (docked prompt PRD W6); anything else its brand, or a find's retailer.
-// Web twin: rack-row.tsx shopMaker.
-function shopMaker(row: RackRow, brand: string): string {
+// every context (docked prompt PRD W6); a piece found in her photograph says so; anything else
+// its brand, or a find's retailer. Web twin: rack-row.tsx makerOf.
+function makerOf(row: RackRow, brand: string): string {
   const p = row.proposal;
+  if (p?.capture) return found.card.eyebrow;
   const maker = brand || p?.retailerHint?.trim() || '';
-  return p && !p.wishlisted && !p.capture && maker ? copy.rack.shop(maker) : maker;
+  return p && !p.wishlisted && maker ? copy.rack.shop(maker) : maker;
 }
 
-const PILL_THUMB = 16;
+// Her piece a found row looks like, under the row's hairline (decision 13, Annie 27 Nov): the
+// tick makes the match, × says it is not that piece, on this look.
+export interface RowSuggestion {
+  piece: Piece;
+  onMatch: () => void;
+  onDismiss: () => void;
+}
 
-// The Swapped pill under a piece a change swapped in (docked prompt PRD T3): a faded round
-// thumbnail of the piece it replaced, an arrow, then "Swapped"; the full line is its label.
-// Web twin: rack-row.tsx SwappedPill.
-function SwappedPill({ name, image }: { name: string; image: PieceImage | null | undefined }) {
-  const ink = useColor('ink');
+function LooksLike({ rowKey, suggestion }: { rowKey: string; suggestion: RowSuggestion }) {
+  const { piece } = suggestion;
+  const { uri, fit } = pieceSource(piece.image, 28);
   return (
-    <View
-      accessible
-      accessibilityRole="image"
-      accessibilityLabel={copy.rack.swappedFor(theName(name))}
-      testID="swapped-pill"
-      className="flex-row items-center self-start rounded-pill bg-surface-sunk"
-      style={{ gap: 4, paddingVertical: 2, paddingLeft: 2, paddingRight: 8 }}
-    >
+    <View className="flex-row items-center gap-2.5">
       <View
-        className="overflow-hidden rounded-full"
-        style={{ width: PILL_THUMB, height: PILL_THUMB, opacity: 0.5 }}
+        className="overflow-hidden bg-surface-sunk"
+        style={{ width: 28, height: 35, borderRadius: 2 }}
       >
-        <Photo piece={{ id: `was-${name}`, image: image ?? null }} width={PILL_THUMB} />
+        {uri ? <Image source={uri} alt="" aspect="4:5" contentFit="cover" {...fit} /> : null}
       </View>
-      <Icon name="forward" size={9} color={ink} />
-      {/* Full ink: 11px on the sunk fill needs it for 4.5:1. */}
-      <Text style={{ fontSize: 11 }}>{copy.rack.swapped}</Text>
+      <View className="flex-1" style={{ gap: 2 }}>
+        <Text className="text-ink-faint" style={{ fontFamily: fonts.sans, fontSize: 10.5 }}>
+          {found.row.looksLike}
+        </Text>
+        <Text
+          numberOfLines={1}
+          className="text-ink"
+          style={{ fontFamily: fonts.sans, fontSize: 12.5 }}
+        >
+          {piece.label}
+        </Text>
+      </View>
+      <View className="flex-row items-center" style={{ marginRight: -6, marginVertical: -6 }}>
+        <Disc
+          icon="check"
+          label={found.row.quick}
+          onPress={suggestion.onMatch}
+          testID={`capture-quick-match-${rowKey}`}
+        />
+        <Disc
+          icon="close"
+          label={ui.dismiss}
+          onPress={suggestion.onDismiss}
+          testID={`capture-dismiss-${rowKey}`}
+        />
+      </View>
     </View>
   );
 }
 
-// One piece on a look's rack: the shared piece row (CardRow, PRD §6.1) with the look's own say —
-// its role in the small caps, a find's retailer under the name, and at the right the wears behind a
-// calendar (a piece she owns), a wish's price behind a heart, or a piece to find's price behind a
-// bag. At rest the row opens the piece; in pencil mode the hanger swaps it and × takes it off, and
-// ♡ saves a piece to find. A row the prompt changed reads warm with an ink dot at its edge.
+// One piece on a look's rack (Annie, 27 Nov): the shared piece row (CardRow, PRD §6.1). A tap
+// opens the piece's own page; a swipe takes it off this look; and at the right is the one control
+// its kind takes (`rowKind`): the hanger swaps a piece she owns; a piece found in her photograph
+// has the heart that saves it to her wishlist and the hanger + that opens its sheet; a wish reads
+// its price behind its heart; a piece Robes proposes its price and a heart. A dashed thumbnail is
+// not hers yet. A row the prompt changed reads warm with an ink dot at its edge.
 // Web twin: rack-row.tsx.
 export function RackRowCard({
   row,
   image,
-  mark,
-  styled,
-  wears,
+  highlight = false,
   onOpen,
   onSwap,
+  onFile,
   onWish,
   onRemove,
-  editing = false,
-  wasImage,
+  suggestion,
 }: {
   row: RackRow;
   image?: PieceImage | null;
-  // The photograph of the piece a change swapped out, for the Swapped pill (docked prompt T3).
-  wasImage?: PieceImage | null;
-  mark?: RowMark | null;
-  styled?: string | null;
-  // The piece's own wear count, on a saved look at rest (beta's ledger, L19).
-  wears?: number;
+  highlight?: boolean;
   onOpen?: () => void;
+  // The hanger on a piece she owns: the picker, to swap it.
   onSwap?: () => void;
+  // The hanger + on a found piece: its sheet.
+  onFile?: () => void;
+  // The heart on a piece that is not hers yet.
   onWish?: () => void;
+  // The swipe: off this look, never out of her wardrobe.
   onRemove?: () => void;
-  // The Rack's pencil is down (Robes MVP 2b): the card rocks, × on its corner, swap and chevron.
-  editing?: boolean;
+  suggestion?: RowSuggestion | null;
 }) {
   const brand = row.brand?.trim() || '';
   const name = nameNoBrand(row.name, brand);
-  const proposal = row.proposal;
-  const meta = rackMeta(row, wears);
-  // A swapped piece shows the Swapped pill instead (docked prompt PRD T3).
-  const markText =
-    mark?.kind === 'back' ? copy.rack.backIn : mark?.kind === 'added' ? copy.rack.added : null;
-  const changed = mark?.kind === 'was' || mark?.kind === 'back' || mark?.kind === 'added';
-  // Edit mode (Robes MVP 2b; Annie, 15 Nov): the card rocks, × sits on its top-left corner, and at
-  // the right only the swap disc and the chevron; no wears or price. A piece to find keeps its ♡
-  // while it isn't hers yet, the one way to keep it.
-  const jig = useJig(editing, 0.35);
-  const faint = useColor('ink-faint');
-  const actions = editing ? (
-    <View className="flex-row items-center gap-2">
-      {proposal && onWish && !proposal.wishlisted ? (
-        <IconButton icon="heart" label={copy.rack.save(name)} onPress={onWish} tone="ink-muted" />
-      ) : null}
-      {onSwap ? <EditDisc icon="wardrobe" label={copy.rack.swap(name)} onPress={onSwap} /> : null}
-      <Icon name="forward" size={14} color={faint} />
-    </View>
-  ) : (proposal && onWish) || onSwap || onRemove ? (
-    <View className="flex-row items-center">
-      {proposal && onWish ? (
-        <IconButton
-          icon="heart"
-          label={copy.rack.save(name)}
-          onPress={onWish}
-          tone={proposal.wishlisted ? 'ink' : 'ink-muted'}
-        />
-      ) : null}
-      {onSwap ? <Disc icon="wardrobe" label={copy.rack.swap(name)} onPress={onSwap} /> : null}
-      {onRemove ? <Disc icon="close" label={copy.rack.remove(name)} onPress={onRemove} /> : null}
-    </View>
-  ) : null;
-  const card = (
+  const kind = rowKind(row);
+  const heart =
+    onWish && (kind === 'found' || kind === 'shop') ? (
+      <IconButton
+        icon="heart"
+        label={copy.rack.save(name)}
+        onPress={onWish}
+        tone="ink-muted"
+        testID={`rack-wish-${row.key}`}
+      />
+    ) : null;
+  const disc =
+    kind === 'owned' && onSwap ? (
+      <Disc
+        icon="wardrobe"
+        label={copy.rack.swap(name)}
+        onPress={onSwap}
+        testID={`rack-swap-${row.key}`}
+      />
+    ) : kind === 'found' && onFile ? (
+      <Disc
+        icon="wardrobe"
+        plus
+        label={found.row.add}
+        onPress={onFile}
+        testID={`rack-file-${row.key}`}
+      />
+    ) : null;
+  return (
     <CardRow
       piece={{
         id: row.key,
@@ -229,66 +180,41 @@ export function RackRowCard({
         brand: brand || null,
         image: image ?? null,
       }}
-      {...(row.role ? { role: copy.rack.roles[row.role] } : {})}
-      maker={shopMaker(row, brand)}
-      dashed={!!proposal}
-      meta={editing ? null : meta}
-      action={actions}
-      lines={
-        markText || styled || mark?.kind === 'was' ? (
-          <>
-            {mark?.kind === 'was' ? <SwappedPill name={mark.name} image={wasImage} /> : null}
-            {markText ? (
-              <Text numberOfLines={1} tone="muted" style={{ fontSize: 11 }}>
-                {markText}
-              </Text>
-            ) : null}
-            {styled ? (
-              <Text numberOfLines={1} tone="muted" italic style={{ fontSize: 11 }}>
-                {styled}
-              </Text>
-            ) : null}
-          </>
+      maker={makerOf(row, brand)}
+      dashed={kind !== 'owned'}
+      meta={rackMeta(row)}
+      action={
+        heart || disc ? (
+          <View className="flex-row items-center">
+            {heart}
+            {disc}
+          </View>
         ) : null
       }
-      {...(onOpen && !onSwap && !onRemove ? { onOpen } : {})}
+      below={
+        kind === 'found' && suggestion ? (
+          <LooksLike rowKey={row.key} suggestion={suggestion} />
+        ) : null
+      }
+      {...(onOpen ? { onOpen } : {})}
       openLabel={copy.rack.open(name)}
-      highlight={changed}
-      testID={`rack-row-${row.key}`}
+      highlight={highlight}
+      {...(onRemove ? { swipe: { label: copy.rack.remove(name), onRemove } } : {})}
+      testID={`${kind === 'found' ? 'capture' : 'rack'}-row-${row.key}`}
     />
-  );
-  if (!editing) return card;
-  return (
-    <Animated.View style={{ transform: [{ rotate: jig }] }}>
-      {card}
-      {onRemove ? (
-        <View className="absolute" style={{ left: -6, top: -6 }}>
-          <EditDisc
-            icon="close"
-            label={copy.rack.remove(name)}
-            onPress={onRemove}
-            testID={`rack-remove-${row.key}`}
-          />
-        </View>
-      ) : null}
-    </Animated.View>
   );
 }
 
-// The rack row's meta (PRD §6.1, Annie 9 Nov): a wish carries a heart and its price, a piece to
-// find a bag and its price, a piece she owns its wears.
-function rackMeta(row: RackRow, wears: number | undefined): RowMeta | null {
+// The rack row's meta (PRD §6.1, Annie 9 Nov): a wish carries its heart and its price, a piece
+// Robes proposes a bag and its price. A piece she owns or one from her photograph has none.
+function rackMeta(row: RackRow): RowMeta | null {
   const proposal = row.proposal;
-  if (proposal) {
-    const price = proposal.pricePoint?.trim() || '';
-    const said = proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours;
-    return {
-      icon: proposal.wishlisted ? 'heart' : 'shop',
-      ...(price ? { text: price } : {}),
-      label: [said, price].filter(Boolean).join(' · '),
-    };
-  }
-  return wears === undefined
-    ? null
-    : { icon: 'calendar', text: String(wears), label: copy.meta.wears(wears) };
+  if (!proposal || proposal.capture) return null;
+  const price = proposal.pricePoint?.trim() || '';
+  const said = proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours;
+  return {
+    icon: proposal.wishlisted ? 'heart' : 'shop',
+    ...(price ? { text: price } : {}),
+    label: [said, price].filter(Boolean).join(' · '),
+  };
 }

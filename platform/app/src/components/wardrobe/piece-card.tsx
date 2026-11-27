@@ -229,6 +229,7 @@ export function CardRow({
   lines,
   below,
   href,
+  onOpen,
   openLabel,
   highlight = false,
   swipe,
@@ -247,6 +248,8 @@ export function CardRow({
   // like your …", Capture PRD 1c.6).
   below?: ReactNode;
   href?: string;
+  // The row's link was followed.
+  onOpen?: () => void;
   openLabel?: string;
   // A row the prompt changed: the warm fill and an ink dot at its edge.
   highlight?: boolean;
@@ -274,6 +277,7 @@ export function CardRow({
             <Link
               href={href}
               draggable={false}
+              onClick={onOpen}
               aria-label={openLabel ?? piece.label}
               className={`after:absolute after:inset-0 ${focus}`}
             >

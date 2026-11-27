@@ -1,8 +1,9 @@
-import { lookbook, wardrobe } from '@robes/copy';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { lookbook, ui, wardrobe } from '@robes/copy';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LookCapture } from '../src/features/capture/LookCapture';
 import { DraftLook } from '../src/features/looks/DraftLook';
+import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, JOB_ID, LOOK_ID, look, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
@@ -48,6 +49,9 @@ jest.mock('expo-camera', () => {
     },
   };
 });
+
+const track = jest.spyOn(nativeAnalytics, 'track');
+beforeEach(() => track.mockClear());
 
 const copy = lookbook.draftLook.capture;
 const cam = copy.camera;
@@ -172,6 +176,56 @@ function draftRoutes(start = captured()) {
   };
 }
 
+const WISH = '88888888-8888-4888-8888-888888888888';
+const wishOf = (over: object = {}) => ({
+  id: WISH,
+  label: 'Black leather biker jacket',
+  category: 'Outerwear',
+  categoryL2: null,
+  categoryL3: null,
+  color: 'black',
+  brand: 'Totême',
+  note: null,
+  price: 1200,
+  currency: 'EUR',
+  size: null,
+  sourceUrl: null,
+  sourceLabel: null,
+  image: null,
+  createdAt: '2026-11-01T10:00:00.000Z',
+  updatedAt: '2026-11-01T10:00:00.000Z',
+  ...over,
+});
+const lastProposals = (calls: ReturnType<typeof mockFetch>) =>
+  (
+    calls.filter((c) => c.method === 'PATCH').at(-1)?.body as
+      | {
+          proposals?: Array<{
+            key: string;
+            name: string;
+            wishlistItemId: string | null;
+            capture: unknown;
+          }>;
+        }
+      | undefined
+  )?.proposals;
+
+// The hanger + on a found row opens its sheet (Annie, 27 Nov); Match to piece is its third row.
+const openSheet = async (index: number) => {
+  const hangers = screen.getAllByRole('button', { name: copy.row.add });
+  await fireEvent.press(hangers[index] as never);
+  await screen.findByTestId('found-piece-sheet');
+};
+const openMatch = async (index: number) => {
+  await openSheet(index);
+  await fireEvent.press(screen.getByTestId('found-match'));
+};
+// A swipe takes a row off the look; a screen reader has it as the row's action.
+const swipeOff = (name: string) =>
+  fireEvent.press(screen.getByRole('button', { name: lookbook.rack.remove(name) }));
+const undo = () =>
+  fireEvent.press(screen.getAllByRole('button', { name: ui.undo }).at(-1) as never);
+
 beforeEach(() => {
   mockGranted = true;
   mockCanAsk = true;
@@ -269,7 +323,7 @@ test('an untouched photo closes without a question and is let go', async () => {
   expect(screen.queryByText(copy.discard.title)).toBeNull();
 });
 
-test('Find the pieces: a row per piece; the suggestion matches in one tap; Remove has Undo', async () => {
+test('Find the pieces: a row per piece; the suggestion matches in one tap; a swipe removes, behind Undo', async () => {
   const calls = mockFetch(draftRoutes());
   await renderWithApi(
     <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
@@ -279,11 +333,18 @@ test('Find the pieces: a row per piece; the suggestion matches in one tap; Remov
   expect(screen.getByText('Cropped sweatshirt')).toBeTruthy();
   expect(screen.getByText('Leggings')).toBeTruthy();
   expect(screen.getByText('Running trainers')).toBeTruthy();
-  // Two rows have no close match; the trainers look like hers.
-  expect(screen.getAllByText(copy.row.noMatch)).toHaveLength(2);
-  expect(screen.getByText(copy.row.looksLike)).toBeTruthy();
-  expect(screen.getAllByRole('button', { name: copy.row.match })).toHaveLength(3);
+  // Each says where it came from; only the trainers look like one of hers (decision 13: no line
+  // for the rows with no close match).
+  expect(screen.getAllByText(copy.card.eyebrow)).toHaveLength(3);
+  expect(screen.getAllByText(copy.row.looksLike)).toHaveLength(1);
+  // One control a row: the hanger + that opens its sheet, beside the heart; no pencil, no ×.
   expect(screen.getAllByRole('button', { name: copy.row.add })).toHaveLength(3);
+  expect(
+    screen.getByRole('button', { name: lookbook.rack.save('Cropped sweatshirt') }),
+  ).toBeTruthy();
+  expect(screen.queryByTestId('rack-pencil')).toBeNull();
+  // The pill under the list adds from her wardrobe.
+  expect(screen.getByTestId('rack-add')).toHaveTextContent(lookbook.draftLook.rackCard.pick);
   const written = () =>
     calls.filter((c) => c.method === 'PATCH').at(-1)?.body as {
       pieces: Array<{ pieceId: string }>;
@@ -292,61 +353,258 @@ test('Find the pieces: a row per piece; the suggestion matches in one tap; Remov
   await waitFor(() => expect(written()?.proposals).toHaveLength(3));
   expect(written().proposals[2]?.capture).toMatchObject({ readId: JOB_ID, index: 2 });
 
-  // One tap on the suggestion files the row as her piece.
+  // One tap on the suggestion files the row as her piece, behind Undo.
   await fireEvent.press(screen.getByRole('button', { name: copy.row.quick }));
   await waitFor(() => expect(written().pieces).toEqual([{ pieceId: SHOES, role: null }]));
   expect(written().proposals.map((p) => p.name)).toEqual(['Cropped sweatshirt', 'Leggings']);
   expect(await screen.findByText('White running shoes')).toBeTruthy();
   expect(screen.queryByText('Running trainers')).toBeNull();
+  expect(screen.getByText(lookbook.swap.swapped('White running shoes'))).toBeTruthy();
+  // Undo puts the found row back where it stood, and nothing left her wardrobe.
+  await undo();
+  expect(await screen.findByText('Running trainers')).toBeTruthy();
+  await waitFor(() => expect(written().proposals).toHaveLength(3));
+  expect(written().pieces).toEqual([]);
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+  expect(track).toHaveBeenCalledWith('look_change_undone', { surface: 'draft', what: 'match' });
 
-  // Remove hides a row behind Undo, which puts it back.
-  const [removeTop] = screen.getAllByRole('button', { name: copy.row.remove });
-  await fireEvent.press(removeTop as never);
+  // A swipe takes a row off this look behind the toast's Undo, which puts it back.
+  await swipeOff('Cropped sweatshirt');
   expect(await screen.findByText(copy.removed(1))).toBeTruthy();
   expect(screen.queryByText('Cropped sweatshirt')).toBeNull();
-  await fireEvent.press(screen.getByTestId('capture-undo'));
-  expect(await screen.findByText('Cropped sweatshirt')).toBeTruthy();
-  expect(screen.queryByText(copy.removed(1))).toBeNull();
   await waitFor(() => expect(written().proposals).toHaveLength(2));
+  await undo();
+  expect(await screen.findByText('Cropped sweatshirt')).toBeTruthy();
+  await waitFor(() => expect(written().proposals).toHaveLength(3));
+  expect(written().proposals.map((p) => p.name)).toEqual([
+    'Cropped sweatshirt',
+    'Leggings',
+    'Running trainers',
+  ]);
+  // A found row taken off is a piece removed, as any other (no longer a filing).
+  expect(track).toHaveBeenCalledWith('look_piece_removed', { surface: 'draft' });
+  expect(track).not.toHaveBeenCalledWith('look_piece_filed', { how: 'remove' });
+  expect(track).toHaveBeenCalledWith('look_change_undone', { surface: 'draft', what: 'remove' });
 });
 
-// D1 (Annie, 26 Nov): finding the pieces draws her model wearing all of them, nothing filed.
-const RENDER = { [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' } };
-const renders = (calls: ReturnType<typeof mockFetch>) =>
-  calls.filter((c) => c.method === 'POST' && c.path.endsWith(`/looks/${LOOK_ID}/render`));
-
-test('the pieces found on a captured draft dress her model once, written first, nothing filed', async () => {
-  const calls = mockFetch({ ...draftRoutes(), ...RENDER });
+test('× on Looks like your… dismisses the suggestion for this look; the row stays found', async () => {
+  const calls = mockFetch(draftRoutes());
   await renderWithApi(
     <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
   );
   await fireEvent.press(await screen.findByTestId('capture-find'));
   await screen.findByTestId('capture-rack-rack');
-  await waitFor(() => expect(renders(calls)).toHaveLength(1));
-  // The rack holding every found piece was written before the picture was asked for.
-  const draw = calls.indexOf(renders(calls)[0] as never);
-  const write = calls.findIndex(
-    (c) => c.method === 'PATCH' && (c.body as { proposals?: unknown[] }).proposals?.length === 3,
+  const proposals = () =>
+    (
+      calls.filter((c) => c.method === 'PATCH').at(-1)?.body as {
+        proposals: Array<{ name: string; capture: { suggestedPieceId: string | null } }>;
+      }
+    )?.proposals;
+  await waitFor(() => expect(proposals()?.[2]?.capture.suggestedPieceId).toBe(SHOES));
+  await fireEvent.press(screen.getByRole('button', { name: ui.dismiss }));
+  await waitFor(() => expect(screen.queryByText(copy.row.looksLike)).toBeNull());
+  expect(screen.getByText('Running trainers')).toBeTruthy();
+  // Kept on the look, so it stays dismissed when she comes back.
+  await waitFor(() => expect(proposals()?.[2]?.capture.suggestedPieceId).toBeNull());
+  expect(proposals()).toHaveLength(3);
+  expect(track).toHaveBeenCalledWith('look_match_dismissed');
+});
+
+test('× offers her next likeliest piece, when the read saw a second one', async () => {
+  const BOOTS = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const boots = piece({ id: BOOTS, label: 'Chalk plimsolls', category: 'Shoes', image: null });
+  const routes = draftRoutes();
+  const calls = mockFetch({
+    ...routes,
+    'GET /wardrobe/items': { items: [shoes, boots], nextCursor: null },
+    [`GET /jobs/${JOB_ID}`]: {
+      ...routes[`GET /jobs/${JOB_ID}`],
+      output: {
+        assetId: ASSET_ID,
+        noItemDetected: false,
+        readPieces: READ.map((p) => (p.index === 2 ? { ...p, alsoMatches: [BOOTS] } : p)),
+      },
+    },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
   );
-  expect(write).toBeGreaterThanOrEqual(0);
-  expect(write).toBeLessThan(draw);
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  const read = () =>
+    (
+      calls.filter((c) => c.method === 'PATCH').at(-1)?.body as {
+        proposals: Array<{
+          capture: { suggestedPieceId: string | null; alsoSuggestedIds: string[] };
+        }>;
+      }
+    )?.proposals?.[2]?.capture;
+  await waitFor(() =>
+    expect(read()).toMatchObject({ suggestedPieceId: SHOES, alsoSuggestedIds: [BOOTS] }),
+  );
+  expect(await screen.findByText('White running shoes')).toBeTruthy();
+  // Not that one: the next stands in its place, one strip at a time.
+  await fireEvent.press(screen.getByRole('button', { name: ui.dismiss }));
+  expect(await screen.findByText('Chalk plimsolls')).toBeTruthy();
+  expect(screen.queryByText('White running shoes')).toBeNull();
+  expect(screen.getAllByText(copy.row.looksLike)).toHaveLength(1);
+  await waitFor(() =>
+    expect(read()).toMatchObject({ suggestedPieceId: BOOTS, alsoSuggestedIds: [] }),
+  );
+  // Nor that one: the strip goes.
+  await fireEvent.press(screen.getByRole('button', { name: ui.dismiss }));
+  await waitFor(() => expect(screen.queryByText(copy.row.looksLike)).toBeNull());
+  await waitFor(() => expect(read()?.suggestedPieceId).toBeNull());
+});
+
+test('the hanger + opens the found piece’s sheet: Add to wardrobe, Add to wishlist, Match to piece', async () => {
+  mockFetch(draftRoutes());
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  await openSheet(0);
+  const sheet = within(screen.getByTestId('found-piece-sheet'));
+  expect(sheet.getByText('Cropped sweatshirt')).toBeTruthy();
+  expect(sheet.getByRole('button', { name: copy.review.cta })).toBeTruthy();
+  expect(sheet.getByRole('button', { name: lookbook.pieceToFind.add })).toBeTruthy();
+  expect(sheet.getByRole('button', { name: copy.row.match })).toBeTruthy();
+  // Add to wardrobe opens the new-piece review once the sheet has gone.
+  await fireEvent.press(sheet.getByTestId('found-add'));
+  expect(await screen.findByTestId('capture-new-piece')).toBeTruthy();
+  expect(track).toHaveBeenCalledWith('found_piece_option', { option: 'wardrobe' });
+});
+
+const FILED = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+test('Add to wardrobe files the piece behind Undo, which takes it out again and puts the found row back', async () => {
+  const top = piece({ id: FILED, label: 'Cropped sweatshirt', category: 'Tops', image: null });
+  const routes = draftRoutes();
+  const patch = routes[`PATCH /looks/${LOOK_ID}`] as (init: RequestInit) => ReturnType<typeof look>;
+  const calls = mockFetch({
+    ...routes,
+    // The look comes back holding the piece she filed.
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => {
+      const written = patch(init);
+      return { ...written, pieces: written.pieces.map((p) => ({ ...p, piece: top })) };
+    },
+    [`POST /wardrobe/photo-reads/${JOB_ID}/pieces`]: top,
+    [`DELETE /wardrobe/items/${FILED}`]: { ok: true },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  await openSheet(0);
+  await fireEvent.press(screen.getByTestId('found-add'));
+  await fireEvent.press(await screen.findByTestId('capture-add-to-wardrobe'));
+  const written = () =>
+    calls.filter((c) => c.method === 'PATCH').at(-1)?.body as {
+      pieces: Array<{ pieceId: string }>;
+      proposals: Array<{ name: string }>;
+    };
+  await waitFor(() => expect(written().pieces).toEqual([{ pieceId: FILED, role: null }]));
+  expect(await screen.findByText(wardrobe.receipts.added)).toBeTruthy();
+  await undo();
+  // The look lets go of the piece first, then her wardrobe does.
+  await waitFor(() => expect(written().pieces).toEqual([]));
+  expect(written().proposals.map((p) => p.name)).toEqual([
+    'Cropped sweatshirt',
+    'Leggings',
+    'Running trainers',
+  ]);
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'DELETE' && c.path.endsWith(FILED))).toBe(true),
+  );
+  expect(screen.getAllByRole('button', { name: copy.row.add })).toHaveLength(3);
+});
+
+test('the heart on a found piece saves it to her wishlist in one tap; Undo takes the wish back', async () => {
+  const calls = mockFetch({
+    ...draftRoutes(),
+    [`POST /wardrobe/photo-reads/${JOB_ID}/wishes`]: wishOf({ label: 'Leggings' }),
+    [`DELETE /wishlist/items/${WISH}`]: { ok: true },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  await waitFor(() => expect(lastProposals(calls)).toHaveLength(3));
+  const keyWas = lastProposals(calls)?.[1]?.key;
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.rack.save('Leggings') }));
+  await waitFor(() => expect(lastProposals(calls)?.[1]?.wishlistItemId).toBe(WISH));
+  expect(await screen.findByText(lookbook.savedSuggestion.body(1))).toBeTruthy();
+  // On her wishlist the row has no hanger: its heart is filled.
+  expect(screen.getAllByRole('button', { name: copy.row.add })).toHaveLength(2);
+  await undo();
+  await waitFor(() => expect(lastProposals(calls)?.[1]?.wishlistItemId).toBeNull());
+  // The found row comes back under a new key: the server keeps a key's wish once filed.
+  const back = lastProposals(calls)?.[1];
+  expect(back?.capture).toMatchObject({ readId: JOB_ID, index: 1 });
+  expect(back?.key).not.toBe(keyWas);
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'DELETE' && c.path.endsWith(WISH))).toBe(true),
+  );
+  expect(screen.getAllByRole('button', { name: copy.row.add })).toHaveLength(3);
+});
+
+// Annie, 27 Nov (supersedes D1's draw as the read lands): finding the pieces draws nothing. The
+// pill on her photograph dresses her model in all of them at once, nothing filed.
+const RENDER = { [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' } };
+const renders = (calls: ReturnType<typeof mockFetch>) =>
+  calls.filter((c) => c.method === 'POST' && c.path.endsWith(`/looks/${LOOK_ID}/render`));
+const pillSays = async (label: string) =>
+  expect(within(await screen.findByTestId('model-pill')).getByText(label)).toBeTruthy();
+
+test('the pieces found on a captured draft are written and wait for the pill, which dresses her model once', async () => {
+  const calls = mockFetch({ ...draftRoutes(), ...RENDER });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} day={DAY} presentation="sheet" onClose={jest.fn()} />,
+  );
+  // A photograph with nothing found has nothing to dress her model in.
+  await screen.findByTestId('capture-find');
+  expect(screen.queryByTestId('model-pill')).toBeNull();
+  await fireEvent.press(screen.getByTestId('capture-find'));
+  await screen.findByTestId('capture-rack-rack');
+  const write = () =>
+    calls.findIndex(
+      (c) => c.method === 'PATCH' && (c.body as { proposals?: unknown[] }).proposals?.length === 3,
+    );
+  await waitFor(() => expect(write()).toBeGreaterThanOrEqual(0));
+  await pillSays(lookbook.draft.dressModel);
+  await act(() => new Promise((r) => setTimeout(r, 1500)));
+  expect(renders(calls)).toHaveLength(0);
+  // One tap draws every found piece, on the rack as written, with nothing filed.
+  await fireEvent.press(screen.getByTestId('model-pill'));
+  expect(track).toHaveBeenCalledWith('look_model_pill_tapped', { surface: 'draft', how: 'dress' });
+  await waitFor(() => expect(renders(calls)).toHaveLength(1));
+  expect(write()).toBeLessThan(calls.indexOf(renders(calls)[0] as never));
+  expect(screen.queryByTestId('model-pill')).toBeNull();
   expect(calls.some((c) => c.path.includes('/wardrobe/') && c.method === 'POST')).toBe(false);
 });
 
-// Annie, 26 Nov: filing a found piece keeps the picture current (the server carries it), and any
-// other change after the first picture dresses her model exactly as on a draft built by hand.
-test('after its first picture a captured draft is dressed as a hand-built one; filing draws nothing', async () => {
+// Filing a found piece keeps the picture current (Annie, 26 Nov: the server carries it), so it
+// never raises the pill; any other change by hand raises it and draws nothing by itself.
+test('once drawn, filing a found piece raises no pill; a piece taken off does, and draws nothing', async () => {
   const routes = draftRoutes();
   const patch = routes[`PATCH /looks/${LOOK_ID}`] as (init: RequestInit) => ReturnType<typeof look>;
   let drawn = false;
   let last = captured();
   const calls = mockFetch({
     ...routes,
-    [`GET /looks/${LOOK_ID}`]: () => last,
+    // The picture reads pending once asked for, and has landed by the read after.
+    [`GET /looks/${LOOK_ID}`]: () => {
+      const now = last;
+      if (last.onModel === 'pending') last = { ...last, model: PHOTO, onModel: 'ready' };
+      return now;
+    },
     [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => {
       const body = JSON.parse(String(init.body)) as { filed?: unknown[] };
       last = {
         ...patch(init),
+        model: drawn ? PHOTO : null,
         onModel: drawn ? 'ready' : null,
         pictureStale: drawn && !body.filed,
       };
@@ -354,7 +612,7 @@ test('after its first picture a captured draft is dressed as a hand-built one; f
     },
     [`POST /looks/${LOOK_ID}/render`]: () => {
       drawn = true;
-      last = { ...last, onModel: 'ready' };
+      last = { ...last, onModel: 'pending', pictureStale: false };
       return { jobId: JOB_ID, status: 'queued' };
     },
   });
@@ -363,13 +621,18 @@ test('after its first picture a captured draft is dressed as a hand-built one; f
   );
   await fireEvent.press(await screen.findByTestId('capture-find'));
   await screen.findByTestId('capture-rack-rack');
+  await fireEvent.press(await screen.findByTestId('model-pill'));
   await waitFor(() => expect(renders(calls)).toHaveLength(1));
+  expect(screen.queryByTestId('model-pill')).toBeNull();
+  // The picture lands, wearing every found piece.
+  await waitFor(() => expect(last.onModel).toBe('ready'), { timeout: 8000 });
+  await waitFor(() => expect(screen.queryByTestId('scan-line')).toBeNull(), { timeout: 8000 });
   const found = calls.find(
     (c) => c.method === 'PATCH' && (c.body as { proposals?: unknown[] }).proposals?.length === 3,
   )?.body as { proposals: Array<{ key: string; name: string }> };
   const trainers = found.proposals.find((p) => p.name === 'Running trainers')?.key;
 
-  // Matched to her shoes: the write says what was filed, and the model is not drawn again.
+  // Matched to her shoes: the write says what was filed, and the picture stays current.
   await fireEvent.press(screen.getByRole('button', { name: copy.row.quick }));
   await waitFor(() =>
     expect(calls.filter((c) => c.method === 'PATCH').at(-1)?.body).toMatchObject({
@@ -378,12 +641,14 @@ test('after its first picture a captured draft is dressed as a hand-built one; f
     }),
   );
   await act(() => new Promise((r) => setTimeout(r, 1500)));
+  expect(screen.queryByTestId('model-pill')).toBeNull();
   expect(renders(calls)).toHaveLength(1);
 
-  // A found piece taken off is a change: the model is dressed again, with no Save.
-  const [removeTop] = screen.getAllByRole('button', { name: copy.row.remove });
-  await fireEvent.press(removeTop as never);
-  await waitFor(() => expect(renders(calls)).toHaveLength(2), { timeout: 4000 });
+  // A found piece taken off is a change the picture is behind on: the pill, and no draw.
+  await swipeOff('Cropped sweatshirt');
+  await pillSays(lookbook.draft.updateModel(1));
+  await act(() => new Promise((r) => setTimeout(r, 1500)));
+  expect(renders(calls)).toHaveLength(1);
 });
 
 test('a captured photo whose pieces are never found is never drawn', async () => {
@@ -402,7 +667,7 @@ test('a captured photo whose pieces are never found is never drawn', async () =>
   expect(renders(calls)).toHaveLength(0);
 });
 
-test('the pieces found on a saved look are kept and drawn at once, with no Update look', async () => {
+test('the pieces found on a saved look are kept at once, with no Update look, and wait for the pill', async () => {
   const saved = captured({ status: 'saved', photo: PHOTO, image: PHOTO });
   const routes = draftRoutes(saved);
   const calls = mockFetch({
@@ -417,12 +682,17 @@ test('the pieces found on a saved look are kept and drawn at once, with no Updat
   await fireEvent.press(await screen.findByTestId('capture-find'));
   // On a saved look the found pieces join its own rack.
   expect(await screen.findByText('Cropped sweatshirt')).toBeTruthy();
+  await waitFor(() =>
+    expect(
+      (calls.find((c) => c.method === 'PATCH')?.body as { proposals?: unknown[] } | undefined)
+        ?.proposals,
+    ).toHaveLength(3),
+  );
+  expect(screen.queryByTestId('update-look')).toBeNull();
+  await pillSays(lookbook.draft.dressModel);
+  expect(renders(calls)).toHaveLength(0);
+  await fireEvent.press(screen.getByTestId('model-pill'));
   await waitFor(() => expect(renders(calls)).toHaveLength(1));
-  expect(
-    (calls.find((c) => c.method === 'PATCH')?.body as { proposals?: unknown[] } | undefined)
-      ?.proposals,
-  ).toHaveLength(3);
-  expect(screen.queryByText(lookbook.draftLook.update)).toBeNull();
 });
 
 test('Match to piece opens the picker as Match to your wardrobe, the suggestion ticked', async () => {
@@ -432,8 +702,7 @@ test('Match to piece opens the picker as Match to your wardrobe, the suggestion 
   );
   await fireEvent.press(await screen.findByTestId('capture-find'));
   await screen.findByTestId('capture-rack-rack');
-  const match = screen.getAllByRole('button', { name: copy.row.match });
-  await fireEvent.press(match[2] as never);
+  await openMatch(2);
   expect(await screen.findByText(copy.match.title)).toBeTruthy();
   const confirm = await screen.findByTestId('picker-confirm');
   expect(screen.getByText(copy.match.cta)).toBeTruthy();
@@ -445,34 +714,9 @@ test('Match to piece opens the picker as Match to your wardrobe, the suggestion 
         ?.pieces,
     ).toEqual([{ pieceId: SHOES, role: null }]),
   );
+  // The piece Robes saw in her photograph is the one the picture wears: filed, never a change.
+  expect(calls.filter((c) => c.method === 'PATCH').at(-1)?.body).toHaveProperty('filed');
 });
-
-const WISH = '88888888-8888-4888-8888-888888888888';
-const wishOf = (over: object = {}) => ({
-  id: WISH,
-  label: 'Black leather biker jacket',
-  category: 'Outerwear',
-  categoryL2: null,
-  categoryL3: null,
-  color: 'black',
-  brand: 'Totême',
-  note: null,
-  price: 1200,
-  currency: 'EUR',
-  size: null,
-  sourceUrl: null,
-  sourceLabel: null,
-  image: null,
-  createdAt: '2026-11-01T10:00:00.000Z',
-  updatedAt: '2026-11-01T10:00:00.000Z',
-  ...over,
-});
-const lastProposals = (calls: ReturnType<typeof mockFetch>) =>
-  (
-    calls.filter((c) => c.method === 'PATCH').at(-1)?.body as
-      | { proposals?: Array<{ name: string; wishlistItemId: string | null }> }
-      | undefined
-  )?.proposals;
 
 test('Match to your wardrobe takes a wish from WISHLIST: it stands in the row as a piece to find', async () => {
   const calls = mockFetch({
@@ -484,8 +728,7 @@ test('Match to your wardrobe takes a wish from WISHLIST: it stands in the row as
   );
   await fireEvent.press(await screen.findByTestId('capture-find'));
   await screen.findByTestId('capture-rack-rack');
-  const [matchTop] = screen.getAllByRole('button', { name: copy.row.match });
-  await fireEvent.press(matchTop as never);
+  await openMatch(0);
   // WISHLIST is open while matching (TestFlight 20 Nov).
   const tab = await screen.findByRole('tab', { name: wardrobe.segments.wishlist });
   expect(tab.props.accessibilityState?.disabled).not.toBe(true);
@@ -507,6 +750,9 @@ test('Match to your wardrobe takes a wish from WISHLIST: it stands in the row as
     'Leggings',
     'Running trainers',
   ]);
+  // A wish she already had is another piece than the one photographed: nothing says it was
+  // filed from the found row, so the picture is behind on it like any swap (Annie, 27 Nov).
+  expect(calls.filter((c) => c.method === 'PATCH').at(-1)?.body).not.toHaveProperty('filed');
 });
 
 test('the + on WISHLIST while matching saves the found piece as a new wish, on the rack', async () => {
@@ -519,8 +765,7 @@ test('the + on WISHLIST while matching saves the found piece as a new wish, on t
   );
   await fireEvent.press(await screen.findByTestId('capture-find'));
   await screen.findByTestId('capture-rack-rack');
-  const match = screen.getAllByRole('button', { name: copy.row.match });
-  await fireEvent.press(match[1] as never);
+  await openMatch(1);
   await fireEvent.press(await screen.findByRole('tab', { name: wardrobe.segments.wishlist }));
   await fireEvent.press(
     await screen.findByRole('button', { name: lookbook.draftLook.picker.addWish }),
@@ -538,8 +783,7 @@ test('the + on OWNED while matching opens Add your pieces, not the found piece',
   );
   await fireEvent.press(await screen.findByTestId('capture-find'));
   await screen.findByTestId('capture-rack-rack');
-  const [matchTop] = screen.getAllByRole('button', { name: copy.row.match });
-  await fireEvent.press(matchTop as never);
+  await openMatch(0);
   await fireEvent.press(await screen.findByTestId('picker-add-new'));
   // A piece she owns and has not logged yet: Photo files it and it takes the found row.
   expect(await screen.findByTestId('add-pieces-sheet')).toBeTruthy();
@@ -611,7 +855,7 @@ test("a draft's found rows wait on their crops and show them once they render", 
   expect(calls.some((c) => c.path.endsWith('/crops'))).toBe(false);
 }, 15_000);
 
-test("a saved look's found rows show their crops before Update look", async () => {
+test("a saved look's found rows show their crops before the look comes back with them", async () => {
   let rendered = false;
   const saved = captured({ status: 'saved', photo: PHOTO, image: PHOTO });
   const calls = mockFetch({

@@ -136,6 +136,8 @@ export interface CaptureRead {
   cropAssetId: string;
   material: string | null;
   suggestedPieceId: string | null;
+  // Her next likeliest pieces, in order (`suggestedIds`).
+  alsoSuggestedIds?: readonly string[];
 }
 
 export interface RackRow {

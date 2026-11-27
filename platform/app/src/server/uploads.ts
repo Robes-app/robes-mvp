@@ -104,7 +104,7 @@ export async function completeUpload(
   return toAsset(deps, userId, row);
 }
 
-// D20: a look photo she picked in image mode, then discarded before Update look accepted it. It
+// D20: a look photo she picked in image mode, then discarded before the strip's ✓ kept it. It
 // leaves every read now; the maintenance worker (the only role that may delete media) removes its
 // files and row within the hour. One on a look stays (409 upload_in_use).
 export async function discardUpload(

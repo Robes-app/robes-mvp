@@ -166,14 +166,23 @@ test('a new look is a draft from the pieces she picks, then it carries on in the
     status: 'draft',
     pieces: [{ pieceId: SCARF }],
   });
-  // The draft carries on in the same sheet: its rack under its heading, the model dressed in it
-  // at once and the prompt closed to its sparkle (Annie, 16 Nov).
+  // The draft carries on in the same sheet: its rack under its heading and the prompt closed to
+  // its sparkle. Nothing is drawn by itself (Annie, 27 Nov): the pill on the picture dresses her
+  // model in everything at once, with no line in the conversation.
   expect(await screen.findByTestId('the-rack')).toBeTruthy();
   expect(await screen.findByTestId('prompt-spark')).toBeTruthy();
-  await waitFor(
-    () => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(true),
-    { timeout: 3000 },
-  );
+  const renders = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/render'));
+  const pill = await screen.findByTestId('model-pill');
+  expect(within(pill).getByText(lookbook.draft.dressModel)).toBeTruthy();
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 1200));
+  });
+  expect(renders()).toHaveLength(0);
+  await fireEvent.press(pill);
+  await waitFor(() => expect(renders()).toHaveLength(1));
+  expect(screen.queryByTestId('model-pill')).toBeNull();
+  expect(screen.queryByText(lookbook.draft.dressModel)).toBeNull();
+  expect(screen.queryByText(lookbook.draft.modelAsked)).toBeNull();
   expect(onClose).not.toHaveBeenCalled();
 });
 
@@ -224,9 +233,9 @@ test('a sixth draft asks to let the oldest go, and only then makes room', async 
   });
 });
 
-// A draft's model wears the rack as she builds it (Annie, 16 Nov): a swap by hand dresses it at
-// once, with no button to press and nothing said in the conversation.
-test('a swap from the picker dresses the model at once', async () => {
+// Her model is drawn when she asks (Annie, 27 Nov; supersedes 16 Nov's "wears the rack as she
+// builds it"): a swap by hand draws nothing, and the pill on the picture brings it up to the rack.
+test('a swap from the picker waits for the pill on the picture, which updates the model', async () => {
   const draft = draftOf({
     pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
     model: piece().image,
@@ -255,25 +264,34 @@ test('a swap from the picker dresses the model at once', async () => {
   expect(await screen.findByTestId('draft-picture')).toBeTruthy();
   const renders = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/render'));
   expect(renders()).toHaveLength(0);
-  // The pencil shows the hanger; it opens the picker on the row's category; Swap it in lands it.
-  await fireEvent.press(await screen.findByTestId('rack-pencil'));
+  // The picture wears the rack: no pill.
+  expect(screen.queryByTestId('model-pill')).toBeNull();
+  // The hanger on her piece opens the picker on the row's category; Swap it in lands it.
   await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
+    await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );
   await fireEvent.press(
     await screen.findByRole('checkbox', { name: diary.flyout.pick('Navy silk top') }),
   );
   await fireEvent.press(screen.getByTestId('picker-confirm'));
   expect(await screen.findByText(lookbook.swap.swapped('Navy silk top'))).toBeTruthy();
-  // Dressed again for the new rack, with no button and no line in the conversation.
-  await waitFor(() => expect(renders()).toHaveLength(1), { timeout: 3000 });
-  expect(screen.queryByTestId('update-model')).toBeNull();
+  // Nothing is drawn for it; the pill counts what the picture is behind and draws it when tapped,
+  // with no line in the conversation.
+  const pill = await screen.findByTestId('model-pill');
+  expect(within(pill).getByText(lookbook.draft.updateModel(1))).toBeTruthy();
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 1200));
+  });
+  expect(renders()).toHaveLength(0);
+  await fireEvent.press(pill);
+  await waitFor(() => expect(renders()).toHaveLength(1));
+  expect(screen.queryByTestId('model-pill')).toBeNull();
   expect(screen.queryByText(lookbook.draft.modelAsked)).toBeNull();
 });
 
 // Testing 21 Nov: three pieces picked in one go, one on the look. Each pick rebuilt the rack the
 // picker opened on, so the last replaced the others; now they land together, in one write.
-test('several pieces picked together all land on the draft, in one write and one picture', async () => {
+test('several pieces picked together all land on the draft, in one write and one change to draw', async () => {
   const BAG = 'abababab-abab-4bab-8bab-abababababab';
   const draft = draftOf({
     pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
@@ -312,8 +330,11 @@ test('several pieces picked together all land on the draft, in one write and one
   await waitFor(() => expect(patches()).toHaveLength(1));
   const body = patches()[0]?.body as { pieces: { pieceId: string }[] } | undefined;
   expect(body?.pieces.map((p) => p.pieceId)).toEqual([piece().id, SCARF, BAG]);
-  const renders = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/render'));
-  await waitFor(() => expect(renders()).toHaveLength(1), { timeout: 3000 });
+  // One change for the picture to catch up on, drawn only when she asks.
+  expect(
+    within(await screen.findByTestId('model-pill')).getByText(lookbook.draft.updateModel(1)),
+  ).toBeTruthy();
+  expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(false);
 });
 
 // Dressing is never retried on its own: a picture that failed says so and waits for her.
@@ -330,6 +351,12 @@ test('a draft whose picture failed is not dressed again by itself', async () => 
     await new Promise((r) => setTimeout(r, 1500));
   });
   expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(false);
+  // Its own Try again stands in the pill's place, and asks once more.
+  expect(screen.queryByTestId('model-pill')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.figure.undressed('her') }));
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(true),
+  );
 });
 
 // The photo carries no styling control (docked prompt PRD M1): a note about the picture goes
@@ -431,9 +458,10 @@ test('closing asks: Discard lets the draft go, Keep for later only closes', asyn
   expect(onClose).toHaveBeenCalledTimes(2);
 });
 
-// Home's Edit opens a saved look as the Edit look sheet (3k, D18): Update look at its foot is the
-// one accept; the tick only closes, once nothing waits.
-test('the Edit look sheet: Update look and the tick wait for a change, × asks first', async () => {
+// Home's Edit opens a saved look as the Edit look sheet (3k, D18). What she changes by hand is
+// kept as she makes it, under a Saved tick (Annie, 27 Nov): no Update look, no ✓, and × leaves
+// without a question. The picture waits for its pill.
+test('the Edit look sheet keeps each change as she makes it: a Saved tick, no Update look, × just leaves', async () => {
   const jeans = piece({ id: SCARF, label: 'Straight jeans', category: 'Bottoms' });
   const saved = look({
     pieces: [
@@ -450,6 +478,7 @@ test('the Edit look sheet: Update look and the tick wait for a change, × asks f
     [`PATCH /looks/${LOOK_ID}`]: {
       ...saved,
       pieces: [saved.pieces[0]],
+      pictureStale: true,
       updatedAt: new Date().toISOString(),
     },
     [`POST /looks/${LOOK_ID}/render`]: {
@@ -460,32 +489,34 @@ test('the Edit look sheet: Update look and the tick wait for a change, × asks f
   const onClose = jest.fn();
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={onClose} />);
   expect(await screen.findByText(copy.editTitle)).toBeTruthy();
-  const update = () => screen.getByTestId('update-look');
-  // One confirm per screen (audit P1): Update look is the accept; the header has no ✓.
+  // Nothing to accept: no ✓ in the header, no Update look at the foot, no tick at rest.
   expect(screen.queryByTestId('draft-done')).toBeNull();
-  // Its picture is the photo strip, on the Add a photo card (Capture PRD 3.1).
-  expect(screen.getByTestId('image-manager')).toBeTruthy();
-  // Nothing waits: Update look sits dimmed (PRD 3.1); × leaves.
-  expect(update().props.accessibilityLabel).toBe(copy.update);
-  expect(update().props.accessibilityState.disabled).toBe(true);
-  expect(screen.queryByTestId('update-model')).toBeNull();
-  // A change: Update look and the tick wake, × asks Discard your changes?
-  await fireEvent.press(screen.getByTestId('rack-pencil'));
+  expect(screen.queryByTestId('update-look')).toBeNull();
+  expect(screen.queryByTestId('saved-tick')).toBeNull();
+  // It opens on its pieces as a list, not on the photo strip (Annie, 27 Nov).
+  expect(screen.queryByTestId('image-manager')).toBeNull();
+  expect(
+    screen.getByRole('tab', { name: lookbook.savedLook.tabs.pieces, selected: true }),
+  ).toBeTruthy();
+  // A change is written there and then, without working notes, and the tick says so.
   await fireEvent.press(
     screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
-  expect(update().props.accessibilityState.disabled).toBe(false);
+  const patches = () => calls.filter((c) => c.method === 'PATCH');
+  await waitFor(() => expect(patches()).toHaveLength(1));
+  expect(patches()[0]?.body).toEqual({
+    pieces: [{ pieceId: PIECE_ID, role: null }],
+    proposals: [],
+    styling: {},
+  });
+  expect(
+    within(await screen.findByTestId('saved-tick')).getByText(lookbook.draft.saved),
+  ).toBeTruthy();
+  // Nothing is drawn for it.
+  expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(false);
+  // × leaves, with nothing to discard.
   await fireEvent.press(screen.getByTestId('draft-close'));
-  expect(await screen.findByText(copy.discardEdit.title)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: copy.discard.keep }));
-  // Update look applies the change and she stays in the sheet, dimmed again; × then leaves
-  // without a question.
-  await fireEvent.press(update());
-  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
-  expect(await screen.findByText(lookbook.updated)).toBeTruthy();
-  expect(onClose).not.toHaveBeenCalled();
-  await waitFor(() => expect(update().props.accessibilityState.disabled).toBe(true));
-  await fireEvent.press(screen.getByTestId('draft-close'));
+  expect(screen.queryByRole('button', { name: copy.discard.discard })).toBeNull();
   expect(onClose).toHaveBeenCalledTimes(1);
 });
 
@@ -510,7 +541,7 @@ test('a saved look keeps Delete at the foot of Details, and × closes untouched 
   expect(await screen.findByLabelText(lookbook.diary.prevMonth)).toBeTruthy();
   await fireEvent.press(screen.getByTestId('draft-close'));
   expect(onClose).toHaveBeenCalledTimes(1);
-  expect(screen.queryByText(copy.discardEdit.title)).toBeNull();
+  expect(screen.queryByRole('button', { name: copy.discard.discard })).toBeNull();
 });
 
 test('a saved look opened with `schedule` has the diary up', async () => {
@@ -1154,7 +1185,7 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   expect(await screen.findByTestId('the-rack')).toBeTruthy();
-  // With a piece on the rack, the add slot is the small + hanger chip, not the big card (Annie,
+  // With a piece on the rack, the add slot is the pill under the rows, not the big card (Annie,
   // 15 Nov); the card is only for an empty rack.
   expect(screen.queryByTestId('rack-card-add')).toBeNull();
   // The + opens the picker once her wardrobe's count is in (before it, Add pieces): wait for it.
@@ -1185,11 +1216,13 @@ test('a wish from the picker hangs on the rack as a piece to find', async () => 
       ],
     }),
   );
-  // A wish reads as a piece to find: the bag and its price at the row's right.
+  // A wish reads as a piece to find: its heart and its price at the row's right.
   expect(await screen.findByLabelText(`${lookbook.rack.wishlist} · €390`)).toBeTruthy();
   // It is the wish itself: tapped, it opens the wish's page (Annie, 15 Nov: it couldn't be opened).
   mockRouter.push.mockClear();
-  await fireEvent.press(screen.getByRole('button', { name: /Black leather loafers/ }));
+  await fireEvent.press(
+    screen.getByRole('button', { name: lookbook.rack.open('Black leather loafers') }),
+  );
   expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/wish/[id]', params: { id: WISH_ID } });
 });
 
@@ -1204,7 +1237,12 @@ test('once a piece hangs, the toggle on the tabs line turns the rows to small ph
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   expect(await screen.findByTestId(`rack-row-${PIECE_ID}`)).toBeTruthy();
   const tabs = within(screen.getByTestId('draft-tabs'));
-  expect(tabs.getByTestId('rack-pencil')).toBeTruthy();
+  // No pencil (Annie, 27 Nov): the row carries its own control, and a swipe takes it off.
+  expect(screen.queryByTestId('rack-pencil')).toBeNull();
+  expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: lookbook.rack.remove('Camel wool coat') }),
+  ).toBeTruthy();
   expect(screen.queryByRole('header', { name: copy.rack })).toBeNull();
   await fireEvent.press(tabs.getByRole('radio', { name: wardrobe.header.grid }));
   expect(screen.queryByTestId(`rack-row-${PIECE_ID}`)).toBeNull();
@@ -1214,12 +1252,11 @@ test('once a piece hangs, the toggle on the tabs line turns the rows to small ph
   expect(screen.getAllByTestId('rack-grid-tile')).toHaveLength(1);
   expect(screen.getByLabelText('Camel wool coat')).toBeTruthy();
   expect(screen.queryByText('Camel wool coat')).toBeNull();
-  // The pencil puts the tiles in edit mode (Robes MVP 2b): × on the corner, swap at the foot.
-  await fireEvent.press(screen.getByTestId('rack-pencil'));
+  // A tile is a quick view (Annie, 27 Nov): nothing on it swaps or removes.
   expect(
-    screen.getByRole('button', { name: lookbook.rack.remove('Camel wool coat') }),
-  ).toBeTruthy();
-  expect(screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeTruthy();
+    screen.queryByRole('button', { name: lookbook.rack.remove('Camel wool coat') }),
+  ).toBeNull();
+  expect(screen.queryByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeNull();
 });
 
 // A look Robes made from her words opens on its pieces' photographs (Annie, 16 Nov).
@@ -1235,8 +1272,8 @@ test('a draft Robes made opens its rack on the photographs', async () => {
 
 // Add a photo to a look (Capture PRD flow 3): the Add a photo card opens the camera that only
 // adds an image. A shot reads Retake, a library photo Another; Add to look stages the photograph,
-// the Photos count goes up, and the strip's ✓ keeps it as the cover there and then — it is never a
-// change waiting for Update look (Annie, 11 Nov). Nothing reads its pieces.
+// the Photos count goes up, and the strip's ✓ keeps it as the cover there and then (Annie,
+// 11 Nov). Nothing reads its pieces.
 test('add a photo to a look: camera, Retake or Another, Add to look, then the strip’s ✓ keeps it', async () => {
   const saved = look({ model: piece().image, onModel: 'ready' });
   const withPhoto = {
@@ -1251,10 +1288,11 @@ test('add a photo to a look: camera, Retake or Another, Add to look, then the st
     [`POST /looks/${LOOK_ID}/images`]: withPhoto,
     [`POST /looks/${LOOK_ID}/images/cover`]: withPhoto,
   });
-  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  // Home's + opens the sheet on the strip (`images=add`); Edit look opens on the pieces.
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} images="add" presentation="sheet" onClose={() => undefined} />,
+  );
   expect(await screen.findByTestId('image-manager')).toBeTruthy();
-  const update = () => screen.getByTestId('update-look');
-  expect(update().props.accessibilityState.disabled).toBe(true);
   expect(screen.queryByTestId('draft-done')).toBeNull();
   await fireEvent.press(screen.getByText(lookbook.savedLook.tabs.details));
   // The strip is the way to her photos: Details carries no Photos row (Annie, 19 Nov).
@@ -1276,11 +1314,10 @@ test('add a photo to a look: camera, Retake or Another, Add to look, then the st
   await fireEvent.press(await screen.findByRole('button', { name: cam.another }));
   await waitFor(() => expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledTimes(2));
 
-  // Add to look: the card joins the strip in focus; Update look and the tick stay off.
+  // Add to look: the card joins the strip in focus.
   await fireEvent.press(screen.getByRole('button', { name: cam.use }));
   expect(await screen.findByTestId('image-card-added')).toBeTruthy();
   expect(screen.queryByTestId('capture-review')).toBeNull();
-  expect(update().props.accessibilityState.disabled).toBe(true);
   // Nothing is written before the strip's ✓; the ✓ keeps the photograph and makes it the cover.
   expect(calls.some((c) => c.path.endsWith(`/looks/${LOOK_ID}/images`))).toBe(false);
   await fireEvent.press(screen.getByTestId('image-manager-done'));
@@ -1293,7 +1330,6 @@ test('add a photo to a look: camera, Retake or Another, Add to look, then the st
     expect(calls.find((c) => c.path.endsWith('/images/cover'))?.body).toEqual({ imageId: SCARF }),
   );
   await waitFor(() => expect(screen.queryByTestId('image-manager')).toBeNull());
-  expect(update().props.accessibilityState.disabled).toBe(true);
   // Adding a photograph never reads its pieces.
   expect(calls.some((c) => /photo-reads|pieces\/find/.test(c.path))).toBe(false);
 });

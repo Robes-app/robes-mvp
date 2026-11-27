@@ -72,6 +72,8 @@ export type AdjustEvent =
   | { type: 'settle' }
   // The rack changed (by the prompt or by hand): the picture falls one change behind.
   | { type: 'changed'; n?: number }
+  // Undo took a change made by hand back: the picture is one change less behind.
+  | { type: 'undone' }
   // The model was asked to wear the rack (Update the model, Dress it again, Save): caught up.
   | { type: 'drawn' }
   // Dress it again asks; her answer closes the question.
@@ -154,6 +156,8 @@ export function adjustReduce(state: AdjustState, event: AdjustEvent): AdjustStat
       return { ...state, thread: withoutWork(state.thread) };
     case 'changed':
       return { ...state, pending: state.pending + (event.n ?? 1) };
+    case 'undone':
+      return { ...state, pending: Math.max(0, state.pending - 1) };
     case 'drawn':
       return { ...state, pending: 0 };
     case 'ask':
